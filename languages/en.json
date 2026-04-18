@@ -1,0 +1,7 @@
+{
+  "ios": {
+    "NSUserTrackingUsageDescription": "We use tracking to measure marketing performance and improve the app experience.",
+    "NSCameraUsageDescription": "Veezy needs access to your camera to take a photo.",
+    "NSPhotoLibraryUsageDescription": "Veezy needs access to your photos to upload reference images."
+  }
+}

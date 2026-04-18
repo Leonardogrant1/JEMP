@@ -1,98 +1,112 @@
+import { JempText } from '@/components/jemp-text';
+import { Colors, Cyan, Electric } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const SESSION_IMAGE = require('@/assets/images/splash-icon.png');
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
-  );
+    return (
+        <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
+            <View style={styles.content}>
+
+                {/* ── Header ── */}
+                <View style={styles.header}>
+                    <View>
+                        <JempText type="body-sm" color={theme.textMuted}>Welcome Back,</JempText>
+                        <JempText type="h1">Leonardo</JempText>
+                    </View>
+                    <View style={[styles.avatar, { backgroundColor: theme.surface, borderColor: theme.borderCard }]}>
+                        <JempText type="button" color={theme.text}>L</JempText>
+                    </View>
+                </View>
+
+                {/* ── Session Card ── */}
+                <View style={styles.card}>
+                    <Image
+                        source={SESSION_IMAGE}
+                        style={StyleSheet.absoluteFill}
+                        contentFit="cover"
+                        contentPosition="top center"
+                    />
+                    <LinearGradient
+                        colors={['transparent', 'rgba(0,0,0,0.9)']}
+                        locations={[0.35, 1]}
+                        style={StyleSheet.absoluteFill}
+                    />
+                    <View style={styles.cardContent}>
+                        <JempText type="caption" color={theme.textMuted}>Todays Session</JempText>
+                        <JempText type="hero" color="#fff">Explosivity Focus</JempText>
+                        <JempText type="body-sm" color={theme.textMuted}>30 min</JempText>
+                    </View>
+                </View>
+
+                {/* ── CTA ── */}
+                <Pressable style={styles.cta}>
+                    <LinearGradient
+                        colors={[Cyan[500], Electric[500]]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.ctaGradient}
+                    >
+                        <JempText type="button" color="#fff">Start Session</JempText>
+                    </LinearGradient>
+                </Pressable>
+
+            </View>
+        </SafeAreaView>
+    );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+    root: {
+        flex: 1,
+    },
+    content: {
+        flex: 1,
+        paddingHorizontal: 20,
+        paddingTop: 8,
+        paddingBottom: 16,
+        gap: 20,
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    avatar: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    card: {
+        flex: 1,
+        borderRadius: 20,
+        overflow: 'hidden',
+    },
+    cardContent: {
+        position: 'absolute',
+        bottom: 20,
+        left: 20,
+        right: 20,
+        gap: 4,
+    },
+    cta: {
+        borderRadius: 100,
+        overflow: 'hidden',
+    },
+    ctaGradient: {
+        height: 56,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
 });

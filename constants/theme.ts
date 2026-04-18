@@ -1,53 +1,133 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
+// --- Primitive palette ---
 
-import { Platform } from 'react-native';
+type Theme = 'light' | 'dark';
+type ColorNames = typeof shared & { background: string, surface: string, cardElevated: string, textHeadline: string, text: string, textMuted: string, textSubtle: string, textPlaceholder: string, borderDivider: string, borderCard: string, borderStrong: string, icon: string };
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+export const Neutral = {
+  1: '#ffffff',
+  2: '#fcfcfc',
+  3: '#f5f5f5',
+  4: '#f0f0f0',
+  5: '#d9d9d9',
+  6: '#bfbfbf',
+  7: '#8c8c8c',
+  8: '#595959',
+  9: '#454545',
+  10: '#262626',
+  11: '#1f1f1f',
+  12: '#141414',
+  13: '#000000',
+} as const;
 
-export const Colors = {
+export const Electric = {
+  50: '#ecf3fc',
+  100: '#c3ddf6',
+  200: '#a5c6fc',
+  300: '#7cb2f9',
+  400: '#6399f6',
+  500: '#3b82f6',
+  600: '#3775e0',
+  700: '#2b5cbe',
+  800: '#214887',
+  900: '#19377c',
+} as const;
+
+export const Cyan = {
+  50: '#e8f6f6',
+  100: '#b5e3e0',
+  200: '#93ded6',
+  300: '#82cfc3',
+  400: '#74c6b8',
+  500: '#14b8a6',
+  600: '#13a797',
+  700: '#0f8376',
+  800: '#0c655d',
+  900: '#094c46',
+} as const;
+
+
+// --- Shared semantic tokens ---
+
+const shared = {
+  // Primary (Electric)
+  primary: Electric[500],
+  primaryHover: Electric[400],
+  primaryPressed: Electric[600],
+  primarySubtle: 'rgba(59, 130, 246, 0.15)',
+
+  // Secondary (Cyan)
+  secondary: Cyan[500],
+  secondaryHover: Cyan[400],
+  secondaryPressed: Cyan[600],
+  secondarySubtle: 'rgba(20, 184, 166, 0.15)',
+
+  // States
+  success: Cyan[500],
+  successSubtle: 'rgba(20, 184, 166, 0.15)',
+
+  // Misc
+  overlay: 'rgba(0,0,0,0.5)',
+} as const;
+
+
+// --- Semantic tokens (light & dark) ---
+
+export const Colors: Record<Theme, ColorNames> = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
-  },
-  dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
-  },
-};
+    ...shared,
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
+    // Backgrounds
+    background: Neutral[1],
+    surface: Neutral[2],
+    cardElevated: Neutral[1],
+
+    // Text
+    textHeadline: Neutral[13],
+    text: Neutral[11],
+    textMuted: Neutral[8],
+    textSubtle: Neutral[7],
+    textPlaceholder: Neutral[5],
+
+    // Borders
+    borderDivider: Neutral[4],
+    borderCard: Neutral[3],
+    borderStrong: Neutral[6],
+
+    // Icons
+    icon: Neutral[8],
   },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
+
+  dark: {
+    ...shared,
+
+    // Backgrounds
+    background: Neutral[13],
+    surface: Neutral[12],
+    cardElevated: Neutral[11],
+
+    // Text
+    textHeadline: Neutral[1],
+    text: Neutral[1],
+    textMuted: Neutral[6],
+    textSubtle: Neutral[7],
+    textPlaceholder: Neutral[8],
+
+    // Borders
+    borderDivider: Neutral[10],
+    borderCard: Neutral[11],
+    borderStrong: Neutral[8],
+
+    // Icons
+    icon: Neutral[6],
   },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+} as const;
+
+
+// --- Fonts ---
+
+export const Fonts = {
+  satoshiRegular: 'Satoshi-Regular',
+  satoshiMedium: 'Satoshi-Medium',
+  satoshiBold: 'Satoshi-Bold',
+  satoshiBlack: 'Satoshi-Black',
+} as const;
