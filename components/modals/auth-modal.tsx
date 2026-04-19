@@ -2,7 +2,9 @@ import Google from '@/assets/icons/google.svg';
 import { JempText } from '@/components/jemp-text';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAuth } from '@/providers/auth-provider';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -22,6 +24,13 @@ export function AuthModal({ visible, onClose }: Props) {
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const insets = useSafeAreaInsets();
+    const router = useRouter();
+    const { signInWithGoogle, signInWithApple } = useAuth();
+
+    function handleEmailPress() {
+        handleClose();
+        router.push('/magic-link');
+    }
 
     const translateY = useSharedValue(600);
     const overlayOpacity = useSharedValue(0);
@@ -68,17 +77,17 @@ export function AuthModal({ visible, onClose }: Props) {
 
                     {/* Buttons */}
                     <View style={styles.body}>
-                        <Pressable style={styles.appleBtn}>
+                        <Pressable style={styles.appleBtn} onPress={signInWithApple}>
                             <Ionicons name="logo-apple" size={20} color={theme.background} />
                             <Text style={styles.appleBtnText}>Continue with Apple</Text>
                         </Pressable>
 
-                        <Pressable style={styles.socialBtn}>
+                        <Pressable style={styles.socialBtn} onPress={signInWithGoogle}>
                             <Google width={20} height={20} />
                             <JempText type="button" color={theme.text}>Continue with Google</JempText>
                         </Pressable>
 
-                        <Pressable style={styles.socialBtn}>
+                        <Pressable style={styles.socialBtn} onPress={handleEmailPress}>
                             <Ionicons name="mail-outline" size={20} color={theme.textMuted} />
                             <JempText type="button" color={theme.text}>Continue with Email</JempText>
                         </Pressable>

@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.leonardogrant1.jemp"
+      "bundleIdentifier": "studio.northbyte.jemp"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +25,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.leonardogrant1.jemp"
+      "package": "studio.northbyte.jemp"
     },
     "web": {
       "output": "static",
@@ -45,7 +45,15 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@react-native-google-signin/google-signin",
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.855255853074-c396ffah7fudi5coiairklfpe09984k1"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

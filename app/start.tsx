@@ -29,6 +29,7 @@ export default function StartScreen() {
         initI18n(lang);
     }, []);
 
+
     function handleComplete() {
         router.replace('/(tabs)');
     }

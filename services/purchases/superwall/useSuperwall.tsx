@@ -1,5 +1,4 @@
 import { trackerManager } from '@/lib/tracking/tracker-manager';
-import { showPremiumWelcomeRef } from '@/components/modals/PremiumWelcomeModal';
 import { cancelPaywallAbandonNotification } from '@/services/notifications';
 import { useRevenueCat } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
 import { devError, devLog } from "@/utils/dev-log";
@@ -68,7 +67,6 @@ export const SuperwallFunctionsProvider = ({ children }: { children: React.React
             trackerManager.track(eventName, { paywall_name: info?.name ?? 'unknown', result: result?.type });
             if (result?.type === 'purchased' || result?.type === 'restored') {
                 await refreshUserInfoWithRetry(PREMIUM_IDENTIFIER);
-                showPremiumWelcomeRef.current();
             }
             const cb = pendingDismissRef.current;
             pendingDismissRef.current = null;

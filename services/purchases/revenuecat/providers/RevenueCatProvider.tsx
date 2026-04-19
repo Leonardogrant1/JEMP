@@ -1,10 +1,6 @@
-import { MediaHandler } from '@/lib/media-handler';
+import i18n, { AppLanguage } from '@/i18n';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { scheduleTrialEndReminder } from '@/services/notifications';
-import { UserCloudSync } from '@/services/user-cloud-sync';
-import { WidgetBridge } from '@/services/widgets/widget-bridge';
-import { useUserDataStore } from "@/stores/UserDataStore";
-import { useVisionStore } from "@/stores/VisionStore";
 import { getOrCreateAnonymousId } from "@/utils/anonymous-id";
 import { devError, devLog } from '@/utils/dev-log';
 import { wait } from '@/utils/wait';
@@ -17,10 +13,8 @@ import { PREMIUM_IDENTIFIER, REVENUECAT_API_KEYS } from "../constants";
 interface RevenueCatContextType {
     packages: PurchasesPackage[];
     customerInfo: CustomerInfo | null;
-    generationCount: number | null;
     presentPaywall: () => Promise<PAYWALL_RESULT>;
     refreshUserInfo: () => Promise<void>;
-    refreshGenerationCount: () => Promise<void>;
     hasEntitlement: (entitlement: string) => boolean;
     refreshUserInfoWithRetry: (entitlement: string) => Promise<boolean>;
 }
@@ -34,23 +28,8 @@ interface RevenueCatProviderProps {
 export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
     const [packages, setPackages] = useState<PurchasesPackage[]>([]);
     const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
-    const [generationCount, setGenerationCount] = useState<number | null>(null);
 
-    const fetchGenerationCount = async () => {
-        const userId = useUserDataStore.getState().userId;
-        if (!userId) return;
-        try {
-            const res = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/user-data/generations`, {
-                headers: { 'x-rc-user-id': userId },
-            });
-            if (!res.ok) return;
-            const { count } = await res.json();
-            setGenerationCount(count);
-        } catch {
-            // silent fail — count stays null
-            devLog("Failed to fetch generation count")
-        }
-    };
+
 
     useEffect(() => {
         const init = async () => {
@@ -65,21 +44,10 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
             await Purchases.logIn(userId);
             trackerManager.identify(userId);
 
-            useUserDataStore.setState({ userId });
-
             const [info] = await Promise.all([
                 Purchases.getCustomerInfo(),
-                UserCloudSync.restore().catch((e) => { console.log(e); return false; }),
             ]);
             setCustomerInfo(info);
-            useUserDataStore.setState({ isPremium: info.entitlements.active[PREMIUM_IDENTIFIER] !== undefined });
-
-            fetchGenerationCount();
-
-            const visions = useVisionStore.getState().visions;
-            await Promise.all(visions.map((v) => MediaHandler.resolveUri(v.imagePath).catch(() => { })));
-            WidgetBridge.sync(visions).catch(() => { });
-
             loadOfferings();
         };
         init();
@@ -106,8 +74,6 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
         await Purchases.invalidateCustomerInfoCache();
         const info = await Purchases.getCustomerInfo();
         setCustomerInfo(info);
-        useUserDataStore.setState({ isPremium: info.entitlements.active[PREMIUM_IDENTIFIER] !== undefined });
-        await fetchGenerationCount();
 
         // Neuer Trial erkannt (vorher kein Trial, jetzt Trial aktiv)
         const isNowOnTrial = info.entitlements.active[PREMIUM_IDENTIFIER]?.periodType === 'TRIAL';
@@ -121,7 +87,7 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
                     : null);
 
             if (trialEndISO) {
-                const language = useUserDataStore.getState().language;
+                const language = (i18n.language || 'en') as AppLanguage;
                 scheduleTrialEndReminder(trialEndISO, language).catch(() => { });
             }
         }
@@ -163,7 +129,7 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
     };
 
     return (
-        <RevenueCatContext.Provider value={{ packages, customerInfo, generationCount, presentPaywall, refreshUserInfo, refreshGenerationCount: fetchGenerationCount, hasEntitlement, refreshUserInfoWithRetry }}>
+        <RevenueCatContext.Provider value={{ packages, customerInfo, presentPaywall, refreshUserInfo, hasEntitlement, refreshUserInfoWithRetry }}>
             {children}
         </RevenueCatContext.Provider>
     );
