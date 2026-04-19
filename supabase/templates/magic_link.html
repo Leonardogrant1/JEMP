@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dein Login Code</title>
+    <style>
+        @font-face {
+            font-family: 'Satoshi';
+            src: url('https://laciueqbsljlmzqcdtpr.supabase.co/storage/v1/object/public/assets/fonts/Satoshi-Regular.otf') format('opentype');
+            font-weight: 400;
+        }
+
+        @font-face {
+            font-family: 'Satoshi';
+            src: url('https://laciueqbsljlmzqcdtpr.supabase.co/storage/v1/object/public/assets/fonts/Satoshi-Medium.otf') format('opentype');
+            font-weight: 500;
+        }
+
+        @font-face {
+            font-family: 'Satoshi';
+            src: url('https://laciueqbsljlmzqcdtpr.supabase.co/storage/v1/object/public/assets/fonts/Satoshi-Bold.otf') format('opentype');
+            font-weight: 700;
+        }
+
+        @font-face {
+            font-family: 'Satoshi';
+            src: url('https://laciueqbsljlmzqcdtpr.supabase.co/storage/v1/object/public/assets/fonts/Satoshi-Black.otf') format('opentype');
+            font-weight: 900;
+        }
+
+        @font-face {
+            font-family: 'Satoshi';
+            src: url('https://laciueqbsljlmzqcdtpr.supabase.co/storage/v1/object/public/assets/fonts/Satoshi-BlackItalic.otf') format('opentype');
+            font-weight: 900;
+            font-style: italic;
+        }
+
+        /* Dark theme tokens:
+       background:    #000000  (Neutral[13])
+       surface:       #141414  (Neutral[12])
+       cardElevated:  #1f1f1f  (Neutral[11])
+       borderDivider: #262626  (Neutral[10])
+       borderCard:    #1f1f1f  (Neutral[11])
+       textHeadline:  #ffffff  (Neutral[1])
+       text:          #ffffff  (Neutral[1])
+       textMuted:     #bfbfbf  (Neutral[6])
+       textSubtle:    #8c8c8c  (Neutral[7])
+       primary:       #3b82f6  (Electric[500])
+       secondary:     #14b8a6  (Cyan[500])
+    */
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #000000;
+            font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 400;
+            padding: 40px 16px;
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            background: #141414;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid #1f1f1f;
+        }
+
+        .header {
+            padding: 28px 36px;
+            border-bottom: 1px solid #262626;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-brand {
+            font-size: 17px;
+            font-weight: 900;
+            font-style: italic;
+            text-transform: uppercase;
+            color: #ffffff;
+            letter-spacing: 0.05em;
+        }
+
+        .body {
+            padding: 36px 36px 28px;
+        }
+
+        .greeting {
+            font-size: 14px;
+            color: #8c8c8c;
+            margin-bottom: 6px;
+            font-weight: 400;
+        }
+
+        .headline {
+            font-size: 28px;
+            font-weight: 900;
+            color: #ffffff;
+            line-height: 1.2;
+            letter-spacing: -0.5px;
+            margin-bottom: 36px;
+        }
+
+        .otp-label {
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #595959;
+            margin-bottom: 10px;
+        }
+
+        .otp-box {
+            background: #1f1f1f;
+            border: 1px solid #262626;
+            border-radius: 14px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+        }
+
+        .otp-code {
+            font-size: 36px;
+            font-weight: 900;
+            letter-spacing: 0.18em;
+            color: #ffffff;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .otp-expires {
+            font-size: 12px;
+            color: #595959;
+            text-align: right;
+            line-height: 1.6;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .divider-line {
+            flex: 1;
+            height: 1px;
+            background: #262626;
+        }
+
+        .divider-text {
+            font-size: 12px;
+            color: #595959;
+            white-space: nowrap;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            background: linear-gradient(90deg, #14b8a6, #3b82f6);
+            color: #ffffff;
+            text-decoration: none;
+            text-align: center;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 32px;
+        }
+
+        .note {
+            font-size: 13px;
+            color: #595959;
+            line-height: 1.7;
+            margin-bottom: 16px;
+        }
+
+        .note a {
+            color: #8c8c8c;
+            word-break: break-all;
+        }
+
+        .footer {
+            border-top: 1px solid #262626;
+            padding: 18px 36px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-brand {
+            font-size: 12px;
+            font-weight: 500;
+            color: #454545;
+        }
+
+        .footer-copy {
+            font-size: 12px;
+            color: #262626;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <svg width="26" height="28" viewBox="0 0 362 388" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <mask id="logoMask" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="362"
+                    height="388">
+                    <path
+                        d="M165.289 147.114C169.98 149.164 176.882 153.919 181.525 156.512C189.139 160.764 196.71 165.241 204.216 169.679L247.422 194.82C258.898 201.52 270.648 208.604 282.158 215.165L240.902 253.138L222.472 270.09C218.094 274.103 213.813 277.838 209.563 282.003C204.794 286.57 199.747 290.773 195.094 295.413C195.317 292.958 202.672 273.175 203.855 269.91L209.956 253.038C211.574 248.445 212.97 244.031 214.827 239.491C215.861 236.919 217.119 234.443 218.586 232.091C224.024 223.277 234.044 216.252 244.109 213.849C238.216 213.123 231.137 213.645 225.05 212.714C222.176 212.274 218.263 212.749 215.252 212.405C207.235 211.488 199.186 211.523 191.147 210.915C182.627 210.474 175.117 209.9 167.72 204.975C160.593 200.23 155.078 192.375 153.345 183.905C150.103 168.068 157.092 159.448 165.289 147.114Z"
+                        fill="#FEFEFE" />
+                    <path
+                        d="M252.145 73.8065C254.615 74.2915 275.79 94.2893 280.208 97.2448C278.653 98.9293 277.33 100.929 275.85 102.689C260.018 121.505 245.211 141.678 229.132 160.246C227.851 161.856 226.558 163.455 225.253 165.044C224.917 161.766 221.604 150.396 220.62 146.789L211.241 113.014C209.835 107.902 208.278 102.829 207.085 97.6648C218.74 102.287 230.868 100.321 240.727 92.8533C245.981 88.8735 251.3 80.329 252.145 73.8065Z"
+                        fill="#FEFEFE" />
+                    <path
+                        d="M286.555 30.5948C296.66 29.6308 308.087 37.182 311.422 46.7143C317.56 64.2505 304.782 82.0278 288.555 88.0383C287.002 88.1893 278.297 80.204 276.682 78.5745C272.535 74.3923 265.172 70.348 263.262 64.841C258.78 51.9213 265.362 37.8893 277.9 32.607C281.082 31.2538 283.23 31.0375 286.555 30.5948Z"
+                        fill="#FEFEFE" />
+                    <path
+                        d="M166.577 39.0988C177.006 38.175 183.811 41.1988 192.79 45.524C188.496 53.1825 185.997 58.4638 186.566 67.7485C186.732 70.454 187.577 73.549 187.893 76.372L187.601 76.6758C182.177 75.962 172.821 67.5998 166.892 68.9758C162.245 70.0545 155.959 73.2348 151.501 75.2683L134.479 82.9278C130.481 84.758 126.205 86.8725 122.185 88.5363C116.297 91.272 110.425 94.0073 104.428 96.4925C102.588 97.255 99.1049 99.3383 97.4231 99.726L97.2139 99.402C97.6231 98.0405 101.53 94.594 102.788 93.2393L116.782 78.1108L135.163 58.098C137.997 55.034 144.102 48.224 147.394 45.9535C153.1 42.0708 159.703 39.7113 166.577 39.0988Z"
+                        fill="#FEFEFE" />
+                    <path
+                        d="M157.362 244.068L157.886 244.283L157.964 244.714C157.336 245.738 154.881 247.529 153.815 248.516L140.009 261.2C116.541 282.813 92.8331 304.162 68.8903 325.245L68.6123 325.225L68.3311 324.88C68.3698 323.665 77.5106 301.683 78.7951 298.263C83.4178 285.96 88.4666 273.16 93.1296 260.807C93.5958 259.572 94.2546 258.237 95.0188 257.152C97.4898 256.442 102.684 255.877 105.612 255.245L138.449 248.385C144.627 247.079 151.35 245.805 157.362 244.068Z"
+                        fill="#FEFEFE" />
+                    <path
+                        d="M344.223 90.1202L344.498 90.1952C345.18 90.9962 344.87 116.544 344.715 119.466C344.575 121.757 344.308 124.039 343.915 126.301C340.108 147.729 314.813 159.987 295.478 149.489C294.303 148.991 290.965 147.123 290.603 145.966C292.59 143.309 295.705 140.25 298.085 137.834L309.48 126.341C321.115 114.507 332.705 102.115 344.223 90.1202Z"
+                        fill="#FEFEFE" />
+                    <path
+                        d="M144.159 192.369C144.855 192.703 147.95 199.617 148.88 201.045C157.398 214.129 168.282 218.596 182.765 221.176C180.71 222.841 174.75 228.704 173.34 229.637C170.633 231.427 158.139 233.439 154.542 234.09C143.954 236.378 133.344 238.563 122.714 240.645C123.593 237.296 127.476 228.848 129.087 225.228C133.872 214.474 138.792 202.79 144.159 192.369Z"
+                        fill="#FEFEFE" />
+                    <path
+                        d="M202.482 49.5912C205.954 50.888 209.839 52.7682 213.27 54.3225L226.765 60.343C230.917 62.212 239.195 65.4995 242.796 67.715C242.783 68.1757 242.753 68.6357 242.704 69.094C241.982 75.761 238.237 81.162 233.103 85.2657C219.506 95.4112 200.511 86.8602 197.209 70.7382C195.341 61.6157 197.878 57.0612 202.482 49.5912Z"
+                        fill="#FEFEFE" />
+                    <path
+                        d="M194.802 95.426C195.688 96.2922 196.061 98.6162 196.416 99.9142L199.488 111.053C202.258 120.827 204.97 130.618 207.623 140.424C209.703 147.97 211.584 154.352 213.331 162.037C209.433 160.351 202.229 155.929 198.389 153.615C195.224 151.683 172.197 138.414 171.522 137.19C172.828 133.643 175.523 129.428 177.434 126.04L187.721 107.735C188.679 106.039 193.869 96.4377 194.802 95.426Z"
+                        fill="#FEFEFE" />
+                    <path
+                        d="M40.6477 306.338C47.5662 306.718 57.3559 306.343 64.4254 306.218C62.8522 309.213 60.7352 314.61 59.2802 317.925L48.2782 343.243C47.3704 346.573 43.1152 355.878 41.3674 359.07C40.8609 346.028 40.5127 332.98 40.3227 319.93C40.2962 317.488 40.0524 308.338 40.6477 306.338Z"
+                        fill="#FEFEFE" />
+                    <path
+                        d="M287.957 104.669C290.365 105.55 302.795 117.474 305.437 120.111C299.23 122.692 289.2 124.484 282.437 126.374C279.457 126.919 270.87 129.535 268.525 129.65L268.397 129.291C269.212 127.308 285.947 106.773 287.957 104.669Z"
+                        fill="#FEFEFE" />
+                </mask>
+                <g mask="url(#logoMask)">
+                    <rect x="-24" y="-11" width="410" height="410" fill="url(#logoGrad)" />
+                </g>
+                <defs>
+                    <linearGradient id="logoGrad" x1="181" y1="-11" x2="181" y2="399" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#14b8a6" />
+                        <stop offset="1" stop-color="#3b82f6" />
+                    </linearGradient>
+                </defs>
+            </svg>
+            <span class="header-brand">jemp</span>
+        </div>
+
+        <div class="body">
+            <p class="greeting">Hey,</p>
+            <h1 class="headline">Dein Login-Code<br>ist da</h1>
+
+            <a href="{{ .ConfirmationURL }}" class="btn">Mit einem Klick einloggen</a>
+
+            <div class="divider">
+                <div class="divider-line"></div>
+                <span class="divider-text">oder Code manuell eingeben</span>
+                <div class="divider-line"></div>
+            </div>
+
+            <p class="otp-label">Einmalcode</p>
+            <div class="otp-box">
+                <span class="otp-code">{{ .Token }}</span>
+                <span class="otp-expires">Gültig für<br>10 Minuten</span>
+            </div>
+
+            <p class="note">
+                Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:<br>
+                <a href="{{ .ConfirmationURL }}">{{ .ConfirmationURL }}</a>
+            </p>
+
+            <p class="note">
+                Du hast keinen Login angefordert? Dann ignoriere diese E-Mail einfach.
+            </p>
+        </div>
+
+        <div class="footer">
+            <span class="footer-brand">jemp · Northbyte Studio</span>
+            <span class="footer-copy">© 2025</span>
+        </div>
+    </div>
+</body>
+
+</html>
