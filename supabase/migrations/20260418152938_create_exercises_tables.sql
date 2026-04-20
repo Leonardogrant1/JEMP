@@ -7,16 +7,48 @@ CREATE TABLE IF NOT EXISTS block_types (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TYPE movement_pattern AS ENUM ('push', 'pull', 'legs', 'core', 'isometric', 'plyometric', 'cardio', 'other');
+CREATE TYPE movement_pattern AS ENUM ('push', 'pull', 'legs', 'core', 'isometric', 'plyometric', 'mobility', 'cardio', 'other');
+
+CREATE TYPE body_region AS ENUM (
+    -- Unterkörper
+    'ankle',
+    'calf',
+    'knee',
+    'quad',
+    'hamstring',
+    'glute',
+    'hip',
+    'groin',
+
+    -- Rumpf
+    'lower_back',
+    'core',
+    'obliques',
+
+    -- Oberkörper
+    'thoracic',
+    'upper_back',
+    'chest',
+    'shoulder',
+    'bicep',
+    'tricep',
+    'forearm',
+
+    -- Allgemein
+    'full_body',
+    'neck'
+);
 
 CREATE TABLE IF NOT EXISTS exercises (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     slug TEXT NOT NULL,
+    description TEXT,
     movement_pattern movement_pattern,
+    body_region body_region,
     category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
-    min_level INT NOT NULL CHECK (min_level >= 1 AND min_level <= 5),
-    max_level INT NOT NULL CHECK (max_level >= 1 AND max_level <= 5),
+    min_level INT NOT NULL CHECK (min_level >= 1 AND min_level <= 100),
+    max_level INT NOT NULL CHECK (max_level >= 1 AND max_level <= 100),
     youtube_url TEXT,
     thumbnail_storage_path TEXT,
     video_storage_path TEXT,

@@ -6,8 +6,8 @@ CREATE TABLE IF NOT EXISTS assessments (
     name TEXT NOT NULL,
     description TEXT,
     measured_metric_id UUID REFERENCES metrics(id) ON DELETE CASCADE,
-    min_level INT NOT NULL CHECK (min_level >= 1 AND min_level <= 5),
-    max_level INT NOT NULL CHECK (max_level >= 1 AND max_level <= 5),
+    min_level INT NOT NULL CHECK (min_level >= 1 AND min_level <= 100),
+    max_level INT NOT NULL CHECK (max_level >= 1 AND max_level <= 100),
     category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()

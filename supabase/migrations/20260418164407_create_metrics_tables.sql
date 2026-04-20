@@ -1,4 +1,4 @@
-CREATE TYPE metric_unit AS ENUM ('kg', 'm', 's', 'min', 'hr', 'kcal', 'bpm', 'percent', 'count', 'other');
+CREATE TYPE metric_unit AS ENUM ('kg', 'm', 'cm', 's', 'min', 'hr', 'kcal', 'bpm', 'percent', 'count', 'other');
 
 CREATE TYPE metric_source_type AS ENUM ('manual', 'assessment', 'session', 'derived');
 

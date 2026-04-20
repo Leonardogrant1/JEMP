@@ -1,6 +1,54 @@
 
 CREATE TYPE gender AS ENUM ('male', 'female', 'other');
-CREATE TYPE sports_category AS ENUM ('combat_sports', 'team_sports', 'individual_sports', 'endurance_sports', 'other');
+CREATE TYPE sports_category AS ENUM (
+    -- Kampfsport
+    'boxing',
+    'mma',
+    'wrestling',
+    'judo',
+    'bjj',
+    'kickboxing',
+    'karate',
+    'taekwondo',
+
+    -- Teamsport
+    'football',
+    'basketball',
+    'volleyball',
+    'handball',
+    'rugby',
+    'hockey',
+    'soccer',
+
+    -- Leichtathletik
+    'sprinting',
+    'jumping',
+    'throwing',
+
+    -- Kraft
+    'powerlifting',
+    'weightlifting',
+    'crossfit',
+    'bodybuilding',
+
+    -- Ausdauer
+    'running',
+    'cycling',
+    'swimming',
+    'triathlon',
+
+    -- Racket
+    'tennis',
+    'badminton',
+    'squash',
+
+    -- Sonstiges
+    'gymnastics',
+    'climbing',
+    'other'
+);
+
+
 CREATE TYPE session_duration AS ENUM (
     '30min',
     '45min',
