@@ -1,6 +1,7 @@
 import { TabBar } from '@/components/tab-bar';
 import { useAuth } from '@/providers/auth-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
+import { PlanProvider } from '@/providers/plan-provider';
 import { supabase } from '@/services/supabase/client';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { Tabs } from 'expo-router';
@@ -12,6 +13,7 @@ export default function TabLayout() {
   const resetOnboardingStore = useOnboardingStore(s => s.reset);
 
   return (
+    <PlanProvider>
     <View style={{ flex: 1 }}>
       <Tabs
         tabBar={props => <TabBar {...props} />}
@@ -77,6 +79,7 @@ export default function TabLayout() {
         </View>
       )}
     </View>
+    </PlanProvider>
   );
 }
 
