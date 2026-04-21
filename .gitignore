@@ -45,3 +45,8 @@ app-example
 # env files
 .env
 .env.local
+
+test-scripts
+
+# git worktrees
+.worktrees/
