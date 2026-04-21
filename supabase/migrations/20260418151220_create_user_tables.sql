@@ -1,52 +1,5 @@
 
 CREATE TYPE gender AS ENUM ('male', 'female', 'other');
-CREATE TYPE sports_category AS ENUM (
-    -- Kampfsport
-    'boxing',
-    'mma',
-    'wrestling',
-    'judo',
-    'bjj',
-    'kickboxing',
-    'karate',
-    'taekwondo',
-
-    -- Teamsport
-    'football',
-    'basketball',
-    'volleyball',
-    'handball',
-    'rugby',
-    'hockey',
-    'soccer',
-
-    -- Leichtathletik
-    'sprinting',
-    'jumping',
-    'throwing',
-
-    -- Kraft
-    'powerlifting',
-    'weightlifting',
-    'crossfit',
-    'bodybuilding',
-
-    -- Ausdauer
-    'running',
-    'cycling',
-    'swimming',
-    'triathlon',
-
-    -- Racket
-    'tennis',
-    'badminton',
-    'squash',
-
-    -- Sonstiges
-    'gymnastics',
-    'climbing',
-    'other'
-);
 
 
 CREATE TYPE session_duration AS ENUM (
@@ -63,7 +16,6 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     last_name TEXT,
     birth_date DATE,
     gender gender,
-    sports_category sports_category,
     height_in_cm INTEGER,
     weight_in_kg NUMERIC(5,2),
     preferred_workout_days INTEGER[] DEFAULT '{1,2,3,4,5,6,7}',
@@ -79,7 +31,7 @@ CREATE TABLE IF NOT EXISTS user_category_levels (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
     category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-    level_score INTEGER NOT NULL CHECK (level_score BETWEEN 1 AND 5),
+    level_score INTEGER NOT NULL CHECK (level_score BETWEEN 1 AND 100),
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -88,6 +40,7 @@ CREATE TABLE IF NOT EXISTS user_targeted_categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
     category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    priority INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );

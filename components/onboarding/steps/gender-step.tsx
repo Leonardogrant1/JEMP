@@ -1,27 +1,29 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
+import { useOnboardingStore } from '@/stores/onboarding-store';
+import { Gender } from '@/types/database';
 
-const OPTIONS = [
-    { value: 'Male', label: 'Mann' },
-    { value: 'Female', label: 'Frau' },
-    { value: 'Other', label: 'Divers' },
-    { value: 'Prefer not to say', label: 'Keine Angabe' },
-] as const;
+const OPTIONS: { value: Gender; label: string }[] = [
+    { value: 'male', label: 'Männlich' },
+    { value: 'female', label: 'Weiblich' },
+    { value: 'other', label: 'Divers' },
+];
 
 export function GenderStep() {
     const { setCanContinue } = useOnboardingControl();
-    const [selected, setSelected] = useState<string | null>(null);
+    const setStore = useOnboardingStore((s) => s.set);
+    const [selected, setSelected] = useState<Gender | null>(null);
 
-    function select(value: string) {
+    function select(value: Gender) {
         setSelected(value);
+        setStore({ gender: value });
         setCanContinue(true);
     }
 
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Dein Geschlecht</Text>
-            <Text style={styles.subtitle}>Wir passen das generierte Bild an dich an.</Text>
             <View style={styles.options}>
                 {OPTIONS.map((opt) => (
                     <TouchableOpacity
@@ -50,17 +52,9 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 28,
         fontWeight: '700',
-        marginBottom: 10,
-    },
-    subtitle: {
-        color: 'rgba(255,255,255,0.5)',
-        fontSize: 14,
-        lineHeight: 20,
         marginBottom: 36,
     },
-    options: {
-        gap: 12,
-    },
+    options: { gap: 12 },
     option: {
         backgroundColor: 'rgba(255,255,255,0.07)',
         borderRadius: 14,
@@ -78,7 +72,5 @@ const styles = StyleSheet.create({
         fontSize: 17,
         fontWeight: '600',
     },
-    optionTextSelected: {
-        color: 'white',
-    },
+    optionTextSelected: { color: 'white' },
 });

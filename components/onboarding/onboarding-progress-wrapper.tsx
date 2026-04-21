@@ -46,11 +46,54 @@ export function OnboardingProgressWrapper({ steps }: Props) {
             trackerManager.track('onboarding_completed');
             if (session) {
                 devLog('Finishing onboarding for user:', session.user.id);
-                const { set, reset, ...profileData } = onboardingData;
-                await supabase
+                const {
+                    set,
+                    reset,
+                    targetedCategories,
+                    categoryLevels,
+                    equipmentIds,
+                    environmentIds,
+                    ...profileData
+                } = onboardingData;
+
+                const { error: profileError } = await supabase
                     .from('user_profiles')
                     .update({ ...profileData, has_onboarded: true })
                     .eq('id', session.user.id);
+                if (profileError) throw profileError;
+
+                if (targetedCategories.length > 0) {
+                    const { error: catError } = await supabase.from('user_targeted_categories').insert(
+                        targetedCategories.map(({ categoryId, priority }) => ({
+                            user_id: session.user.id,
+                            category_id: categoryId,
+                            priority,
+                        }))
+                    );
+                    if (catError) throw catError;
+                }
+
+                if (categoryLevels.length > 0) {
+                    const { error: levelError } = await supabase.from('user_category_levels').insert(
+                        categoryLevels.map(({ categoryId, score }) => ({
+                            user_id: session.user.id,
+                            category_id: categoryId,
+                            level_score: score,
+                        }))
+                    );
+                    if (levelError) throw levelError;
+                }
+
+                if (equipmentIds.length > 0) {
+                    const { error: equipError } = await supabase.from('user_equipments').insert(
+                        equipmentIds.map((equipment_id) => ({
+                            user_id: session.user.id,
+                            equipment_id,
+                        }))
+                    );
+                    if (equipError) throw equipError;
+                }
+
                 reset();
                 await refreshProfile();
             }

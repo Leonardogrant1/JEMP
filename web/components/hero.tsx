@@ -1,8 +1,21 @@
+import Image from "next/image";
 import { WaitlistForm } from "./waitlist-form";
 
 export function Hero() {
   return (
     <section className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
+
+      <div className="flex items-center gap-2 justify-center">
+        <Image
+          src="/logo.svg"
+          alt="JEMP"
+          width={45}
+          height={45}
+          priority
+          className="mb-8"
+        />
+        <h1 className="text-2xl sm:text-4xl font-black italic tracking-tight mb-6 max-w-3xl leading-tight">JEMP</h1>
+      </div>
       <div className="inline-block px-3 py-1 rounded-full bg-white/10 text-sm text-white/60 mb-6 border border-white/10">
         Bald verfügbar für iOS & Android
       </div>

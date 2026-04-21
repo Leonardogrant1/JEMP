@@ -13,7 +13,13 @@ export async function POST(req: NextRequest) {
       Authorization: `Bearer ${process.env.LOOPS_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email, source: "waitlist", subscribed: true }),
+    body: JSON.stringify({
+      email,
+      source: "waitlist",
+      subscribed: true,
+      app: "jemp",
+      waitlist: true,
+    }),
   });
 
   if (!res.ok) {

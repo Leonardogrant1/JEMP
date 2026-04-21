@@ -46,7 +46,7 @@ export default function TabLayout() {
                   last_name: null,
                   birth_date: null,
                   gender: null,
-                  sports_category: null,
+                  sport_id: null,
                   height_in_cm: null,
                   weight_in_kg: null,
                   preferred_workout_days: [],
