@@ -1,0 +1,10 @@
+@import url("https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap");
+@import "tailwindcss";
+
+@theme inline {
+  --color-brand-blue: #3b82f6;
+  --color-brand-cyan: #14b8a6;
+  --color-brand-bg: #0d0d0d;
+  --font-sans: "Satoshi", sans-serif;
+  --background-image-brand-gradient: linear-gradient(135deg, #14b8a6, #3b82f6);
+}
