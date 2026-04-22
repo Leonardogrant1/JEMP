@@ -1,0 +1,566 @@
+import { JempText } from '@/components/jemp-text';
+import { Colors, Cyan, Electric } from '@/constants/theme';
+import { formatTargetReps, loadUnit } from '@/helpers/format';
+import { youtubeThumbUrl } from '@/helpers/youtube';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useUpdateSessionProgress } from '@/mutations/use-update-session-progress';
+import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
+import { useUpsertPerformedSets } from '@/mutations/use-upsert-performed-set';
+import { useSessionDetailQuery } from '@/queries/use-session-detail-query';
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import {
+    ActivityIndicator,
+    Alert,
+    Linking,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    View,
+} from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const PLACEHOLDER = require('@/assets/images/splash-icon.png');
+
+// ── Types ────────────────────────────────────────────────────────────────
+
+type FlatExercise = {
+    id: string;
+    blockId: string;
+    blockType: { slug: string } | null;
+    exercise: {
+        id: string;
+        name: string;
+        body_region: string | null;
+        movement_pattern: string | null;
+        youtube_url: string | null;
+    };
+    target_sets: number | null;
+    target_reps_min: number | null;
+    target_reps_max: number | null;
+    target_duration_seconds: number | null;
+    target_rest_seconds: number | null;
+    target_load_type: string | null;
+    target_load_value: number | null;
+};
+
+// ── Screen ───────────────────────────────────────────────────────────────
+
+export default function ActiveSessionScreen() {
+    const { id } = useLocalSearchParams<{ id: string }>();
+    const router = useRouter();
+    const { t } = useTranslation();
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+
+    const { data: session, isLoading } = useSessionDetailQuery(id);
+    const updateStatus = useUpdateSessionStatus();
+    const updateProgress = useUpdateSessionProgress();
+    const upsertSets = useUpsertPerformedSets();
+
+    // Flatten exercises
+    const allExercises = useMemo<FlatExercise[]>(() => {
+        if (!session) return [];
+        return session.blocks.flatMap(block =>
+            block.exercises.map(ex => ({
+                ...ex,
+                blockId: block.id,
+                blockType: block.block_type,
+            })),
+        );
+    }, [session]);
+
+    // Init from saved progress
+    const [exerciseIdx, setExerciseIdx] = useState(0);
+    const [currentSet, setCurrentSet] = useState(1);
+    const [initialized, setInitialized] = useState(false);
+    const [reps, setReps] = useState('');
+    const [load, setLoad] = useState('');
+    const [previousSet, setPreviousSet] = useState<{ reps: string; load: string } | null>(null);
+
+    // Restore progress from DB on first load
+    useEffect(() => {
+        if (session && allExercises.length > 0 && !initialized) {
+            const savedIdx = Math.min(session.current_exercise_index, allExercises.length - 1);
+            setExerciseIdx(savedIdx);
+            setCurrentSet(session.current_set_number);
+            setInitialized(true);
+        }
+    }, [session, allExercises.length, initialized]);
+
+    // Rest timer
+    const [restSeconds, setRestSeconds] = useState(0);
+    const [isResting, setIsResting] = useState(false);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const current = allExercises[exerciseIdx] ?? null;
+    const totalSets = current?.target_sets ?? 1;
+    const isLastSet = currentSet >= totalSets;
+    const isLastExercise = exerciseIdx === allExercises.length - 1;
+    const unit = current ? loadUnit(current.target_load_type) : '';
+    const showLoad = unit !== '';
+
+    // Save progress to DB
+    const saveProgress = useCallback(async (exIdx: number, setNum: number) => {
+        if (!id) return;
+        await updateProgress.mutateAsync({ sessionId: id, currentExerciseIndex: exIdx, currentSetNumber: setNum });
+    }, [id, updateProgress]);
+
+    // Progress bar
+    const progressWidth = useSharedValue(0);
+    useEffect(() => {
+        if (allExercises.length > 0) {
+            progressWidth.value = withTiming((exerciseIdx + 1) / allExercises.length, { duration: 300 });
+        }
+    }, [exerciseIdx, allExercises.length]);
+    const progressStyle = useAnimatedStyle(() => ({
+        width: `${progressWidth.value * 100}%` as any,
+    }));
+
+    // Reset when exercise changes (but not on initial restore)
+    useEffect(() => {
+        if (!current || !initialized) return;
+        setReps('');
+        setLoad(current.target_load_value != null ? String(current.target_load_value) : '');
+        setPreviousSet(null);
+        stopTimer();
+    }, [exerciseIdx, current?.id]);
+
+    // Timer logic
+    const startTimer = useCallback((seconds: number) => {
+        stopTimer();
+        setRestSeconds(seconds);
+        setIsResting(true);
+        timerRef.current = setInterval(() => {
+            setRestSeconds(prev => {
+                if (prev <= 1) {
+                    stopTimer();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    }, []);
+
+    const stopTimer = useCallback(() => {
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+        }
+        setIsResting(false);
+        setRestSeconds(0);
+    }, []);
+
+    useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+
+    const formatTimer = (s: number) => {
+        const mins = Math.floor(s / 60);
+        const secs = s % 60;
+        return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    };
+
+    // Save set + progress in one go, then invalidate
+    const saveSetAndProgress = useCallback(async (nextExerciseIdx: number, nextSetNumber: number) => {
+        if (!current || !id) return;
+
+        // 1. Save progress first (so DB has next position before invalidation)
+        await updateProgress.mutateAsync({
+            sessionId: id,
+            currentExerciseIndex: nextExerciseIdx,
+            currentSetNumber: nextSetNumber,
+        });
+
+        // 2. Save performed set (this triggers session-detail invalidation)
+        if (reps.trim() !== '') {
+            await upsertSets.mutateAsync([{
+                workout_session_id: id,
+                workout_session_block_id: current.blockId,
+                workout_session_block_exercise_id: current.id,
+                set_number: currentSet,
+                performed_reps: parseInt(reps, 10),
+                performed_load_value: load.trim() !== '' ? parseFloat(load) : null,
+                performed_rpe: null,
+                performed_duration_seconds: null,
+                performed_distance_meters: null,
+            }]);
+        }
+    }, [current, id, currentSet, reps, load, upsertSets, updateProgress]);
+
+    // Log set & next
+    const handleLogSet = useCallback(async () => {
+        if (reps.trim() === '') return;
+
+        if (isLastSet && isLastExercise) {
+            await saveSetAndProgress(exerciseIdx, currentSet);
+            updateStatus.mutate(
+                { sessionId: id!, status: 'completed' },
+                { onSuccess: () => router.back() },
+            );
+        } else if (isLastSet) {
+            const nextIdx = exerciseIdx + 1;
+            await saveSetAndProgress(nextIdx, 1);
+            setPreviousSet({ reps, load });
+            setExerciseIdx(nextIdx);
+            setCurrentSet(1);
+        } else {
+            const nextSet = currentSet + 1;
+            await saveSetAndProgress(exerciseIdx, nextSet);
+            setPreviousSet({ reps, load });
+            setCurrentSet(nextSet);
+            setReps('');
+            if (current?.target_rest_seconds) {
+                startTimer(current.target_rest_seconds);
+            }
+        }
+    }, [reps, load, saveSetAndProgress, isLastSet, isLastExercise, id, exerciseIdx, currentSet, updateStatus, router, current, startTimer]);
+
+    // Skip set
+    const handleSkipSet = useCallback(async () => {
+        if (isLastSet && isLastExercise) {
+            Alert.alert(t('ui.finish_session_title'), t('ui.finish_session_message'), [
+                { text: t('ui.cancel'), style: 'cancel' },
+                {
+                    text: t('ui.finish'), style: 'destructive',
+                    onPress: () => {
+                        updateStatus.mutate(
+                            { sessionId: id!, status: 'completed' },
+                            { onSuccess: () => router.back() },
+                        );
+                    },
+                },
+            ]);
+        } else if (isLastSet) {
+            const nextIdx = exerciseIdx + 1;
+            await saveProgress(nextIdx, 1);
+            setExerciseIdx(nextIdx);
+            setCurrentSet(1);
+        } else {
+            const nextSet = currentSet + 1;
+            await saveProgress(exerciseIdx, nextSet);
+            setCurrentSet(nextSet);
+            setReps('');
+        }
+    }, [isLastSet, isLastExercise, id, exerciseIdx, currentSet, updateStatus, router, t, saveProgress]);
+
+    // Finish early
+    const handleFinishEarly = useCallback(() => {
+        Alert.alert(t('ui.finish_session_title'), t('ui.finish_session_message'), [
+            { text: t('ui.cancel'), style: 'cancel' },
+            {
+                text: t('ui.finish'), style: 'destructive',
+                onPress: () => {
+                    updateStatus.mutate(
+                        { sessionId: id!, status: 'completed' },
+                        { onSuccess: () => router.back() },
+                    );
+                },
+            },
+        ]);
+    }, [id, updateStatus, router, t]);
+
+    // ── Render ───────────────────────────────────────────────────────────
+
+    if (isLoading || !session) {
+        return (
+            <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>
+                <View style={styles.centered}>
+                    {isLoading
+                        ? <ActivityIndicator color={theme.primary} />
+                        : <JempText type="body-l" color={theme.textMuted}>{t('ui.session_not_found')}</JempText>
+                    }
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (!current) return null;
+
+    const thumbUrl = current.exercise.youtube_url
+        ? youtubeThumbUrl(current.exercise.youtube_url)
+        : null;
+    const repsTarget = formatTargetReps(current.target_reps_min, current.target_reps_max);
+
+    return (
+        <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
+            {/* ── Progress bar ── */}
+            <View style={[styles.progressTrack, { backgroundColor: theme.borderDivider }]}>
+                <Animated.View style={[styles.progressFill, progressStyle]}>
+                    <LinearGradient
+                        colors={[Cyan[500], Electric[500]]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={StyleSheet.absoluteFill}
+                    />
+                </Animated.View>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                {/* ── Header row ── */}
+                <View style={styles.header}>
+                    <Pressable onPress={handleFinishEarly} style={styles.finishEarlyBtn}>
+                        <Ionicons name="chevron-back" size={18} color={theme.text} />
+                        <JempText type="body-sm" color={theme.text}>{t('ui.finish_early')}</JempText>
+                    </Pressable>
+                </View>
+
+                {/* ── Exercise title + set counter ── */}
+                <View style={styles.titleRow}>
+                    <View style={styles.titleLeft}>
+                        <JempText type="caption" color={Cyan[500]} style={styles.blockLabel}>
+                            {current.blockType
+                                ? t(`block_type.${current.blockType.slug}`).toUpperCase()
+                                : t('ui.active_session').toUpperCase()}
+                        </JempText>
+                        <JempText type="hero">{current.exercise.name}</JempText>
+                    </View>
+                    <View style={styles.setCounter}>
+                        <JempText type="hero" gradient>{currentSet}</JempText>
+                        <JempText type="body-sm" color={theme.textMuted}>/{totalSets}</JempText>
+                        <JempText type="caption" color={theme.textMuted}>{t('ui.sets').toUpperCase()}</JempText>
+                    </View>
+                </View>
+
+                {/* ── Video card ── */}
+                {current.exercise.youtube_url && (
+                    <Pressable
+                        key={current.exercise.id}
+                        style={[styles.videoCard, { backgroundColor: theme.surface }]}
+                        onPress={() => Linking.openURL(current.exercise.youtube_url!)}
+                    >
+                        <Image
+                            source={thumbUrl ? { uri: thumbUrl } : PLACEHOLDER}
+                            style={styles.videoThumb}
+                            contentFit="cover"
+                        />
+                        <View style={styles.playOverlay}>
+                            <Ionicons name="play" size={24} color="#fff" />
+                        </View>
+                        <JempText type="caption" color={theme.textMuted} style={styles.formGuideLabel}>
+                            {t('ui.form_guide')}
+                        </JempText>
+                    </Pressable>
+                )}
+
+                {/* ── Rest timer ── */}
+                {isResting && (
+                    <View style={[styles.timerCard, { backgroundColor: theme.surface }]}>
+                        <JempText type="caption" color={Cyan[500]}>
+                            {t('ui.rest_timer').toUpperCase()}
+                        </JempText>
+                        <JempText type="hero" gradient>{formatTimer(restSeconds)}</JempText>
+                        <View style={styles.timerActions}>
+                            <Pressable
+                                style={[styles.timerBtn, { borderColor: theme.borderCard }]}
+                                onPress={() => setRestSeconds(prev => prev + 30)}
+                            >
+                                <JempText type="body-sm" color={theme.text}>+ 30s</JempText>
+                            </Pressable>
+                            <Pressable onPress={stopTimer}>
+                                <JempText type="body-sm" color={theme.textMuted}>{t('ui.skip_set')}</JempText>
+                            </Pressable>
+                        </View>
+                    </View>
+                )}
+
+                {/* ── Log set inputs ── */}
+                <View style={styles.logSection}>
+                    <JempText type="h2">
+                        {t('ui.log_set')} {currentSet}
+                    </JempText>
+
+                    <View style={styles.inputRow}>
+                        {/* Load input */}
+                        {showLoad && (
+                            <View style={styles.inputGroup}>
+                                <JempText type="caption" color={theme.textMuted}>
+                                    {t('ui.load').toUpperCase()} ({unit.toUpperCase()})
+                                </JempText>
+                                <View style={[styles.pillInput, { backgroundColor: theme.surface }]}>
+                                    <TextInput
+                                        style={[styles.pillTextInput, { color: theme.text }]}
+                                        value={load}
+                                        onChangeText={setLoad}
+                                        keyboardType="decimal-pad"
+                                        placeholder="–"
+                                        placeholderTextColor={theme.textPlaceholder}
+                                    />
+                                </View>
+                            </View>
+                        )}
+
+                        {showLoad && (
+                            <JempText type="h2" color={theme.textMuted} style={styles.inputDivider}>×</JempText>
+                        )}
+
+                        {/* Reps input */}
+                        <View style={styles.inputGroup}>
+                            <JempText type="caption" color={theme.textMuted}>
+                                {t('ui.reps').toUpperCase()}
+                            </JempText>
+                            <View style={[styles.pillInput, { backgroundColor: theme.surface }]}>
+                                <TextInput
+                                    style={[styles.pillTextInput, { color: theme.text }]}
+                                    value={reps}
+                                    onChangeText={setReps}
+                                    keyboardType="number-pad"
+                                    placeholder={repsTarget !== '–' ? repsTarget : '–'}
+                                    placeholderTextColor={theme.textPlaceholder}
+                                    autoFocus
+                                />
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Previous set info */}
+                    {previousSet && (
+                        <JempText type="caption" color={theme.textMuted} style={styles.previousLabel}>
+                            {t('ui.previous')}: {previousSet.load && unit ? `${previousSet.load} ${unit || 'kg'} × ` : ''}{previousSet.reps} {t('ui.reps').toLowerCase()}
+                        </JempText>
+                    )}
+                </View>
+            </ScrollView>
+
+            {/* ── Bottom CTAs ── */}
+            <View style={[styles.bottomBar, { backgroundColor: theme.background }]}>
+                <Pressable
+                    style={styles.logBtn}
+                    onPress={handleLogSet}
+                    disabled={reps.trim() === '' || upsertSets.isPending}
+                >
+                    <LinearGradient
+                        colors={reps.trim() !== '' ? [Cyan[500], Electric[500]] : [`${Cyan[500]}40`, `${Electric[500]}40`]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.logBtnGradient}
+                    >
+                        {upsertSets.isPending ? (
+                            <ActivityIndicator color="#fff" size="small" />
+                        ) : (
+                            <JempText type="button" color="#fff">
+                                {isLastSet && isLastExercise
+                                    ? t('ui.log_and_finish')
+                                    : isLastSet
+                                        ? t('ui.log_and_next')
+                                        : t('ui.log_set_and_next')}
+                            </JempText>
+                        )}
+                    </LinearGradient>
+                </Pressable>
+                <Pressable onPress={handleSkipSet} style={styles.skipLink}>
+                    <JempText type="body-sm" color={Cyan[500]}>{t('ui.skip_set')}</JempText>
+                </Pressable>
+            </View>
+        </SafeAreaView>
+    );
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+    root: { flex: 1 },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+    progressTrack: { height: 3, overflow: 'hidden' },
+    progressFill: { height: '100%', overflow: 'hidden' },
+
+    content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 140, gap: 20 },
+
+    // Header
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    finishEarlyBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+
+    // Title
+    titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+    titleLeft: { flex: 1, gap: 4 },
+    blockLabel: { letterSpacing: 1.5 },
+    setCounter: { alignItems: 'center', marginLeft: 12 },
+
+    // Video
+    videoCard: {
+        borderRadius: 14,
+        overflow: 'hidden',
+        height: 160,
+    },
+    videoThumb: { width: '100%', height: '100%' },
+    playOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    formGuideLabel: {
+        position: 'absolute',
+        bottom: 10,
+        left: 12,
+    },
+
+    // Timer
+    timerCard: {
+        borderRadius: 16,
+        padding: 20,
+        alignItems: 'center',
+        gap: 8,
+    },
+    timerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 20,
+        marginTop: 4,
+    },
+    timerBtn: {
+        borderWidth: 1,
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+    },
+
+    // Log set
+    logSection: { gap: 12 },
+    inputRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        gap: 12,
+    },
+    inputGroup: { flex: 1, gap: 6 },
+    inputDivider: { paddingBottom: 12 },
+    pillInput: {
+        borderRadius: 14,
+        height: 56,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    pillTextInput: {
+        fontSize: 24,
+        fontWeight: '700',
+        textAlign: 'center',
+        width: '100%',
+        height: '100%',
+    },
+    previousLabel: { textAlign: 'center' },
+
+    // Bottom
+    bottomBar: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingHorizontal: 20,
+        paddingBottom: 34,
+        paddingTop: 12,
+        gap: 8,
+        alignItems: 'center',
+    },
+    logBtn: { borderRadius: 100, overflow: 'hidden', width: '100%' },
+    logBtnGradient: {
+        height: 52,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    skipLink: { paddingVertical: 4 },
+});

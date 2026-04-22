@@ -1,3 +1,4 @@
+import { Database } from "@/database.types";
 import { createClient } from "@supabase/supabase-js";
 import * as SecureStore from 'expo-secure-store';
 
@@ -16,7 +17,7 @@ const ExpoSecureStoreAdapter = {
 }
 
 
-export const supabase = createClient(
+export const supabase = createClient<Database>(
     process.env.EXPO_PUBLIC_SUPABASE_URL!,
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
     {

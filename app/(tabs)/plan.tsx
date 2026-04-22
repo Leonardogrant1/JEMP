@@ -5,7 +5,9 @@ import { type SessionStatus, type WorkoutSession, usePlan } from '@/providers/pl
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -42,14 +44,6 @@ function toDateStr(date: Date): string {
 
 // ── Status badge ──────────────────────────────────────────────────────────
 
-const STATUS_LABELS: Record<SessionStatus, string> = {
-    scheduled: 'Geplant',
-    in_progress: 'Läuft',
-    completed: 'Fertig',
-    skipped: 'Übersprungen',
-    cancelled: 'Abgebrochen',
-};
-
 const STATUS_COLORS: Record<SessionStatus, string> = {
     scheduled: '#8c8c8c',
     in_progress: '#f59e0b',
@@ -59,10 +53,11 @@ const STATUS_COLORS: Record<SessionStatus, string> = {
 };
 
 function StatusBadge({ status }: { status: SessionStatus }) {
+    const { t } = useTranslation();
     const color = STATUS_COLORS[status];
     return (
         <View style={[styles.badge, { backgroundColor: `${color}22` }]}>
-            <JempText type="caption" color={color}>{STATUS_LABELS[status]}</JempText>
+            <JempText type="caption" color={color}>{t(`session_status.${status}`)}</JempText>
         </View>
     );
 }
@@ -72,7 +67,8 @@ function StatusBadge({ status }: { status: SessionStatus }) {
 const SESSION_IMAGE = require('@/assets/images/splash-icon.png');
 
 function SessionCard({ session, theme }: { session: WorkoutSession; theme: any }) {
-    const isTraining = session.session_type === 'training';
+    const router = useRouter();
+    const { t } = useTranslation();
 
     return (
         <View style={styles.sessionCard}>
@@ -101,14 +97,23 @@ function SessionCard({ session, theme }: { session: WorkoutSession; theme: any }
                     ) : null}
                     <StatusBadge status={session.status} />
                 </View>
-                <Pressable style={styles.cta}>
+                <Pressable
+                    style={styles.cta}
+                    onPress={() => router.push(
+                        session.status === 'completed'
+                            ? `/session-summary/${session.id}`
+                            : `/session/${session.id}`
+                    )}
+                >
                     <LinearGradient
                         colors={[Cyan[500], Electric[500]]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={styles.ctaGradient}
                     >
-                        <JempText type="button" color="#fff">View Details</JempText>
+                        <JempText type="button" color="#fff">
+                            {session.status === 'completed' ? t('ui.view_summary') : t('ui.view_details')}
+                        </JempText>
                     </LinearGradient>
                 </Pressable>
             </View>
@@ -139,6 +144,7 @@ function GradientMoonIcon({ size = 42 }: { size?: number }) {
 // ── Screen ────────────────────────────────────────────────────────────────
 
 export default function PlanScreen() {
+    const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
@@ -152,27 +158,27 @@ export default function PlanScreen() {
     const weekDays = getWeekDays(today);
     const weekNumber = getISOWeek(today);
     const month = MONTHS[today.getMonth()];
-    const todayIndex = weekDays.findIndex(
+    const todayIndex = useMemo(() => weekDays.findIndex(
         d => d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
-    );
+    ), [weekDays, today]);
 
     // Plan completion: sessions that are no longer scheduled/in_progress
-    const planCompletion = sessions.length > 0
+    const planCompletion = useMemo(() => sessions.length > 0
         ? sessions.filter(s => s.status !== 'scheduled' && s.status !== 'in_progress').length / sessions.length
-        : 0;
+        : 0, [sessions]);
 
     // Days in current week that have at least one session
-    const weekSessionDays = new Set(
+    const weekSessionDays = useMemo(() => new Set(
         sessions
-            .map(s => toDateStr(new Date(s.scheduled_at)))
+            .map(s => toDateStr(new Date(s.scheduled_at!)))
             .filter(dateStr => weekDays.some(wd => toDateStr(wd) === dateStr))
-    );
+    ), [sessions, weekDays]);
 
     // Sessions for the tapped day
     const selectedDayStr = toDateStr(selectedDay);
-    const selectedDaySessions = sessions.filter(
-        s => toDateStr(new Date(s.scheduled_at)) === selectedDayStr
-    );
+    const selectedDaySessions = useMemo(() => sessions.filter(
+        s => toDateStr(new Date(s.scheduled_at!)) === selectedDayStr
+    ), [sessions, selectedDayStr]);
 
     useEffect(() => {
         if (trackWidth > 0) {
@@ -188,7 +194,7 @@ export default function PlanScreen() {
 
                 {/* Header */}
                 <View style={styles.headerRow}>
-                    <JempText type="h1" style={styles.title}>Plan</JempText>
+                    <JempText type="h1" style={styles.title}>{t('ui.plan')}</JempText>
                     <View style={styles.weekInfo}>
                         <JempText type="body-sm" color={theme.textMuted}>{month} {today.getFullYear()}</JempText>
                         <JempText type="body-sm" gradient color={theme.primary}>Week {weekNumber}</JempText>
@@ -203,7 +209,7 @@ export default function PlanScreen() {
                     <View style={[styles.emptyCard, { backgroundColor: theme.surface }]}>
                         <Ionicons name="barbell-outline" size={32} color={theme.textMuted} />
                         <JempText type="body-l" color={theme.textMuted} style={styles.centeredText}>
-                            Kein aktiver Trainingsplan.{'\n'}Erstelle einen im Profil.
+                            {t('ui.no_active_plan')}
                         </JempText>
                     </View>
                 ) : (
@@ -213,7 +219,7 @@ export default function PlanScreen() {
                             <View style={styles.statsRow}>
                                 <View style={styles.statItem}>
                                     <JempText type="h1" gradient>{Math.round(planCompletion * 100)}%</JempText>
-                                    <JempText type="caption" color={theme.textMuted}>PLAN COMPLETE</JempText>
+                                    <JempText type="caption" color={theme.textMuted}>{t('ui.plan_complete').toUpperCase()}</JempText>
                                 </View>
                                 <View style={[styles.divider, { backgroundColor: theme.borderDivider }]} />
                                 <View style={styles.statItem}>
@@ -221,7 +227,7 @@ export default function PlanScreen() {
                                         <Ionicons name="flame" size={18} color={Cyan[500]} />
                                         <JempText type="h1" gradient>{String(streak)}</JempText>
                                     </View>
-                                    <JempText type="caption" color={theme.textMuted}>DAY STREAK</JempText>
+                                    <JempText type="caption" color={theme.textMuted}>{t('ui.day_streak').toUpperCase()}</JempText>
                                 </View>
                             </View>
                             <View
@@ -285,7 +291,7 @@ export default function PlanScreen() {
                                         </JempText>
                                         <View style={styles.dotSlot}>
                                             {isToday
-                                                ? <JempText type="caption" style={styles.todayLabel} color="rgba(255,255,255,0.7)">TODAY</JempText>
+                                                ? <JempText type="caption" style={styles.todayLabel} color="rgba(255,255,255,0.7)">{t('ui.today')}</JempText>
                                                 : hasSession && <View style={[styles.dot, { backgroundColor: theme.primary }]} />
                                             }
                                         </View>
@@ -298,7 +304,7 @@ export default function PlanScreen() {
                         {selectedDaySessions.length === 0 ? (
                             <View style={[styles.restCard]}>
                                 <GradientMoonIcon size={42} />
-                                <JempText type="body-l" color={theme.textMuted}>Ruhetag</JempText>
+                                <JempText type="body-l" color={theme.textMuted}>{t('ui.rest_day')}</JempText>
                             </View>
                         ) : (
                             // <View style={styles.sessionList}>

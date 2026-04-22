@@ -27,6 +27,7 @@ export function initI18n(language?: AppLanguage) {
         lng: language ?? detectLanguage(),
         fallbackLng: 'en',
         interpolation: { escapeValue: false },
+        initImmediate: false,
     });
 
     return i18n;

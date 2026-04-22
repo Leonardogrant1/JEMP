@@ -16,7 +16,6 @@ export type UserProfile = {
   preferred_session_duration: SessionDuration | null
   timezone: string | null
   has_onboarded: boolean
-  has_seen_tutorial: boolean
   created_at: string
   updated_at: string
   last_active_at: string

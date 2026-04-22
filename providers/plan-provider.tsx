@@ -1,27 +1,19 @@
-import { supabase } from '@/services/supabase/client';
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { useCurrentUser } from './current-user-provider';
+import type { Enums, Tables } from '@/database.types';
+import { useInvalidate } from '@/queries/use-invalidate';
+import { usePlanQuery } from '@/queries/use-plan-query';
+import { createContext, useCallback, useContext, useMemo } from 'react';
 
-// ── Types ─────────────────────────────────────────────────────────────────
+export type WorkoutSession = Pick<
+    Tables<'workout_sessions'>,
+    'id' | 'name' | 'description' | 'session_type' | 'scheduled_at' | 'status' | 'estimated_duration_minutes'
+>;
 
-export type SessionStatus = 'scheduled' | 'in_progress' | 'completed' | 'skipped' | 'cancelled';
+export type ActivePlan = Pick<
+    Tables<'workout_plans'>,
+    'id' | 'name' | 'start_date' | 'end_date'
+>;
 
-export type WorkoutSession = {
-    id: string;
-    name: string;
-    description: string | null;
-    session_type: 'training' | 'recovery';
-    scheduled_at: string;
-    status: SessionStatus;
-    estimated_duration_minutes: number | null;
-};
-
-export type ActivePlan = {
-    id: string;
-    name: string;
-    start_date: string;
-    end_date: string;
-};
+export type SessionStatus = Enums<'session_status'>;
 
 type PlanContextType = {
     plan: ActivePlan | null;
@@ -34,7 +26,8 @@ type PlanContextType = {
 function computeStreak(sessions: WorkoutSession[]): number {
     const byDate = new Map<string, WorkoutSession[]>();
     for (const s of sessions) {
-        const key = s.scheduled_at.split('T')[0];
+        const key = s.scheduled_at?.split('T')[0];
+        if (!key) continue;
         if (!byDate.has(key)) byDate.set(key, []);
         byDate.get(key)!.push(s);
     }
@@ -67,58 +60,20 @@ function computeStreak(sessions: WorkoutSession[]): number {
     return streak;
 }
 
-// ── Context ───────────────────────────────────────────────────────────────
-
 const PlanContext = createContext<PlanContextType | null>(null);
 
 export function PlanProvider({ children }: { children: React.ReactNode }) {
-    const { profile } = useCurrentUser();
+    const { data, isLoading } = usePlanQuery();
+    const { invalidatePlan } = useInvalidate();
 
-    const [plan, setPlan] = useState<ActivePlan | null>(null);
-    const [sessions, setSessions] = useState<WorkoutSession[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const plan = data?.plan ?? null;
+    const sessions = (data?.sessions ?? []) as WorkoutSession[];
+    const streak = useMemo(() => computeStreak(sessions), [sessions]);
 
-    const fetchPlan = useCallback(async () => {
-        if (!profile?.id) {
-            setIsLoading(false);
-            return;
-        }
-
-        setIsLoading(true);
-
-        const { data: planData } = await supabase
-            .from('workout_plans')
-            .select('id, name, start_date, end_date')
-            .eq('user_id', profile.id)
-            .eq('status', 'active')
-            .order('created_at', { ascending: false })
-            .maybeSingle();
-
-        if (!planData) {
-            setPlan(null);
-            setSessions([]);
-            setIsLoading(false);
-            return;
-        }
-
-        setPlan(planData);
-
-        const { data: sessionData } = await supabase
-            .from('workout_sessions')
-            .select('id, name, description, session_type, scheduled_at, status, estimated_duration_minutes')
-            .eq('workout_plan_id', planData.id)
-            .order('scheduled_at', { ascending: true });
-
-        setSessions(sessionData ?? []);
-        setIsLoading(false);
-    }, [profile?.id]);
-
-    useEffect(() => { fetchPlan(); }, [fetchPlan]);
-
-    const streak = computeStreak(sessions);
+    const refresh = useCallback(async () => { await invalidatePlan(); }, [invalidatePlan]);
 
     return (
-        <PlanContext.Provider value={{ plan, sessions, isLoading, streak, refresh: fetchPlan }}>
+        <PlanContext.Provider value={{ plan, sessions, isLoading, streak, refresh }}>
             {children}
         </PlanContext.Provider>
     );

@@ -5,22 +5,33 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { initI18n } from '@/i18n';
 import { AuthProvider } from '@/providers/auth-provider';
 import { CurrentUserProvider, useCurrentUser } from '@/providers/current-user-provider';
+import { PlanProvider } from '@/providers/plan-provider';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+initI18n();
+
+const queryClient = new QueryClient();
 
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AuthProvider>
-        <CurrentUserProvider>
-          <MainStack />
-        </CurrentUserProvider>
-      </AuthProvider>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <AuthProvider>
+          <CurrentUserProvider>
+            <PlanProvider>
+              <MainStack />
+            </PlanProvider>
+          </CurrentUserProvider>
+        </AuthProvider>
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -54,6 +65,10 @@ function MainStack() {
       </Stack.Protected>
       <Stack.Protected guard={!!profile?.has_onboarded}>
         <Stack.Screen name="(tabs)" options={{ animation: 'slide_from_right', headerShown: false }} />
+        <Stack.Screen name="session/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="exercise/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="active-session/[id]" options={{ animation: 'slide_from_bottom', headerShown: false }} />
+        <Stack.Screen name="session-summary/[id]" options={{ headerShown: false }} />
       </Stack.Protected>
     </Stack>
   )

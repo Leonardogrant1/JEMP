@@ -81,4 +81,15 @@ Ein gutes Warmup enthält:
 - Foam Rolling nur sparsam einsetzen
 
 Vermeide Warmups, die nur aus passiven Übungen bestehen.
+
+## target_load_type Regeln
+
+Wähle den Load-Type pro Übung sinnvoll:
+- **bodyweight**: Übungen ohne Zusatzgewicht (Push-Ups, Pull-Ups, Planks, Mobility, etc.)
+- **kg**: Übungen mit Gewicht (Barbell, Dumbbell, Kettlebell, Sled, etc.) — das ist der Standard für Kraftübungen
+- **rpe**: Nur wenn keine konkreten Gewichtsangaben sinnvoll sind (z.B. Recovery, leichte Mobility mit Last)
+- **percent_1rm**: Nur bei fortgeschrittenen Athleten mit bekanntem 1RM und explizit periodisierten Programmen. Im Zweifel immer kg statt percent_1rm verwenden.
+- **pace**: Nur für Lauf-/Sprintübungen mit Tempovorgabe
+
+Für die meisten Kraftübungen (Squat, Bench, Deadlift, Rows, etc.) ist **kg** der richtige Wert.
 `
