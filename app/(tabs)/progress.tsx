@@ -6,6 +6,7 @@ import { useCurrentUser } from '@/providers/current-user-provider';
 import { type CategoryAssessmentEntry, useCategoryAssessmentsQuery } from '@/queries/use-category-assessments-query';
 import { type CategoryHistoryPoint, useUserCategoryHistoryQuery } from '@/queries/use-user-category-history-query';
 import { useUserCategoryLevelsQuery } from '@/queries/use-user-category-levels-query';
+import { devLog } from '@/utils/dev-log';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, useState } from 'react';
@@ -40,6 +41,16 @@ const STAT_LABELS: Record<string, string> = {
     jumps: 'Jump',
     lower_body_plyometrics: 'Lower Plyo',
     upper_body_plyometrics: 'Upper Plyo',
+    mobility: 'Mobility',
+};
+
+const RADAR_SLUGS = ['jumps', 'strength', 'upper_body_plyometrics', 'lower_body_plyometrics', 'mobility'] as const;
+
+const RADAR_LABELS: Record<string, string> = {
+    jumps: 'Jump',
+    strength: 'Strength',
+    upper_body_plyometrics: 'Up Plyo',
+    lower_body_plyometrics: 'Low Plyo',
     mobility: 'Mobility',
 };
 
@@ -387,7 +398,7 @@ export default function ProgressScreen() {
     }, [historyData, selectedCategory]);
 
     const trend = useMemo(() => computeTrend(chartData), [chartData]);
-    console.log('[progress] selectedCategory:', selectedCategory, '| chartData.length:', chartData.length, '| historyData keys:', Object.keys(historyData ?? {}));
+    devLog('[progress] selectedCategory:', selectedCategory, '| chartData.length:', chartData.length, '| historyData keys:', Object.keys(historyData ?? {}));
 
     const visibleStats = useMemo(() => {
         if (selectedCategory !== 'all') return ALL_STAT_SLUGS.filter(s => s === selectedCategory);
@@ -529,7 +540,7 @@ const styles = StyleSheet.create({
     headerSection: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
     title: { letterSpacing: -0.5, marginBottom: 12 },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    scroll: { paddingHorizontal: 20, paddingBottom: 32, gap: 20 },
+    scroll: { paddingHorizontal: 20, paddingBottom: 32, gap: 20, paddingTop: 15 },
 
     controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 

@@ -10,6 +10,7 @@ export type UserProfile = {
   birth_date: string | null
   gender: Gender | null
   sport_id: string | null
+  sport?: { id: string; slug: string } | null
   height_in_cm: number | null
   weight_in_kg: number | null
   preferred_workout_days: number[]

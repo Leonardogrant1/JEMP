@@ -437,6 +437,7 @@ export type Database = {
           created_at: string | null
           id: string
           metric_id: string | null
+          score: number | null
           source_type: Database["public"]["Enums"]["metric_source_type"]
           updated_at: string | null
           user_assessment_id: string | null
@@ -448,6 +449,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           metric_id?: string | null
+          score?: number | null
           source_type: Database["public"]["Enums"]["metric_source_type"]
           updated_at?: string | null
           user_assessment_id?: string | null
@@ -459,6 +461,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           metric_id?: string | null
+          score?: number | null
           source_type?: Database["public"]["Enums"]["metric_source_type"]
           updated_at?: string | null
           user_assessment_id?: string | null
@@ -631,6 +634,45 @@ export type Database = {
           },
           {
             foreignKeyName: "user_assessments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_category_level_history: {
+        Row: {
+          category_id: string | null
+          id: string
+          level_score: number
+          recorded_at: string
+          user_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          id?: string
+          level_score: number
+          recorded_at?: string
+          user_id: string
+        }
+        Update: {
+          category_id?: string | null
+          id?: string
+          level_score?: number
+          recorded_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_category_level_history_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_category_level_history_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user_profiles"
@@ -1391,7 +1433,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      fn_create_user_assessments: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
+      fn_dev_seed_category_history: {
+        Args: { p_days?: number; p_user_id: string }
+        Returns: undefined
+      }
+      fn_renew_assessments_for_all_users: { Args: never; Returns: string[] }
+      fn_take_category_level_snapshot: { Args: never; Returns: undefined }
+      fn_take_user_category_level_snapshot: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       assessment_status: "pending" | "in_progress" | "completed"

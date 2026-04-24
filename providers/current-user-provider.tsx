@@ -36,11 +36,11 @@ export function CurrentUserProvider({ children }: { children: React.ReactNode })
 
         const { data } = await supabase
             .from('user_profiles')
-            .select('*')
+            .select('*, sport:sports(id, slug)')
             .eq('id', user.id)
             .single();
 
-        setProfile(data ?? null);
+        setProfile(data as UserProfile ?? null);
         setIsLoading(false);
         setIsRefreshing(false);
         hasLoadedOnce.current = true;

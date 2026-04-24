@@ -10,6 +10,7 @@ import { AuthProvider } from '@/providers/auth-provider';
 import { CurrentUserProvider, useCurrentUser } from '@/providers/current-user-provider';
 import { PlanProvider } from '@/providers/plan-provider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 initI18n();
 
@@ -22,13 +23,15 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AuthProvider>
-          <CurrentUserProvider>
-            <PlanProvider>
-              <MainStack />
-            </PlanProvider>
-          </CurrentUserProvider>
-        </AuthProvider>
+        <KeyboardProvider>
+          <AuthProvider>
+            <CurrentUserProvider>
+              <PlanProvider>
+                <MainStack />
+              </PlanProvider>
+            </CurrentUserProvider>
+          </AuthProvider>
+        </KeyboardProvider>
         <StatusBar style="auto" />
       </ThemeProvider>
     </QueryClientProvider>

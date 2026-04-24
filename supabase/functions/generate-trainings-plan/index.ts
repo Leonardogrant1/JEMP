@@ -165,7 +165,21 @@ Deno.serve(async (req) => {
 
     const { today, todayDow, currentMonday, nextMonday, endDate } = computePlanDates()
 
-    // ── 7. Insert workout_plan ───────────────────────────────────────────────
+    // ── 7. Deactivate existing active plan + cancel its pending sessions ────
+
+    await supabase
+      .from('workout_plans')
+      .update({ status: 'completed' })
+      .eq('user_id', userId)
+      .eq('status', 'active')
+
+    await supabase
+      .from('workout_sessions')
+      .update({ status: 'cancelled' })
+      .eq('user_id', userId)
+      .eq('status', 'scheduled')
+
+    // ── 8. Insert workout_plan ───────────────────────────────────────────────
 
     const { data: insertedPlan, error: planInsertError } = await supabase
       .from("workout_plans")
@@ -187,7 +201,7 @@ Deno.serve(async (req) => {
 
     const planId = insertedPlan.id
 
-    // ── 8. Insert plan template: sessions → blocks → exercises ──────────────
+    // ── 9. Insert plan template: sessions → blocks → exercises ──────────────
 
     type PlanBlockRecord = {
       id: string
@@ -330,7 +344,7 @@ Deno.serve(async (req) => {
       planBlocksBySessionId.set(sessionId, sessionBlocks)
     }
 
-    // ── 9. Fetch inserted plan sessions ─────────────────────────────────────
+    // ── 10. Fetch inserted plan sessions ─────────────────────────────────────
 
     const { data: allPlanSessions } = await supabase
       .from("workout_plan_sessions")
@@ -344,7 +358,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // ── 10. Expand plan sessions into dated workout_sessions ─────────────────
+    // ── 11. Expand plan sessions into dated workout_sessions ─────────────────
     // Partial current week (days >= today) + 4 complete weeks
 
     const workoutSessionsToInsert: any[] = []
@@ -375,7 +389,7 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to insert workout_sessions: ${wsInsertError?.message}`)
     }
 
-    // ── 11. Expand blocks for each workout_session ───────────────────────────
+    // ── 12. Expand blocks for each workout_session ───────────────────────────
 
     const wsBlocksToInsert: any[] = []
 
@@ -401,7 +415,7 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to insert workout_session_blocks: ${wsbInsertError?.message}`)
     }
 
-    // ── 12. Expand exercises for each workout_session_block ──────────────────
+    // ── 13. Expand exercises for each workout_session_block ──────────────────
 
     const wsExercisesToInsert: any[] = []
 
@@ -436,11 +450,28 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 13. Create initial user assessments ────────────────────────────────
+    // ── 14. Create user assessments (only if never done or last was >4 weeks ago) ──
 
-    await supabase.rpc('fn_create_user_assessments', { p_user_id: userId })
+    const { data: lastEntry } = await supabase
+      .from('metric_entries')
+      .select('created_at')
+      .eq('user_id', userId)
+      .eq('source_type', 'assessment')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
-    // ── 14. Return result ────────────────────────────────────────────────────
+    const fourWeeksAgo = new Date()
+    fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28)
+
+    const shouldCreateAssessments =
+      !lastEntry || new Date(lastEntry.created_at) < fourWeeksAgo
+
+    if (shouldCreateAssessments) {
+      await supabase.rpc('fn_create_user_assessments', { p_user_id: userId })
+    }
+
+    // ── 15. Return result ────────────────────────────────────────────────────
 
     return new Response(
       JSON.stringify({
