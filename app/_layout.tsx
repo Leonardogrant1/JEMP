@@ -69,6 +69,7 @@ function MainStack() {
         <Stack.Screen name="exercise/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="active-session/[id]" options={{ animation: 'slide_from_bottom', headerShown: false }} />
         <Stack.Screen name="session-summary/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="assessment/[id]" options={{ animation: 'slide_from_bottom', headerShown: false }} />
       </Stack.Protected>
     </Stack>
   )

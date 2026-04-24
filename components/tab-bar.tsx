@@ -3,16 +3,18 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { JempText } from './jemp-text';
 
-const LABELS: Record<string, string> = {
-    index: 'Home',
-    plan: 'Plan',
-    progress: 'Progress',
-    profile: 'Profile',
+const TAB_KEYS: Record<string, string> = {
+    index: 'tab.today',
+    plan: 'tab.plan',
+    assessments: 'tab.assessments',
+    progress: 'tab.progress',
+    profile: 'tab.profile',
 };
 
 type TabItemProps = {
@@ -57,6 +59,7 @@ function TabItem({ label, isFocused, onPress }: TabItemProps) {
 
 export function TabBar({ state, navigation }: BottomTabBarProps) {
     const insets = useSafeAreaInsets();
+    const { t } = useTranslation();
 
     return (
         <View style={[styles.container, { paddingBottom: insets.bottom + 8 }]}>
@@ -67,7 +70,8 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
             >
                 {state.routes.map((route, index) => {
                     const isFocused = state.index === index;
-                    const label = LABELS[route.name] ?? route.name;
+                    const key = TAB_KEYS[route.name];
+                    const label = key ? t(key) : route.name;
 
                     function onPress() {
                         const event = navigation.emit({

@@ -436,7 +436,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 13. Return result ────────────────────────────────────────────────────
+    // ── 13. Create initial user assessments ────────────────────────────────
+
+    await supabase.rpc('fn_create_user_assessments', { p_user_id: userId })
+
+    // ── 14. Return result ────────────────────────────────────────────────────
 
     return new Response(
       JSON.stringify({

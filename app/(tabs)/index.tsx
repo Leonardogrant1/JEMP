@@ -4,6 +4,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlan, WorkoutSession } from '@/providers/plan-provider';
 import { Ionicons } from '@expo/vector-icons';
+import { RestDayCard } from '@/components/rest-day-card';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
@@ -18,20 +19,23 @@ const SESSION_IMAGE = require('@/assets/images/splash-icon.png');
 function getTodaySession(sessions: WorkoutSession[]) {
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
 
-    // Priority: in_progress > completed today > next scheduled
+    const isToday = (s: WorkoutSession) => {
+        const d = new Date(s.scheduled_at!);
+        return d >= todayStart && d < tomorrowStart;
+    };
+
+    // Priority: in_progress > completed today > scheduled today
     const inProgress = sessions.find(s => s.status === 'in_progress');
     if (inProgress) return inProgress;
 
-    const completedToday = sessions.find(s =>
-        s.status === 'completed' && new Date(s.scheduled_at) >= todayStart
-    );
+    const completedToday = sessions.find(s => s.status === 'completed' && isToday(s));
     if (completedToday) return completedToday;
 
-    const nextScheduled = sessions.find(s =>
-        s.status === 'scheduled' && new Date(s.scheduled_at) >= todayStart
-    );
-    return nextScheduled ?? null;
+    const scheduledToday = sessions.find(s => s.status === 'scheduled' && isToday(s));
+    return scheduledToday ?? null;
 }
 
 export default function HomeScreen() {
@@ -72,30 +76,30 @@ export default function HomeScreen() {
                     </View>
                 </View>
 
-                {/* ── Session Card ── */}
-                <Pressable
-                    style={styles.card}
-                    onPress={() => {
-                        if (nextSession?.status === 'completed') {
-                            router.push(`/session-summary/${nextSession.id}`);
-                        }
-                    }}
-                    disabled={!nextSession || nextSession.status !== 'completed'}
-                >
-                    <Image
-                        source={SESSION_IMAGE}
-                        style={StyleSheet.absoluteFill}
-                        contentFit="cover"
-                        contentPosition="top center"
-                    />
-                    <LinearGradient
-                        colors={['transparent', 'rgba(0,0,0,0.9)']}
-                        locations={[0.35, 1]}
-                        style={StyleSheet.absoluteFill}
-                    />
-                    <View style={styles.cardContent}>
-                        {nextSession ? (
-                            <>
+                {nextSession ? (
+                    <>
+                        {/* ── Session Card ── */}
+                        <Pressable
+                            style={styles.card}
+                            onPress={() => {
+                                if (nextSession.status === 'completed') {
+                                    router.push(`/session-summary/${nextSession.id}`);
+                                }
+                            }}
+                            disabled={nextSession.status !== 'completed'}
+                        >
+                            <Image
+                                source={SESSION_IMAGE}
+                                style={StyleSheet.absoluteFill}
+                                contentFit="cover"
+                                contentPosition="top center"
+                            />
+                            <LinearGradient
+                                colors={['transparent', 'rgba(0,0,0,0.9)']}
+                                locations={[0.35, 1]}
+                                style={StyleSheet.absoluteFill}
+                            />
+                            <View style={styles.cardContent}>
                                 <JempText type="caption" color={nextSession.status === 'completed' ? Cyan[500] : theme.textMuted}>
                                     {nextSession.status === 'completed'
                                         ? t('ui.session_completed')
@@ -116,30 +120,27 @@ export default function HomeScreen() {
                                         {nextSession.estimated_duration_minutes} {t('ui.min')}
                                     </JempText>
                                 ) : null}
-                            </>
-                        ) : (
-                            <>
-                                <JempText type="caption" color={theme.textMuted}>{t('ui.no_session')}</JempText>
-                                <JempText type="hero" color="#fff">{t('ui.rest_day')}</JempText>
-                            </>
-                        )}
-                    </View>
-                </Pressable>
+                            </View>
+                        </Pressable>
 
-                {/* ── CTA ── */}
-                {nextSession && nextSession.status !== 'completed' && (
-                    <Pressable style={styles.cta} onPress={handleStartSession}>
-                        <LinearGradient
-                            colors={[Cyan[500], Electric[500]]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.ctaGradient}
-                        >
-                            <JempText type="button" color="#fff">
-                                {nextSession.status === 'in_progress' ? t('ui.continue_session') : t('ui.start_session')}
-                            </JempText>
-                        </LinearGradient>
-                    </Pressable>
+                        {/* ── CTA ── */}
+                        {nextSession.status !== 'completed' && (
+                            <Pressable style={styles.cta} onPress={handleStartSession}>
+                                <LinearGradient
+                                    colors={[Cyan[500], Electric[500]]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={styles.ctaGradient}
+                                >
+                                    <JempText type="button" color="#fff">
+                                        {nextSession.status === 'in_progress' ? t('ui.continue_session') : t('ui.start_session')}
+                                    </JempText>
+                                </LinearGradient>
+                            </Pressable>
+                        )}
+                    </>
+                ) : (
+                    <RestDayCard />
                 )}
 
             </View>

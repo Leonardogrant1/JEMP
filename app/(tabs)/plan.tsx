@@ -1,4 +1,5 @@
 import { JempText } from '@/components/jemp-text';
+import { RestDayCard } from '@/components/rest-day-card';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { type SessionStatus, type WorkoutSession, usePlan } from '@/providers/plan-provider';
@@ -11,7 +12,6 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
 // ── Date helpers ──────────────────────────────────────────────────────────
 
@@ -122,24 +122,6 @@ function SessionCard({ session, theme }: { session: WorkoutSession; theme: any }
 }
 
 // ── Gradient moon icon ────────────────────────────────────────────────────
-
-function GradientMoonIcon({ size = 42 }: { size?: number }) {
-    return (
-        <Svg width={size} height={size} viewBox="0 0 512 512">
-            <Defs>
-                <SvgLinearGradient id="moon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0" stopColor={Cyan[500]} />
-                    <Stop offset="1" stopColor={Electric[500]} />
-                </SvgLinearGradient>
-            </Defs>
-            {/* moon-outline path from Ionicons */}
-            <Path
-                d="M160 136c0-30.62 4.51-61.61 16-88C99.57 81.27 48 159.32 48 248c0 119.29 96.71 216 216 216 88.68 0 166.73-51.57 200-128-26.39 11.49-57.38 16-88 16-119.29 0-216-96.71-216-216z"
-                fill="url(#moon-grad)"
-            />
-        </Svg>
-    );
-}
 
 // ── Screen ────────────────────────────────────────────────────────────────
 
@@ -302,10 +284,7 @@ export default function PlanScreen() {
 
                         {/* Sessions for selected day */}
                         {selectedDaySessions.length === 0 ? (
-                            <View style={[styles.restCard]}>
-                                <GradientMoonIcon size={42} />
-                                <JempText type="body-l" color={theme.textMuted}>{t('ui.rest_day')}</JempText>
-                            </View>
+                            <RestDayCard />
                         ) : (
                             // <View style={styles.sessionList}>
 

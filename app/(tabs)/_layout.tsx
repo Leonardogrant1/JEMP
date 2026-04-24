@@ -4,15 +4,17 @@ import { useCurrentUser } from '@/providers/current-user-provider';
 import { supabase } from '@/services/supabase/client';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { useTutorialStore } from '@/stores/tutorial-store';
+import { useQueryClient } from '@tanstack/react-query';
 import { Tabs } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function TabLayout() {
   const { session, signOut } = useAuth();
   const { refreshProfile } = useCurrentUser();
   const resetOnboardingStore = useOnboardingStore(s => s.reset);
   const setHasSeenTutorial = useTutorialStore(s => s.setHasSeenTutorial);
+  const queryClient = useQueryClient();
   const [devOpen, setDevOpen] = useState(false);
 
   return (
@@ -23,6 +25,7 @@ export default function TabLayout() {
       >
         <Tabs.Screen name="index" />
         <Tabs.Screen name="plan" />
+        <Tabs.Screen name="assessments" />
         <Tabs.Screen name="progress" />
         <Tabs.Screen name="profile" />
       </Tabs>
@@ -79,6 +82,51 @@ export default function TabLayout() {
                 onPress={() => setHasSeenTutorial(false)}
               >
                 <Text style={styles.debugButtonText}>🎓 Reset Tutorial</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={async () => {
+                  try {
+                    const { data, error } = await supabase.functions.invoke('create-user-assessments');
+                    if (error) throw error;
+                    await queryClient.invalidateQueries({ queryKey: ['assessments'] });
+                    Alert.alert('Assessments', `Created for ${data?.users_notified ?? 0} user(s)`);
+                  } catch (e: any) {
+                    Alert.alert('Error', e.message);
+                  }
+                }}
+              >
+                <Text style={styles.debugButtonText}>📋 Create Assessments</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={async () => {
+                  const { error } = await supabase.rpc('fn_take_category_level_snapshot');
+                  if (error) Alert.alert('Snapshot failed', error.message);
+                  else Alert.alert('Done', 'Category level snapshot written');
+                }}
+              >
+                <Text style={styles.debugButtonText}>📸 Snapshot Levels</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={async () => {
+                  if (!session) return;
+                  const { error } = await supabase.rpc('fn_dev_seed_category_history', {
+                    p_user_id: session.user.id,
+                    p_days: 10,
+                  });
+                  if (error) Alert.alert('Seed failed', error.message);
+                  else {
+                    await queryClient.invalidateQueries({ queryKey: ['category-history'] });
+                    Alert.alert('Done', '10 days of history seeded');
+                  }
+                }}
+              >
+                <Text style={styles.debugButtonText}>🌱 Seed History</Text>
               </TouchableOpacity>
             </>
           )}
