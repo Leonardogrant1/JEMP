@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useMemo } from 'react';
 
 export type WorkoutSession = Pick<
     Tables<'workout_sessions'>,
-    'id' | 'name' | 'description' | 'session_type' | 'scheduled_at' | 'status' | 'estimated_duration_minutes'
+    'id' | 'name' | 'description' | 'session_type' | 'scheduled_at' | 'status' | 'estimated_duration_minutes' | 'workout_plan_session_id'
 >;
 
 export type ActivePlan = Pick<
@@ -13,11 +13,17 @@ export type ActivePlan = Pick<
     'id' | 'name' | 'start_date' | 'end_date'
 >;
 
+export type PlanSession = Pick<
+    Tables<'workout_plan_sessions'>,
+    'id' | 'name' | 'description' | 'session_type' | 'day_of_week' | 'estimated_duration_minutes'
+>;
+
 export type SessionStatus = Enums<'session_status'>;
 
 type PlanContextType = {
     plan: ActivePlan | null;
     sessions: WorkoutSession[];
+    planSessions: PlanSession[];
     isLoading: boolean;
     streak: number;
     refresh: () => Promise<void>;
@@ -68,12 +74,13 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
     const plan = data?.plan ?? null;
     const sessions = (data?.sessions ?? []) as WorkoutSession[];
+    const planSessions = (data?.planSessions ?? []) as PlanSession[];
     const streak = useMemo(() => computeStreak(sessions), [sessions]);
 
     const refresh = useCallback(async () => { await invalidatePlan(); }, [invalidatePlan]);
 
     return (
-        <PlanContext.Provider value={{ plan, sessions, isLoading, streak, refresh }}>
+        <PlanContext.Provider value={{ plan, sessions, planSessions, isLoading, streak, refresh }}>
             {children}
         </PlanContext.Provider>
     );

@@ -8,13 +8,14 @@ async function fetchUserAssessments(userId: string) {
         .select(`
             id, status, completed_at,
             assessment:assessments (
-                id, slug, name, description,
+                id, slug, name, name_i18n, description,
                 category:categories ( slug ),
                 metric:metrics!measured_metric_id ( slug, unit ),
                 assessment_equipments ( equipment:equipments ( slug ) )
             )
         `)
         .eq('user_id', userId)
+        .in('status', ['pending', 'in_progress'])
         .order('created_at', { ascending: false });
 
     return (data ?? []).map((ua) => ({

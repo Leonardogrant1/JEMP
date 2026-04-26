@@ -13,15 +13,25 @@ async function fetchActivePlan(userId: string) {
         .order('created_at', { ascending: false })
         .maybeSingle();
 
-    if (!plan) return { plan: null, sessions: []  };
+    if (!plan) return { plan: null, sessions: [], planSessions: [] };
 
-    const { data: sessions } = await supabase
-        .from('workout_sessions')
-        .select('id, name, description, session_type, scheduled_at, status, estimated_duration_minutes')
-        .eq('workout_plan_id', plan.id)
-        .order('scheduled_at', { ascending: true });
+    const [sessionsRes, planSessionsRes] = await Promise.all([
+        supabase
+            .from('workout_sessions')
+            .select('id, name, description, session_type, scheduled_at, status, estimated_duration_minutes, workout_plan_session_id')
+            .eq('workout_plan_id', plan.id)
+            .order('scheduled_at', { ascending: true }),
+        supabase
+            .from('workout_plan_sessions')
+            .select('id, plan_id, name, description, session_type, day_of_week, estimated_duration_minutes')
+            .eq('plan_id', plan.id),
+    ]);
 
-    return { plan, sessions: (sessions ?? [])  };
+    return {
+        plan,
+        sessions: sessionsRes.data ?? [],
+        planSessions: planSessionsRes.data ?? [],
+    };
 }
 
 export function usePlanQuery() {

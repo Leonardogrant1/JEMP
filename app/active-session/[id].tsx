@@ -1,5 +1,5 @@
 import { JempText } from '@/components/jemp-text';
-import { Colors, Cyan, Electric } from '@/constants/theme';
+import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { formatTargetReps, loadUnit } from '@/helpers/format';
 import { youtubeThumbUrl } from '@/helpers/youtube';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -23,7 +23,6 @@ import {
     TextInput,
     View,
 } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const PLACEHOLDER = require('@/assets/images/splash-icon.png');
@@ -40,6 +39,7 @@ type FlatExercise = {
         body_region: string | null;
         movement_pattern: string | null;
         youtube_url: string | null;
+        equipment: { slug: string; name_i18n: Record<string, string> | null }[];
     };
     target_sets: number | null;
     target_reps_min: number | null;
@@ -55,7 +55,8 @@ type FlatExercise = {
 export default function ActiveSessionScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
+    const locale = i18n.language;
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
@@ -96,6 +97,7 @@ export default function ActiveSessionScreen() {
 
     // Rest timer
     const [restSeconds, setRestSeconds] = useState(0);
+    const [totalRestSeconds, setTotalRestSeconds] = useState(0);
     const [isResting, setIsResting] = useState(false);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -112,16 +114,6 @@ export default function ActiveSessionScreen() {
         await updateProgress.mutateAsync({ sessionId: id, currentExerciseIndex: exIdx, currentSetNumber: setNum });
     }, [id, updateProgress]);
 
-    // Progress bar
-    const progressWidth = useSharedValue(0);
-    useEffect(() => {
-        if (allExercises.length > 0) {
-            progressWidth.value = withTiming((exerciseIdx + 1) / allExercises.length, { duration: 300 });
-        }
-    }, [exerciseIdx, allExercises.length]);
-    const progressStyle = useAnimatedStyle(() => ({
-        width: `${progressWidth.value * 100}%` as any,
-    }));
 
     // Reset when exercise changes (but not on initial restore)
     useEffect(() => {
@@ -136,6 +128,7 @@ export default function ActiveSessionScreen() {
     const startTimer = useCallback((seconds: number) => {
         stopTimer();
         setRestSeconds(seconds);
+        setTotalRestSeconds(seconds);
         setIsResting(true);
         timerRef.current = setInterval(() => {
             setRestSeconds(prev => {
@@ -264,6 +257,10 @@ export default function ActiveSessionScreen() {
         ]);
     }, [id, updateStatus, router, t]);
 
+    const leaveSession = useCallback(() => {
+        router.back();
+    }, [router]);
+
     // ── Render ───────────────────────────────────────────────────────────
 
     if (isLoading || !session) {
@@ -288,41 +285,38 @@ export default function ActiveSessionScreen() {
 
     return (
         <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
-            {/* ── Progress bar ── */}
-            <View style={[styles.progressTrack, { backgroundColor: theme.borderDivider }]}>
-                <Animated.View style={[styles.progressFill, progressStyle]}>
-                    <LinearGradient
-                        colors={[Cyan[500], Electric[500]]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={StyleSheet.absoluteFill}
-                    />
-                </Animated.View>
+            {/* ── Header ── */}
+            <View style={styles.header}>
+                <Pressable onPress={leaveSession} style={styles.headerSide}>
+                    <Ionicons name="chevron-back" size={24} color={theme.text} />
+                </Pressable>
+                <View style={styles.headerCenter}>
+                    <JempText type="body-l" color={theme.textMuted} numberOfLines={1}>{session.name}</JempText>
+                    <View style={[styles.progressTrack, { backgroundColor: theme.borderStrong }]}>
+                        <View style={[styles.progressFill, { width: `${((exerciseIdx + 1) / allExercises.length) * 100}%` as any }]}>
+                            <LinearGradient
+                                colors={[Cyan[500], Electric[500]]}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={StyleSheet.absoluteFill}
+                            />
+                        </View>
+                    </View>
+                </View>
+                <View style={styles.headerSide} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                {/* ── Header row ── */}
-                <View style={styles.header}>
-                    <Pressable onPress={handleFinishEarly} style={styles.finishEarlyBtn}>
-                        <Ionicons name="chevron-back" size={18} color={theme.text} />
-                        <JempText type="body-sm" color={theme.text}>{t('ui.finish_early')}</JempText>
-                    </Pressable>
-                </View>
 
-                {/* ── Exercise title + set counter ── */}
+                {/* ── Exercise title ── */}
                 <View style={styles.titleRow}>
                     <View style={styles.titleLeft}>
-                        <JempText type="caption" color={Cyan[500]} style={styles.blockLabel}>
+                        <JempText type="caption" color={GradientMid} style={styles.blockLabel}>
                             {current.blockType
                                 ? t(`block_type.${current.blockType.slug}`).toUpperCase()
                                 : t('ui.active_session').toUpperCase()}
                         </JempText>
                         <JempText type="hero">{current.exercise.name}</JempText>
-                    </View>
-                    <View style={styles.setCounter}>
-                        <JempText type="hero" gradient>{currentSet}</JempText>
-                        <JempText type="body-sm" color={theme.textMuted}>/{totalSets}</JempText>
-                        <JempText type="caption" color={theme.textMuted}>{t('ui.sets').toUpperCase()}</JempText>
                     </View>
                 </View>
 
@@ -347,22 +341,59 @@ export default function ActiveSessionScreen() {
                     </Pressable>
                 )}
 
+                {/* ── Equipment ── */}
+                {current.exercise.equipment?.length > 0 && (
+                    <View style={styles.equipmentSection}>
+                        <JempText type="caption" color={theme.textMuted} style={styles.equipmentLabel}>
+                            Benötigtes Equipment
+                        </JempText>
+                        <View style={styles.equipmentRow}>
+                            {current.exercise.equipment.map((eq, i) => {
+                                const label = (eq.name_i18n as any)?.[locale] ?? eq.slug;
+                                return (
+                                    <View key={i} style={[styles.equipmentChip, { backgroundColor: theme.surface }]}>
+                                        <JempText type="caption" color="#fff" style={styles.equipmentChipText}>{label}</JempText>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    </View>
+                )}
+
                 {/* ── Rest timer ── */}
                 {isResting && (
                     <View style={[styles.timerCard, { backgroundColor: theme.surface }]}>
-                        <JempText type="caption" color={Cyan[500]}>
-                            {t('ui.rest_timer').toUpperCase()}
+                        <JempText type="caption" color={theme.textMuted} style={styles.timerLabel}>
+                            PAUSE
                         </JempText>
-                        <JempText type="hero" gradient>{formatTimer(restSeconds)}</JempText>
+                        <JempText type="hero" gradient style={styles.timerDisplay}>
+                            {formatTimer(restSeconds)}
+                        </JempText>
+                        <View style={[styles.timerTrack, { backgroundColor: theme.borderStrong }]}>
+                            <View style={[
+                                styles.timerFill,
+                                { width: `${totalRestSeconds > 0 ? (1 - restSeconds / totalRestSeconds) * 100 : 100}%` as any },
+                            ]}>
+                                <LinearGradient
+                                    colors={[Cyan[500], Electric[500]]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={StyleSheet.absoluteFill}
+                                />
+                            </View>
+                        </View>
                         <View style={styles.timerActions}>
                             <Pressable
-                                style={[styles.timerBtn, { borderColor: theme.borderCard }]}
-                                onPress={() => setRestSeconds(prev => prev + 30)}
+                                style={[styles.timerBtn, { backgroundColor: theme.surface }]}
+                                onPress={() => {
+                                    setRestSeconds(prev => prev + 30);
+                                    setTotalRestSeconds(prev => prev + 30);
+                                }}
                             >
                                 <JempText type="body-sm" color={theme.text}>+ 30s</JempText>
                             </Pressable>
-                            <Pressable onPress={stopTimer}>
-                                <JempText type="body-sm" color={theme.textMuted}>{t('ui.skip_set')}</JempText>
+                            <Pressable style={[styles.timerSkip, { backgroundColor: theme.surface }]} onPress={stopTimer}>
+                                <JempText type="body-sm" color={theme.textMuted}>Überspringen</JempText>
                             </Pressable>
                         </View>
                     </View>
@@ -371,7 +402,7 @@ export default function ActiveSessionScreen() {
                 {/* ── Log set inputs ── */}
                 <View style={styles.logSection}>
                     <JempText type="h2">
-                        {t('ui.log_set')} {currentSet}
+                        {t('ui.log_set')} {currentSet} / {totalSets}
                     </JempText>
 
                     <View style={styles.inputRow}>
@@ -411,7 +442,6 @@ export default function ActiveSessionScreen() {
                                     keyboardType="number-pad"
                                     placeholder={repsTarget !== '–' ? repsTarget : '–'}
                                     placeholderTextColor={theme.textPlaceholder}
-                                    autoFocus
                                 />
                             </View>
                         </View>
@@ -453,7 +483,7 @@ export default function ActiveSessionScreen() {
                     </LinearGradient>
                 </Pressable>
                 <Pressable onPress={handleSkipSet} style={styles.skipLink}>
-                    <JempText type="body-sm" color={Cyan[500]}>{t('ui.skip_set')}</JempText>
+                    <JempText type="body-sm" color={theme.textMuted}>{t('ui.skip_set')}</JempText>
                 </Pressable>
             </View>
         </SafeAreaView>
@@ -466,20 +496,32 @@ const styles = StyleSheet.create({
     root: { flex: 1 },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-    progressTrack: { height: 3, overflow: 'hidden' },
-    progressFill: { height: '100%', overflow: 'hidden' },
-
-    content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 140, gap: 20 },
+    content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 200, gap: 20 },
 
     // Header
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    finishEarlyBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingVertical: 14,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    headerSide: { width: 24 },
+    headerCenter: { flex: 1, alignItems: 'center', gap: 10, paddingHorizontal: 12 },
+    progressTrack: { width: '80%', height: 3, borderRadius: 2, overflow: 'hidden' },
+    progressFill: { height: 3, borderRadius: 2, overflow: 'hidden' },
 
     // Title
     titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-    titleLeft: { flex: 1, gap: 4 },
+    titleLeft: { flex: 1, gap: 6 },
     blockLabel: { letterSpacing: 1.5 },
     setCounter: { alignItems: 'center', marginLeft: 12 },
+    equipmentSection: { gap: 12 },
+    equipmentLabel: { letterSpacing: 0.5 },
+    equipmentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    equipmentChip: { borderRadius: 20, paddingVertical: 9, paddingHorizontal: 16, borderWidth: 1, borderColor: GradientMid },
+    equipmentChipText: { fontSize: 14, fontWeight: '500' },
 
     // Video
     videoCard: {
@@ -502,22 +544,46 @@ const styles = StyleSheet.create({
 
     // Timer
     timerCard: {
-        borderRadius: 16,
-        padding: 20,
         alignItems: 'center',
-        gap: 8,
+        gap: 14,
+        paddingVertical: 24,
+        paddingHorizontal: 24,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: GradientMid + '55',
+    },
+    timerLabel: {
+        letterSpacing: 2,
+    },
+    timerDisplay: {
+        fontSize: 64,
+        lineHeight: 72,
+    },
+    timerTrack: {
+        width: '100%',
+        height: 3,
+        borderRadius: 2,
+        overflow: 'hidden',
+    },
+    timerFill: {
+        height: 3,
+        borderRadius: 2,
+        overflow: 'hidden',
     },
     timerActions: {
         flexDirection: 'row',
-        alignItems: 'center',
-        gap: 20,
+        gap: 10,
         marginTop: 4,
     },
     timerBtn: {
-        borderWidth: 1,
         borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingVertical: 6,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+    },
+    timerSkip: {
+        borderRadius: 20,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
     },
 
     // Log set

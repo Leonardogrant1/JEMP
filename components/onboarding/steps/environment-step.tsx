@@ -1,32 +1,29 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { supabase } from '@/services/supabase/client';
 
-type EnvItem = { id: string; slug: string; label: string; description: string };
-
-const ENV_META: Record<string, { label: string; description: string }> = {
-    gym: { label: 'Fitnessstudio', description: 'Vollständige Ausstattung' },
-    outdoor: { label: 'Outdoor', description: 'Parks, Sportplätze' },
-    home: { label: 'Zuhause', description: 'Heimtraining' },
-};
+type EnvItem = { id: string; slug: string; name_i18n: Record<string, string> | null; description_i18n: Record<string, string> | null };
 
 export function EnvironmentStep() {
     const { setCanContinue } = useOnboardingControl();
     const setStore = useOnboardingStore((s) => s.set);
+    const { i18n } = useTranslation();
+    const locale = i18n.language;
     const [environments, setEnvironments] = useState<EnvItem[]>([]);
     const [selected, setSelected] = useState<Set<string>>(new Set());
 
     useEffect(() => {
-        supabase.from('environments').select('id, slug').then(({ data }) => {
+        supabase.from('environments').select('id, slug, name_i18n, description_i18n').then(({ data }) => {
             if (data) {
                 setEnvironments(
                     data.map((e) => ({
                         id: e.id,
                         slug: e.slug,
-                        label: ENV_META[e.slug]?.label ?? e.slug,
-                        description: ENV_META[e.slug]?.description ?? '',
+                        name_i18n: e.name_i18n as Record<string, string> | null,
+                        description_i18n: e.description_i18n as Record<string, string> | null,
                     }))
                 );
             }
@@ -61,9 +58,9 @@ export function EnvironmentStep() {
                         activeOpacity={0.7}
                     >
                         <Text style={[styles.optionTitle, selected.has(env.id) && styles.optionTitleSelected]}>
-                            {env.label}
+                            {env.name_i18n?.[locale] ?? env.slug}
                         </Text>
-                        <Text style={styles.optionDesc}>{env.description}</Text>
+                        <Text style={styles.optionDesc}>{env.description_i18n?.[locale] ?? ''}</Text>
                     </TouchableOpacity>
                 ))}
             </View>

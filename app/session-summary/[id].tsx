@@ -1,5 +1,5 @@
 import { JempText } from '@/components/jemp-text';
-import { Colors, Cyan, Electric, Neutral } from '@/constants/theme';
+import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { loadUnit } from '@/helpers/format';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSessionSummaryQuery } from '@/queries/use-session-summary-query';
@@ -81,7 +81,7 @@ export default function SessionSummaryScreen() {
                         <Ionicons name="chevron-back" size={24} color={theme.text} />
                     </Pressable>
                     <View style={styles.headerCenter}>
-                        <JempText type="caption" color={Cyan[500]}>
+                        <JempText type="caption" color={GradientMid}>
                             {t('ui.summary').toUpperCase()}
                         </JempText>
                     </View>
@@ -91,7 +91,7 @@ export default function SessionSummaryScreen() {
                 {/* ── Title ── */}
                 <View style={styles.titleSection}>
                     <View style={styles.completedIcon}>
-                        <Ionicons name="checkmark-circle" size={36} color={Cyan[500]} />
+                        <Ionicons name="checkmark-circle" size={36} color={GradientMid} />
                     </View>
                     <JempText type="hero">{session.name}</JempText>
                     <JempText type="body-sm" color={theme.textMuted}>
@@ -102,40 +102,40 @@ export default function SessionSummaryScreen() {
                 {/* ── Stats card ── */}
                 <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.borderCard }]}>
                     <View style={styles.statsGrid}>
-                        {stats?.actualDuration != null && (
-                            <View style={styles.statCell}>
-                                <JempText type="caption" color={theme.textMuted}>
-                                    {t('ui.duration').toUpperCase()}
-                                </JempText>
-                                <View style={styles.statValueRow}>
-                                    <JempText type="h1" gradient>{stats.actualDuration}</JempText>
-                                    <JempText type="body-sm" color={theme.textMuted}>{t('ui.min')}</JempText>
-                                </View>
+                        {/* Top-left: Dauer */}
+                        <View style={[styles.statCell, { borderRightColor: theme.borderDivider, borderBottomColor: theme.borderDivider }]}>
+                            <JempText type="caption" color={theme.textMuted}>{t('ui.duration').toUpperCase()} ({t('ui.min')})</JempText>
+                            <View style={styles.statValueRow}>
+                                <JempText type="h1" gradient>{stats?.actualDuration ?? '–'}</JempText>
                             </View>
-                        )}
-                        <View style={styles.statCell}>
-                            <JempText type="caption" color={theme.textMuted}>
-                                {t('ui.exercises').toUpperCase()}
-                            </JempText>
-                            <JempText type="h1" gradient>{stats?.totalExercises ?? 0}</JempText>
                         </View>
-                        <View style={styles.statCell}>
-                            <JempText type="caption" color={theme.textMuted}>
-                                {t('ui.sets').toUpperCase()}
-                            </JempText>
-                            <JempText type="h1" gradient>{stats?.totalSets ?? 0}</JempText>
+                        {/* Top-right: Übungen */}
+                        <View style={[styles.statCell, { borderRightWidth: 0, borderBottomColor: theme.borderDivider }]}>
+                            <JempText type="caption" color={theme.textMuted}>{t('ui.exercises').toUpperCase()}</JempText>
+                            <View style={styles.statValueRow}>
+                                <JempText type="h1" gradient>{stats?.totalExercises ?? 0}</JempText>
+                            </View>
+                        </View>
+                        {/* Bottom-left: Sätze */}
+                        <View style={[styles.statCell, { borderRightColor: theme.borderDivider, borderBottomWidth: 0 }]}>
+                            <JempText type="caption" color={theme.textMuted}>{t('ui.sets').toUpperCase()}</JempText>
+                            <View style={styles.statValueRow}>
+                                <JempText type="h1" gradient>{stats?.totalSets ?? 0}</JempText>
+                            </View>
+                        </View>
+                        {/* Bottom-right: Volumen */}
+                        <View style={[styles.statCell, { borderRightWidth: 0, borderBottomWidth: 0 }]}>
+                            <JempText type="caption" color={theme.textMuted}>{t('ui.total_volume').toUpperCase()}</JempText>
+                            <View style={styles.statValueRow}>
+                                <JempText type="h1" gradient>
+                                    {stats?.totalVolume ? Math.round(stats.totalVolume).toLocaleString() : '–'}
+                                </JempText>
+                                {stats?.totalVolume ? (
+                                    <JempText type="body-sm" color={theme.textMuted}>kg</JempText>
+                                ) : null}
+                            </View>
                         </View>
                     </View>
-                    {stats && stats.totalVolume > 0 && (
-                        <View style={[styles.volumeRow, { borderTopColor: theme.borderDivider }]}>
-                            <JempText type="caption" color={theme.textMuted}>
-                                {t('ui.total_volume').toUpperCase()}
-                            </JempText>
-                            <JempText type="h2" gradient>
-                                {Math.round(stats.totalVolume).toLocaleString()} kg
-                            </JempText>
-                        </View>
-                    )}
                 </View>
 
                 {/* ── Blocks with exercises ── */}
@@ -159,6 +159,7 @@ export default function SessionSummaryScreen() {
                                 </JempText>
                             </View>
 
+                            <View style={styles.exerciseGrid}>
                             {block.exercises.map(ex => {
                                 if (ex.performed_sets.length === 0) return null;
                                 const unit = loadUnit(ex.target_load_type);
@@ -192,9 +193,6 @@ export default function SessionSummaryScreen() {
                                                 <JempText type="caption" color={theme.textMuted} style={styles.colValue}>
                                                     {t('ui.reps')}
                                                 </JempText>
-                                                <JempText type="caption" color={theme.textMuted} style={styles.colValue}>
-                                                    {t('ui.rpe_short')}
-                                                </JempText>
                                             </View>
                                             {ex.performed_sets.map(set => (
                                                 <View
@@ -214,15 +212,13 @@ export default function SessionSummaryScreen() {
                                                     <JempText type="body-sm" color={theme.text} style={styles.colValue}>
                                                         {set.performed_reps ?? '–'}
                                                     </JempText>
-                                                    <JempText type="body-sm" color={theme.textMuted} style={styles.colValue}>
-                                                        {set.performed_rpe ?? '–'}
-                                                    </JempText>
                                                 </View>
                                             ))}
                                         </View>
                                     </View>
                                 );
                             })}
+                            </View>
                         </View>
                     );
                 })}
@@ -250,10 +246,10 @@ const styles = StyleSheet.create({
     completedIcon: { marginBottom: 4 },
 
     // Stats
-    statsCard: { borderRadius: 16, borderWidth: 1, padding: 16, gap: 12 },
-    statsGrid: { flexDirection: 'row', gap: 12 },
-    statCell: { flex: 1, gap: 4, alignItems: 'center' },
-    statValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
+    statsCard: { borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+    statsGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+    statCell: { width: '50%', padding: 16, gap: 4, alignItems: 'center', borderRightWidth: 1, borderBottomWidth: 1, },
+    statValueRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 4 },
     volumeRow: { borderTopWidth: 1, paddingTop: 12, alignItems: 'center', gap: 4 },
 
     // Blocks
@@ -261,8 +257,9 @@ const styles = StyleSheet.create({
     blockHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     blockAccentBar: { width: 3, height: 24, borderRadius: 2 },
 
-    // Exercise card
-    exerciseCard: { borderRadius: 14, padding: 14, gap: 10 },
+    // Exercise grid + card
+    exerciseGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    exerciseCard: { width: '48%', borderRadius: 14, padding: 12, gap: 8 },
     exerciseHeader: { flexDirection: 'row', alignItems: 'center' },
     exerciseNameWrap: { flex: 1, gap: 2 },
 

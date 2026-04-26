@@ -12,7 +12,7 @@ const BODYWEIGHT_CONFIG = {
     },
     pullup: {
         weightMultiplier: 1.3,
-        norms:    { male: { mean: 8,  std: 4  }, female: { mean: 3,  std: 2  } },
+        norms:    { male: { mean: 12, std: 6  }, female: { mean: 4,  std: 4  } },
         normsWeighted: { male: { mean: 1.5, std: 0.3  }, female: { mean: 1.1, std: 0.25 } },
     },
     dips: {
@@ -66,20 +66,20 @@ export function bodyweightStrengthLevel(
 
 const ONE_RM_NORMS = {
     back_squat: {
-        male:   { mean: 1.5,  std: 0.4  },
-        female: { mean: 1.0,  std: 0.3  },
+        male:   { mean: 1.25, std: 0.35 },
+        female: { mean: 0.85, std: 0.28 },
     },
     hip_thrust: {
         male:   { mean: 1.8,  std: 0.4  },
         female: { mean: 1.4,  std: 0.35 },
     },
     romanian_deadlift: {
-        male:   { mean: 1.4,  std: 0.35 },
-        female: { mean: 0.9,  std: 0.25 },
+        male:   { mean: 1.5,  std: 0.4  },
+        female: { mean: 1.0,  std: 0.3  },
     },
     bench_press: {
-        male:   { mean: 1.2,  std: 0.35 },
-        female: { mean: 0.7,  std: 0.25 },
+        male:   { mean: 0.9,  std: 0.3  },
+        female: { mean: 0.6,  std: 0.22 },
     },
     weighted_pullups: {
         male:   { mean: 1.5,  std: 0.3  },

@@ -39,4 +39,10 @@ const planSchema = z.object({
 })
 
 
-export { blockSchema, exerciseSchema, planSchema, sessionSchema }
+const planOverviewSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  plan_markdown: z.string(),
+})
+
+export { blockSchema, exerciseSchema, planOverviewSchema, planSchema, sessionSchema }

@@ -1,8 +1,8 @@
 import { JempText } from '@/components/jemp-text';
 import { RestDayCard } from '@/components/rest-day-card';
-import { Colors, Cyan, Electric } from '@/constants/theme';
+import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { type SessionStatus, type WorkoutSession, usePlan } from '@/providers/plan-provider';
+import { type PlanSession, type SessionStatus, type WorkoutSession, usePlan } from '@/providers/plan-provider';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -121,7 +121,84 @@ function SessionCard({ session, theme }: { session: WorkoutSession; theme: any }
     );
 }
 
-// ── Gradient moon icon ────────────────────────────────────────────────────
+// ── Plan template preview card (no real session yet) ─────────────────────
+
+function PlanSessionCard({ planSession, nextSession, theme }: {
+    planSession: PlanSession;
+    nextSession: WorkoutSession | null;
+    theme: any;
+}) {
+    const router = useRouter();
+    const { t } = useTranslation();
+    return (
+        <View style={styles.sessionCard}>
+            <Image
+                source={SESSION_IMAGE}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                contentPosition="top center"
+            />
+            <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.92)']}
+                locations={[0.3, 1]}
+                style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.cardContent}>
+                <View style={[styles.previewBadge, { backgroundColor: 'rgba(255,255,255,0.12)' }]}>
+                    <JempText type="caption" color="rgba(255,255,255,0.55)">
+                        {t('ui.plan_template_preview')}
+                    </JempText>
+                </View>
+                <JempText type="hero" color="#fff">{planSession.name}</JempText>
+                <View style={styles.metaRow}>
+                    {planSession.estimated_duration_minutes ? (
+                        <>
+                            <Ionicons name="time-outline" size={13} color={GradientMid} />
+                            <JempText type="caption" color="rgba(255,255,255,0.5)">
+                                {planSession.estimated_duration_minutes} MIN
+                            </JempText>
+                        </>
+                    ) : null}
+                    <View style={[styles.badge, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
+                        <JempText type="caption" color="rgba(255,255,255,0.4)">
+                            {t(`session_type.${planSession.session_type}`)}
+                        </JempText>
+                    </View>
+                </View>
+                {nextSession && (
+                    <Pressable
+                        style={styles.cta}
+                        onPress={() => router.push(`/session/${nextSession.id}`)}
+                    >
+                        <LinearGradient
+                            colors={[Cyan[500], Electric[500]]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.ctaGradient}
+                        >
+                            <JempText type="button" color="#fff">{t('ui.view_details')}</JempText>
+                        </LinearGradient>
+                    </Pressable>
+                )}
+            </View>
+        </View>
+    );
+}
+
+// ── Helper: Plan-Template für einen Tag ohne echte Session ────────────────
+
+function getPreviewSession(
+    day: Date,
+    sessions: WorkoutSession[],
+    planSessionByDow: Map<number, PlanSession>,
+): PlanSession | null {
+    const dateStr = toDateStr(day);
+    const hasReal = sessions.some(s => toDateStr(new Date(s.scheduled_at!)) === dateStr);
+    if (hasReal) return null;
+    const jsDay = day.getDay(); // 0=So, 1=Mo, …, 6=Sa
+    const dow = jsDay === 0 ? 7 : jsDay; // DB: 1=Mo, 7=So
+    return planSessionByDow.get(dow) ?? null;
+}
 
 // ── Screen ────────────────────────────────────────────────────────────────
 
@@ -130,7 +207,7 @@ export default function PlanScreen() {
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
-    const { plan, sessions, isLoading, streak } = usePlan();
+    const { plan, sessions, planSessions, isLoading, streak } = usePlan();
 
     const [selectedDay, setSelectedDay] = useState<Date>(new Date());
     const [trackWidth, setTrackWidth] = useState(0);
@@ -144,23 +221,55 @@ export default function PlanScreen() {
         d => d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
     ), [weekDays, today]);
 
+    // Map day_of_week (1=Mo…7=So) → plan template session
+    const planSessionByDow = useMemo(() => {
+        const map = new Map<number, PlanSession>();
+        for (const ps of planSessions) map.set(ps.day_of_week, ps);
+        return map;
+    }, [planSessions]);
+
     // Plan completion: sessions that are no longer scheduled/in_progress
     const planCompletion = useMemo(() => sessions.length > 0
         ? sessions.filter(s => s.status !== 'scheduled' && s.status !== 'in_progress').length / sessions.length
         : 0, [sessions]);
 
-    // Days in current week that have at least one session
-    const weekSessionDays = useMemo(() => new Set(
-        sessions
-            .map(s => toDateStr(new Date(s.scheduled_at!)))
-            .filter(dateStr => weekDays.some(wd => toDateStr(wd) === dateStr))
-    ), [sessions, weekDays]);
+    // Days in current week that have at least one session (real or plan-template preview)
+    const weekSessionDays = useMemo(() => {
+        const set = new Set(
+            sessions
+                .map(s => toDateStr(new Date(s.scheduled_at!)))
+                .filter(dateStr => weekDays.some(wd => toDateStr(wd) === dateStr))
+        );
+        // Add plan-template previews for empty days
+        for (const day of weekDays) {
+            if (!set.has(toDateStr(day)) && getPreviewSession(day, sessions, planSessionByDow)) {
+                set.add(toDateStr(day));
+            }
+        }
+        return set;
+    }, [sessions, weekDays, planSessionByDow]);
 
     // Sessions for the tapped day
     const selectedDayStr = toDateStr(selectedDay);
     const selectedDaySessions = useMemo(() => sessions.filter(
         s => toDateStr(new Date(s.scheduled_at!)) === selectedDayStr
     ), [sessions, selectedDayStr]);
+
+    // Plan-template preview for tapped day (only when no real session)
+    const selectedDayPreview = useMemo(() =>
+        getPreviewSession(selectedDay, sessions, planSessionByDow)
+        , [selectedDay, sessions, planSessionByDow]);
+
+    // First upcoming concrete session for the preview template (for "View Details" navigation)
+    const previewNextSession = useMemo(() => {
+        if (!selectedDayPreview) return null;
+        const todayStr = toDateStr(new Date());
+        return sessions.find(s =>
+            s.workout_plan_session_id === selectedDayPreview.id &&
+            s.scheduled_at != null &&
+            toDateStr(new Date(s.scheduled_at)) > todayStr
+        ) ?? null;
+    }, [selectedDayPreview, sessions]);
 
     useEffect(() => {
         if (trackWidth > 0) {
@@ -283,14 +392,12 @@ export default function PlanScreen() {
                         </View>
 
                         {/* Sessions for selected day */}
-                        {selectedDaySessions.length === 0 ? (
-                            <RestDayCard />
-                        ) : (
-                            // <View style={styles.sessionList}>
-
+                        {selectedDaySessions.length > 0 ? (
                             <SessionCard key={selectedDaySessions[0].id} session={selectedDaySessions[0]} theme={theme} />
-
-                            // </View>
+                        ) : selectedDayPreview ? (
+                            <PlanSessionCard key={selectedDayPreview.id} planSession={selectedDayPreview} nextSession={previewNextSession} theme={theme} />
+                        ) : (
+                            <RestDayCard />
                         )}
                     </>
                 )}
@@ -346,4 +453,13 @@ const styles = StyleSheet.create({
 
     // Rest
     restCard: { borderRadius: 16, alignItems: 'center', gap: 8, flex: 1, justifyContent: "center" },
+
+    // Plan template preview badge
+    previewBadge: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: 10,
+        paddingVertical: 3,
+        borderRadius: 6,
+        marginBottom: 2,
+    },
 });

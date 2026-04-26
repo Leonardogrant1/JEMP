@@ -30,7 +30,7 @@ type OnboardingStore = ProfileData & {
     targetedCategories: TargetedCategory[];
     categoryLevels: CategoryLevel[];
     equipmentIds: string[];
-    environmentIds: string[]; // temporary, not written to DB
+    environmentIds: string[];
     set: (data: Partial<ProfileData & {
         targetedCategories: TargetedCategory[];
         categoryLevels: CategoryLevel[];

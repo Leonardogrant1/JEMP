@@ -1,358 +1,31 @@
 import { JempText } from '@/components/jemp-text';
-import { getCategoryMeta } from '@/constants/categories';
+import { AllCategoryStats } from '@/components/progress/all-category-stats';
+import { AssessmentRow } from '@/components/progress/assessment-row';
+import { CategoryDropdown } from '@/components/progress/category-dropdown';
+import { GaugeCard } from '@/components/progress/gauge-card';
+import { TrajectoryChart } from '@/components/progress/trajectory-chart';
+import { ALL_STAT_SLUGS, CHART_HEIGHT, TIME_FRAMES } from '@/constants/progress-constants';
 import { Colors, Cyan, Electric } from '@/constants/theme';
+import { computeTrend, timeFrameToSince } from '@/helpers/progress-helpers';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCurrentUser } from '@/providers/current-user-provider';
-import { type CategoryAssessmentEntry, useCategoryAssessmentsQuery } from '@/queries/use-category-assessments-query';
-import { type CategoryHistoryPoint, useUserCategoryHistoryQuery } from '@/queries/use-user-category-history-query';
+import { useCategoryAssessmentsQuery } from '@/queries/use-category-assessments-query';
+import { useUserCategoryHistoryQuery } from '@/queries/use-user-category-history-query';
 import { useUserCategoryLevelsQuery } from '@/queries/use-user-category-levels-query';
+import { TimeFrame } from '@/types/progress-types';
 import { devLog } from '@/utils/dev-log';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    ActivityIndicator, Modal, Pressable, ScrollView,
-    StyleSheet, TouchableOpacity, View,
+    ActivityIndicator,
+    Pressable, ScrollView,
+    StyleSheet,
+    View
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Path, Svg } from 'react-native-svg';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-// ─── Constants ──────────────────────────────────────────────────────────────
-
-const ALL_STAT_SLUGS = [
-    'strength',
-    'lower_body_plyometrics',
-    'upper_body_plyometrics',
-    'jumps',
-    'mobility',
-] as const;
-
-const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-    strength: 'barbell',
-    jumps: 'trending-up',
-    lower_body_plyometrics: 'flash',
-    upper_body_plyometrics: 'fitness',
-    mobility: 'body',
-};
-
-const STAT_LABELS: Record<string, string> = {
-    strength: 'Strength',
-    jumps: 'Jump',
-    lower_body_plyometrics: 'Lower Plyo',
-    upper_body_plyometrics: 'Upper Plyo',
-    mobility: 'Mobility',
-};
-
-const RADAR_SLUGS = ['jumps', 'strength', 'upper_body_plyometrics', 'lower_body_plyometrics', 'mobility'] as const;
-
-const RADAR_LABELS: Record<string, string> = {
-    jumps: 'Jump',
-    strength: 'Strength',
-    upper_body_plyometrics: 'Up Plyo',
-    lower_body_plyometrics: 'Low Plyo',
-    mobility: 'Mobility',
-};
-
-const DROPDOWN_OPTIONS = [
-    { key: 'all', labelKey: 'ui.progress_all_categories' },
-    { key: 'strength', labelKey: 'category.strength' },
-    { key: 'jumps', labelKey: 'category.jumps' },
-    { key: 'lower_body_plyometrics', labelKey: 'category.lower_body_plyometrics' },
-    { key: 'upper_body_plyometrics', labelKey: 'category.upper_body_plyometrics' },
-    { key: 'mobility', labelKey: 'category.mobility' },
-] as const;
-
-const TIME_FRAMES = ['3M', '6M', '1Y'] as const;
-type TimeFrame = typeof TIME_FRAMES[number];
-
-const CHART_HEIGHT = 150;
-const CHART_PAD_TOP = 12;
-const CHART_PAD_BOTTOM = 28;
-
-// ─── Data helpers ────────────────────────────────────────────────────────────
-
-function timeFrameToSince(tf: TimeFrame): string {
-    const months = tf === '3M' ? 3 : tf === '6M' ? 6 : 12;
-    const d = new Date();
-    d.setMonth(d.getMonth() - months);
-    return d.toISOString();
-}
-
-function computeTrend(data: CategoryHistoryPoint[]): number | null {
-    if (data.length < 2) return null;
-    return data[data.length - 1].score - data[0].score;
-}
-
-// ─── Trajectory chart ────────────────────────────────────────────────────────
-
-interface TrajectoryChartProps {
-    data: CategoryHistoryPoint[];
-    emptyLabel: string;
-}
-
-function TrajectoryChart({ data, emptyLabel }: TrajectoryChartProps) {
-    const [width, setWidth] = useState(0);
-
-    const linePath = useMemo(() => {
-        if (width === 0 || data.length < 1) return '';
-
-        const innerH = CHART_HEIGHT - CHART_PAD_TOP - CHART_PAD_BOTTOM;
-        const scores = data.map(d => d.score);
-        const minScore = Math.max(0, Math.min(...scores) - 5);
-        const maxScore = Math.min(100, Math.max(...scores) + 5);
-        const range = maxScore - minScore || 10;
-
-        const pts = data.map((d, i) => ({
-            x: data.length === 1 ? width / 2 : (i / (data.length - 1)) * width,
-            y: CHART_PAD_TOP + (1 - (d.score - minScore) / range) * innerH,
-        }));
-
-        return pts.reduce((acc, p, i) => {
-            if (i === 0) return `M ${p.x} ${p.y}`;
-            const prev = pts[i - 1];
-            const cp1x = prev.x + (p.x - prev.x) / 3;
-            const cp2x = p.x - (p.x - prev.x) / 3;
-            return `${acc} C ${cp1x} ${prev.y}, ${cp2x} ${p.y}, ${p.x} ${p.y}`;
-        }, '');
-    }, [data, width]);
-
-    if (data.length < 1) {
-        return (
-            <View style={styles.chartEmpty}>
-                <JempText type="caption" color="#666">{emptyLabel}</JempText>
-            </View>
-        );
-    }
-
-    const firstScore = data[0].score;
-    const lastScore = data[data.length - 1].score;
-
-    return (
-        <View onLayout={e => setWidth(e.nativeEvent.layout.width)} style={{ height: CHART_HEIGHT }}>
-            {width > 0 && (
-                <>
-                    <Svg width={width} height={CHART_HEIGHT} style={StyleSheet.absoluteFill}>
-                        <Path d={linePath} stroke={Cyan[500]} strokeWidth={14} fill="none" strokeOpacity={0.06} strokeLinecap="round" />
-                        <Path d={linePath} stroke={Cyan[500]} strokeWidth={7} fill="none" strokeOpacity={0.12} strokeLinecap="round" />
-                        <Path d={linePath} stroke={Cyan[400]} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                    </Svg>
-                    {/* Start / end value labels */}
-                    <View style={styles.chartValueRow} pointerEvents="none">
-                        <JempText type="caption" color="#666" style={styles.chartValueLabel}>
-                            {firstScore}
-                        </JempText>
-                        <JempText type="caption" color={Cyan[400]} style={[styles.chartValueLabel, styles.chartValueLabelEnd]}>
-                            {lastScore}
-                        </JempText>
-                    </View>
-                </>
-            )}
-        </View>
-    );
-}
-
-// ─── Shared trend badge ──────────────────────────────────────────────────────
-
-function TrendBadge({ trend, light }: { trend: number; light?: boolean }) {
-    const up = trend >= 0;
-    const color = light ? 'rgba(255,255,255,0.9)' : up ? Cyan[400] : '#ef4444';
-    return (
-        <View style={styles.trendBadge}>
-            <Ionicons name={up ? 'trending-up' : 'trending-down'} size={12} color={color} />
-            <JempText type="caption" color={color} style={styles.trendText}>
-                {up ? `+${trend}` : String(trend)}
-            </JempText>
-        </View>
-    );
-}
-
-// ─── Stat card ───────────────────────────────────────────────────────────────
-
-interface StatCardProps {
-    slug: string;
-    value: number | undefined;
-    trend: number | null;
-}
-
-function StatCard({ slug, value, trend }: StatCardProps) {
-    const colorScheme = useColorScheme();
-    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
-    const icon = CATEGORY_ICONS[slug] ?? 'fitness';
-    const label = STAT_LABELS[slug] ?? slug;
-    const hasValue = value !== undefined;
-
-    return (
-        <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
-            <View style={styles.statCardHeader}>
-                <View style={styles.statHeader}>
-                    <Ionicons name={icon} size={13} color={theme.textMuted} />
-                    <JempText type="caption" color={theme.textMuted} style={styles.statLabel}>
-                        {label}
-                    </JempText>
-                </View>
-                {trend !== null && <TrendBadge trend={trend} />}
-            </View>
-            <JempText type="h1" color={hasValue ? theme.textHeadline : theme.textMuted} style={styles.statValue}>
-                {hasValue ? String(value) : '—'}
-            </JempText>
-            <View style={[styles.progressTrack, { backgroundColor: theme.borderDivider }]}>
-                {hasValue && (
-                    <LinearGradient
-                        colors={[Cyan[500], Electric[500]]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={[styles.progressFill, { width: `${value}%` }]}
-                    />
-                )}
-            </View>
-        </View>
-    );
-}
-
-// ─── Overall card ────────────────────────────────────────────────────────────
-
-function OverallCard({ value, trend }: { value: number; trend: number | null }) {
-    return (
-        <LinearGradient
-            colors={[Cyan[500], Electric[500]]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.overallCard}
-        >
-            <View style={styles.overallLeft}>
-                <JempText type="caption" color="rgba(255,255,255,0.7)" style={styles.statLabel}>
-                    Overall
-                </JempText>
-                <View style={styles.overallValueRow}>
-                    <JempText type="h1" color="#fff" style={styles.statValue}>
-                        {String(value)}
-                    </JempText>
-                    {trend !== null && <TrendBadge trend={trend} light />}
-                </View>
-            </View>
-            <View style={[styles.progressTrack, { backgroundColor: 'rgba(255,255,255,0.25)', flex: 1 }]}>
-                <View style={[styles.progressFill, { width: `${value}%`, backgroundColor: 'rgba(255,255,255,0.6)' }]} />
-            </View>
-        </LinearGradient>
-    );
-}
-
-// ─── Assessment row ──────────────────────────────────────────────────────────
-
-interface AssessmentRowProps {
-    entry: CategoryAssessmentEntry;
-    categorySlug: string;
-}
-
-function AssessmentRow({ entry, categorySlug }: AssessmentRowProps) {
-    const colorScheme = useColorScheme();
-    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
-    const cat = getCategoryMeta(categorySlug);
-
-    const changeColor =
-        entry.percentChange === null ? theme.textMuted
-            : entry.percentChange > 0 ? Cyan[400]
-                : entry.percentChange < 0 ? '#ef4444'
-                    : theme.textMuted;
-
-    const changeLabel =
-        entry.percentChange === null ? null
-            : entry.percentChange > 0 ? `+${entry.percentChange}%`
-                : entry.percentChange < 0 ? `${entry.percentChange}%`
-                    : '0%';
-
-    return (
-        <View style={[styles.assessRow, { backgroundColor: theme.surface }]}>
-            <View style={styles.assessLeft}>
-                <JempText type="body-l" color={theme.text} numberOfLines={1} style={styles.assessName}>
-                    {entry.name}
-                </JempText>
-                {/* Start → End values, or just latest if only one entry */}
-                <JempText type="caption" color={theme.textMuted}>
-                    {entry.firstValue !== null
-                        ? `${entry.firstValue} → ${entry.latestValue} ${entry.unit}`
-                        : `${entry.latestValue} ${entry.unit}`}
-                </JempText>
-            </View>
-            <View style={styles.assessRight}>
-                {entry.latestScore !== null && (
-                    <View style={[styles.scorePill, { backgroundColor: `${cat.color}20` }]}>
-                        <JempText type="caption" color={cat.color} style={styles.scoreText}>
-                            {entry.latestScore}
-                        </JempText>
-                    </View>
-                )}
-                {changeLabel !== null && (
-                    <JempText type="caption" color={changeColor} style={styles.deltaText}>
-                        {changeLabel}
-                    </JempText>
-                )}
-            </View>
-        </View>
-    );
-}
-
-// ─── Dropdown ────────────────────────────────────────────────────────────────
-
-interface CategoryDropdownProps {
-    selected: string;
-    onSelect: (key: string) => void;
-}
-
-function CategoryDropdown({ selected, onSelect }: CategoryDropdownProps) {
-    const colorScheme = useColorScheme();
-    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
-    const { t } = useTranslation();
-    const insets = useSafeAreaInsets();
-    const [open, setOpen] = useState(false);
-
-    const selectedOpt = DROPDOWN_OPTIONS.find(o => o.key === selected)!;
-    const selectedLabel = t(selectedOpt.labelKey);
-
-    return (
-        <>
-            <Pressable
-                onPress={() => setOpen(true)}
-                style={[styles.dropdownBtn, { backgroundColor: theme.surface }]}
-            >
-                <JempText type="button" color={theme.text} style={styles.dropdownLabel} numberOfLines={1}>
-                    {selectedLabel}
-                </JempText>
-                <Ionicons name="chevron-down" size={14} color={theme.textMuted} />
-            </Pressable>
-
-            <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-                <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setOpen(false)}>
-                    <View
-                        style={[styles.modalSheet, { backgroundColor: theme.surface, paddingBottom: insets.bottom + 8 }]}
-                        onStartShouldSetResponder={() => true}
-                    >
-                        <View style={[styles.modalHandle, { backgroundColor: theme.borderStrong }]} />
-                        {DROPDOWN_OPTIONS.map(opt => {
-                            const label = t(opt.labelKey);
-                            const active = opt.key === selected;
-                            return (
-                                <Pressable
-                                    key={opt.key}
-                                    onPress={() => { onSelect(opt.key); setOpen(false); }}
-                                    style={[styles.modalOption, active && { backgroundColor: theme.borderDivider }]}
-                                >
-                                    <JempText type="body-l" color={active ? theme.text : theme.textMuted}>
-                                        {label}
-                                    </JempText>
-                                    {active && <Ionicons name="checkmark" size={18} color={Cyan[500]} />}
-                                </Pressable>
-                            );
-                        })}
-                    </View>
-                </TouchableOpacity>
-            </Modal>
-        </>
-    );
-}
-
-// ─── Screen ─────────────────────────────────────────────────────────────────
 
 export default function ProgressScreen() {
     const { t } = useTranslation();
@@ -489,20 +162,29 @@ export default function ProgressScreen() {
                     {/* Category Stats */}
                     {(visibleStats.length > 0 || overallScore !== null) && (
                         <View style={styles.statsSection}>
-                            <JempText type="h2">{t('ui.progress_category_stats')}</JempText>
-                            {overallScore !== null && selectedCategory === 'all' && (
-                                <OverallCard value={overallScore} trend={overallTrend} />
+                            {selectedCategory === 'all' && (
+                                <JempText type="h2">{t('ui.progress_category_stats')}</JempText>
                             )}
-                            <View style={styles.statsGrid}>
-                                {visibleStats.map(slug => (
-                                    <StatCard
-                                        key={slug}
-                                        slug={slug}
-                                        value={categoryLevels?.[slug]}
-                                        trend={categoryTrends[slug] ?? null}
-                                    />
-                                ))}
-                            </View>
+                            {selectedCategory === 'all' ? (
+                                <AllCategoryStats
+                                    levels={categoryLevels ?? {}}
+                                    trends={categoryTrends}
+                                    overallScore={overallScore}
+                                    overallTrend={overallTrend}
+                                />
+                            ) : (
+                                <View style={styles.statsGrid}>
+                                    {visibleStats.map(slug => (
+                                        <GaugeCard
+                                            key={slug}
+                                            slug={slug}
+                                            value={categoryLevels?.[slug]}
+                                            trend={categoryTrends[slug] ?? null}
+                                            style={visibleStats.length === 1 ? { width: '100%' } : undefined}
+                                        />
+                                    ))}
+                                </View>
+                            )}
                         </View>
                     )}
 
@@ -533,7 +215,6 @@ export default function ProgressScreen() {
     );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
     root: { flex: 1 },
@@ -652,15 +333,42 @@ const styles = StyleSheet.create({
     deltaText: { fontWeight: '500', fontSize: 12 },
     assessEmpty: { paddingVertical: 20, alignItems: 'center' },
 
+    // Gauge grid card
+    gaugeCard: {
+        width: '48.25%',
+        borderRadius: 16,
+        padding: 14,
+        paddingBottom: 14,
+        gap: 0,
+        overflow: 'hidden',
+    },
+    gaugeCardCircle: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 8,
+        paddingBottom: 4,
+    },
+    gaugeCenter: { alignItems: 'center', justifyContent: 'center' },
+    gaugeCardScore: { fontSize: 24, lineHeight: 28, fontWeight: '700', letterSpacing: -0.5 },
+    miniGaugeScore: { fontSize: 12, fontWeight: '700', letterSpacing: -0.3 },
+
     overallCard: {
         borderRadius: 16,
         padding: 14,
-        paddingBottom: 0,
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        gap: 16,
+        gap: 8,
         overflow: 'hidden',
     },
+    overallCardHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    overallGaugeWrap: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 8,
+    },
+    overallScore: { fontSize: 40, lineHeight: 46, letterSpacing: -1.5 },
     overallLeft: { gap: 2 },
     overallValueRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 

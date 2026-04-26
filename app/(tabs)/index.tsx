@@ -1,13 +1,13 @@
 import { JempText } from '@/components/jemp-text';
-import { Colors, Cyan, Electric } from '@/constants/theme';
+import { RestDayCard } from '@/components/rest-day-card';
+import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlan, WorkoutSession } from '@/providers/plan-provider';
 import { Ionicons } from '@expo/vector-icons';
-import { RestDayCard } from '@/components/rest-day-card';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -61,6 +61,7 @@ export default function HomeScreen() {
         }
     }, [nextSession, updateStatus, router]);
 
+
     return (
         <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
             <View style={styles.content}>
@@ -71,9 +72,18 @@ export default function HomeScreen() {
                         <JempText type="body-sm" color={theme.textMuted}>{t('ui.welcome_back')}</JempText>
                         <JempText type="h1">{profile?.first_name}</JempText>
                     </View>
-                    <View style={[styles.avatar, { backgroundColor: theme.surface, borderColor: theme.borderCard }]}>
-                        <JempText type="button" color={theme.text}>{profile?.first_name?.charAt(0)}</JempText>
-                    </View>
+                    <LinearGradient
+                        colors={[Cyan[500], Electric[500]]}
+                        start={{ x: 0, y: 1 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.avatarRing}
+                    >
+                        <View style={[styles.avatarInner, { backgroundColor: theme.surface }]}>
+                            <JempText type="button" color={theme.text}>
+                                {[profile?.first_name, profile?.last_name].filter(Boolean).map(n => n![0].toUpperCase()).join('')}
+                            </JempText>
+                        </View>
+                    </LinearGradient>
                 </View>
 
                 {nextSession ? (
@@ -100,7 +110,7 @@ export default function HomeScreen() {
                                 style={StyleSheet.absoluteFill}
                             />
                             <View style={styles.cardContent}>
-                                <JempText type="caption" color={nextSession.status === 'completed' ? Cyan[500] : theme.textMuted}>
+                                <JempText type="caption" color={nextSession.status === 'completed' ? GradientMid : theme.textMuted}>
                                     {nextSession.status === 'completed'
                                         ? t('ui.session_completed')
                                         : nextSession.status === 'in_progress'
@@ -110,8 +120,8 @@ export default function HomeScreen() {
                                 <JempText type="hero" color="#fff">{nextSession.name}</JempText>
                                 {nextSession.status === 'completed' ? (
                                     <View style={styles.completedBadge}>
-                                        <Ionicons name="checkmark-circle" size={16} color={Cyan[500]} />
-                                        <JempText type="body-sm" color={Cyan[500]}>
+                                        <Ionicons name="checkmark-circle" size={16} color={GradientMid} />
+                                        <JempText type="body-sm" color={GradientMid}>
                                             {t('ui.well_done')}
                                         </JempText>
                                     </View>
@@ -164,11 +174,15 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
     },
-    avatar: {
+    avatarRing: {
         width: 44,
         height: 44,
         borderRadius: 22,
-        borderWidth: 1,
+        padding: 2,
+    },
+    avatarInner: {
+        flex: 1,
+        borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
     },

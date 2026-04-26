@@ -63,8 +63,11 @@ export function calculateAssessmentScore(
             return jumpLevel(value, height_cm, weight_kg, age, gender, entry.exercise);
         case 'bodyweight':
             return bodyweightStrengthLevel(value, weight_kg, age, gender, entry.exercise);
-        case 'one_rm':
-            return oneRmLevel(value, weight_kg, age, gender, entry.exercise);
+        case 'one_rm': {
+            // Weighted pull-ups: user enters added weight only — add bodyweight internally
+            const liftedWeight = entry.exercise === 'weighted_pullups' ? value + weight_kg : value;
+            return oneRmLevel(liftedWeight, weight_kg, age, gender, entry.exercise);
+        }
         case 'lower_plyo':
             return lowerBodyPlyometricsLevel(value, weight_kg, age, gender, entry.exercise);
         case 'upper_plyo':

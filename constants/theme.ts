@@ -46,6 +46,9 @@ export const Cyan = {
 } as const;
 
 
+// Mid-point between Cyan[500] and Electric[500] gradient
+export const GradientMid = '#3D9ECB';
+
 // --- Shared semantic tokens ---
 
 const shared = {

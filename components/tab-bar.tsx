@@ -1,11 +1,12 @@
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useCurrentUser } from '@/providers/current-user-provider';
+import { usePendingAssessmentsCountQuery } from '@/queries/use-pending-assessments-count-query';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { JempText } from './jemp-text';
 
@@ -21,38 +22,31 @@ type TabItemProps = {
     label: string;
     isFocused: boolean;
     onPress: () => void;
+    hasBadge?: boolean;
 };
 
-function TabItem({ label, isFocused, onPress }: TabItemProps) {
+function TabItem({ label, isFocused, onPress, hasBadge }: TabItemProps) {
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
-    const scale = useSharedValue(isFocused ? 1.08 : 1);
-
-    useEffect(() => {
-        // Hier kannst du die duration (in Millisekunden) für die Scale-Animation anpassen
-        scale.value = withTiming(isFocused ? 1.08 : 1, { duration: 200 });
-    }, [isFocused]);
-
-    const animStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: scale.value }],
-    }));
-
     return (
         <Pressable onPress={onPress}>
-            <Animated.View style={[styles.badge, animStyle, !isFocused && { backgroundColor: theme.surface }]}>
-                {isFocused && (
-                    <LinearGradient
-                        colors={[Cyan[500], Electric[500]]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={StyleSheet.absoluteFill}
-                    />
-                )}
-                <JempText type="button" color={isFocused ? '#fff' : theme.textMuted}>
-                    {label}
-                </JempText>
-            </Animated.View>
+            <View>
+                <View style={[styles.badge, !isFocused && { backgroundColor: theme.surface }]}>
+                    {isFocused && (
+                        <LinearGradient
+                            colors={[Cyan[500], Electric[500]]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={StyleSheet.absoluteFill}
+                        />
+                    )}
+                    <JempText type="button" color={isFocused ? '#fff' : theme.textMuted}>
+                        {label}
+                    </JempText>
+                </View>
+                {hasBadge && <View style={styles.notificationDot} />}
+            </View>
         </Pressable>
     );
 }
@@ -60,6 +54,9 @@ function TabItem({ label, isFocused, onPress }: TabItemProps) {
 export function TabBar({ state, navigation }: BottomTabBarProps) {
     const insets = useSafeAreaInsets();
     const { t } = useTranslation();
+    const { profile } = useCurrentUser();
+    const { data: pendingCount } = usePendingAssessmentsCountQuery(profile?.id);
+    const hasPendingAssessments = (pendingCount ?? 0) > 0;
 
     return (
         <View style={[styles.container, { paddingBottom: insets.bottom + 8 }]}>
@@ -80,6 +77,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
                             canPreventDefault: true,
                         });
                         if (!isFocused && !event.defaultPrevented) {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                             navigation.navigate(route.name);
                         }
                     }
@@ -90,6 +88,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
                             label={label}
                             isFocused={isFocused}
                             onPress={onPress}
+                            hasBadge={route.name === 'assessments' && hasPendingAssessments}
                         />
                     );
                 })}
@@ -116,5 +115,14 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    notificationDot: {
+        position: 'absolute',
+        top: 2,
+        right: 2,
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+        backgroundColor: '#ef4444',
     },
 });

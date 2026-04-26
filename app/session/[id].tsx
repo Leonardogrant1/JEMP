@@ -1,5 +1,5 @@
 import { JempText } from '@/components/jemp-text';
-import { Colors, Cyan, Electric, Neutral } from '@/constants/theme';
+import { Colors, Cyan, Electric, GradientMid, Neutral } from '@/constants/theme';
 import { formatLoad, formatReps, formatRest } from '@/helpers/format';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSessionDetailQuery, type SessionDetail } from '@/queries/use-session-detail-query';
@@ -65,9 +65,8 @@ export default function SessionDetailScreen() {
 
                 {/* ── Hero section ── */}
                 <View style={styles.heroSection}>
-                    <View style={styles.heroLabel}>
-                        <Ionicons name="flash" size={14} color={Cyan[500]} />
-                        <JempText type="caption" color={Cyan[500]} style={styles.heroLabelText}>
+                    <View style={[styles.heroLabel, { backgroundColor: `${GradientMid}20` }]}>
+                        <JempText type="caption" color={GradientMid} style={styles.heroLabelText}>
                             {t(`session_type.${session.session_type}`).toUpperCase()}
                         </JempText>
                     </View>
@@ -112,19 +111,13 @@ export default function SessionDetailScreen() {
                 {/* ── Blocks ── */}
                 {session.blocks.map((block, blockIdx) => (
                     <View key={block.id} style={styles.blockSection}>
-                        {/* Block header with accent bar */}
+                        {/* Block header */}
                         <View style={styles.blockHeaderRow}>
-                            <LinearGradient
-                                colors={[Cyan[500], Electric[500]]}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 0, y: 1 }}
-                                style={styles.blockAccentBar}
-                            />
                             <View>
-                                <JempText type="button" gradient>
+                                <JempText type="h2">
                                     {block.block_type
-                                        ? t(`block_type.${block.block_type.slug}`).toUpperCase()
-                                        : `BLOCK ${blockIdx + 1}`}
+                                        ? t(`block_type.${block.block_type.slug}`)
+                                        : `Block ${blockIdx + 1}`}
                                 </JempText>
                                 {block.focused_category && (
                                     <JempText type="caption" color={theme.textMuted}>
@@ -231,7 +224,7 @@ const styles = StyleSheet.create({
 
     // Hero
     heroSection: { gap: 8 },
-    heroLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    heroLabel: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
     heroLabelText: { letterSpacing: 1.5 },
     heroDesc: { marginTop: 4 },
 

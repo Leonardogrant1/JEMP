@@ -4,8 +4,8 @@ import { OpenAI } from "openai"
 import { zodResponseFormat } from "openai/helpers/zod"
 import { z } from "zod"
 import { computePlanDates, getScheduledDates } from "./helpers/date-helpers.ts"
-import { GENERATE_PLAN_SYSTEM_PROMPT } from "./prompts.ts"
-import { planSchema } from "./schemas.ts"
+import { GENERATE_PLAN_JSON_PROMPT, GENERATE_PLAN_OVERVIEW_PROMPT } from "./prompts.ts"
+import { planOverviewSchema, planSchema } from "./schemas.ts"
 
 
 
@@ -58,6 +58,15 @@ Deno.serve(async (req) => {
     const equipmentIds = (userProfile.user_equipments as any[]).map((e) => e.equipments.id) as string[]
     const categoryLevels = userProfile.user_category_levels as Array<{ category_id: string; level_score: number }>
 
+    // ── 1b. User environments ────────────────────────────────────────────────
+    const { data: userEnvRows } = await supabase
+      .from("user_environments")
+      .select("environment_id, environments(slug)")
+      .eq("user_id", userId)
+
+    const userEnvironmentIds = new Set((userEnvRows ?? []).map((r: any) => r.environment_id as string))
+    const userEnvironmentSlugs = new Set((userEnvRows ?? []).map((r: any) => r.environments?.slug as string).filter(Boolean))
+
     // ── 2. Sport + required categories + user focus ─────────────────────────
 
     const { data: sportData } = await supabase
@@ -79,49 +88,102 @@ Deno.serve(async (req) => {
       .map((t) => ({ category: t.categories?.slug, priority: t.priority }))
       .sort((a, b) => a.priority - b.priority)
 
-    // ── 3. Filter exercises by equipment + category level ───────────────────
+    // ── 3. Fetch exercise environment restrictions ────────────────────────────
 
-    const [{ data: equipmentMatches }, { data: allEquipmentRows }] = await Promise.all([
-      supabase.from("exercise_equipments").select("exercise_id").in("equipment_id", equipmentIds),
-      supabase.from("exercise_equipments").select("exercise_id"),
+    const [{ data: exerciseEnvRows }, { data: allEnvRows }] = await Promise.all([
+      supabase.from("exercise_environments").select("exercise_id, environment_id"),
+      supabase.from("environments").select("id, slug"),
     ])
 
-    const userEquipmentExerciseIds = [...new Set((equipmentMatches ?? []).map((e: any) => e.exercise_id))]
-    const allEquipmentExerciseIds = [...new Set((allEquipmentRows ?? []).map((e: any) => e.exercise_id))]
+    // Map: environment_id → slug (for prompt labels)
+    const envSlugMap = new Map<string, string>((allEnvRows ?? []).map((r: any) => [r.id, r.slug]))
+
+    // Map: exercise_id → Set of allowed environment_ids
+    const exerciseEnvMap = new Map<string, Set<string>>()
+    for (const row of exerciseEnvRows ?? []) {
+      if (!exerciseEnvMap.has(row.exercise_id)) exerciseEnvMap.set(row.exercise_id, new Set())
+      exerciseEnvMap.get(row.exercise_id)!.add(row.environment_id)
+    }
+
+    // ── 4. Fetch exercise ↔ equipment map + all exercises ───────────────────
 
     const exerciseSelect = "*, categories(id, slug), exercise_blocks(block_types(slug))"
 
-    const equipmentExercisesPromise = userEquipmentExerciseIds.length > 0
-      ? supabase.from("exercises").select(exerciseSelect).in("id", userEquipmentExerciseIds)
-      : Promise.resolve({ data: [] })
-
-    const bodyweightExercisesPromise = allEquipmentExerciseIds.length > 0
-      ? supabase.from("exercises").select(exerciseSelect).not("id", "in", `(${allEquipmentExerciseIds.join(",")})`)
-      : supabase.from("exercises").select(exerciseSelect)
-
-    const [{ data: equipmentExercises }, { data: bodyweightExercises }] = await Promise.all([
-      equipmentExercisesPromise,
-      bodyweightExercisesPromise,
+    const [{ data: allEquipmentRows }, { data: allExercises }] = await Promise.all([
+      supabase.from("exercise_equipments").select("exercise_id, equipment_id"),
+      supabase.from("exercises").select(exerciseSelect),
     ])
 
-    const allExercises = [...(equipmentExercises ?? []), ...(bodyweightExercises ?? [])]
+    // exercise_id → Set of required equipment_ids
+    const exerciseEquipmentMap = new Map<string, Set<string>>()
+    for (const row of allEquipmentRows ?? []) {
+      if (!exerciseEquipmentMap.has(row.exercise_id)) exerciseEquipmentMap.set(row.exercise_id, new Set())
+      exerciseEquipmentMap.get(row.exercise_id)!.add(row.equipment_id)
+    }
+    const userEquipmentSet = new Set(equipmentIds)
 
     const levelMap = new Map(categoryLevels.map((cl) => [cl.category_id, cl.level_score]))
 
-    const filteredExercises = allExercises.filter((exercise: any) => {
-      if (!exercise.category_id) return true
-      const userLevel = levelMap.get(exercise.category_id)
-      if (userLevel === undefined) return false
-      return userLevel >= exercise.min_level && userLevel <= exercise.max_level
+    const filteredExercises = (allExercises ?? []).filter((exercise: any) => {
+      // ── Equipment: no requirement OR user has at least one matching piece ──
+      const requiredEquipment = exerciseEquipmentMap.get(exercise.id)
+      if (requiredEquipment && requiredEquipment.size > 0) {
+        let hasMatch = false
+        for (const eqId of requiredEquipment) {
+          if (userEquipmentSet.has(eqId)) { hasMatch = true; break }
+        }
+        if (!hasMatch) return false
+      }
+
+      // ── Environment: no restriction OR user has at least one matching env ──
+      const allowedEnvs = exerciseEnvMap.get(exercise.id)
+      if (allowedEnvs && allowedEnvs.size > 0 && userEnvironmentIds.size > 0) {
+        let hasMatch = false
+        for (const envId of allowedEnvs) {
+          if (userEnvironmentIds.has(envId)) { hasMatch = true; break }
+        }
+        if (!hasMatch) return false
+      }
+
+      // ── Level: category level must be within min/max range ───────────────
+      if (exercise.category_id) {
+        const userLevel = levelMap.get(exercise.category_id)
+        if (userLevel === undefined) return false
+        if (userLevel < exercise.min_level || userLevel > exercise.max_level) return false
+      }
+
+      return true
     })
 
-    const exercisesString = filteredExercises
+    // Cap at 150 exercises — prioritise categories the user focuses on
+    const focusCategorySlugs = new Set(userFocusCategories.map((f) => f.category))
+    const sportCategorySlugs = new Set(sportRequiredCategories.map((s) => s.category))
+    const cappedExercises = filteredExercises.length > 150
+      ? [
+          // 1st: user focus + sport required categories
+          ...filteredExercises.filter((e: any) =>
+            focusCategorySlugs.has(e.categories?.slug) || sportCategorySlugs.has(e.categories?.slug)
+          ),
+          // 2nd: everything else, shuffled to get variety
+          ...filteredExercises
+            .filter((e: any) =>
+              !focusCategorySlugs.has(e.categories?.slug) && !sportCategorySlugs.has(e.categories?.slug)
+            )
+            .sort(() => Math.random() - 0.5),
+        ].slice(0, 150)
+      : filteredExercises
+
+    const exercisesString = cappedExercises
       .map((e: any) => {
         const blocks = (e.exercise_blocks as any[])
           ?.map((b: any) => b.block_types?.slug)
           .filter(Boolean)
           .join(", ") ?? ""
-        return `[${e.slug}]: ${e.name}, category: ${e.categories?.slug}, blocks: [${blocks}]`
+        const allowedEnvs = exerciseEnvMap.get(e.id)
+        const envTag = allowedEnvs && allowedEnvs.size > 0
+          ? `, environments: [${[...allowedEnvs].map(id => envSlugMap.get(id) ?? id).join(", ")}]`
+          : ""
+        return `[${e.slug}]: ${e.name}, category: ${e.categories?.slug}, blocks: [${blocks}]${envTag}`
       })
       .join("\n")
 
@@ -129,21 +191,52 @@ Deno.serve(async (req) => {
       sport_slug: sportData?.slug,
       preferred_workout_days: userProfile.preferred_workout_days,
       preferred_session_duration: userProfile.preferred_session_duration,
+      user_environments: [...userEnvironmentSlugs],
       category_levels: categoryLevels.map((cl) => ({ category_id: cl.category_id, level_score: cl.level_score })),
       sport_required_categories: sportRequiredCategories,
       user_focus_categories: userFocusCategories,
     }, null, 2)
 
-    // ── 4. Generate plan with OpenAI ────────────────────────────────────────
+    // ── 4a. Call 1: Generate plan overview as markdown ───────────────────────
 
-    const completion = await openai.chat.completions.create({
+    const overviewCompletion = await openai.chat.completions.create({
       model: "gpt-5.1",
-      messages: [{ role: "system", content: GENERATE_PLAN_SYSTEM_PROMPT(exercisesString, userDataString) }],
-      response_format: zodResponseFormat(planSchema, "data"),
-      max_completion_tokens: 5000,
+      messages: [{ role: "system", content: GENERATE_PLAN_OVERVIEW_PROMPT(exercisesString, userDataString) }],
+      response_format: zodResponseFormat(planOverviewSchema, "data"),
+      max_completion_tokens: 8000,
     })
 
-    const plan = JSON.parse(completion.choices[0].message.content!) as z.infer<typeof planSchema>
+    const overviewChoice = overviewCompletion.choices[0]
+    if (overviewChoice.finish_reason === "length") {
+      throw new Error("Plan overview was cut off (max tokens reached).")
+    }
+    const overview = JSON.parse(overviewChoice.message.content!) as z.infer<typeof planOverviewSchema>
+    if (!overview) {
+      throw new Error("OpenAI returned no plan overview. Raw: " + overviewChoice.message.content?.slice(0, 200))
+    }
+
+    // ── 4b. Call 2: Convert markdown → full structured JSON ──────────────────
+
+    const exerciseSlugs = cappedExercises.map((e: any) => e.slug).join("\n")
+
+    const jsonCompletion = await openai.chat.completions.create({
+      model: "gpt-5.1",
+      messages: [{ role: "system", content: GENERATE_PLAN_JSON_PROMPT(overview.plan_markdown, exerciseSlugs) }],
+      response_format: zodResponseFormat(planSchema, "data"),
+      max_completion_tokens: 16000,
+    })
+
+    const jsonChoice = jsonCompletion.choices[0]
+    if (jsonChoice.finish_reason === "length") {
+      throw new Error("Plan JSON conversion was cut off (max tokens reached).")
+    }
+    const plan = JSON.parse(jsonChoice.message.content!) as z.infer<typeof planSchema>
+    if (!plan) {
+      throw new Error("OpenAI returned no structured plan. Raw: " + jsonChoice.message.content?.slice(0, 200))
+    }
+    // Carry over name and description from the overview
+    plan.name = overview.name
+    plan.description = overview.description
 
     // ── 5. Build slug → UUID lookup maps ────────────────────────────────────
 

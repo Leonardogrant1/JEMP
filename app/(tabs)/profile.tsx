@@ -15,58 +15,30 @@ import WeightIcon from '@/assets/icons/weight.svg';
 import { JempText } from '@/components/jemp-text';
 import { DeleteAccountModal } from '@/components/modals/delete-account-modal';
 import { SupportTicketModal } from '@/components/modals/support-ticket-modal';
-import { GeneratePlanSheet } from '@/components/generate-plan-sheet';
 import { EquipmentSheet } from '@/components/profile/equipment-sheet';
+import { GeneratePlanSheet } from '@/components/profile/generate-plan-sheet';
 import { GoalsSheet } from '@/components/profile/goals-sheet';
 import { SportSheet } from '@/components/profile/sport-sheet';
+import { StatCard } from '@/components/profile/stat-card';
 import { getSportLabel } from '@/constants/sports';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { queryKeys } from '@/queries/query-keys';
 import { useAuth } from '@/providers/auth-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
+import { queryKeys } from '@/queries/query-keys';
 import { supabase } from '@/services/supabase/client';
 import { calculateAge } from '@/types/user-data';
-import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
 
-// ── Stat card ────────────────────────────────────────────────
-
-interface StatCardProps {
-    icon: React.ReactNode;
-    label: string;
-    value: string;
-}
-
-function StatCard({ icon, label, value }: StatCardProps) {
-    const colorScheme = useColorScheme();
-    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
-
-    return (
-        <View style={[styles.statCard, { backgroundColor: theme.surface }]}>
-            <View style={styles.statCardContent}>
-
-                <JempText type="caption" color={theme.textMuted} style={styles.statLabel}>
-                    {label}
-                </JempText>
-                <JempText type="h2" color={theme.text} style={styles.statValue}>
-                    {value}
-                </JempText>
-            </View>
-
-            {icon}
-
-        </View>
-    );
-}
 
 // ── Settings row ─────────────────────────────────────────────
 
@@ -102,6 +74,7 @@ function SettingsRow({ icon, label, onPress, loading, destructive }: SettingsRow
         </Pressable>
     );
 }
+const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
 
 function SectionLabel({ label }: { label: string }) {
     const colorScheme = useColorScheme();
@@ -127,7 +100,9 @@ export default function ProfileScreen() {
     const { signOut } = useAuth();
     const queryClient = useQueryClient();
 
+    const router = useRouter();
     const [generatePlanOpen, setGeneratePlanOpen] = useState(false);
+    const [planSuccessOpen, setPlanSuccessOpen] = useState(false);
     const [signOutLoading, setSignOutLoading] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [equipmentOpen, setEquipmentOpen] = useState(false);
@@ -157,15 +132,15 @@ export default function ProfileScreen() {
         }
     }
 
-    const sportLabel = getSportLabel(profile?.sport?.slug);
-    const age = profile?.birth_date ? calculateAge(profile.birth_date) : null;
-    const weight = profile?.weight_in_kg ? `${profile.weight_in_kg} kg` : '—';
-    const height = profile?.height_in_cm ? `${profile.height_in_cm} cm` : '—';
-    const gender = profile?.gender === 'male' ? t('ui.male') : profile?.gender === 'female' ? t('ui.female') : '—';
-    const initials = [profile?.first_name, profile?.last_name]
+    const sportLabel = useMemo(() => getSportLabel(profile?.sport?.slug), [profile]);
+    const age = useMemo(() => profile?.birth_date ? calculateAge(profile.birth_date) : null, [profile]);
+    const weight = useMemo(() => profile?.weight_in_kg ? `${profile.weight_in_kg} kg` : '—', [profile]);
+    const height = useMemo(() => profile?.height_in_cm ? `${profile.height_in_cm} cm` : '—', [profile]);
+    const gender = useMemo(() => profile?.gender === 'male' ? t('ui.male') : profile?.gender === 'female' ? t('ui.female') : '—', [profile]);
+    const initials = useMemo(() => [profile?.first_name, profile?.last_name]
         .filter(Boolean)
         .map(n => n![0].toUpperCase())
-        .join('');
+        .join(''), [profile]);
 
     return (
         <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
@@ -298,6 +273,7 @@ export default function ProfileScreen() {
                             setGeneratePlanOpen(false);
                             refreshProfile();
                             queryClient.invalidateQueries({ queryKey: queryKeys.plan(profile.id) });
+                            setPlanSuccessOpen(true);
                         }}
                     />
                     <SportSheet
@@ -317,6 +293,58 @@ export default function ProfileScreen() {
                         userId={profile.id}
                         onClose={() => setGoalsOpen(false)}
                     />
+                    <Modal
+                        visible={planSuccessOpen}
+                        transparent
+                        animationType="fade"
+                        onRequestClose={() => setPlanSuccessOpen(false)}
+                    >
+                        <Pressable
+                            style={styles.successOverlay}
+                            onPress={() => setPlanSuccessOpen(false)}
+                        >
+                            <Pressable style={[styles.successCard, { backgroundColor: theme.surface }]} onPress={() => {}}>
+                                {/* Icon */}
+                                <LinearGradient
+                                    colors={[Cyan[500], Electric[500]]}
+                                    start={{ x: 0, y: 1 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={styles.successIconRing}
+                                >
+                                    <Ionicons name="checkmark" size={28} color="#fff" />
+                                </LinearGradient>
+
+                                <JempText type="h2" color={theme.text} style={styles.successTitle}>
+                                    Plan erstellt!
+                                </JempText>
+                                <JempText type="body-sm" color={theme.textMuted} style={styles.successSubtitle}>
+                                    Dein personalisierter Trainingsplan ist bereit.
+                                </JempText>
+
+                                {/* CTA */}
+                                <Pressable
+                                    style={styles.successBtn}
+                                    onPress={() => {
+                                        setPlanSuccessOpen(false);
+                                        router.push('/(tabs)/plan');
+                                    }}
+                                >
+                                    <LinearGradient
+                                        colors={[Cyan[500], Electric[500]]}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 0 }}
+                                        style={styles.successBtnGradient}
+                                    >
+                                        <JempText type="button" color="#fff">Plan anzeigen</JempText>
+                                    </LinearGradient>
+                                </Pressable>
+
+                                <Pressable onPress={() => setPlanSuccessOpen(false)} hitSlop={12}>
+                                    <JempText type="caption" color={theme.textMuted}>Schließen</JempText>
+                                </Pressable>
+                            </Pressable>
+                        </Pressable>
+                    </Modal>
                 </>
             )}
             <SupportTicketModal
@@ -366,19 +394,6 @@ const styles = StyleSheet.create({
 
     // Stats
     statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    statCard: {
-        width: '48.25%',
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        borderRadius: 16,
-        padding: 16,
-        gap: 4,
-    },
-    statCardContent: {
-        gap: 10,
-    },
-    statLabel: { letterSpacing: 0.3, fontSize: 11, marginTop: 2 },
-    statValue: { fontSize: 26, letterSpacing: -0.5 },
 
     // Settings sections
     settingsSection: { gap: 8 },
@@ -405,4 +420,32 @@ const styles = StyleSheet.create({
         backgroundColor: '#ef444418',
     },
     settingsLabel: { flex: 1 },
+
+    // Plan success modal
+    successOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 32,
+    },
+    successCard: {
+        width: '100%',
+        borderRadius: 24,
+        padding: 28,
+        alignItems: 'center',
+        gap: 12,
+    },
+    successIconRing: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 4,
+    },
+    successTitle: { textAlign: 'center' },
+    successSubtitle: { textAlign: 'center', lineHeight: 20, marginBottom: 8 },
+    successBtn: { width: '100%', borderRadius: 100, overflow: 'hidden' },
+    successBtnGradient: { height: 52, alignItems: 'center', justifyContent: 'center' },
 });

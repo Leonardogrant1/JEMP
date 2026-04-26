@@ -6,10 +6,10 @@ async function fetchExerciseDetail(id: string) {
     const { data } = await supabase
         .from('exercises')
         .select(`
-            id, name, slug, description, body_region, movement_pattern,
+            id, name, slug, description, description_i18n, body_region, movement_pattern,
             min_level, max_level, youtube_url, thumbnail_storage_path,
             category:categories ( slug ),
-            exercise_equipments ( equipment:equipments ( slug ) ),
+            exercise_equipments ( equipment:equipments ( slug, name_i18n ) ),
             exercise_blocks ( block_type:block_types ( slug ) )
         `)
         .eq('id', id)
@@ -18,8 +18,8 @@ async function fetchExerciseDetail(id: string) {
     if (!data) return null;
 
     const equipments = (data.exercise_equipments ?? [])
-        .map((ee) => ee.equipment?.slug)
-        .filter((s): s is string => !!s);
+        .map((ee) => ee.equipment)
+        .filter((e): e is { slug: string; name_i18n: unknown } => !!e?.slug);
 
     const block_types = (data.exercise_blocks ?? [])
         .map((eb) => eb.block_type?.slug)

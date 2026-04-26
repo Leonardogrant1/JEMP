@@ -11,6 +11,7 @@ import { CurrentUserProvider, useCurrentUser } from '@/providers/current-user-pr
 import { PlanProvider } from '@/providers/plan-provider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 initI18n();
 
@@ -21,6 +22,7 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <KeyboardProvider>
@@ -35,6 +37,7 @@ export default function RootLayout() {
         <StatusBar style="auto" />
       </ThemeProvider>
     </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -72,7 +75,7 @@ function MainStack() {
         <Stack.Screen name="exercise/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="active-session/[id]" options={{ animation: 'slide_from_bottom', headerShown: false }} />
         <Stack.Screen name="session-summary/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="assessment/[id]" options={{ animation: 'slide_from_bottom', headerShown: false }} />
+        <Stack.Screen name="assessment/[id]" options={{ animation: 'slide_from_right', headerShown: false }} />
       </Stack.Protected>
     </Stack>
   )

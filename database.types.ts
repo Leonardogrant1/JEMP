@@ -78,11 +78,13 @@ export type Database = {
           category_id: string | null
           created_at: string | null
           description: string | null
+          description_i18n: Json | null
           id: string
           max_level: number
           measured_metric_id: string | null
           min_level: number
           name: string
+          name_i18n: Json | null
           slug: string
           updated_at: string | null
         }
@@ -90,11 +92,13 @@ export type Database = {
           category_id?: string | null
           created_at?: string | null
           description?: string | null
+          description_i18n?: Json | null
           id?: string
           max_level: number
           measured_metric_id?: string | null
           min_level: number
           name: string
+          name_i18n?: Json | null
           slug: string
           updated_at?: string | null
         }
@@ -102,11 +106,13 @@ export type Database = {
           category_id?: string | null
           created_at?: string | null
           description?: string | null
+          description_i18n?: Json | null
           id?: string
           max_level?: number
           measured_metric_id?: string | null
           min_level?: number
           name?: string
+          name_i18n?: Json | null
           slug?: string
           updated_at?: string | null
         }
@@ -250,19 +256,25 @@ export type Database = {
       environments: {
         Row: {
           created_at: string | null
+          description_i18n: Json | null
           id: string
+          name_i18n: Json | null
           slug: string
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          description_i18n?: Json | null
           id?: string
+          name_i18n?: Json | null
           slug: string
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          description_i18n?: Json | null
           id?: string
+          name_i18n?: Json | null
           slug?: string
           updated_at?: string | null
         }
@@ -272,18 +284,21 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          name_i18n: Json | null
           slug: string
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
+          name_i18n?: Json | null
           slug: string
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
+          name_i18n?: Json | null
           slug?: string
           updated_at?: string | null
         }
@@ -373,6 +388,7 @@ export type Database = {
           category_id: string | null
           created_at: string | null
           description: string | null
+          description_i18n: Json | null
           id: string
           max_level: number
           min_level: number
@@ -391,6 +407,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string | null
           description?: string | null
+          description_i18n?: Json | null
           id?: string
           max_level: number
           min_level: number
@@ -409,6 +426,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string | null
           description?: string | null
+          description_i18n?: Json | null
           id?: string
           max_level?: number
           min_level?: number

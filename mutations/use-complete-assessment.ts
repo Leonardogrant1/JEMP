@@ -102,6 +102,7 @@ export function useCompleteAssessment() {
                 qc.invalidateQueries({ queryKey: queryKeys.userAssessments(userId) }),
                 qc.invalidateQueries({ queryKey: queryKeys.userCategoryLevels(userId) }),
                 qc.invalidateQueries({ queryKey: ['category-history', userId] }),
+                qc.invalidateQueries({ queryKey: ['category-assessments', userId] }),
             ]);
         },
     });

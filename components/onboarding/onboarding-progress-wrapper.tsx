@@ -84,6 +84,16 @@ export function OnboardingProgressWrapper({ steps }: Props) {
                     if (levelError) throw levelError;
                 }
 
+                if (environmentIds.length > 0) {
+                    const { error: envError } = await supabase.from('user_environments').insert(
+                        environmentIds.map((environment_id) => ({
+                            user_id: session.user.id,
+                            environment_id,
+                        }))
+                    );
+                    if (envError) throw envError;
+                }
+
                 if (equipmentIds.length > 0) {
                     const { error: equipError } = await supabase.from('user_equipments').insert(
                         equipmentIds.map((equipment_id) => ({
