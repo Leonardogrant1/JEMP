@@ -1,7 +1,13 @@
-import { useRef, useState } from 'react';
-import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
+import { JempInput } from '@/components/ui/jemp-input';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
+import { useRef, useState } from 'react';
+import { Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 
 function isValidDate(day: number, month: number, year: number): boolean {
     if (year < 1900 || year > new Date().getFullYear()) return false;
@@ -21,6 +27,7 @@ function isAtLeast13(day: number, month: number, year: number): boolean {
 }
 
 export function BirthdayStep() {
+    const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
     const setStore = useOnboardingStore((s) => s.set);
     const [day, setDay] = useState('');
@@ -28,6 +35,8 @@ export function BirthdayStep() {
     const [year, setYear] = useState('');
     const monthRef = useRef<TextInput>(null);
     const yearRef = useRef<TextInput>(null);
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
     function validate(d: string, m: string, y: string) {
         const dd = parseInt(d, 10);
@@ -66,61 +75,57 @@ export function BirthdayStep() {
     return (
         <Pressable style={styles.container} onPress={Keyboard.dismiss}>
             <View style={styles.inner}>
-                <Text style={styles.headline}>Wann wurdest du{'\n'}geboren?</Text>
-                <View style={styles.row}>
+                <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
+                    <JempText type="h1" style={styles.headline}>{t('onboarding.birthday_title')}</JempText>
+                </Animated.View>
+                <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
+                    <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
+                        {t('onboarding.birthday_subtitle')}
+                    </JempText>
+                </Animated.View>
+                <Animated.View entering={FadeInDown.delay(360).duration(500).springify()} style={styles.row}>
                     <View style={styles.fieldWrap}>
-                        <TextInput
-                            style={styles.input}
+                        <JempText type="caption" color={theme.textMuted} style={styles.label}>{t('onboarding.birthday_label_day')}</JempText>
+                        <JempInput
                             value={day}
                             onChangeText={handleDay}
-                            placeholder="TT"
-                            placeholderTextColor="rgba(255,255,255,0.3)"
+                            placeholder={t('onboarding.birthday_placeholder_day')}
                             keyboardType="number-pad"
                             maxLength={2}
                             autoFocus
-                            selectionColor="white"
                             textAlign="center"
-                        />
-                        <View style={styles.underline} />
-                        <Text style={styles.label}>Tag</Text>
-                    </View>
-                    <Text style={styles.separator}>/</Text>
-                    <View style={styles.fieldWrap}>
-                        <TextInput
-                            ref={monthRef}
                             style={styles.input}
+                        />
+                    </View>
+                    <View style={styles.fieldWrap}>
+                        <JempText type="caption" color={theme.textMuted} style={styles.label}>{t('onboarding.birthday_label_month')}</JempText>
+                        <JempInput
+                            ref={monthRef}
                             value={month}
                             onChangeText={handleMonth}
-                            placeholder="MM"
-                            placeholderTextColor="rgba(255,255,255,0.3)"
+                            placeholder={t('onboarding.birthday_placeholder_month')}
                             keyboardType="number-pad"
                             maxLength={2}
-                            selectionColor="white"
                             textAlign="center"
-                        />
-                        <View style={styles.underline} />
-                        <Text style={styles.label}>Monat</Text>
-                    </View>
-                    <Text style={styles.separator}>/</Text>
-                    <View style={[styles.fieldWrap, styles.yearField]}>
-                        <TextInput
-                            ref={yearRef}
                             style={styles.input}
+                        />
+                    </View>
+                    <View style={[styles.fieldWrap, styles.yearField]}>
+                        <JempText type="caption" color={theme.textMuted} style={styles.label}>{t('onboarding.birthday_label_year')}</JempText>
+                        <JempInput
+                            ref={yearRef}
                             value={year}
                             onChangeText={handleYear}
-                            placeholder="JJJJ"
-                            placeholderTextColor="rgba(255,255,255,0.3)"
+                            placeholder={t('onboarding.birthday_placeholder_year')}
                             keyboardType="number-pad"
                             maxLength={4}
                             returnKeyType="done"
                             onSubmitEditing={Keyboard.dismiss}
-                            selectionColor="white"
                             textAlign="center"
+                            style={styles.input}
                         />
-                        <View style={styles.underline} />
-                        <Text style={styles.label}>Jahr</Text>
                     </View>
-                </View>
+                </Animated.View>
             </View>
         </Pressable>
     );
@@ -130,52 +135,33 @@ const styles = StyleSheet.create({
     container: { flex: 1 },
     inner: {
         flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 32,
-        gap: 40,
+        paddingHorizontal: 28,
+        paddingTop: 32,
     },
     headline: {
-        color: 'white',
-        fontSize: 32,
-        fontWeight: '700',
-        textAlign: 'center',
+        marginBottom: 10,
+    },
+    subtitle: {
+        marginBottom: 40,
     },
     row: {
         flexDirection: 'row',
+        gap: 10,
         alignItems: 'flex-end',
-        gap: 8,
     },
     fieldWrap: {
-        alignItems: 'center',
-        width: 64,
+        flex: 1,
+        gap: 6,
     },
     yearField: {
-        width: 88,
-    },
-    input: {
-        color: 'white',
-        fontSize: 28,
-        fontWeight: '700',
-        paddingVertical: 8,
-        width: '100%',
-        textAlign: 'center',
-    },
-    underline: {
-        width: '100%',
-        height: 2,
-        backgroundColor: 'white',
-        borderRadius: 1,
+        flex: 1.6,
     },
     label: {
-        color: 'rgba(255,255,255,0.4)',
-        fontSize: 12,
-        marginTop: 6,
+        paddingLeft: 4,
     },
-    separator: {
-        color: 'rgba(255,255,255,0.3)',
-        fontSize: 28,
-        fontWeight: '300',
-        marginBottom: 10,
+    input: {
+        fontSize: 22,
+        fontWeight: '700',
+        paddingVertical: 14,
     },
 });

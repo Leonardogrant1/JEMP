@@ -1,5 +1,6 @@
 import { JempText } from '@/components/jemp-text';
-import { EnvironmentCard } from '@/components/ui/environment-card';
+import { JempInput } from '@/components/ui/jemp-input';
+import { SelectableRow } from '@/components/ui/selectable-row';
 import { GeneratingView } from '@/components/ui/generating-view';
 import { SelectableChip } from '@/components/ui/selectable-chip';
 import { WeightSlider, HeightSlider } from '@/components/ui/measurement-slider';
@@ -19,6 +20,7 @@ import {
     Pressable, ScrollView, StyleSheet,
     TouchableOpacity, View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -116,6 +118,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
 
     // Schedule
     const [preferredDays, setPreferredDays] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6, 7]));
+    const [scheduleNotes, setScheduleNotes] = useState('');
 
     // Pre-fill on open
     useEffect(() => {
@@ -134,6 +137,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
         if (profile.preferred_workout_days?.length) {
             setPreferredDays(new Set(profile.preferred_workout_days));
         }
+        setScheduleNotes(profile.schedule_notes ?? '');
 
         Promise.all([
             supabase.from('environments').select('id, slug, name_i18n, description_i18n'),
@@ -288,9 +292,12 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                 );
             }
 
-            // 6. Update preferred workout days
+            // 6. Update preferred workout days + notes
             await supabase.from('user_profiles')
-                .update({ preferred_workout_days: [...preferredDays].sort((a, b) => a - b) })
+                .update({
+                    preferred_workout_days: [...preferredDays].sort((a, b) => a - b),
+                    schedule_notes: scheduleNotes.trim() || null,
+                })
                 .eq('id', profile.id);
 
             // 7. Generate plan
@@ -392,9 +399,9 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                         </JempText>
                         <View style={styles.envList}>
                             {allEnvs.map(env => (
-                                <EnvironmentCard
+                                <SelectableRow
                                     key={env.id}
-                                    name={env.name_i18n?.[locale] ?? env.slug}
+                                    label={env.name_i18n?.[locale] ?? env.slug}
                                     description={env.description_i18n?.[locale]}
                                     icon={env.icon}
                                     selected={selectedEnvIds.has(env.id)}
@@ -511,7 +518,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
 
                 {/* ── Schedule ── */}
                 {phase === 'schedule' && (
-                    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    <KeyboardAwareScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                         <JempText type="h1" color={theme.text} style={styles.bodyTitle}>Trainingstage</JempText>
                         <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
                             An welchen Tagen möchtest du trainieren? Mindestens 2 Tage.
@@ -548,7 +555,22 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                                 );
                             })}
                         </View>
-                    </ScrollView>
+                        <JempText type="caption" color={theme.textMuted} style={styles.notesLabel}>
+                            Zusätzliche Hinweise
+                        </JempText>
+                        <JempText type="body-sm" color={theme.textMuted} style={styles.notesHint}>
+                            Z.B. "Mittwochs habe ich Fußballtraining — lieber eine leichte Session."
+                        </JempText>
+                        <JempInput
+                            value={scheduleNotes}
+                            onChangeText={setScheduleNotes}
+                            placeholder="Optionale Hinweise für den Trainer..."
+                            multiline
+                            numberOfLines={4}
+                            textAlignVertical="top"
+                            style={styles.notesInput}
+                        />
+                    </KeyboardAwareScrollView>
                 )}
 
                 {/* ── Generating ── */}
@@ -656,5 +678,12 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         borderWidth: 1.5,
     },
-
+    notesLabel: {
+        textTransform: 'uppercase',
+        letterSpacing: 0.8,
+        marginTop: 28,
+        marginBottom: 10,
+    },
+    notesHint: { marginBottom: 12 },
+    notesInput: { minHeight: 100 },
 });

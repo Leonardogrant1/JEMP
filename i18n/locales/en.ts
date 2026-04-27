@@ -208,6 +208,137 @@ const en = {
     'tab.progress': 'Progress',
     'tab.profile': 'Profile',
 
+    // ── Onboarding ───────────────────────────────────────────────────────
+    // welcome-step
+    'onboarding.welcome_eyebrow': 'WELCOME TO JEMP',
+    'onboarding.welcome_title': "Become the athlete\nyou want to be.",
+    'onboarding.welcome_subtitle': 'Personal training plans that adapt to you — based on your sport, your level, and your goals.',
+    'onboarding.welcome_cta': "Let's go",
+
+    // tracking-step
+    'onboarding.tracking_title': 'Your data belongs to you.',
+    'onboarding.tracking_subtitle': 'Before we start — here is how we handle your data.',
+    'onboarding.tracking_row_0': 'Your data is never sold or shared with third parties.',
+    'onboarding.tracking_row_1': 'Only you have access to your training and progress.',
+    'onboarding.tracking_row_2': 'We only use your data to improve your plan.',
+
+    // rating-step
+    'onboarding.rating_title': 'JEMP was built for athletes like you.',
+    'onboarding.rating_subtitle': 'If you want to support us — leave a review. It only takes a second.',
+
+    // name-step
+    'onboarding.name_title': "What's your name?",
+    'onboarding.name_subtitle': 'This is how we will address you',
+    'onboarding.name_first_placeholder': 'First name',
+    'onboarding.name_last_placeholder': 'Last name',
+
+    // birthday-step
+    'onboarding.birthday_title': "When were you\nborn?",
+    'onboarding.birthday_subtitle': 'You must be at least 13 years old.',
+    'onboarding.birthday_label_day': 'Day',
+    'onboarding.birthday_label_month': 'Month',
+    'onboarding.birthday_label_year': 'Year',
+    'onboarding.birthday_placeholder_day': 'DD',
+    'onboarding.birthday_placeholder_month': 'MM',
+    'onboarding.birthday_placeholder_year': 'YYYY',
+
+    // gender-step
+    'onboarding.gender_title': 'Your biological sex',
+    'onboarding.gender_subtitle': 'Helps us tailor your training and measure performance more accurately.',
+    'onboarding.gender_male': 'Male',
+    'onboarding.gender_female': 'Female',
+
+    // body-step
+    'onboarding.body_title': 'Body measurements',
+    'onboarding.body_subtitle': 'Helps us fine-tune your plan to fit you better.',
+
+    // sport-step
+    'onboarding.sport_title': 'Your sport',
+    'onboarding.sport_subtitle': 'Select your main sport.',
+
+    // category-level-step
+    'onboarding.category_level_title': 'Your level',
+    'onboarding.category_level_subtitle': 'Rate yourself honestly — this determines your starting point.',
+    'onboarding.category_level_elite': 'Elite',
+    'onboarding.category_level_advanced': 'Advanced',
+    'onboarding.category_level_average': 'Average',
+    'onboarding.category_level_beginner': 'Beginner',
+    'onboarding.category_level_novice': 'Novice',
+
+    // category-focus-step
+    'onboarding.category_focus_title': 'Your goals',
+    'onboarding.category_focus_subtitle': 'Select the areas you want to improve.',
+
+    // category-priority-step
+    'onboarding.category_priority_title': 'Priority',
+    'onboarding.category_priority_subtitle': 'Drag the areas into the right order.',
+
+    // environment-step
+    'onboarding.environment_title': 'Where do you train?',
+    'onboarding.environment_subtitle': 'You can select multiple environments.',
+
+    // equipment-step
+    'onboarding.equipment_title': 'Your equipment',
+    'onboarding.equipment_subtitle': 'Everything pre-selected — deselect what you do not have.',
+
+    // workout-prefs-step
+    'onboarding.workout_prefs_title': 'Plan your training',
+    'onboarding.workout_prefs_subtitle': 'When and how long do you want to train?',
+    'onboarding.workout_prefs_days_label': 'Training days',
+    'onboarding.workout_prefs_duration_label': 'Session duration',
+    'onboarding.workout_prefs_notes_label': 'Additional notes',
+    'onboarding.workout_prefs_notes_hint': 'E.g. "On Wednesdays I have football practice — preferably a light session."',
+    'onboarding.workout_prefs_notes_placeholder': 'Optional notes for the trainer...',
+    'onboarding.workout_prefs_day_mon': 'Mon',
+    'onboarding.workout_prefs_day_tue': 'Tue',
+    'onboarding.workout_prefs_day_wed': 'Wed',
+    'onboarding.workout_prefs_day_thu': 'Thu',
+    'onboarding.workout_prefs_day_fri': 'Fri',
+    'onboarding.workout_prefs_day_sat': 'Sat',
+    'onboarding.workout_prefs_day_sun': 'Sun',
+
+    // complete-step
+    'onboarding.complete_eyebrow': 'ALL READY',
+    'onboarding.complete_title': 'Your plan is waiting.',
+    'onboarding.complete_subtitle': 'Press "Create Plan" and we will generate your personal training plan.',
+    'onboarding.complete_feature_0': 'Personalised weekly plan',
+    'onboarding.complete_feature_1': 'Progress tracking & assessments',
+    'onboarding.complete_feature_2': 'Exercises matched to your equipment',
+    'onboarding.complete_feature_3': 'Sessions directly in your calendar',
+
+    // notification-setup-step
+    'onboarding.notification_title': 'We keep you accountable.',
+    'onboarding.notification_subtitle': 'We remind you of your sessions and make sure you stay consistent.',
+    'onboarding.notification_row_0': 'Session reminders so you never miss a workout.',
+    'onboarding.notification_row_1': 'Weekly progress updates to keep you motivated.',
+    'onboarding.notification_row_2': 'Milestone alerts when you hit new personal bests.',
+
+    // what-you-will-get-step
+    'onboarding.wyg_title': 'What you will get.',
+    'onboarding.wyg_subtitle': 'Everything you need to take your performance to the next level.',
+    'onboarding.wyg_benefit_0_title': 'Personalised Plan',
+    'onboarding.wyg_benefit_0_desc': 'Weekly sessions tailored to your level, equipment and goals.',
+    'onboarding.wyg_benefit_1_title': 'Progress Tracking',
+    'onboarding.wyg_benefit_1_desc': 'Track your performance and see how you improve.',
+    'onboarding.wyg_benefit_2_title': 'AI-powered Adaptation',
+    'onboarding.wyg_benefit_2_desc': 'Your plan evolves with you.',
+    'onboarding.wyg_benefit_3_title': 'Assessments',
+    'onboarding.wyg_benefit_3_desc': 'Regular tests show you where you stand.',
+
+    // trial-offer-step
+    'onboarding.trial_eyebrow': 'TRY FOR FREE',
+    'onboarding.trial_title': '7 days free.\nThen you decide.',
+    'onboarding.trial_subtitle': 'Try JEMP completely free — no commitment.',
+    'onboarding.trial_include_0': 'Unlimited training plans',
+    'onboarding.trial_include_1': 'Full progress tracking',
+    'onboarding.trial_include_2': 'AI adaptation every week',
+    'onboarding.trial_include_3': 'Cancel anytime',
+    'onboarding.trial_badge': 'No payment now. You will be reminded before the trial ends.',
+
+    // onboarding.tsx button labels
+    'onboarding.btn_create_plan': 'Create Plan',
+    'onboarding.btn_try_free': 'Try for free',
+
 } as const;
 
 export type TranslationKeys = keyof typeof en;

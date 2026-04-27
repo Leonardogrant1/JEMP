@@ -1,4 +1,5 @@
 import { JempText } from '@/components/jemp-text';
+import { JempInput } from '@/components/ui/jemp-input';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +10,6 @@ import {
     Modal,
     Pressable,
     StyleSheet,
-    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -116,22 +116,18 @@ export function DeleteAccountModal({ visible, loading, onClose, onConfirm }: Pro
                                         <JempText type="caption" color={theme.textMuted}>
                                             {t('ui.delete_account_type_prompt', { word: CONFIRM_WORD })}
                                         </JempText>
-                                        <TextInput
-                                            style={[
-                                                styles.input,
-                                                {
-                                                    backgroundColor: theme.background,
-                                                    borderColor: confirmed ? '#ef4444' : theme.borderDivider,
-                                                    color: theme.text,
-                                                },
-                                            ]}
+                                        <JempInput
+                                            variant="outlined"
                                             value={input}
                                             onChangeText={setInput}
                                             placeholder={CONFIRM_WORD}
-                                            placeholderTextColor={theme.textPlaceholder}
                                             autoCapitalize="characters"
                                             autoCorrect={false}
                                             editable={!loading}
+                                            style={[
+                                                styles.confirmInput,
+                                                { borderColor: confirmed ? '#ef4444' : theme.borderDivider },
+                                            ]}
                                         />
                                     </View>
 
@@ -210,14 +206,10 @@ const styles = StyleSheet.create({
     field: {
         gap: 8,
     },
-    input: {
-        borderRadius: 12,
-        borderWidth: 1.5,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        fontSize: 15,
+    confirmInput: {
         letterSpacing: 2,
         fontWeight: '600',
+        borderWidth: 1.5,
     },
     deleteButton: {
         backgroundColor: '#ef4444',

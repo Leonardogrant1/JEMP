@@ -191,6 +191,7 @@ Deno.serve(async (req) => {
       sport_slug: sportData?.slug,
       preferred_workout_days: userProfile.preferred_workout_days,
       preferred_session_duration: userProfile.preferred_session_duration,
+      ...(userProfile.schedule_notes ? { schedule_notes: userProfile.schedule_notes } : {}),
       user_environments: [...userEnvironmentSlugs],
       category_levels: categoryLevels.map((cl) => ({ category_id: cl.category_id, level_score: cl.level_score })),
       sport_required_categories: sportRequiredCategories,

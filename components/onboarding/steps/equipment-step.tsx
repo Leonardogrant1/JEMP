@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { JempText } from '@/components/jemp-text';
+import { SelectableChip } from '@/components/ui/selectable-chip';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { supabase } from '@/services/supabase/client';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 
-type EquipmentItem = { id: string; slug: string; label: string };
+type EquipmentItem = { id: string; slug: string; name_i18n: Record<string, string> | null };
 
 const EQUIPMENT_LABELS: Record<string, string> = {
     barbell: 'Langhantel',
@@ -28,6 +34,10 @@ const EQUIPMENT_LABELS: Record<string, string> = {
 export function EquipmentStep() {
     const environmentIds = useOnboardingStore((s) => s.environmentIds);
     const setStore = useOnboardingStore((s) => s.set);
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+    const { t, i18n } = useTranslation();
+    const locale = i18n.language;
 
     const [equipments, setEquipments] = useState<EquipmentItem[]>([]);
     const [deselected, setDeselected] = useState<Set<string>>(new Set());
@@ -37,7 +47,7 @@ export function EquipmentStep() {
         async function load() {
             const { data } = await supabase
                 .from('environment_equipments')
-                .select('equipment:equipments(id, slug)')
+                .select('equipment:equipments(id, slug, name_i18n)')
                 .in('environment_id', environmentIds);
 
             if (data) {
@@ -48,7 +58,7 @@ export function EquipmentStep() {
                         map.set(eq.id, {
                             id: eq.id,
                             slug: eq.slug,
-                            label: EQUIPMENT_LABELS[eq.slug] ?? eq.slug,
+                            name_i18n: eq.name_i18n as Record<string, string> | null,
                         });
                     }
                 });
@@ -66,47 +76,47 @@ export function EquipmentStep() {
     function toggle(id: string) {
         setDeselected((prev) => {
             const next = new Set(prev);
-            if (next.has(id)) {
-                next.delete(id);
-            } else {
-                next.add(id);
-            }
+            next.has(id) ? next.delete(id) : next.add(id);
             const active = equipments.filter((e) => !next.has(e.id)).map((e) => e.id);
             setStore({ equipmentIds: active });
             return next;
         });
     }
 
+    function getLabel(eq: EquipmentItem) {
+        return eq.name_i18n?.[locale] ?? EQUIPMENT_LABELS[eq.slug] ?? eq.slug;
+    }
+
     if (loading) {
         return (
             <View style={styles.loading}>
-                <ActivityIndicator color="white" />
+                <ActivityIndicator color={theme.textMuted} />
             </View>
         );
     }
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            <Text style={styles.title}>Dein Equipment</Text>
-            <Text style={styles.subtitle}>Alles vorausgewählt — deaktiviere was du nicht hast.</Text>
-            <View style={styles.grid}>
-                {equipments.map((eq) => {
-                    const active = !deselected.has(eq.id);
-                    return (
-                        <TouchableOpacity
+            <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
+                <JempText type="h1" style={styles.title}>{t('onboarding.equipment_title')}</JempText>
+            </Animated.View>
+            <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
+                <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
+                    {t('onboarding.equipment_subtitle')}
+                </JempText>
+            </Animated.View>
+            <Animated.View entering={FadeInDown.delay(360).duration(500).springify()}>
+                <View style={styles.chipGrid}>
+                    {equipments.map((eq) => (
+                        <SelectableChip
                             key={eq.id}
-                            style={[styles.chip, !active && styles.chipInactive]}
+                            label={getLabel(eq)}
+                            selected={!deselected.has(eq.id)}
                             onPress={() => toggle(eq.id)}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={[styles.chipText, !active && styles.chipTextInactive]}>
-                                {eq.label}
-                            </Text>
-                        </TouchableOpacity>
-                    );
-                })}
-            </View>
-            <View style={{ height: 24 }} />
+                        />
+                    ))}
+                </View>
+            </Animated.View>
         </ScrollView>
     );
 }
@@ -114,22 +124,12 @@ export function EquipmentStep() {
 const styles = StyleSheet.create({
     loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     container: { flex: 1 },
-    content: { paddingHorizontal: 20, paddingTop: 16 },
-    title: { color: 'white', fontSize: 28, fontWeight: '700', marginBottom: 8 },
-    subtitle: { color: 'rgba(255,255,255,0.5)', fontSize: 14, lineHeight: 20, marginBottom: 24 },
-    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    chip: {
-        backgroundColor: 'rgba(255,255,255,0.12)',
-        borderRadius: 20,
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderWidth: 1.5,
-        borderColor: 'white',
+    content: {
+        paddingHorizontal: 28,
+        paddingTop: 32,
+        paddingBottom: 24,
     },
-    chipInactive: {
-        backgroundColor: 'rgba(255,255,255,0.04)',
-        borderColor: 'transparent',
-    },
-    chipText: { color: 'white', fontSize: 14, fontWeight: '500' },
-    chipTextInactive: { color: 'rgba(255,255,255,0.3)' },
+    title: { marginBottom: 10 },
+    subtitle: { marginBottom: 28 },
+    chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });

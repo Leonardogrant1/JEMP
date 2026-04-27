@@ -1,4 +1,5 @@
 import { JempText } from '@/components/jemp-text';
+import { JempInput } from '@/components/ui/jemp-input';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -11,7 +12,6 @@ import {
     Modal,
     Pressable,
     StyleSheet,
-    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -159,19 +159,11 @@ export function SupportTicketModal({ visible, onClose }: Props) {
                                                 <JempText type="caption" color={theme.textMuted}>
                                                     {t('ui.support_field_title')}
                                                 </JempText>
-                                                <TextInput
-                                                    style={[
-                                                        styles.input,
-                                                        {
-                                                            backgroundColor: theme.background,
-                                                            borderColor: theme.borderDivider,
-                                                            color: theme.text,
-                                                        },
-                                                    ]}
+                                                <JempInput
+                                                    variant="outlined"
                                                     value={title}
                                                     onChangeText={setTitle}
                                                     placeholder={t('ui.support_field_title_placeholder')}
-                                                    placeholderTextColor={theme.textPlaceholder}
                                                     editable={status === 'idle'}
                                                 />
                                             </View>
@@ -180,24 +172,16 @@ export function SupportTicketModal({ visible, onClose }: Props) {
                                                 <JempText type="caption" color={theme.textMuted}>
                                                     {t('ui.support_field_description')}
                                                 </JempText>
-                                                <TextInput
-                                                    style={[
-                                                        styles.input,
-                                                        styles.inputMultiline,
-                                                        {
-                                                            backgroundColor: theme.background,
-                                                            borderColor: theme.borderDivider,
-                                                            color: theme.text,
-                                                        },
-                                                    ]}
+                                                <JempInput
+                                                    variant="outlined"
                                                     value={description}
                                                     onChangeText={setDescription}
                                                     placeholder={t('ui.support_field_description_placeholder')}
-                                                    placeholderTextColor={theme.textPlaceholder}
                                                     multiline
                                                     numberOfLines={4}
                                                     textAlignVertical="top"
                                                     editable={status === 'idle'}
+                                                    style={styles.inputMultiline}
                                                 />
                                             </View>
 
@@ -272,13 +256,6 @@ const styles = StyleSheet.create({
     },
     field: {
         gap: 6,
-    },
-    input: {
-        borderRadius: 12,
-        borderWidth: 1,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        fontSize: 15,
     },
     inputMultiline: {
         height: 110,

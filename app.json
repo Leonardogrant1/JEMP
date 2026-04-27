@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "studio.northbyte.jemp"
+      "bundleIdentifier": "studio.northbyte.jemp",
+      "infoPlist": {
+        "NSUserTrackingUsageDescription": "We use tracking to measure marketing performance and improve the app experience."
+      }
     },
     "android": {
       "adaptiveIcon": {

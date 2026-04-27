@@ -15,6 +15,7 @@ export type UserProfile = {
   weight_in_kg: number | null
   preferred_workout_days: number[]
   preferred_session_duration: SessionDuration | null
+  schedule_notes: string | null
   timezone: string | null
   has_onboarded: boolean
   created_at: string

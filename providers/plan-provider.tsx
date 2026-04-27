@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useMemo } from 'react';
 export type WorkoutSession = Pick<
     Tables<'workout_sessions'>,
     'id' | 'name' | 'description' | 'session_type' | 'scheduled_at' | 'status' | 'estimated_duration_minutes' | 'workout_plan_session_id'
->;
+> & { primary_exercise_slug?: string | null };
 
 export type ActivePlan = Pick<
     Tables<'workout_plans'>,
@@ -16,7 +16,7 @@ export type ActivePlan = Pick<
 export type PlanSession = Pick<
     Tables<'workout_plan_sessions'>,
     'id' | 'name' | 'description' | 'session_type' | 'day_of_week' | 'estimated_duration_minutes'
->;
+> & { primary_exercise_slug?: string | null };
 
 export type SessionStatus = Enums<'session_status'>;
 

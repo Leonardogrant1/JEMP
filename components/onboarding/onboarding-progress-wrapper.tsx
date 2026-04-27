@@ -4,12 +4,28 @@ import { useCurrentUser } from '@/providers/current-user-provider';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { supabase } from '@/services/supabase/client';
 import { useOnboardingStore } from '@/stores/onboarding-store';
+import { Cyan, Electric, GradientMid } from '@/constants/theme';
 import { devLog } from '@/utils/dev-log';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated, { Keyframe } from 'react-native-reanimated';
+
+const enterFromRight = new Keyframe({
+    0: { opacity: 0, transform: [{ translateX: 48 }] },
+    100: { opacity: 1, transform: [{ translateX: 0 }] },
+}).duration(340);
+
+const exitToLeft = new Keyframe({
+    0: { opacity: 1, transform: [{ translateX: 0 }] },
+    100: { opacity: 0, transform: [{ translateX: -48 }] },
+}).duration(340);
+import { OnboardingBackground } from './onboarding-background';
 import { OnboardingControlContext } from './onboarding-control-context';
 import { OnboardingStep } from './types';
+
+const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
 
 type Props = {
     steps: OnboardingStep[];
@@ -30,9 +46,6 @@ export function OnboardingProgressWrapper({ steps }: Props) {
     const { refreshProfile } = useCurrentUser();
     const onboardingData = useOnboardingStore();
 
-    const opacity = useRef(new Animated.Value(1)).current;
-    const translateX = useRef(new Animated.Value(0)).current;
-
     const step = steps[currentIndex];
     const StepComponent = step.component;
     const isLight = step.theme === 'light';
@@ -43,70 +56,8 @@ export function OnboardingProgressWrapper({ steps }: Props) {
 
     async function finishOnboarding() {
         try {
-            trackerManager.track('onboarding_completed');
-            if (session) {
-                devLog('Finishing onboarding for user:', session.user.id);
-                const {
-                    set,
-                    reset,
-                    targetedCategories,
-                    categoryLevels,
-                    equipmentIds,
-                    environmentIds,
-                    ...profileData
-                } = onboardingData;
-
-                const { error: profileError } = await supabase
-                    .from('user_profiles')
-                    .update({ ...profileData, has_onboarded: true })
-                    .eq('id', session.user.id);
-                if (profileError) throw profileError;
-
-                if (targetedCategories.length > 0) {
-                    const { error: catError } = await supabase.from('user_targeted_categories').insert(
-                        targetedCategories.map(({ categoryId, priority }) => ({
-                            user_id: session.user.id,
-                            category_id: categoryId,
-                            priority,
-                        }))
-                    );
-                    if (catError) throw catError;
-                }
-
-                if (categoryLevels.length > 0) {
-                    const { error: levelError } = await supabase.from('user_category_levels').insert(
-                        categoryLevels.map(({ categoryId, score }) => ({
-                            user_id: session.user.id,
-                            category_id: categoryId,
-                            level_score: score,
-                        }))
-                    );
-                    if (levelError) throw levelError;
-                }
-
-                if (environmentIds.length > 0) {
-                    const { error: envError } = await supabase.from('user_environments').insert(
-                        environmentIds.map((environment_id) => ({
-                            user_id: session.user.id,
-                            environment_id,
-                        }))
-                    );
-                    if (envError) throw envError;
-                }
-
-                if (equipmentIds.length > 0) {
-                    const { error: equipError } = await supabase.from('user_equipments').insert(
-                        equipmentIds.map((equipment_id) => ({
-                            user_id: session.user.id,
-                            equipment_id,
-                        }))
-                    );
-                    if (equipError) throw equipError;
-                }
-
-                reset();
-                await refreshProfile();
-            }
+            onboardingData.reset();
+            await refreshProfile();
             const navigate = () => router.replace('/(tabs)');
             await openWithPlacement('onboarding_completed', navigate, undefined, navigate);
         } catch (error) {
@@ -147,53 +98,63 @@ export function OnboardingProgressWrapper({ steps }: Props) {
 
     return (
         <OnboardingControlContext.Provider value={{ currentIndex, canContinue, finishOnboarding, setCanContinue, setOnDisabledPress, nextStep, visionDescription, setVisionDescription }}>
-            {/* Outer view holds the PREVIOUS step's bg — visible during crossfade */}
-            <View style={[styles.container]}>
-                {/* Animated view brings the NEW step's bg + all content */}
-                <Animated.View style={[styles.screen, { opacity, transform: [{ translateX }] }]}>
-                    {showProgress && (
-                        <View style={styles.progressBar}>
-                            {steps.map((_, i) => (
-                                <View
-                                    key={i}
-                                    style={[
-                                        styles.progressSegment,
-                                        i <= currentIndex && (isLight ? styles.progressSegmentActiveLight : styles.progressSegmentActive),
-                                    ]}
-                                />
-                            ))}
-                        </View>
-                    )}
-
-                    <View style={styles.stepContainer}>
-                        <StepComponent />
-                    </View>
-
-                    {showContinue && (
-                        <View style={styles.footer}>
-                            <TouchableOpacity
+            <View style={styles.container}>
+                <OnboardingBackground />
+                {showProgress && (
+                    <View style={styles.progressBar}>
+                        {steps.map((_, i) => (
+                            <View
+                                key={i}
                                 style={[
-                                    styles.continueButton,
-                                    isLight && styles.continueButtonLight,
-                                    (!canContinue || isLoading) && styles.continueButtonDisabled,
+                                    styles.progressSegment,
+                                    { backgroundColor: i <= currentIndex ? GradientMid : (isLight ? '#bfbfbf' : '#595959') },
                                 ]}
-                                onPress={() => {
-                                    if (!canContinue || isLoading) {
-                                        onDisabledPressRef.current?.();
-                                        return;
-                                    }
-                                    nextStep();
-                                }}
+                            />
+                        ))}
+                    </View>
+                )}
+
+                <View style={styles.stepContainer}>
+                    <Animated.View
+                        key={currentIndex}
+                        entering={enterFromRight}
+                        exiting={exitToLeft}
+                        style={StyleSheet.absoluteFill}
+                    >
+                        <StepComponent />
+                    </Animated.View>
+                </View>
+
+                {showContinue && (
+                    <View style={styles.footer}>
+                        <TouchableOpacity
+                            style={[
+                                styles.continueButton,
+                                (!canContinue || isLoading) && styles.continueButtonDisabled,
+                            ]}
+                            onPress={() => {
+                                if (!canContinue || isLoading) {
+                                    onDisabledPressRef.current?.();
+                                    return;
+                                }
+                                nextStep();
+                            }}
+                        >
+                            <LinearGradient
+                                colors={GRADIENT}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={styles.continueButtonGradient}
                             >
                                 {isLoading ? (
-                                    <ActivityIndicator color={isLight ? 'white' : '#0d0d0d'} />
+                                    <ActivityIndicator color="white" />
                                 ) : (
-                                    <Text style={[styles.continueButtonText, isLight && styles.continueButtonTextLight]}>{continueText}</Text>
+                                    <Text style={styles.continueButtonText}>{continueText}</Text>
                                 )}
-                            </TouchableOpacity>
-                        </View>
-                    )}
-                </Animated.View>
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
         </OnboardingControlContext.Provider>
     );
@@ -216,13 +177,6 @@ const styles = StyleSheet.create({
         flex: 1,
         height: 3,
         borderRadius: 2,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-    },
-    progressSegmentActive: {
-        backgroundColor: 'white',
-    },
-    progressSegmentActiveLight: {
-        backgroundColor: '#1a1a1a',
     },
     stepContainer: {
         flex: 1,
@@ -232,23 +186,20 @@ const styles = StyleSheet.create({
         paddingBottom: 48,
     },
     continueButton: {
-        backgroundColor: 'white',
         borderRadius: 14,
+        overflow: 'hidden',
+    },
+    continueButtonGradient: {
         paddingVertical: 16,
         alignItems: 'center',
-    },
-    continueButtonLight: {
-        backgroundColor: '#1a1a1a',
+        justifyContent: 'center',
     },
     continueButtonDisabled: {
         opacity: 0.35,
     },
     continueButtonText: {
-        color: '#0d0d0d',
+        color: 'white',
         fontSize: 16,
         fontWeight: '700',
-    },
-    continueButtonTextLight: {
-        color: 'white',
     },
 });

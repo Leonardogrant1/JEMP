@@ -1,56 +1,68 @@
-import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
-import Logo from '@/assets/logo.svg';
+import Logo from '@/assets/icons/logo.svg';
+import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
-import { Colors, Fonts } from '@/constants/theme';
+import { Colors, Cyan, Electric } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
+
+const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
+
+const DELAY_LOGO = 100;
+const DELAY_EYEBROW = 260;
+const DELAY_TITLE = 380;
+const DELAY_SUBTITLE = 500;
+const DELAY_BUTTON = 660;
 
 export function WelcomeStep() {
+    const { t } = useTranslation();
     const { nextStep } = useOnboardingControl();
-
-    const logoOpacity = useRef(new Animated.Value(0)).current;
-    const logoY = useRef(new Animated.Value(-12)).current;
-    const textOpacity = useRef(new Animated.Value(0)).current;
-    const textY = useRef(new Animated.Value(16)).current;
-    const buttonOpacity = useRef(new Animated.Value(0)).current;
-    const buttonY = useRef(new Animated.Value(16)).current;
-
-    useEffect(() => {
-        Animated.stagger(140, [
-            Animated.parallel([
-                Animated.timing(logoOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-                Animated.timing(logoY, { toValue: 0, duration: 600, useNativeDriver: true }),
-            ]),
-            Animated.parallel([
-                Animated.timing(textOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-                Animated.timing(textY, { toValue: 0, duration: 600, useNativeDriver: true }),
-            ]),
-            Animated.parallel([
-                Animated.timing(buttonOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-                Animated.timing(buttonY, { toValue: 0, duration: 600, useNativeDriver: true }),
-            ]),
-        ]).start();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
     return (
         <View style={styles.container}>
             <View style={styles.inner}>
-                <Animated.View style={[styles.logoWrapper, { opacity: logoOpacity, transform: [{ translateY: logoY }] }]}>
+                <Animated.View entering={FadeInDown.delay(DELAY_LOGO).duration(500).springify()} style={styles.logoWrapper}>
                     <Logo width={72} height={72} />
                 </Animated.View>
 
-                <Animated.View style={{ opacity: textOpacity, transform: [{ translateY: textY }] }}>
-                    <Text style={styles.eyebrow}>WILLKOMMEN BEI VEEZY</Text>
-                    <Text style={styles.title}>Dein Leben.{'\n'}Deine Vision.</Text>
-                    <Text style={styles.subtitle}>
-                        Visualisiere deine Zukunft und{'\n'}manifestiere dein Traumleben.
-                    </Text>
-                </Animated.View>
+                <View style={styles.textBlock}>
+                    <Animated.View entering={FadeInDown.delay(DELAY_EYEBROW).duration(500).springify()}>
+                        <JempText type="caption" color={Cyan[400]} style={styles.eyebrow}>
+                            {t('onboarding.welcome_eyebrow')}
+                        </JempText>
+                    </Animated.View>
 
-                <Animated.View style={{ opacity: buttonOpacity, transform: [{ translateY: buttonY }] }}>
-                    <TouchableOpacity style={styles.button} onPress={nextStep} activeOpacity={0.85}>
-                        <Text style={styles.buttonText}>Los geht's</Text>
+                    <Animated.View entering={FadeInDown.delay(DELAY_TITLE).duration(500).springify()}>
+                        <JempText type="h1" style={styles.title}>
+                            {t('onboarding.welcome_title')}
+                        </JempText>
+                    </Animated.View>
+
+                    <Animated.View entering={FadeInDown.delay(DELAY_SUBTITLE).duration(500).springify()}>
+                        <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
+                            {t('onboarding.welcome_subtitle')}
+                        </JempText>
+                    </Animated.View>
+                </View>
+
+                <Animated.View entering={FadeInDown.delay(DELAY_BUTTON).duration(500).springify()} style={styles.buttonWrapper}>
+                    <TouchableOpacity
+                        onPress={nextStep}
+                        activeOpacity={0.85}
+                        style={styles.button}
+                    >
+                        <LinearGradient
+                            colors={GRADIENT}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.buttonGradient}
+                        >
+                            <JempText type="button" color="#fff">{t('onboarding.welcome_cta')}</JempText>
+                        </LinearGradient>
                     </TouchableOpacity>
                 </Animated.View>
             </View>
@@ -59,54 +71,39 @@ export function WelcomeStep() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
+    container: { flex: 1 },
     inner: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: 32,
-        gap: 32,
+        gap: 28,
     },
     logoWrapper: {
         alignItems: 'center',
     },
+    textBlock: { alignItems: 'center', gap: 12 },
     eyebrow: {
-        fontFamily: Fonts.sansSemiBold,
-        fontSize: 11,
-        letterSpacing: 2.5,
-        color: Colors.accent,
-        marginBottom: 12,
-        textAlign: 'center',
+        letterSpacing: 2,
+        textTransform: 'uppercase',
     },
     title: {
-        fontFamily: Fonts.serifBold,
-        fontSize: 44,
-        lineHeight: 54,
-        color: Colors.textHeadline,
-        marginBottom: 16,
         textAlign: 'center',
+        fontSize: 38,
+        lineHeight: 48,
     },
     subtitle: {
-        fontFamily: Fonts.satoshiRegular,
-        fontSize: 16,
-        lineHeight: 25,
-        color: Colors.textMuted,
         textAlign: 'center',
+        lineHeight: 24,
     },
+    buttonWrapper: { width: '100%' },
     button: {
-        backgroundColor: Colors.accent,
-        paddingVertical: 16,
-        paddingHorizontal: 48,
-        borderRadius: 999,
-        alignItems: 'center',
-        alignSelf: 'stretch',
+        borderRadius: 14,
+        overflow: 'hidden',
     },
-    buttonText: {
-        fontFamily: Fonts.sansSemiBold,
-        fontSize: 16,
-        color: '#ffffff',
-        letterSpacing: 0.3,
+    buttonGradient: {
+        paddingVertical: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });

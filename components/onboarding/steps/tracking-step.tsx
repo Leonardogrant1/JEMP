@@ -1,68 +1,54 @@
-import { Colors, Fonts } from '@/constants/theme';
+import { JempText } from '@/components/jemp-text';
+import { Colors, GradientMid } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
-import { useEffect, useRef } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
-import { Animated, StyleSheet, Text, View } from 'react-native';
 
-function PrivacyRow({ text, delay }: { text: string; delay: number }) {
-    const opacity = useRef(new Animated.Value(0)).current;
-    const translateX = useRef(new Animated.Value(-16)).current;
-
-    useEffect(() => {
-        const t = setTimeout(() => {
-            Animated.parallel([
-                Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
-                Animated.spring(translateX, { toValue: 0, useNativeDriver: true, speed: 18, bounciness: 6 }),
-            ]).start();
-        }, delay);
-        return () => clearTimeout(t);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    return (
-        <Animated.View style={[styles.row, { opacity, transform: [{ translateX }] }]}>
-            <Text style={styles.checkmark}>✦</Text>
-            <Text style={styles.rowText}>{text}</Text>
-        </Animated.View>
-    );
-}
+const ROW_ICONS: (keyof typeof Ionicons.glyphMap)[] = [
+    'shield-checkmark-outline',
+    'lock-closed-outline',
+    'trending-up-outline',
+];
 
 export function TrackingStep() {
     const { t } = useTranslation();
-
-    const titleOpacity = useRef(new Animated.Value(0)).current;
-    const titleY = useRef(new Animated.Value(16)).current;
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
     useEffect(() => {
         trackerManager.track('onboarding_tracking_step_viewed');
-
-        Animated.parallel([
-            Animated.timing(titleOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
-            Animated.spring(titleY, { toValue: 0, useNativeDriver: true, speed: 18, bounciness: 5 }),
-        ]).start();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    const ROWS = [
-        t('onboarding.tracking.badge_no_data'),
-        t('onboarding.tracking.badge_no_selling'),
-        t('onboarding.tracking.badge_insights'),
-    ];
 
     return (
         <View style={styles.container}>
-            <View style={styles.inner}>
-                <Animated.View style={{ opacity: titleOpacity, transform: [{ translateY: titleY }] }}>
-                    <Text style={styles.label}>{t('onboarding.tracking.label')}</Text>
-                    <Text style={styles.title}>{t('onboarding.tracking.headline')}</Text>
-                    <Text style={styles.subtitle}>{t('onboarding.tracking.subtitle')}</Text>
-                </Animated.View>
+            <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
+                <JempText type="h1" style={styles.title}>{t('onboarding.tracking_title')}</JempText>
+            </Animated.View>
 
-                <View style={styles.rows}>
-                    {ROWS.map((text, i) => (
-                        <PrivacyRow key={text} text={text} delay={300 + i * 150} />
-                    ))}
-                </View>
+            <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
+                <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
+                    {t('onboarding.tracking_subtitle')}
+                </JempText>
+            </Animated.View>
+
+            <View style={styles.list}>
+                {ROW_ICONS.map((icon, i) => (
+                    <Animated.View
+                        key={i}
+                        entering={FadeInDown.delay(360 + i * 120).duration(500).springify()}
+                    >
+                        <View style={[styles.row, { backgroundColor: theme.surface }]}>
+                            <Ionicons name={icon} size={22} color={GradientMid} />
+                            <JempText type="body-l" color={theme.text} style={styles.rowText}>
+                                {t(`onboarding.tracking_row_${i}` as any)}
+                            </JempText>
+                        </View>
+                    </Animated.View>
+                ))}
             </View>
         </View>
     );
@@ -71,49 +57,20 @@ export function TrackingStep() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    inner: {
-        flex: 1,
+        paddingHorizontal: 28,
+        paddingVertical: 32,
         justifyContent: 'center',
-        paddingHorizontal: 32,
-        gap: 36,
     },
-    label: {
-        fontFamily: Fonts.sansSemiBold,
-        fontSize: 11,
-        letterSpacing: 2.5,
-        color: Colors.accent,
-        marginBottom: 12,
-    },
-    title: {
-        fontFamily: Fonts.serifBold,
-        fontSize: 36,
-        lineHeight: 46,
-        color: Colors.textHeadline,
-        marginBottom: 14,
-    },
-    subtitle: {
-        fontFamily: Fonts.satoshiRegular,
-        fontSize: 15,
-        lineHeight: 24,
-        color: Colors.textMuted,
-    },
-    rows: {
-        gap: 22,
-    },
+    title: { marginBottom: 10 },
+    subtitle: { marginBottom: 32 },
+    list: { gap: 10 },
     row: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 18,
+        gap: 14,
+        paddingVertical: 16,
+        paddingHorizontal: 16,
+        borderRadius: 16,
     },
-    checkmark: {
-        fontSize: 14,
-        color: Colors.accent,
-    },
-    rowText: {
-        fontFamily: Fonts.satoshiRegular,
-        fontSize: 16,
-        color: Colors.text,
-        flex: 1,
-    },
+    rowText: { flex: 1 },
 });

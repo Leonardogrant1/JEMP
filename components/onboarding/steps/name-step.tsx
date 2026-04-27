@@ -1,14 +1,24 @@
-import { useRef, useState } from 'react';
-import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
+import { JempInput } from '@/components/ui/jemp-input';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
+import { useRef, useState } from 'react';
+import { Keyboard, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 
 export function NameStep() {
+    const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
     const setStore = useOnboardingStore((s) => s.set);
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const lastNameRef = useRef<TextInput>(null);
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
     function validate(first: string, last: string) {
         const valid = first.trim().length >= 2 && last.trim().length >= 2;
@@ -29,43 +39,42 @@ export function NameStep() {
     }
 
     return (
-        <Pressable style={styles.container} onPress={Keyboard.dismiss}>
-            <View style={styles.inner}>
-                <Text style={styles.headline}>Wie heißt du?</Text>
-                <View style={styles.inputGroup}>
-                    <TextInput
-                        style={styles.input}
-                        value={firstName}
-                        onChangeText={handleFirstChange}
-                        placeholder="Vorname"
-                        placeholderTextColor="rgba(255,255,255,0.3)"
-                        autoCapitalize="words"
-                        autoFocus
-                        returnKeyType="next"
-                        onSubmitEditing={() => lastNameRef.current?.focus()}
-                        selectionColor="white"
-                        textAlign="center"
-                    />
-                    <View style={styles.underline} />
-                </View>
-                <View style={styles.inputGroup}>
-                    <TextInput
-                        ref={lastNameRef}
-                        style={styles.input}
-                        value={lastName}
-                        onChangeText={handleLastChange}
-                        placeholder="Nachname"
-                        placeholderTextColor="rgba(255,255,255,0.3)"
-                        autoCapitalize="words"
-                        returnKeyType="done"
-                        onSubmitEditing={Keyboard.dismiss}
-                        selectionColor="white"
-                        textAlign="center"
-                    />
-                    <View style={styles.underline} />
-                </View>
-            </View>
-        </Pressable>
+        <KeyboardAwareScrollView
+            style={styles.container}
+            contentContainerStyle={styles.inner}
+            keyboardShouldPersistTaps="handled"
+        >
+            <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
+                <JempText type="h1" style={styles.headline}>{t('onboarding.name_title')}</JempText>
+            </Animated.View>
+            <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
+                <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
+                    {t('onboarding.name_subtitle')}
+                </JempText>
+            </Animated.View>
+            <Animated.View entering={FadeInDown.delay(360).duration(500).springify()} style={styles.inputGroup}>
+                <JempInput
+                    value={firstName}
+                    onChangeText={handleFirstChange}
+                    placeholder={t('onboarding.name_first_placeholder')}
+                    autoCapitalize="words"
+                    autoFocus
+                    returnKeyType="next"
+                    onSubmitEditing={() => lastNameRef.current?.focus()}
+                    textAlign="center"
+                />
+                <JempInput
+                    ref={lastNameRef}
+                    value={lastName}
+                    onChangeText={handleLastChange}
+                    placeholder={t('onboarding.name_last_placeholder')}
+                    autoCapitalize="words"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                    textAlign="center"
+                />
+            </Animated.View>
+        </KeyboardAwareScrollView>
     );
 }
 
@@ -73,35 +82,16 @@ const styles = StyleSheet.create({
     container: { flex: 1 },
     inner: {
         flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 32,
-        gap: 32,
+        paddingHorizontal: 28,
+        paddingTop: 32,
     },
     headline: {
-        color: 'white',
-        fontSize: 32,
-        fontWeight: '700',
-        textAlign: 'center',
-        marginBottom: 8,
+        marginBottom: 10,
+    },
+    subtitle: {
+        marginBottom: 40,
     },
     inputGroup: {
-        width: '100%',
-        alignItems: 'center',
-        gap: 8,
-    },
-    input: {
-        color: 'white',
-        fontSize: 28,
-        fontWeight: '700',
-        paddingVertical: 8,
-        width: '100%',
-        textAlign: 'center',
-    },
-    underline: {
-        width: '100%',
-        height: 2,
-        backgroundColor: 'white',
-        borderRadius: 1,
+        gap: 12,
     },
 });

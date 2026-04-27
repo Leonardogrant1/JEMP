@@ -343,6 +343,36 @@ export type Database = {
           },
         ]
       }
+      exercise_environments: {
+        Row: {
+          environment_id: string
+          exercise_id: string
+        }
+        Insert: {
+          environment_id: string
+          exercise_id: string
+        }
+        Update: {
+          environment_id?: string
+          exercise_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_environments_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercise_environments_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exercise_equipments: {
         Row: {
           created_at: string | null
@@ -740,6 +770,36 @@ export type Database = {
           },
         ]
       }
+      user_environments: {
+        Row: {
+          environment_id: string
+          user_id: string
+        }
+        Insert: {
+          environment_id: string
+          user_id: string
+        }
+        Update: {
+          environment_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_environments_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_environments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_equipments: {
         Row: {
           created_at: string | null
@@ -795,6 +855,7 @@ export type Database = {
             | Database["public"]["Enums"]["session_duration"]
             | null
           preferred_workout_days: number[] | null
+          schedule_notes: string | null
           sport_id: string | null
           timezone: string | null
           updated_at: string | null
@@ -815,6 +876,7 @@ export type Database = {
             | Database["public"]["Enums"]["session_duration"]
             | null
           preferred_workout_days?: number[] | null
+          schedule_notes?: string | null
           sport_id?: string | null
           timezone?: string | null
           updated_at?: string | null
@@ -835,6 +897,7 @@ export type Database = {
             | Database["public"]["Enums"]["session_duration"]
             | null
           preferred_workout_days?: number[] | null
+          schedule_notes?: string | null
           sport_id?: string | null
           timezone?: string | null
           updated_at?: string | null
@@ -1451,6 +1514,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      fn_auto_skip_missed_sessions: { Args: never; Returns: undefined }
       fn_create_user_assessments: {
         Args: { p_user_id: string }
         Returns: undefined

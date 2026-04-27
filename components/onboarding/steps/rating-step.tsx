@@ -1,95 +1,69 @@
-import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
-
-import { Colors, Fonts, Gold } from '@/constants/theme';
-import { useUserDataStore } from '@/stores/UserDataStore';
-
-function useFadeSlide(delay: number) {
-    const opacity = useRef(new Animated.Value(0)).current;
-    const translateY = useRef(new Animated.Value(16)).current;
-    useEffect(() => {
-        const t = setTimeout(() => {
-            Animated.parallel([
-                Animated.timing(opacity, { toValue: 1, duration: 500, useNativeDriver: true }),
-                Animated.spring(translateY, { toValue: 0, useNativeDriver: true, speed: 18, bounciness: 5 }),
-            ]).start();
-        }, delay);
-        return () => clearTimeout(t);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-    return { opacity, transform: [{ translateY }] } as const;
-}
+import { JempText } from '@/components/jemp-text';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import * as StoreReview from 'expo-store-review';
+import LottieView from 'lottie-react-native';
+import { useTranslation } from 'react-i18next';
+import { useEffect } from 'react';
+import { StyleSheet } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 export function RatingStep() {
-    const name = useUserDataStore((s) => s.name);
-    const displayName = name.trim() || 'du';
+    const { t } = useTranslation();
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
-    const titleAnim = useFadeSlide(150);
-    const bodyAnim = useFadeSlide(400);
-    const badgeAnim = useFadeSlide(700);
+    useEffect(() => {
+        (async () => {
+            if (await StoreReview.isAvailableAsync()) {
+                await StoreReview.requestReview();
+            }
+        })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return (
-        <View style={styles.container}>
-            <View style={styles.inner}>
-                <Animated.View style={titleAnim}>
-                    <Text style={styles.title}>Du bist dabei,{'\n'}{displayName}.</Text>
-                    <Text style={styles.subtitle}>
-                        veezy wurde entwickelt, um dich jeden Tag an das zu erinnern, was dir wirklich wichtig ist.{'\n\n'}
-                        Wenn du glaubst, was wir aufbauen — hilf uns, mehr Menschen wie dich zu erreichen.
-                    </Text>
-                </Animated.View>
+        <Animated.View style={styles.container}>
+            <Animated.View entering={FadeInDown.delay(100).duration(500).springify()} style={styles.iconWrapper}>
+                <LottieView
+                    source={require('@/assets/animations/rating.json')}
+                    autoPlay
+                    loop={false}
+                    style={styles.lottie}
+                />
+            </Animated.View>
 
-                <Animated.View style={[styles.badge, badgeAnim]}>
-                    <Text style={styles.badgeIcon}>⭐</Text>
-                    <Text style={styles.badgeText}>Es dauert 5 Sekunden und bedeutet uns alles.</Text>
-                </Animated.View>
-            </View>
-        </View>
+            <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
+                <JempText type="h1" style={styles.title}>
+                    {t('onboarding.rating_title')}
+                </JempText>
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(360).duration(500).springify()}>
+                <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
+                    {t('onboarding.rating_subtitle')}
+                </JempText>
+            </Animated.View>
+        </Animated.View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    inner: {
-        flex: 1,
+        paddingHorizontal: 28,
+        paddingVertical: 32,
         justifyContent: 'center',
-        paddingHorizontal: 32,
-        gap: 32,
+        gap: 16,
     },
-    title: {
-        fontFamily: Fonts.serifBold,
-        fontSize: 36,
-        lineHeight: 46,
-        color: Colors.textHeadline,
-        marginBottom: 24,
-    },
-    subtitle: {
-        fontFamily: Fonts.satoshiRegular,
-        fontSize: 15,
-        lineHeight: 24,
-        color: Colors.textMuted,
-    },
-    badge: {
-        flexDirection: 'row',
+    title: { textAlign: 'center' },
+    subtitle: { textAlign: 'center' },
+    iconWrapper: {
         alignItems: 'center',
-        gap: 14,
-        backgroundColor: 'rgba(201,168,76,0.08)',
-        borderWidth: 1,
-        borderColor: Gold[300],
-        borderRadius: 14,
-        paddingVertical: 16,
-        paddingHorizontal: 18,
+        marginBottom: 8,
     },
-    badgeIcon: {
-        fontSize: 22,
-    },
-    badgeText: {
-        fontFamily: Fonts.satoshiRegular,
-        fontSize: 14,
-        lineHeight: 20,
-        color: Colors.textMuted,
-        flex: 1,
+    lottie: {
+        width: 220,
+        height: 70,
     },
 });

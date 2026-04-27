@@ -1,19 +1,27 @@
-import { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
+import { SelectableRow } from '@/components/ui/selectable-row';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { Gender } from '@/types/database';
-
-const OPTIONS: { value: Gender; label: string }[] = [
-    { value: 'male', label: 'Männlich' },
-    { value: 'female', label: 'Weiblich' },
-    { value: 'other', label: 'Divers' },
-];
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 
 export function GenderStep() {
+    const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
     const setStore = useOnboardingStore((s) => s.set);
     const [selected, setSelected] = useState<Gender | null>(null);
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+
+    const OPTIONS: { value: Gender; label: string; icon: 'male' | 'female' }[] = [
+        { value: 'male', label: t('onboarding.gender_male'), icon: 'male' },
+        { value: 'female', label: t('onboarding.gender_female'), icon: 'female' },
+    ];
 
     function select(value: Gender) {
         setSelected(value);
@@ -23,19 +31,24 @@ export function GenderStep() {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Dein Geschlecht</Text>
+            <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
+                <JempText type="h1" style={styles.headline}>{t('onboarding.gender_title')}</JempText>
+            </Animated.View>
+            <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
+                <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
+                    {t('onboarding.gender_subtitle')}
+                </JempText>
+            </Animated.View>
             <View style={styles.options}>
-                {OPTIONS.map((opt) => (
-                    <TouchableOpacity
-                        key={opt.value}
-                        style={[styles.option, selected === opt.value && styles.optionSelected]}
-                        onPress={() => select(opt.value)}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={[styles.optionText, selected === opt.value && styles.optionTextSelected]}>
-                            {opt.label}
-                        </Text>
-                    </TouchableOpacity>
+                {OPTIONS.map((opt, i) => (
+                    <Animated.View key={opt.value} entering={FadeInDown.delay(360 + i * 120).duration(500).springify()}>
+                        <SelectableRow
+                            label={opt.label}
+                            icon={opt.icon}
+                            selected={selected === opt.value}
+                            onPress={() => select(opt.value)}
+                        />
+                    </Animated.View>
                 ))}
             </View>
         </View>
@@ -46,31 +59,16 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         paddingHorizontal: 28,
-        paddingTop: 32,
+        paddingVertical: 32,
+        justifyContent: 'center',
     },
-    title: {
-        color: 'white',
-        fontSize: 28,
-        fontWeight: '700',
-        marginBottom: 36,
+    headline: {
+        marginBottom: 10,
     },
-    options: { gap: 12 },
-    option: {
-        backgroundColor: 'rgba(255,255,255,0.07)',
-        borderRadius: 14,
-        paddingVertical: 18,
-        alignItems: 'center',
-        borderWidth: 1.5,
-        borderColor: 'transparent',
+    subtitle: {
+        marginBottom: 40,
     },
-    optionSelected: {
-        backgroundColor: 'rgba(255,255,255,0.15)',
-        borderColor: 'white',
+    options: {
+        gap: 12,
     },
-    optionText: {
-        color: 'rgba(255,255,255,0.7)',
-        fontSize: 17,
-        fontWeight: '600',
-    },
-    optionTextSelected: { color: 'white' },
 });

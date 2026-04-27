@@ -1,18 +1,16 @@
-import { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
+import { JempInput } from '@/components/ui/jemp-input';
+import { SelectableChip } from '@/components/ui/selectable-chip';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { SessionDuration } from '@/types/database';
-
-const DAYS: { value: number; label: string }[] = [
-    { value: 1, label: 'Mo' },
-    { value: 2, label: 'Di' },
-    { value: 3, label: 'Mi' },
-    { value: 4, label: 'Do' },
-    { value: 5, label: 'Fr' },
-    { value: 6, label: 'Sa' },
-    { value: 7, label: 'So' },
-];
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { StyleSheet, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 const DURATIONS: { value: SessionDuration; label: string }[] = [
     { value: '30min', label: '30 min' },
@@ -22,10 +20,24 @@ const DURATIONS: { value: SessionDuration; label: string }[] = [
 ];
 
 export function WorkoutPrefsStep() {
+    const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
     const setStore = useOnboardingStore((s) => s.set);
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+    const DAYS: { value: number; label: string }[] = [
+        { value: 1, label: t('onboarding.workout_prefs_day_mon') },
+        { value: 2, label: t('onboarding.workout_prefs_day_tue') },
+        { value: 3, label: t('onboarding.workout_prefs_day_wed') },
+        { value: 4, label: t('onboarding.workout_prefs_day_thu') },
+        { value: 5, label: t('onboarding.workout_prefs_day_fri') },
+        { value: 6, label: t('onboarding.workout_prefs_day_sat') },
+        { value: 7, label: t('onboarding.workout_prefs_day_sun') },
+    ];
+
     const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set());
     const [selectedDuration, setSelectedDuration] = useState<SessionDuration | null>(null);
+    const [notes, setNotes] = useState('');
 
     function validate(days: Set<number>, duration: SessionDuration | null) {
         setCanContinue(days.size > 0 && duration !== null);
@@ -34,13 +46,8 @@ export function WorkoutPrefsStep() {
     function toggleDay(value: number) {
         setSelectedDays((prev) => {
             const next = new Set(prev);
-            if (next.has(value)) {
-                next.delete(value);
-            } else {
-                next.add(value);
-            }
-            const days = Array.from(next);
-            setStore({ preferred_workout_days: days });
+            next.has(value) ? next.delete(value) : next.add(value);
+            setStore({ preferred_workout_days: Array.from(next) });
             validate(next, selectedDuration);
             return next;
         });
@@ -52,90 +59,104 @@ export function WorkoutPrefsStep() {
         validate(selectedDays, value);
     }
 
+    function handleNotesChange(text: string) {
+        setNotes(text);
+        setStore({ schedule_notes: text.trim() || null });
+    }
+
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Training planen</Text>
+        <KeyboardAwareScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
+                <JempText type="h1" style={styles.title}>{t('onboarding.workout_prefs_title')}</JempText>
+            </Animated.View>
+            <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
+                <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
+                    {t('onboarding.workout_prefs_subtitle')}
+                </JempText>
+            </Animated.View>
 
-            <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Trainingstage</Text>
-                <View style={styles.dayRow}>
-                    {DAYS.map((day) => (
-                        <TouchableOpacity
-                            key={day.value}
-                            style={[styles.dayChip, selectedDays.has(day.value) && styles.dayChipSelected]}
-                            onPress={() => toggleDay(day.value)}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={[styles.dayText, selectedDays.has(day.value) && styles.dayTextSelected]}>
-                                {day.label}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
+            <Animated.View entering={FadeInDown.delay(360).duration(500).springify()}>
+                <View style={styles.section}>
+                    <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                        {t('onboarding.workout_prefs_days_label')}
+                    </JempText>
+                    <View style={styles.dayRow}>
+                        {DAYS.map((day) => (
+                            <SelectableChip
+                                key={day.value}
+                                label={day.label}
+                                selected={selectedDays.has(day.value)}
+                                onPress={() => toggleDay(day.value)}
+                                style={styles.dayChip}
+                            />
+                        ))}
+                    </View>
                 </View>
-            </View>
+            </Animated.View>
 
-            <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Einheitsdauer</Text>
-                <View style={styles.durationGrid}>
-                    {DURATIONS.map((d) => (
-                        <TouchableOpacity
-                            key={d.value}
-                            style={[styles.durationChip, selectedDuration === d.value && styles.durationChipSelected]}
-                            onPress={() => selectDuration(d.value)}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={[styles.durationText, selectedDuration === d.value && styles.durationTextSelected]}>
-                                {d.label}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
+            <Animated.View entering={FadeInDown.delay(480).duration(500).springify()}>
+                <View style={styles.section}>
+                    <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                        {t('onboarding.workout_prefs_duration_label')}
+                    </JempText>
+                    <View style={styles.durationRow}>
+                        {DURATIONS.map((d) => (
+                            <SelectableChip
+                                key={d.value}
+                                label={d.label}
+                                selected={selectedDuration === d.value}
+                                onPress={() => selectDuration(d.value)}
+                                style={styles.durationChip}
+                            />
+                        ))}
+                    </View>
                 </View>
-            </View>
-        </View>
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(600).duration(500).springify()}>
+                <View style={styles.section}>
+                    <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                        {t('onboarding.workout_prefs_notes_label')}
+                    </JempText>
+                    <JempText type="body-sm" color={theme.textMuted} style={styles.notesHint}>
+                        {t('onboarding.workout_prefs_notes_hint')}
+                    </JempText>
+                    <JempInput
+                        value={notes}
+                        onChangeText={handleNotesChange}
+                        placeholder={t('onboarding.workout_prefs_notes_placeholder')}
+                        multiline
+                        numberOfLines={4}
+                        textAlignVertical="top"
+                        style={styles.notesInput}
+                    />
+                </View>
+            </Animated.View>
+        </KeyboardAwareScrollView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, paddingHorizontal: 24, paddingTop: 24 },
-    title: { color: 'white', fontSize: 28, fontWeight: '700', marginBottom: 36 },
-    section: { marginBottom: 36 },
+    container: {
+        flex: 1,
+    },
+    content: {
+        paddingHorizontal: 28,
+        paddingTop: 32,
+        paddingBottom: 24,
+    },
+    title: { marginBottom: 10 },
+    subtitle: { marginBottom: 36 },
+    section: { marginBottom: 32 },
     sectionLabel: {
-        color: 'rgba(255,255,255,0.4)',
-        fontSize: 12,
-        fontWeight: '600',
-        letterSpacing: 1,
         textTransform: 'uppercase',
+        letterSpacing: 0.8,
         marginBottom: 14,
     },
-    dayRow: { flexDirection: 'row', gap: 8 },
-    dayChip: {
-        flex: 1,
-        backgroundColor: 'rgba(255,255,255,0.07)',
-        borderRadius: 10,
-        paddingVertical: 14,
-        alignItems: 'center',
-        borderWidth: 1.5,
-        borderColor: 'transparent',
-    },
-    dayChipSelected: {
-        backgroundColor: 'rgba(255,255,255,0.15)',
-        borderColor: 'white',
-    },
-    dayText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '600' },
-    dayTextSelected: { color: 'white' },
-    durationGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    durationChip: {
-        backgroundColor: 'rgba(255,255,255,0.07)',
-        borderRadius: 12,
-        paddingVertical: 14,
-        paddingHorizontal: 24,
-        borderWidth: 1.5,
-        borderColor: 'transparent',
-    },
-    durationChipSelected: {
-        backgroundColor: 'rgba(255,255,255,0.15)',
-        borderColor: 'white',
-    },
-    durationText: { color: 'rgba(255,255,255,0.6)', fontSize: 16, fontWeight: '600' },
-    durationTextSelected: { color: 'white' },
+    dayRow: { flexDirection: 'row', gap: 6 },
+    dayChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
+    durationRow: { flexDirection: 'row', gap: 8 },
+    durationChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
+    notesHint: { marginBottom: 12 },
+    notesInput: { minHeight: 100 },
 });

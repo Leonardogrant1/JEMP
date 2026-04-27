@@ -12,6 +12,7 @@ type ProfileData = Pick<
     | 'weight_in_kg'
     | 'preferred_workout_days'
     | 'preferred_session_duration'
+    | 'schedule_notes'
     | 'timezone'
 >;
 
@@ -50,6 +51,7 @@ const initialState: Omit<OnboardingStore, 'set' | 'reset'> = {
     weight_in_kg: null,
     preferred_workout_days: [],
     preferred_session_duration: null,
+    schedule_notes: null,
     timezone: null,
     targetedCategories: [],
     categoryLevels: [],

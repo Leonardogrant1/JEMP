@@ -1,6 +1,7 @@
 import { JempText } from '@/components/jemp-text';
 import { RestDayCard } from '@/components/rest-day-card';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
+import { getSessionImage } from '@/constants/session-images';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { type PlanSession, type SessionStatus, type WorkoutSession, usePlan } from '@/providers/plan-provider';
 import { Ionicons } from '@expo/vector-icons';
@@ -64,8 +65,6 @@ function StatusBadge({ status }: { status: SessionStatus }) {
 
 // ── Session card ──────────────────────────────────────────────────────────
 
-const SESSION_IMAGE = require('@/assets/images/splash-icon.png');
-
 function SessionCard({ session, theme }: { session: WorkoutSession; theme: any }) {
     const router = useRouter();
     const { t } = useTranslation();
@@ -73,10 +72,10 @@ function SessionCard({ session, theme }: { session: WorkoutSession; theme: any }
     return (
         <View style={styles.sessionCard}>
             <Image
-                source={SESSION_IMAGE}
+                source={getSessionImage(session.primary_exercise_slug)}
                 style={StyleSheet.absoluteFill}
                 contentFit="cover"
-                contentPosition="top center"
+                contentPosition="center"
             />
             <LinearGradient
                 colors={['transparent', 'rgba(0,0,0,0.92)']}
@@ -133,10 +132,10 @@ function PlanSessionCard({ planSession, nextSession, theme }: {
     return (
         <View style={styles.sessionCard}>
             <Image
-                source={SESSION_IMAGE}
+                source={getSessionImage(planSession.primary_exercise_slug)}
                 style={StyleSheet.absoluteFill}
                 contentFit="cover"
-                contentPosition="top center"
+                contentPosition="center"
             />
             <LinearGradient
                 colors={['transparent', 'rgba(0,0,0,0.92)']}

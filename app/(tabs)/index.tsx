@@ -1,6 +1,7 @@
 import { JempText } from '@/components/jemp-text';
 import { RestDayCard } from '@/components/rest-day-card';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
+import { getSessionImage } from '@/constants/session-images';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
 import { useCurrentUser } from '@/providers/current-user-provider';
@@ -13,8 +14,6 @@ import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const SESSION_IMAGE = require('@/assets/images/splash-icon.png');
 
 function getTodaySession(sessions: WorkoutSession[]) {
     const today = new Date();
@@ -99,7 +98,7 @@ export default function HomeScreen() {
                             disabled={nextSession.status !== 'completed'}
                         >
                             <Image
-                                source={SESSION_IMAGE}
+                                source={getSessionImage(nextSession.primary_exercise_slug)}
                                 style={StyleSheet.absoluteFill}
                                 contentFit="cover"
                                 contentPosition="top center"
@@ -110,7 +109,7 @@ export default function HomeScreen() {
                                 style={StyleSheet.absoluteFill}
                             />
                             <View style={styles.cardContent}>
-                                <JempText type="caption" color={nextSession.status === 'completed' ? GradientMid : theme.textMuted}>
+                                <JempText type="caption" gradient={nextSession.status == 'completed'} color={nextSession.status !== 'completed' ? theme.textMuted : ''}>
                                     {nextSession.status === 'completed'
                                         ? t('ui.session_completed')
                                         : nextSession.status === 'in_progress'

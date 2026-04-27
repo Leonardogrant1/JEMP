@@ -1,142 +1,86 @@
-import { useRef, useState } from 'react';
-import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
+import { HeightSlider, WeightSlider } from '@/components/ui/measurement-slider';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
+import { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 
 export function BodyStep() {
+    const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
     const setStore = useOnboardingStore((s) => s.set);
-    const [height, setHeight] = useState('');
-    const [weight, setWeight] = useState('');
-    const weightRef = useRef<TextInput>(null);
+    const [weightKg, setWeightKg] = useState(75);
+    const [heightCm, setHeightCm] = useState(175);
+    const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg');
+    const [heightUnit, setHeightUnit] = useState<'cm' | 'ft'>('cm');
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
-    function validate(h: string, w: string) {
-        const hVal = parseInt(h, 10);
-        const wVal = parseFloat(w);
-        const valid =
-            !isNaN(hVal) && hVal >= 50 && hVal <= 300 &&
-            !isNaN(wVal) && wVal >= 20 && wVal <= 500;
-        setCanContinue(valid);
-        if (valid) {
-            setStore({ height_in_cm: hVal, weight_in_kg: wVal });
-        }
+    useEffect(() => {
+        setCanContinue(true);
+        setStore({ weight_in_kg: weightKg, height_in_cm: heightCm });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    function handleWeight(kg: number) {
+        setWeightKg(kg);
+        setStore({ weight_in_kg: kg, height_in_cm: heightCm });
     }
 
-    function handleHeight(val: string) {
-        const cleaned = val.replace(/\D/g, '');
-        setHeight(cleaned);
-        validate(cleaned, weight);
-    }
-
-    function handleWeight(val: string) {
-        const cleaned = val.replace(/[^0-9.]/g, '');
-        setWeight(cleaned);
-        validate(height, cleaned);
+    function handleHeight(cm: number) {
+        setHeightCm(cm);
+        setStore({ weight_in_kg: weightKg, height_in_cm: cm });
     }
 
     return (
-        <Pressable style={styles.container} onPress={Keyboard.dismiss}>
-            <View style={styles.inner}>
-                <Text style={styles.headline}>Körpermaße</Text>
-                <View style={styles.row}>
-                    <View style={styles.fieldWrap}>
-                        <View style={styles.inputRow}>
-                            <TextInput
-                                style={styles.input}
-                                value={height}
-                                onChangeText={handleHeight}
-                                placeholder="180"
-                                placeholderTextColor="rgba(255,255,255,0.3)"
-                                keyboardType="number-pad"
-                                maxLength={3}
-                                autoFocus
-                                returnKeyType="next"
-                                onSubmitEditing={() => weightRef.current?.focus()}
-                                selectionColor="white"
-                                textAlign="center"
-                            />
-                            <Text style={styles.unit}>cm</Text>
-                        </View>
-                        <View style={styles.underline} />
-                        <Text style={styles.label}>Größe</Text>
-                    </View>
-                    <View style={styles.fieldWrap}>
-                        <View style={styles.inputRow}>
-                            <TextInput
-                                ref={weightRef}
-                                style={styles.input}
-                                value={weight}
-                                onChangeText={handleWeight}
-                                placeholder="75"
-                                placeholderTextColor="rgba(255,255,255,0.3)"
-                                keyboardType="decimal-pad"
-                                maxLength={5}
-                                returnKeyType="done"
-                                onSubmitEditing={Keyboard.dismiss}
-                                selectionColor="white"
-                                textAlign="center"
-                            />
-                            <Text style={styles.unit}>kg</Text>
-                        </View>
-                        <View style={styles.underline} />
-                        <Text style={styles.label}>Gewicht</Text>
-                    </View>
-                </View>
-            </View>
-        </Pressable>
+        <ScrollView
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+        >
+            <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
+                <JempText type="h1" style={styles.headline}>{t('onboarding.body_title')}</JempText>
+            </Animated.View>
+            <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
+                <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
+                    {t('onboarding.body_subtitle')}
+                </JempText>
+            </Animated.View>
+            <Animated.View entering={FadeInDown.delay(360).duration(500).springify()}>
+                <WeightSlider
+                    valueKg={weightKg}
+                    onChange={handleWeight}
+                    unit={weightUnit}
+                    onToggleUnit={() => setWeightUnit(u => u === 'kg' ? 'lbs' : 'kg')}
+                />
+            </Animated.View>
+            <Animated.View entering={FadeInDown.delay(480).duration(500).springify()}>
+                <HeightSlider
+                    valueCm={heightCm}
+                    onChange={handleHeight}
+                    unit={heightUnit}
+                    onToggleUnit={() => setHeightUnit(u => u === 'cm' ? 'ft' : 'cm')}
+                />
+            </Animated.View>
+        </ScrollView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    inner: {
-        flex: 1,
-        alignItems: 'center',
+    content: {
+        flexGrow: 1,
         justifyContent: 'center',
-        paddingHorizontal: 32,
-        gap: 48,
+        paddingHorizontal: 28,
+        paddingVertical: 32,
     },
     headline: {
-        color: 'white',
-        fontSize: 32,
-        fontWeight: '700',
-        textAlign: 'center',
+        marginBottom: 10,
     },
-    row: {
-        flexDirection: 'row',
-        gap: 32,
-    },
-    fieldWrap: {
-        alignItems: 'center',
-        width: 100,
-    },
-    inputRow: {
-        flexDirection: 'row',
-        alignItems: 'baseline',
-        gap: 4,
-    },
-    input: {
-        color: 'white',
-        fontSize: 36,
-        fontWeight: '700',
-        paddingVertical: 8,
-        textAlign: 'center',
-        minWidth: 60,
-    },
-    unit: {
-        color: 'rgba(255,255,255,0.5)',
-        fontSize: 18,
-        fontWeight: '500',
-    },
-    underline: {
-        width: '100%',
-        height: 2,
-        backgroundColor: 'white',
-        borderRadius: 1,
-    },
-    label: {
-        color: 'rgba(255,255,255,0.4)',
-        fontSize: 12,
-        marginTop: 6,
+    subtitle: {
+        marginBottom: 8,
     },
 });

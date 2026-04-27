@@ -1,5 +1,5 @@
 import { JempText } from '@/components/jemp-text';
-import { EnvironmentCard } from '@/components/ui/environment-card';
+import { SelectableRow } from '@/components/ui/selectable-row';
 import { SelectableChip } from '@/components/ui/selectable-chip';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -193,9 +193,9 @@ export function EquipmentSheet({ visible, userId, onClose }: Props) {
                         </JempText>
                         <View style={styles.envList}>
                             {allEnvs.map(env => (
-                                <EnvironmentCard
+                                <SelectableRow
                                     key={env.id}
-                                    name={env.name_i18n?.[locale] ?? env.slug}
+                                    label={env.name_i18n?.[locale] ?? env.slug}
                                     description={env.description_i18n?.[locale]}
                                     icon={env.icon}
                                     selected={selectedEnvIds.has(env.id)}

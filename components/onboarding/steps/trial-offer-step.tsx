@@ -1,42 +1,47 @@
-import { useEffect, useRef } from 'react';
+import { JempText } from '@/components/jemp-text';
+import { Colors, Electric, GradientMid } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { Animated, StyleSheet, View } from 'react-native';
-
-import { Colors, Fonts } from '@/constants/theme';
-
-function useFadeSlide(delay: number) {
-    const opacity = useRef(new Animated.Value(0)).current;
-    const translateY = useRef(new Animated.Value(16)).current;
-    useEffect(() => {
-        const t = setTimeout(() => {
-            Animated.parallel([
-                Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-                Animated.spring(translateY, { toValue: 0, useNativeDriver: true, speed: 18, bounciness: 5 }),
-            ]).start();
-        }, delay);
-        return () => clearTimeout(t);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-    return { opacity, transform: [{ translateY }] } as const;
-}
+import { StyleSheet, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 export function TrialOfferStep() {
     const { t } = useTranslation();
-    const labelAnim = useFadeSlide(100);
-    const titleAnim = useFadeSlide(300);
-    const subtitleAnim = useFadeSlide(550);
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
     return (
         <View style={styles.container}>
-            <View style={styles.inner}>
-                <Animated.Text style={[styles.label, labelAnim]}>{t('onboarding.trial_offer.label')}</Animated.Text>
-                <Animated.Text style={[styles.title, titleAnim]}>
-                    {t('onboarding.trial_offer.title')}
-                </Animated.Text>
-                <Animated.Text style={[styles.subtitle, subtitleAnim]}>
-                    {t('onboarding.trial_offer.subtitle')}
-                </Animated.Text>
+            <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
+                <JempText type="caption" gradient style={styles.eyebrow}>
+                    {t('onboarding.trial_eyebrow')}
+                </JempText>
+                <JempText type="h1" style={styles.title}>
+                    {t('onboarding.trial_title')}
+                </JempText>
+            </Animated.View>
+            <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
+                <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
+                    {t('onboarding.trial_subtitle')}
+                </JempText>
+            </Animated.View>
+
+            <View style={styles.list}>
+                {([0, 1, 2, 3] as const).map((i) => (
+                    <Animated.View key={i} entering={FadeInDown.delay(Math.min(360 + i * 120, 720)).duration(500).springify()} style={styles.row}>
+                        <Ionicons name="checkmark-circle-outline" size={20} color={GradientMid} />
+                        <JempText type="body-l" color={theme.text}>{t(`onboarding.trial_include_${i}` as any)}</JempText>
+                    </Animated.View>
+                ))}
             </View>
+
+            <Animated.View entering={FadeInDown.delay(720).duration(500).springify()} style={[styles.badge, { backgroundColor: theme.surface }]}>
+                <Ionicons name="shield-checkmark-outline" size={18} color={Electric[400]} />
+                <JempText type="body-sm" color={theme.textMuted} style={styles.badgeText}>
+                    {t('onboarding.trial_badge')}
+                </JempText>
+            </Animated.View>
         </View>
     );
 }
@@ -44,29 +49,30 @@ export function TrialOfferStep() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    inner: {
-        flex: 1,
         justifyContent: 'center',
-        paddingHorizontal: 32,
-        gap: 20,
+        paddingHorizontal: 28,
+        paddingTop: 32,
     },
-    label: {
-        fontFamily: Fonts.sansSemiBold,
-        fontSize: 11,
-        letterSpacing: 2.5,
-        color: Colors.accent,
+    eyebrow: {
+        letterSpacing: 2,
+        textTransform: 'uppercase',
+        marginBottom: 12,
     },
-    title: {
-        fontFamily: Fonts.serifBold,
-        fontSize: 40,
-        lineHeight: 52,
-        color: Colors.textHeadline,
+    title: { marginBottom: 12 },
+    subtitle: { marginBottom: 32 },
+    list: { gap: 14, marginBottom: 28 },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
     },
-    subtitle: {
-        fontFamily: Fonts.satoshiRegular,
-        fontSize: 16,
-        lineHeight: 25,
-        color: Colors.textMuted,
+    badge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 14,
     },
+    badgeText: { flex: 1 },
 });

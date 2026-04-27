@@ -53,6 +53,11 @@ Die \`sport_required_categories\` in den Nutzerdaten geben an, welche Categories
 
 Die \`user_focus_categories\` geben an, was der User explizit verbessern möchte (priority 1 = höchste). Diese zusätzlich häufiger einbauen.
 
+## Zusätzliche Hinweise des Users (schedule_notes)
+
+Falls \`schedule_notes\` vorhanden ist, enthält es persönliche Hinweise des Users zu seinem Alltag und Trainingsrhythmus — z. B. Nebensportarten, Erholungsbedarf an bestimmten Tagen oder andere Einschränkungen.
+**Berücksichtige diese Hinweise bei der Sessionplanung.** Wenn der User z. B. mittwochs Fußball hat, plane an diesem Tag keine intensive Session oder reduziere die Belastung entsprechend.
+
 ## Session-Name
 
 Wähle für jede Session einen kurzen, beschreibenden Titel, der den Trainingsfokus widerspiegelt.
