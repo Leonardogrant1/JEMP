@@ -4,9 +4,9 @@ import { SlideToStart } from '@/components/slide-to-start';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { detectLanguage, initI18n } from '@/i18n';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -17,13 +17,17 @@ const FLAG: Record<string, string> = {
     en: '🇬🇧',
 };
 
-const HERO = require('@/assets/images/splash-icon.png');
-
 export default function StartScreen() {
     const router = useRouter();
     const lang = detectLanguage();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+
+    const player = useVideoPlayer(require('@/assets/videos/start-screen.mp4'), p => {
+        p.loop = true;
+        p.muted = true;
+        p.play();
+    });
 
     useEffect(() => {
         initI18n(lang);
@@ -44,12 +48,12 @@ export default function StartScreen() {
 
         <GestureHandlerRootView style={[styles.root, { backgroundColor: theme.background }]}>
 
-            {/* ── Hero photo ── */}
-            <Image
-                source={HERO}
+            {/* ── Background video ── */}
+            <VideoView
+                player={player}
                 style={styles.hero}
                 contentFit="cover"
-                contentPosition="top center"
+                nativeControls={false}
             />
 
             {/* ── Gradient overlay: transparent → background color ── */}
