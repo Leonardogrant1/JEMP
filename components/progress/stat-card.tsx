@@ -1,8 +1,10 @@
-import { CATEGORY_ICONS, STAT_LABELS } from "@/constants/progress-constants";
+import { getCategoryLabelShort } from "@/constants/category-labels";
+import { CATEGORY_ICONS } from "@/constants/progress-constants";
 import { Colors, Cyan, Electric } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 import { JempText } from "../jemp-text";
 import { TrendBadge } from "./trend-badge";
@@ -14,10 +16,11 @@ interface StatCardProps {
 }
 
 export function StatCard({ slug, value, trend }: StatCardProps) {
+    const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const icon = CATEGORY_ICONS[slug] ?? 'fitness';
-    const label = STAT_LABELS[slug] ?? slug;
+    const label = getCategoryLabelShort(slug, t);
     const hasValue = value !== undefined;
 
     return (

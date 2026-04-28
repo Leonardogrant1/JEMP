@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator,
     NativeSyntheticEvent,
@@ -26,6 +27,7 @@ export default function MagicLinkScreen() {
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const { sendMagicLink } = useAuth();
+    const { t } = useTranslation();
 
     const [email, setEmail] = useState('');
     const [sent, setSent] = useState(false);
@@ -44,7 +46,7 @@ export default function MagicLinkScreen() {
             await sendMagicLink(email.trim().toLowerCase());
             setSent(true);
         } catch {
-            setError('Something went wrong. Please try again.');
+            setError(t('magic_link.error_generic'));
         } finally {
             setLoading(false);
         }
@@ -58,7 +60,7 @@ export default function MagicLinkScreen() {
         try {
             await sendMagicLink(email.trim().toLowerCase());
         } catch {
-            setError('Something went wrong. Please try again.');
+            setError(t('magic_link.error_generic'));
         } finally {
             setLoading(false);
         }
@@ -73,7 +75,7 @@ export default function MagicLinkScreen() {
             type: 'email',
         });
         if (error) {
-            setError('Invalid or expired code.');
+            setError(t('magic_link.error_invalid_code'));
             setOtp(Array(OTP_LENGTH).fill(''));
             inputRefs.current[0]?.focus();
         }
@@ -112,9 +114,9 @@ export default function MagicLinkScreen() {
             <View style={styles.content}>
                 {!sent ? (
                     <>
-                        <JempText type="h1" style={styles.title}>Whats your email?</JempText>
+                        <JempText type="h1" style={styles.title}>{t('magic_link.email_title')}</JempText>
                         <JempText type="body-sm" color={theme.textMuted} style={styles.subtitle}>
-                            We'll email you a link to sign in.
+                            {t('magic_link.email_subtitle')}
                         </JempText>
 
                         <TextInput
@@ -123,7 +125,7 @@ export default function MagicLinkScreen() {
                                 borderColor: theme.borderStrong,
                                 color: theme.text,
                             }]}
-                            placeholder="Email"
+                            placeholder={t('magic_link.email_placeholder')}
                             placeholderTextColor={theme.textPlaceholder}
                             keyboardType="email-address"
                             autoCapitalize="none"
@@ -142,15 +144,15 @@ export default function MagicLinkScreen() {
                     </>
                 ) : (
                     <>
-                        <JempText type="h1" style={styles.title}>We've sent you an email</JempText>
+                        <JempText type="h1" style={styles.title}>{t('magic_link.sent_title')}</JempText>
                         <JempText type="body-sm" color={theme.textMuted} style={styles.subtitle}>
-                            {'Tap the link sent to\n'}
+                            {t('magic_link.sent_subtitle_a')}
                             <JempText type="body-sm" gradient>{email}</JempText>
-                            {'\nCheck spam or junk if you can\'t find it'}
+                            {t('magic_link.sent_subtitle_b')}
                         </JempText>
 
                         <JempText type="caption" color={theme.textMuted} style={styles.otpLabel}>
-                            Or enter the code from your email
+                            {t('magic_link.otp_label')}
                         </JempText>
 
                         <View style={styles.otpRow}>
@@ -203,7 +205,7 @@ export default function MagicLinkScreen() {
                             <ActivityIndicator color="#fff" />
                         ) : (
                             <JempText type="button" color="#fff">
-                                {sent ? 'Open Email App' : 'Email me a magic link'}
+                                {sent ? t('magic_link.btn_open_email') : t('magic_link.btn_send')}
                             </JempText>
                         )}
                     </LinearGradient>
@@ -212,9 +214,9 @@ export default function MagicLinkScreen() {
                 {sent && (
                     <Pressable onPress={handleResend} disabled={loading || verifying} style={styles.resendRow}>
                         <JempText type="caption" color={theme.textMuted}>
-                            {'Didn\'t receive it?  '}
+                            {t('magic_link.resend_prefix')}
                             <JempText type="caption" color={theme.text} style={{ fontFamily: Fonts.satoshiBold }}>
-                                Resend
+                                {t('magic_link.resend_link')}
                             </JempText>
                         </JempText>
                     </Pressable>

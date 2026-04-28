@@ -6,6 +6,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlan, WorkoutSession } from '@/providers/plan-provider';
+import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -47,18 +48,21 @@ export default function HomeScreen() {
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
     const nextSession = useMemo(() => getTodaySession(sessions), [sessions]);
+    const { openWithPlacement } = useSuperwallFunctions();
 
     const handleStartSession = useCallback(() => {
         if (!nextSession) return;
-        if (nextSession.status === 'in_progress') {
-            router.push(`/active-session/${nextSession.id}`);
-        } else {
-            updateStatus.mutate(
-                { sessionId: nextSession.id, status: 'in_progress' },
-                { onSuccess: () => router.push(`/active-session/${nextSession.id}`) },
-            );
-        }
-    }, [nextSession, updateStatus, router]);
+        openWithPlacement('start_session', () => {
+            if (nextSession.status === 'in_progress') {
+                router.push(`/active-session/${nextSession.id}`);
+            } else {
+                updateStatus.mutate(
+                    { sessionId: nextSession.id, status: 'in_progress' },
+                    { onSuccess: () => router.push(`/active-session/${nextSession.id}`) },
+                );
+            }
+        });
+    }, [nextSession, updateStatus, router, openWithPlacement]);
 
 
     return (

@@ -1,12 +1,13 @@
 import { JempText } from '@/components/jemp-text';
 import { SelectableChip } from '@/components/ui/selectable-chip';
-import { CATEGORY_LABELS } from '@/constants/category-labels';
+import { getCategoryLabel } from '@/constants/category-labels';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/services/supabase/client';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator, Modal, Pressable, ScrollView,
     StyleSheet, TouchableOpacity, View,
@@ -19,13 +20,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
 const PHASES: Phase[] = ['select', 'rank', 'level'];
 
-const LEVEL_PRESETS = [
-    { label: 'Anfänger', score: 15, description: 'Keine oder wenig Erfahrung' },
-    { label: 'Einsteiger', score: 35, description: 'Grundlagen vorhanden' },
-    { label: 'Fortgeschritten', score: 55, description: 'Regelmäßiges Training' },
-    { label: 'Erfahren', score: 75, description: 'Jahrelange Erfahrung' },
-    { label: 'Elite', score: 90, description: 'Wettkampfniveau' },
-];
+const LEVEL_PRESET_SCORES = [15, 35, 55, 75, 90] as const;
+const LEVEL_PRESET_KEYS = [
+    { labelKey: 'goals.preset_novice', descKey: 'goals.preset_novice_desc' },
+    { labelKey: 'goals.preset_beginner', descKey: 'goals.preset_beginner_desc' },
+    { labelKey: 'goals.preset_intermediate', descKey: 'goals.preset_intermediate_desc' },
+    { labelKey: 'goals.preset_experienced', descKey: 'goals.preset_experienced_desc' },
+    { labelKey: 'goals.preset_elite', descKey: 'goals.preset_elite_desc' },
+] as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,6 +61,7 @@ function StepBars({ phase, phases }: { phase: Phase; phases: Phase[] }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function GoalsSheet({ visible, userId, onClose }: Props) {
+    const { t } = useTranslation();
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
@@ -86,7 +89,7 @@ export function GoalsSheet({ visible, userId, onClose }: Props) {
             const items: CategoryItem[] = (catsRes.data ?? []).map(c => ({
                 id: c.id,
                 slug: c.slug,
-                label: CATEGORY_LABELS[c.slug] ?? c.slug,
+                label: getCategoryLabel(c.slug, t),
             }));
             setCategories(items);
 
@@ -150,7 +153,7 @@ export function GoalsSheet({ visible, userId, onClose }: Props) {
         (phase === 'rank' && !needsLevel) ||
         (phase === 'select' && selectedList.length <= 1 && !needsLevel);
 
-    const primaryLabel = isLastPhase ? 'Speichern' : 'Weiter';
+    const primaryLabel = isLastPhase ? t('ui.save') : t('ui.continue');
     const primaryDisabled = phase === 'select' ? selected.size === 0 : false;
 
     // Only show phases that are relevant
@@ -200,12 +203,12 @@ export function GoalsSheet({ visible, userId, onClose }: Props) {
 
     const levelCategories = ranked.filter(c => existingScores[c.id] === undefined);
 
-    const phaseTitle = phase === 'rank' ? 'Priorität' : phase === 'level' ? 'Dein Level' : 'Ziele';
+    const phaseTitle = phase === 'rank' ? t('goals.rank_title') : phase === 'level' ? t('goals.level_title') : t('goals.select_title');
     const phaseSubtitle = phase === 'rank'
-        ? 'Ordne deine Ziele — das Wichtigste zuerst.'
+        ? t('goals.rank_subtitle')
         : phase === 'level'
-            ? 'Schätze dich realistisch ein — das bestimmt den Plan.'
-            : 'Wähle die Bereiche die du verbessern möchtest.';
+            ? t('goals.level_subtitle')
+            : t('goals.select_subtitle');
 
     return (
         <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
@@ -222,7 +225,7 @@ export function GoalsSheet({ visible, userId, onClose }: Props) {
                     </Pressable>
                     <View style={styles.headerCenter}>
                         <JempText type="body-l" color={theme.textMuted}>
-                            Ziele
+                            {t('goals.select_title')}
                         </JempText>
                         <StepBars phase={phase} phases={activePhases} />
                     </View>
@@ -280,12 +283,13 @@ export function GoalsSheet({ visible, userId, onClose }: Props) {
                                     {cat.label}
                                 </JempText>
                                 <View style={styles.presets}>
-                                    {LEVEL_PRESETS.map(preset => {
-                                        const isSelected = (newScores[cat.id] ?? 35) === preset.score;
+                                    {LEVEL_PRESET_KEYS.map((keys, i) => {
+                                        const score = LEVEL_PRESET_SCORES[i];
+                                        const isSelected = (newScores[cat.id] ?? 35) === score;
                                         return (
                                             <TouchableOpacity
-                                                key={preset.score}
-                                                onPress={() => setNewScores(p => ({ ...p, [cat.id]: preset.score }))}
+                                                key={score}
+                                                onPress={() => setNewScores(p => ({ ...p, [cat.id]: score }))}
                                                 activeOpacity={0.7}
                                                 style={[
                                                     styles.preset,
@@ -296,10 +300,10 @@ export function GoalsSheet({ visible, userId, onClose }: Props) {
                                                 ]}
                                             >
                                                 <JempText type="body-l" color={isSelected ? '#fff' : theme.text}>
-                                                    {preset.label}
+                                                    {t(keys.labelKey)}
                                                 </JempText>
                                                 <JempText type="caption" color={theme.textMuted}>
-                                                    {preset.description}
+                                                    {t(keys.descKey)}
                                                 </JempText>
                                             </TouchableOpacity>
                                         );

@@ -1,7 +1,7 @@
 import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
 import { SelectableChip } from '@/components/ui/selectable-chip';
-import { SPORT_GROUPS } from '@/constants/sports';
+import { getSportLabelI18n, SPORT_GROUPS } from '@/constants/sports';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
@@ -43,15 +43,15 @@ export function SportStep() {
                 </JempText>
             </Animated.View>
             {SPORT_GROUPS.map((group, i) => (
-                <Animated.View key={group.title} entering={FadeInDown.delay(Math.min(360 + i * 120, 720)).duration(500).springify()} style={styles.group}>
+                <Animated.View key={group.titleKey} entering={FadeInDown.delay(Math.min(360 + i * 120, 720)).duration(500).springify()} style={styles.group}>
                     <JempText type="caption" color={theme.textSubtle} style={styles.groupTitle}>
-                        {group.title.toUpperCase()}
+                        {t(group.titleKey as any).toUpperCase()}
                     </JempText>
                     <View style={styles.chipGrid}>
                         {group.sports.map((sport) => (
                             <SelectableChip
                                 key={sport.slug}
-                                label={sport.label}
+                                label={getSportLabelI18n(sport.slug, t) ?? sport.slug}
                                 selected={selected === sport.slug}
                                 onPress={() => select(sport.slug)}
                             />

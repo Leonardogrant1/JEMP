@@ -1,8 +1,9 @@
 export type SportItem = { slug: string; label: string };
 
-export const SPORT_GROUPS: { title: string; sports: SportItem[] }[] = [
+export const SPORT_GROUPS: { title: string; titleKey: string; sports: SportItem[] }[] = [
     {
         title: 'Kampfsport',
+        titleKey: 'sport_group.martial_arts',
         sports: [
             { slug: 'boxing', label: 'Boxen' },
             { slug: 'mma', label: 'MMA' },
@@ -16,6 +17,7 @@ export const SPORT_GROUPS: { title: string; sports: SportItem[] }[] = [
     },
     {
         title: 'Teamsport',
+        titleKey: 'sport_group.team',
         sports: [
             { slug: 'football', label: 'American Football' },
             { slug: 'basketball', label: 'Basketball' },
@@ -28,6 +30,7 @@ export const SPORT_GROUPS: { title: string; sports: SportItem[] }[] = [
     },
     {
         title: 'Leichtathletik',
+        titleKey: 'sport_group.athletics',
         sports: [
             { slug: 'sprinting', label: 'Sprint' },
             { slug: 'jumping', label: 'Sprung' },
@@ -36,6 +39,7 @@ export const SPORT_GROUPS: { title: string; sports: SportItem[] }[] = [
     },
     {
         title: 'Kraft',
+        titleKey: 'sport_group.strength',
         sports: [
             { slug: 'powerlifting', label: 'Powerlifting' },
             { slug: 'weightlifting', label: 'Gewichtheben' },
@@ -45,6 +49,7 @@ export const SPORT_GROUPS: { title: string; sports: SportItem[] }[] = [
     },
     {
         title: 'Ausdauer',
+        titleKey: 'sport_group.endurance',
         sports: [
             { slug: 'running', label: 'Laufen' },
             { slug: 'cycling', label: 'Radfahren' },
@@ -54,6 +59,7 @@ export const SPORT_GROUPS: { title: string; sports: SportItem[] }[] = [
     },
     {
         title: 'Racket',
+        titleKey: 'sport_group.racket',
         sports: [
             { slug: 'tennis', label: 'Tennis' },
             { slug: 'badminton', label: 'Badminton' },
@@ -62,6 +68,7 @@ export const SPORT_GROUPS: { title: string; sports: SportItem[] }[] = [
     },
     {
         title: 'Sonstiges',
+        titleKey: 'sport_group.other',
         sports: [
             { slug: 'gymnastics', label: 'Turnen' },
             { slug: 'climbing', label: 'Klettern' },
@@ -74,7 +81,13 @@ const SPORT_LABEL_MAP: Record<string, string> = Object.fromEntries(
     SPORT_GROUPS.flatMap(g => g.sports.map(s => [s.slug, s.label]))
 );
 
+/** @deprecated Use getSportLabelI18n(slug, t) for localized labels */
 export function getSportLabel(slug: string | null | undefined): string | null {
     if (!slug) return null;
     return SPORT_LABEL_MAP[slug] ?? null;
+}
+
+export function getSportLabelI18n(slug: string | null | undefined, t: (key: string) => string): string | null {
+    if (!slug) return null;
+    return t(`sport.${slug}`);
 }

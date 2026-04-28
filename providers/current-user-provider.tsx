@@ -1,5 +1,7 @@
+import { saveLanguageLocally, type AppLanguage } from "@/i18n";
 import { supabase } from "@/services/supabase/client";
 import { UserProfile } from "@/types/database";
+import i18n from "i18next";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useAuth } from "./auth-provider";
 
@@ -40,7 +42,16 @@ export function CurrentUserProvider({ children }: { children: React.ReactNode })
             .eq('id', user.id)
             .single();
 
-        setProfile(data as UserProfile ?? null);
+        const profile = data as UserProfile ?? null;
+        setProfile(profile);
+
+        // DB language is authoritative for authenticated users — sync locally too
+        if (profile?.preferred_language) {
+            const lang = profile.preferred_language as AppLanguage;
+            i18n.changeLanguage(lang);
+            saveLanguageLocally(lang);
+        }
+
         setIsLoading(false);
         setIsRefreshing(false);
         hasLoadedOnce.current = true;

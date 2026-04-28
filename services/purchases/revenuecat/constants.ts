@@ -10,4 +10,4 @@ export const REVENUECAT_API_KEYS = {
     android: REVENUECAT_API_KEY_ANDROID,
 };
 
-export const PREMIUM_IDENTIFIER = "premium";
+export const PREMIUM_IDENTIFIER = "full_access";

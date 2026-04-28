@@ -14,17 +14,19 @@ import UserIcon from '@/assets/icons/user.svg';
 import WeightIcon from '@/assets/icons/weight.svg';
 import { JempText } from '@/components/jemp-text';
 import { DeleteAccountModal } from '@/components/modals/delete-account-modal';
+import { LanguageModal } from '@/components/modals/language-modal';
 import { SupportTicketModal } from '@/components/modals/support-ticket-modal';
 import { EquipmentSheet } from '@/components/profile/equipment-sheet';
 import { GeneratePlanSheet } from '@/components/profile/generate-plan-sheet';
 import { GoalsSheet } from '@/components/profile/goals-sheet';
 import { SportSheet } from '@/components/profile/sport-sheet';
 import { StatCard } from '@/components/profile/stat-card';
-import { getSportLabel } from '@/constants/sports';
+import { getSportLabelI18n } from '@/constants/sports';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/providers/auth-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
+import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { queryKeys } from '@/queries/query-keys';
 import { supabase } from '@/services/supabase/client';
 import { calculateAge } from '@/types/user-data';
@@ -93,11 +95,12 @@ const REPORT_BUG_URL = 'https://northbyte.studio/features/jemp/bugs';
 const PRIVACY_POLICY_URL = 'https://www.northbyte.studio/privacy-policy/jemp';
 
 export default function ProfileScreen() {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const { profile, refreshProfile } = useCurrentUser();
     const { signOut } = useAuth();
+    const { openWithPlacement } = useSuperwallFunctions();
     const queryClient = useQueryClient();
 
     const router = useRouter();
@@ -110,13 +113,17 @@ export default function ProfileScreen() {
     const [sportOpen, setSportOpen] = useState(false);
     const [supportOpen, setSupportOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const [langOpen, setLangOpen] = useState(false);
+
+    const LANG_FLAGS: Record<string, string> = { de: '🇩🇪', en: '🇬🇧' };
+    const currentLangFlag = LANG_FLAGS[i18n.language] ?? '🌐';
 
     async function handleSignOut() {
         setSignOutLoading(true);
         try {
             await signOut();
         } catch (err: any) {
-            Alert.alert('Fehler', err?.message ?? 'Abmelden fehlgeschlagen.');
+            Alert.alert(t('ui.error'), err?.message ?? t('ui.sign_out_error'));
             setSignOutLoading(false);
         }
     }
@@ -127,16 +134,16 @@ export default function ProfileScreen() {
             const { error } = await supabase.functions.invoke('delete-account');
             if (error) throw error;
         } catch (err: any) {
-            Alert.alert('Fehler', err?.message ?? 'Konto konnte nicht gelöscht werden.');
+            Alert.alert(t('ui.error'), err?.message ?? t('ui.delete_account_error'));
             setDeleteLoading(false);
         }
     }
 
-    const sportLabel = useMemo(() => getSportLabel(profile?.sport?.slug), [profile]);
+    const sportLabel = useMemo(() => getSportLabelI18n(profile?.sport?.slug, t), [profile, t]);
     const age = useMemo(() => profile?.birth_date ? calculateAge(profile.birth_date) : null, [profile]);
     const weight = useMemo(() => profile?.weight_in_kg ? `${profile.weight_in_kg} kg` : '—', [profile]);
     const height = useMemo(() => profile?.height_in_cm ? `${profile.height_in_cm} cm` : '—', [profile]);
-    const gender = useMemo(() => profile?.gender === 'male' ? t('ui.male') : profile?.gender === 'female' ? t('ui.female') : '—', [profile]);
+    const gender = useMemo(() => profile?.gender === 'male' ? t('ui.male') : profile?.gender === 'female' ? t('ui.female') : '—', [profile, t]);
     const initials = useMemo(() => [profile?.first_name, profile?.last_name]
         .filter(Boolean)
         .map(n => n![0].toUpperCase())
@@ -199,7 +206,7 @@ export default function ProfileScreen() {
                         <SettingsRow
                             icon={<CalendarIcon width={20} height={20} color="#fff" />}
                             label={t('ui.new_plan')}
-                            onPress={() => setGeneratePlanOpen(true)}
+                            onPress={() => openWithPlacement('generate_plan', () => setGeneratePlanOpen(true))}
                         />
                         <SettingsRow
                             icon={<DumbellIcon width={20} height={20} color="#fff" />}
@@ -245,6 +252,11 @@ export default function ProfileScreen() {
                 <View style={styles.settingsSection}>
                     <SectionLabel label={t('ui.section_account')} />
                     <View style={styles.settingsGroup}>
+                        <SettingsRow
+                            icon={<JempText type="body-l">{currentLangFlag}</JempText>}
+                            label={t('ui.language_name')}
+                            onPress={() => setLangOpen(true)}
+                        />
                         <SettingsRow
                             icon={<LogoutIcon width={20} height={20} />}
                             label={t('ui.sign_out')}
@@ -315,10 +327,10 @@ export default function ProfileScreen() {
                                 </LinearGradient>
 
                                 <JempText type="h2" color={theme.text} style={styles.successTitle}>
-                                    Plan erstellt!
+                                    {t('plan.success_title')}
                                 </JempText>
                                 <JempText type="body-sm" color={theme.textMuted} style={styles.successSubtitle}>
-                                    Dein personalisierter Trainingsplan ist bereit.
+                                    {t('plan.success_subtitle')}
                                 </JempText>
 
                                 {/* CTA */}
@@ -335,12 +347,12 @@ export default function ProfileScreen() {
                                         end={{ x: 1, y: 0 }}
                                         style={styles.successBtnGradient}
                                     >
-                                        <JempText type="button" color="#fff">Plan anzeigen</JempText>
+                                        <JempText type="button" color="#fff">{t('plan.success_view')}</JempText>
                                     </LinearGradient>
                                 </Pressable>
 
                                 <Pressable onPress={() => setPlanSuccessOpen(false)} hitSlop={12}>
-                                    <JempText type="caption" color={theme.textMuted}>Schließen</JempText>
+                                    <JempText type="caption" color={theme.textMuted}>{t('ui.close')}</JempText>
                                 </Pressable>
                             </Pressable>
                         </Pressable>
@@ -350,6 +362,10 @@ export default function ProfileScreen() {
             <SupportTicketModal
                 visible={supportOpen}
                 onClose={() => setSupportOpen(false)}
+            />
+            <LanguageModal
+                visible={langOpen}
+                onClose={() => setLangOpen(false)}
             />
             <DeleteAccountModal
                 visible={deleteOpen}

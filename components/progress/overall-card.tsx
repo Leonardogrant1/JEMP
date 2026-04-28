@@ -3,12 +3,14 @@ import { Colors } from "@/constants/theme";
 import { gaugeColor, svgArcPath } from "@/helpers/progress-helpers";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { JempText } from "../jemp-text";
 import { TrendBadge } from "./trend-badge";
 
 export function OverallCard({ value, trend }: { value: number; trend: number | null }) {
+    const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
@@ -21,7 +23,7 @@ export function OverallCard({ value, trend }: { value: number; trend: number | n
     return (
         <View style={[styles.overallCard, { backgroundColor: theme.surface }]}>
             <View style={styles.overallCardHeader}>
-                <JempText type="caption" color={theme.textMuted} style={styles.statLabel}>Overall</JempText>
+                <JempText type="caption" color={theme.textMuted} style={styles.statLabel}>{t('category.overall')}</JempText>
                 {trend !== null && <TrendBadge trend={trend} />}
             </View>
             <View style={styles.overallGaugeWrap}>

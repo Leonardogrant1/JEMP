@@ -7,6 +7,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useStopwatch } from '@/hooks/use-stopwatch';
 import { useCompleteAssessment } from '@/mutations/use-complete-assessment';
 import { useCurrentUser } from '@/providers/current-user-provider';
+import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { useUserAssessmentQuery } from '@/queries/use-user-assessment-query';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,6 +32,7 @@ export default function AssessmentScreen() {
 
     const { data, isLoading } = useUserAssessmentQuery(id);
     const completeAssessment = useCompleteAssessment();
+    const { openWithPlacement } = useSuperwallFunctions();
     const [value, setValue] = useState('');
     const [mode, setMode] = useState<'manual' | 'timer'>('manual');
     const [repMode, setRepMode] = useState<'1rm' | '5rm'>('5rm');
@@ -330,7 +332,7 @@ export default function AssessmentScreen() {
             <View style={[styles.bottomBar, { backgroundColor: theme.background }]}>
                 <Pressable
                     style={styles.submitBtn}
-                    onPress={handleSubmit}
+                    onPress={() => openWithPlacement('log_assessment', handleSubmit)}
                     disabled={!submitValue || completeAssessment.isPending}
                 >
                     <LinearGradient

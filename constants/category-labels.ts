@@ -1,3 +1,4 @@
+/** @deprecated Use getCategoryLabel(slug, t) instead */
 export const CATEGORY_LABELS: Record<string, string> = {
     strength: 'Kraft',
     jumps: 'Sprünge',
@@ -6,6 +7,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
     mobility: 'Mobilität',
 };
 
+/** @deprecated Use getCategoryDescription(slug, t) instead */
 export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
     strength: 'Maximalkraft, Muskelaufbau und funktionelle Stärke.',
     jumps: 'Sprungkraft, Explosivität und vertikale Leistung.',
@@ -13,3 +15,15 @@ export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
     upper_body_plyometrics: 'Explosive Kraft im Oberkörper — z.B. für Schlagbewegungen, Würfe.',
     mobility: 'Beweglichkeit, Gelenkstabilität und Körperkontrolle.',
 };
+
+export function getCategoryLabel(slug: string, t: (key: string) => string): string {
+    return t(`category.${slug}`);
+}
+
+export function getCategoryLabelShort(slug: string, t: (key: string) => string): string {
+    return t(`category.${slug}_short`);
+}
+
+export function getCategoryDescription(slug: string, t: (key: string) => string): string {
+    return t(`category.${slug}_desc`);
+}

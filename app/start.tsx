@@ -1,12 +1,12 @@
 import { JempText } from '@/components/jemp-text';
 import { AuthModal } from '@/components/modals/auth-modal';
+import { LanguageModal } from '@/components/modals/language-modal';
 import { SlideToStart } from '@/components/slide-to-start';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { detectLanguage, initI18n } from '@/i18n';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -18,10 +18,12 @@ const FLAG: Record<string, string> = {
 };
 
 export default function StartScreen() {
-    const router = useRouter();
-    const lang = detectLanguage();
+    const { i18n } = useTranslation();
+    const lang = i18n.language;
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+
+    const { t } = useTranslation();
 
     const player = useVideoPlayer(require('@/assets/videos/start-screen.mp4'), p => {
         p.loop = true;
@@ -29,16 +31,12 @@ export default function StartScreen() {
         p.play();
     });
 
-    useEffect(() => {
-        initI18n(lang);
-    }, []);
-
+    const [authVisible, setAuthVisible] = useState(false);
+    const [langVisible, setLangVisible] = useState(false);
 
     function handleComplete() {
-        router.replace('/(tabs)');
+        setAuthVisible(true);
     }
-
-    const [authVisible, setAuthVisible] = useState(false);
 
     function handleSignIn() {
         setAuthVisible(true);
@@ -66,39 +64,40 @@ export default function StartScreen() {
             {/* ── Language badge (top-right) ── */}
             <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
                 <View style={styles.topBar}>
-                    <View style={styles.langBadge}>
+                    <Pressable style={styles.langBadge} onPress={() => setLangVisible(true)}>
                         <JempText type="caption" style={styles.langFlag}>{FLAG[lang] ?? '🌐'}</JempText>
                         <JempText type="caption" color={theme.text}>
                             {lang.toUpperCase()}
                         </JempText>
-                    </View>
+                    </Pressable>
                 </View>
 
                 {/* ── Bottom content ── */}
                 <View style={styles.bottom}>
                     <JempText type="hero" style={styles.headline}>
-                        {'Become a next level\nAthlete. Today.'}
+                        {t('start.headline')}
                     </JempText>
 
                     <JempText type="body-l" color={theme.textMuted} style={styles.sub}>
-                        Start your training and see results
+                        {t('start.subtitle')}
                     </JempText>
 
                     <View style={styles.ctaWrapper}>
-                        <SlideToStart onComplete={handleComplete} label="Get started" />
+                        <SlideToStart onComplete={handleComplete} label={t('start.cta')} />
                     </View>
 
                     <Pressable onPress={handleSignIn} style={styles.signInRow}>
                         <JempText type="body-sm" color={theme.textSubtle}>
-                            You already have an account?{' '}
+                            {t('start.sign_in')}{' '}
                             <JempText type="body-sm" color={theme.text} style={{ fontFamily: Fonts.satoshiBold }}>
-                                Sign In
+                                {t('start.sign_in_link')}
                             </JempText>
                         </JempText>
                     </Pressable>
                 </View>
             </SafeAreaView>
             <AuthModal visible={authVisible} onClose={() => setAuthVisible(false)} />
+            <LanguageModal visible={langVisible} onClose={() => setLangVisible(false)} />
         </GestureHandlerRootView>
     );
 }

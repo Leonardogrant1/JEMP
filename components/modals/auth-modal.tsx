@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Animated, {
     runOnJS,
     useAnimatedStyle,
@@ -26,6 +27,7 @@ export function AuthModal({ visible, onClose }: Props) {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { signInWithGoogle, signInWithApple } = useAuth();
+    const { t } = useTranslation();
 
     function handleEmailPress() {
         handleClose();
@@ -68,7 +70,7 @@ export function AuthModal({ visible, onClose }: Props) {
                 <Animated.View style={[styles.sheet, sheetStyle, { paddingBottom: insets.bottom + 12 }]}>
                     {/* Header */}
                     <View style={styles.header}>
-                        <JempText type="h1">Sign In</JempText>
+                        <JempText type="h1">{t('auth.title')}</JempText>
                         <Pressable style={styles.closeButton} onPress={handleClose}>
                             <Ionicons name="close" size={20} color={theme.background} />
                         </Pressable>
@@ -79,27 +81,27 @@ export function AuthModal({ visible, onClose }: Props) {
                     <View style={styles.body}>
                         <Pressable style={styles.appleBtn} onPress={signInWithApple}>
                             <Ionicons name="logo-apple" size={20} color={theme.background} />
-                            <Text style={styles.appleBtnText}>Continue with Apple</Text>
+                            <Text style={styles.appleBtnText}>{t('auth.apple')}</Text>
                         </Pressable>
 
                         <Pressable style={styles.socialBtn} onPress={signInWithGoogle}>
                             <Google width={20} height={20} />
-                            <JempText type="button" color={theme.text}>Continue with Google</JempText>
+                            <JempText type="button" color={theme.text}>{t('auth.google')}</JempText>
                         </Pressable>
 
                         <Pressable style={styles.socialBtn} onPress={handleEmailPress}>
                             <Ionicons name="mail-outline" size={20} color={theme.textMuted} />
-                            <JempText type="button" color={theme.text}>Continue with Email</JempText>
+                            <JempText type="button" color={theme.text}>{t('auth.email')}</JempText>
                         </Pressable>
                     </View>
 
                     {/* Legal */}
                     <Text style={styles.legal}>
-                        {'By continuing you agree to the '}
-                        <Text style={styles.legalLink}>Terms of service</Text>
-                        {'\nand '}
-                        <Text style={styles.legalLink}>Privacy Policy</Text>
-                        {' of Jemp.'}
+                        {t('auth.legal_prefix')}
+                        <Text style={styles.legalLink}>{t('auth.legal_terms')}</Text>
+                        {t('auth.legal_and')}
+                        <Text style={styles.legalLink}>{t('auth.legal_privacy')}</Text>
+                        {t('auth.legal_suffix')}
                     </Text>
                 </Animated.View>
             </View>

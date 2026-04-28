@@ -16,6 +16,7 @@ export type UserProfile = {
   preferred_workout_days: number[]
   preferred_session_duration: SessionDuration | null
   schedule_notes: string | null
+  preferred_language: 'en' | 'de' | null
   timezone: string | null
   has_onboarded: boolean
   created_at: string

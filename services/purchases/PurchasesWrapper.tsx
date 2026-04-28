@@ -1,11 +1,11 @@
-import { REVENUECAT_API_KEYS } from "@/services/purchases/revenuecat/constants";
+import { useAuth } from "@/providers/auth-provider";
+import { PREMIUM_IDENTIFIER } from "@/services/purchases/revenuecat/constants";
 import { SUPERWALL_API_KEYS, SUPERWALL_ENTITLEMENTS } from "@/services/purchases/superwall/constants";
 import {
     CustomPurchaseControllerProvider,
     SuperwallProvider
 } from "expo-superwall";
 import { useEffect } from "react";
-import { Platform } from "react-native";
 import Purchases, { PURCHASES_ERROR_CODE } from "react-native-purchases";
 import { SuperwallFunctionsProvider, useSuperwallFunctions } from "./superwall/useSuperwall";
 
@@ -61,38 +61,30 @@ export function PurchaseWrapper({ children }: PurchaseWrapperProps) {
 
 // necessary because to use useSuperwallFunctions we need to be inside SuperwallProvider
 function PurchaseLogicWrapper({ children }: { children: React.ReactNode }) {
-    const { setSubscriptionStatus } = useSuperwallFunctions();
+    const { identify, signOut: superwallSignOut, setSubscriptionStatus } = useSuperwallFunctions();
+    const { session } = useAuth();
+    const userId = session?.user?.id;
 
+    // Identify / sign out Superwall when the user changes
     useEffect(() => {
-        const apiKey = Platform.OS === "ios"
-            ? REVENUECAT_API_KEYS.ios
-            : REVENUECAT_API_KEYS.android;
+        if (userId) {
+            identify(userId);
+            syncSubscriptionStatus();
+        } else {
+            superwallSignOut();
+            setSubscriptionStatus({ status: "INACTIVE" });
+        }
+    }, [userId]);
 
-        Purchases.configure({ apiKey });
-        Purchases.setLogLevel(__DEV__ ? Purchases.LOG_LEVEL.DEBUG : Purchases.LOG_LEVEL.INFO);
-        loadOfferings();
-        setSWSubsriptionStatus();
-    }, []);
-
-    const loadOfferings = async () => {
-        const offerings = await Purchases.getOfferings();
-    };
-
-    const setSWSubsriptionStatus = async () => {
+    const syncSubscriptionStatus = async () => {
         const customerInfo = await Purchases.getCustomerInfo();
-        const isPremium = customerInfo.entitlements.active.premium;
-
-        console.log("isPremium", customerInfo);
-
+        const isActive = !!customerInfo.entitlements.active[PREMIUM_IDENTIFIER];
         setSubscriptionStatus(
-            isPremium ? {
-                entitlements: [SUPERWALL_ENTITLEMENTS["premium"]],
-                status: "ACTIVE"
-            } : {
-                status: "INACTIVE"
-            }
-        )
-    }
+            isActive
+                ? { entitlements: [SUPERWALL_ENTITLEMENTS["full_access"]], status: "ACTIVE" }
+                : { status: "INACTIVE" }
+        );
+    };
 
     return <>{children}</>;
 }

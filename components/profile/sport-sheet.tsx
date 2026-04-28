@@ -1,11 +1,12 @@
 import { JempText } from '@/components/jemp-text';
-import { SPORT_GROUPS } from '@/constants/sports';
+import { getSportLabelI18n, SPORT_GROUPS } from '@/constants/sports';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/services/supabase/client';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator,
     Modal,
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export function SportSheet({ visible, userId, currentSportId, onClose, onSaved }: Props) {
+    const { t } = useTranslation();
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
@@ -67,7 +69,7 @@ export function SportSheet({ visible, userId, currentSportId, onClose, onSaved }
         <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
             <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
                 {/* Header */}
-                <View style={[styles.header, { borderBottomColor: theme.borderDivider }]}>
+                <View style={styles.header}>
                     <Pressable onPress={onClose} hitSlop={12}>
                         <Ionicons name="close" size={24} color={theme.text} />
                     </Pressable>
@@ -79,19 +81,20 @@ export function SportSheet({ visible, userId, currentSportId, onClose, onSaved }
                 </View>
 
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                    <JempText type="h1" color={theme.text} style={styles.bodyTitle}>Sportart</JempText>
+                    <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('ui.sport')}</JempText>
                     <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
-                        Wähle deine Hauptsportart. Sie bestimmt den Fokus deines Trainingsplans.
+                        {t('plan.sport_sheet_subtitle')}
                     </JempText>
 
                     {SPORT_GROUPS.map((group) => (
-                        <View key={group.title} style={styles.group}>
+                        <View key={group.titleKey} style={styles.group}>
                             <JempText type="caption" color={theme.textSubtle} style={styles.groupTitle}>
-                                {group.title.toUpperCase()}
+                                {t(group.titleKey as any).toUpperCase()}
                             </JempText>
                             <View style={styles.grid}>
                                 {group.sports.map((sport) => {
                                     const active = selectedSlug === sport.slug;
+                                    const label = getSportLabelI18n(sport.slug, t) ?? sport.slug;
                                     if (active) {
                                         return (
                                             <LinearGradient
@@ -103,7 +106,7 @@ export function SportSheet({ visible, userId, currentSportId, onClose, onSaved }
                                             >
                                                 <View style={[styles.chipInner, { backgroundColor: theme.surface }]}>
                                                     <JempText type="caption" color={Cyan[400]} style={styles.chipText}>
-                                                        {sport.label}
+                                                        {label}
                                                     </JempText>
                                                 </View>
                                             </LinearGradient>
@@ -118,7 +121,7 @@ export function SportSheet({ visible, userId, currentSportId, onClose, onSaved }
                                             disabled={saving}
                                         >
                                             <JempText type="caption" color={theme.textMuted} style={styles.chipText}>
-                                                {sport.label}
+                                                {label}
                                             </JempText>
                                         </TouchableOpacity>
                                     );

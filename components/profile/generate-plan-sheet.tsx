@@ -4,9 +4,9 @@ import { SelectableRow } from '@/components/ui/selectable-row';
 import { GeneratingView } from '@/components/ui/generating-view';
 import { SelectableChip } from '@/components/ui/selectable-chip';
 import { WeightSlider, HeightSlider } from '@/components/ui/measurement-slider';
-import { CATEGORY_LABELS } from '@/constants/category-labels';
+import { getCategoryLabel } from '@/constants/category-labels';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
-import { SPORT_GROUPS } from '@/constants/sports';
+import { getSportLabelI18n, SPORT_GROUPS } from '@/constants/sports';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/services/supabase/client';
@@ -42,14 +42,9 @@ interface Props {
 const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
 const PHASES: Phase[] = ['sport', 'environment', 'equipment', 'goals', 'body', 'schedule'];
 
-const WEEK_DAYS: { dow: number; label: string }[] = [
-    { dow: 1, label: 'Montag' },
-    { dow: 2, label: 'Dienstag' },
-    { dow: 3, label: 'Mittwoch' },
-    { dow: 4, label: 'Donnerstag' },
-    { dow: 5, label: 'Freitag' },
-    { dow: 6, label: 'Samstag' },
-    { dow: 7, label: 'Sonntag' },
+const WEEK_DAYS: { dow: number }[] = [
+    { dow: 1 }, { dow: 2 }, { dow: 3 }, { dow: 4 },
+    { dow: 5 }, { dow: 6 }, { dow: 7 },
 ];
 
 const ENV_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -149,7 +144,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
         ]).then(async ([envsRes, userEquipRes, envEqRes, catsRes, targetedRes, userEnvsRes]) => {
             // Categories
             const catItems: CategoryItem[] = (catsRes.data ?? []).map(c => ({
-                id: c.id, slug: c.slug, label: CATEGORY_LABELS[c.slug] ?? c.slug,
+                id: c.id, slug: c.slug, label: getCategoryLabel(c.slug, t),
             }));
             setAllCategories(catItems);
             if (targetedRes.data?.length) {
@@ -306,7 +301,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
 
             setPlanReady(true);
         } catch (err: any) {
-            setGenerateError(err?.message ?? 'Plan konnte nicht erstellt werden.');
+            setGenerateError(err?.message ?? t('plan.error_generate'));
         }
     }
 
@@ -356,7 +351,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                             />
                         </Pressable>
                         <View style={styles.headerCenter}>
-                            <JempText type="body-l" color={theme.textMuted}>Neuen Plan erstellen</JempText>
+                            <JempText type="body-l" color={theme.textMuted}>{t('ui.new_plan')}</JempText>
                             <StepBars phase={phase} />
                         </View>
                         <View style={{ width: 24 }} />
@@ -366,20 +361,20 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                 {/* ── Sport ── */}
                 {phase === 'sport' && (
                     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                        <JempText type="h1" color={theme.text} style={styles.bodyTitle}>Sportart</JempText>
+                        <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('ui.sport')}</JempText>
                         <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
-                            Wähle deine Hauptsportart für den neuen Plan.
+                            {t('plan.sport_subtitle')}
                         </JempText>
                         {SPORT_GROUPS.map(group => (
-                            <View key={group.title} style={styles.group}>
+                            <View key={group.titleKey} style={styles.group}>
                                 <JempText type="caption" color={theme.textSubtle} style={styles.groupTitle}>
-                                    {group.title.toUpperCase()}
+                                    {t(group.titleKey as any).toUpperCase()}
                                 </JempText>
                                 <View style={styles.chipGrid}>
                                     {group.sports.map(sport => (
                                         <SelectableChip
                                             key={sport.slug}
-                                            label={sport.label}
+                                            label={getSportLabelI18n(sport.slug, t) ?? sport.slug}
                                             selected={selectedSportSlug === sport.slug}
                                             onPress={() => setSelectedSportSlug(sport.slug)}
                                         />
@@ -393,9 +388,9 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                 {/* ── Environment ── */}
                 {phase === 'environment' && (
                     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                        <JempText type="h1" color={theme.text} style={styles.bodyTitle}>Umgebung</JempText>
+                        <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('plan.environment_title')}</JempText>
                         <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
-                            Wo trainierst du? Wähle alle zutreffenden Umgebungen.
+                            {t('plan.environment_subtitle')}
                         </JempText>
                         <View style={styles.envList}>
                             {allEnvs.map(env => (
@@ -415,9 +410,9 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                 {/* ── Equipment ── */}
                 {phase === 'equipment' && (
                     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                        <JempText type="h1" color={theme.text} style={styles.bodyTitle}>Equipment</JempText>
+                        <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('plan.equipment_title')}</JempText>
                         <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
-                            Wähle das Equipment das du zur Verfügung hast.
+                            {t('plan.equipment_subtitle')}
                         </JempText>
                         <View style={styles.chipGrid}>
                             {allEquipment.map(eq => (
@@ -435,9 +430,9 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                 {/* ── Goals ── */}
                 {phase === 'goals' && goalsSubPhase === 'select' && (
                     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                        <JempText type="h1" color={theme.text} style={styles.bodyTitle}>Ziele</JempText>
+                        <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('goals.select_title')}</JempText>
                         <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
-                            Welche Bereiche möchtest du verbessern?
+                            {t('goals.select_subtitle')}
                         </JempText>
                         <View style={styles.chipGrid}>
                             {allCategories.map(cat => (
@@ -485,9 +480,9 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                         }}
                         ListHeaderComponent={
                             <View>
-                                <JempText type="h1" color={theme.text} style={styles.bodyTitle}>Priorität</JempText>
+                                <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('goals.rank_title')}</JempText>
                                 <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
-                                    Ordne deine Ziele — das Wichtigste zuerst.
+                                    {t('goals.rank_subtitle')}
                                 </JempText>
                             </View>
                         }
@@ -497,9 +492,9 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                 {/* ── Body data ── */}
                 {phase === 'body' && (
                     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                        <JempText type="h1" color={theme.text} style={styles.bodyTitle}>Körperdaten</JempText>
+                        <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('plan.body_title')}</JempText>
                         <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
-                            Aktuelle Angaben helfen dem KI einen präziseren Plan zu erstellen.
+                            {t('plan.body_subtitle')}
                         </JempText>
                         <WeightSlider
                             valueKg={weightKg}
@@ -519,12 +514,12 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                 {/* ── Schedule ── */}
                 {phase === 'schedule' && (
                     <KeyboardAwareScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                        <JempText type="h1" color={theme.text} style={styles.bodyTitle}>Trainingstage</JempText>
+                        <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('plan.schedule_title')}</JempText>
                         <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
-                            An welchen Tagen möchtest du trainieren? Mindestens 2 Tage.
+                            {t('plan.schedule_subtitle')}
                         </JempText>
                         <View style={styles.dayList}>
-                            {WEEK_DAYS.map(({ dow, label }) => {
+                            {WEEK_DAYS.map(({ dow }) => {
                                 const selected = preferredDays.has(dow);
                                 return (
                                     <TouchableOpacity
@@ -545,7 +540,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                                         })}
                                     >
                                         <JempText type="body-l" color={selected ? '#fff' : theme.text}>
-                                            {label}
+                                            {t(`plan.day_${dow}` as any)}
                                         </JempText>
                                         {selected
                                             ? <Ionicons name="checkmark-circle" size={20} color="#fff" />
@@ -556,15 +551,15 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                             })}
                         </View>
                         <JempText type="caption" color={theme.textMuted} style={styles.notesLabel}>
-                            Zusätzliche Hinweise
+                            {t('plan.schedule_notes_label')}
                         </JempText>
                         <JempText type="body-sm" color={theme.textMuted} style={styles.notesHint}>
-                            Z.B. "Mittwochs habe ich Fußballtraining — lieber eine leichte Session."
+                            {t('plan.schedule_notes_hint')}
                         </JempText>
                         <JempInput
                             value={scheduleNotes}
                             onChangeText={setScheduleNotes}
-                            placeholder="Optionale Hinweise für den Trainer..."
+                            placeholder={t('plan.schedule_notes_placeholder')}
                             multiline
                             numberOfLines={4}
                             textAlignVertical="top"
@@ -599,7 +594,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                                 style={styles.bottomBtnGradient}
                             >
                                 <JempText type="button" color={canProceedNext ? '#fff' : theme.textMuted}>
-                                    {phase === 'schedule' ? 'Erstellen' : 'Weiter'}
+                                    {phase === 'schedule' ? t('plan.create') : t('ui.continue')}
                                 </JempText>
                             </LinearGradient>
                         </Pressable>

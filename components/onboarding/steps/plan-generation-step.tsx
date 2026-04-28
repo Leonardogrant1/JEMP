@@ -7,9 +7,11 @@ import { supabase } from '@/services/supabase/client';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 export function PlanGenerationStep() {
+    const { t } = useTranslation();
     const { nextStep } = useOnboardingControl();
     const { session } = useAuth();
     const queryClient = useQueryClient();
@@ -111,7 +113,7 @@ export function PlanGenerationStep() {
 
             setIsComplete(true);
         } catch (err: any) {
-            setError(err?.message ?? 'Plan konnte nicht erstellt werden.');
+            setError(err?.message ?? t('plan.error_generate'));
         }
     }
 

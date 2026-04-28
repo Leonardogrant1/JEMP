@@ -15,8 +15,8 @@ export const SUPERWALL_API_KEYS = {
 
 
 export const SUPERWALL_ENTITLEMENTS: Record<string, Entitlement> = {
-    "premium": {
-        id: "premium",
+    "full_access": {
+        id: "full_access",
         type: "SERVICE_LEVEL"
     }
 }

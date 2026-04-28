@@ -5,13 +5,16 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { initI18n } from '@/i18n';
+import { initI18n, loadAndApplyLanguage } from '@/i18n';
 import { AuthProvider } from '@/providers/auth-provider';
 import { CurrentUserProvider, useCurrentUser } from '@/providers/current-user-provider';
 import { PlanProvider } from '@/providers/plan-provider';
+import { RevenueCatProvider } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
+import { PurchaseWrapper } from '@/services/purchases/PurchasesWrapper';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useEffect, useState } from 'react';
 
 initI18n();
 
@@ -20,6 +23,11 @@ const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const [languageReady, setLanguageReady] = useState(false);
+
+  useEffect(() => {
+    loadAndApplyLanguage().then(() => setLanguageReady(true));
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -28,9 +36,13 @@ export default function RootLayout() {
         <KeyboardProvider>
           <AuthProvider>
             <CurrentUserProvider>
-              <PlanProvider>
-                <MainStack />
-              </PlanProvider>
+              <RevenueCatProvider>
+                <PurchaseWrapper>
+                  <PlanProvider>
+                    <MainStack languageReady={languageReady} />
+                  </PlanProvider>
+                </PurchaseWrapper>
+              </RevenueCatProvider>
             </CurrentUserProvider>
           </AuthProvider>
         </KeyboardProvider>
@@ -42,7 +54,7 @@ export default function RootLayout() {
 }
 
 
-function MainStack() {
+function MainStack({ languageReady }: { languageReady: boolean }) {
   const { profile, isLoading } = useCurrentUser();
   const [fontsLoaded] = useFonts({
     SatoshiBlack: require('@/assets/fonts/Satoshi-Black.otf'),
@@ -57,7 +69,7 @@ function MainStack() {
     SatoshiRegular: require('@/assets/fonts/Satoshi-Regular.otf'),
   });
 
-  if (!fontsLoaded || isLoading) return null;
+  if (!fontsLoaded || isLoading || !languageReady) return null;
 
   return (
     <Stack>

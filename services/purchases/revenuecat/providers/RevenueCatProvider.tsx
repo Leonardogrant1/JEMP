@@ -1,7 +1,7 @@
 import i18n, { AppLanguage } from '@/i18n';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
+import { useAuth } from '@/providers/auth-provider';
 import { scheduleTrialEndReminder } from '@/services/notifications';
-import { getOrCreateAnonymousId } from "@/utils/anonymous-id";
 import { devError, devLog } from '@/utils/dev-log';
 import { wait } from '@/utils/wait';
 import { createContext, useContext, useEffect, useState } from "react";
@@ -28,35 +28,43 @@ interface RevenueCatProviderProps {
 export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
     const [packages, setPackages] = useState<PurchasesPackage[]>([]);
     const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
+    const { session } = useAuth();
+    const userId = session?.user?.id;
 
-
-
+    // Configure RC once on mount
     useEffect(() => {
+        const apiKey = Platform.OS === 'ios'
+            ? REVENUECAT_API_KEYS.ios
+            : REVENUECAT_API_KEYS.android;
+        Purchases.configure({ apiKey });
+        Purchases.setLogLevel(__DEV__ ? Purchases.LOG_LEVEL.DEBUG : Purchases.LOG_LEVEL.INFO);
+    }, []);
+
+    // Log in/out whenever the Supabase user changes
+    useEffect(() => {
+        if (!userId) {
+            Purchases.logOut().catch(() => {});
+            setCustomerInfo(null);
+            setPackages([]);
+            return;
+        }
         const init = async () => {
-            const apiKey = Platform.OS === "ios"
-                ? REVENUECAT_API_KEYS.ios
-                : REVENUECAT_API_KEYS.android;
-
-            const userId = await getOrCreateAnonymousId();
-
-            Purchases.configure({ apiKey });
-            Purchases.setLogLevel(Purchases.LOG_LEVEL.DEBUG);
             await Purchases.logIn(userId);
             trackerManager.identify(userId);
-
-            const [info] = await Promise.all([
-                Purchases.getCustomerInfo(),
-            ]);
+            const info = await Purchases.getCustomerInfo();
             setCustomerInfo(info);
             loadOfferings();
         };
         init();
+    }, [userId]);
 
+    // Refresh customer info when app comes back to foreground
+    useEffect(() => {
         const sub = AppState.addEventListener('change', (state) => {
-            if (state === 'active') refreshUserInfo();
+            if (state === 'active' && userId) refreshUserInfo();
         });
         return () => sub.remove();
-    }, []);
+    }, [userId]);
 
     const loadOfferings = async () => {
         const offerings = await Purchases.getOfferings();

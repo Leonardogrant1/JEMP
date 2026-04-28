@@ -1,6 +1,8 @@
 import { TabBar } from '@/components/tab-bar';
 import { useAuth } from '@/providers/auth-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
+import { useRevenueCat } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
+import { PREMIUM_IDENTIFIER } from '@/services/purchases/revenuecat/constants';
 import { supabase } from '@/services/supabase/client';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { useTutorialStore } from '@/stores/tutorial-store';
@@ -12,10 +14,12 @@ import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 export default function TabLayout() {
   const { session, signOut } = useAuth();
   const { refreshProfile } = useCurrentUser();
+  const { hasEntitlement } = useRevenueCat();
   const resetOnboardingStore = useOnboardingStore(s => s.reset);
   const setHasSeenTutorial = useTutorialStore(s => s.setHasSeenTutorial);
   const queryClient = useQueryClient();
   const [devOpen, setDevOpen] = useState(false);
+  const isSubscribed = hasEntitlement(PREMIUM_IDENTIFIER);
 
   return (
     <View style={{ flex: 1 }}>
@@ -41,6 +45,12 @@ export default function TabLayout() {
 
           {devOpen && (
             <>
+              <View style={[styles.debugButton, { backgroundColor: isSubscribed ? 'rgba(34,197,94,0.85)' : 'rgba(100,100,100,0.85)' }]}>
+                <Text style={styles.debugButtonText}>
+                  {isSubscribed ? '✅ full_access active' : '🔒 no subscription'}
+                </Text>
+              </View>
+
               <TouchableOpacity
                 style={styles.debugButton}
                 onPress={async () => {

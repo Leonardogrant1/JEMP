@@ -1,8 +1,10 @@
-import { CATEGORY_ICONS, GAUGE_CX, GAUGE_CY, GAUGE_R, GAUGE_SIZE, GAUGE_START, GAUGE_STROKE, GAUGE_SWEEP, STAT_LABELS } from "@/constants/progress-constants";
+import { getCategoryLabelShort } from "@/constants/category-labels";
+import { CATEGORY_ICONS, GAUGE_CX, GAUGE_CY, GAUGE_R, GAUGE_SIZE, GAUGE_START, GAUGE_STROKE, GAUGE_SWEEP } from "@/constants/progress-constants";
 import { Colors } from "@/constants/theme";
 import { gaugeColor, svgArcPath } from "@/helpers/progress-helpers";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { JempText } from "../jemp-text";
@@ -10,6 +12,7 @@ import { TrendBadge } from "./trend-badge";
 
 
 export function GaugeCard({ slug, value, trend, style }: { slug: string; value: number | undefined; trend: number | null; style?: object }) {
+    const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
@@ -17,7 +20,7 @@ export function GaugeCard({ slug, value, trend, style }: { slug: string; value: 
     const fillSweep = Math.max(0, (score / 100) * GAUGE_SWEEP);
     const color = value !== undefined ? gaugeColor(score) : theme.textMuted;
     const icon = CATEGORY_ICONS[slug] ?? 'fitness';
-    const label = STAT_LABELS[slug] ?? slug;
+    const label = getCategoryLabelShort(slug, t);
 
     const bgPath = svgArcPath(GAUGE_CX, GAUGE_CY, GAUGE_R, GAUGE_START, GAUGE_START + GAUGE_SWEEP);
     const fillPath = value !== undefined && score > 0

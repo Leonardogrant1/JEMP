@@ -4,34 +4,21 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Animated, Easing, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
 
-const STAGES = [
-    { threshold: 0, label: 'Lade dein Profil...' },
-    { threshold: 12, label: 'KI generiert deinen Plan...' },
-    { threshold: 72, label: 'Erstelle Wochenplan...' },
-    { threshold: 88, label: 'Plane Trainingstage...' },
-];
-
-const PLAN_FEATURES = [
-    'Personalisierter Wochenplan',
-    'Gezielte Übungsauswahl',
-    'Kraft-Assessments',
-    'Fortschritts-Tracking',
-];
+const STAGE_THRESHOLDS = [0, 12, 72, 88] as const;
+const FEATURE_KEYS = [
+    'plan.feature_weekly_plan',
+    'plan.feature_exercises',
+    'plan.feature_assessments',
+    'plan.feature_tracking',
+] as const;
 
 const ITEM_START_DELAY_MS = 400;
 const ITEM_STAGGER_MS = 500;
-
-function getStageLabel(progress: number): string {
-    let label = STAGES[0].label;
-    for (const s of STAGES) {
-        if (progress >= s.threshold) label = s.label;
-    }
-    return label;
-}
 
 function getTickIncrement(progress: number): number {
     if (progress < 12) return 1.5;
@@ -49,14 +36,30 @@ interface Props {
 }
 
 export function GeneratingView({ error, isComplete, onRetry, onClose, onAnimationComplete }: Props) {
+    const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const [progress, setProgress] = useState(0);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+    const STAGES = [
+        { threshold: STAGE_THRESHOLDS[0], label: t('plan.stage_loading_profile') },
+        { threshold: STAGE_THRESHOLDS[1], label: t('plan.stage_generating') },
+        { threshold: STAGE_THRESHOLDS[2], label: t('plan.stage_creating_week') },
+        { threshold: STAGE_THRESHOLDS[3], label: t('plan.stage_scheduling') },
+    ];
+
+    function getStageLabel(p: number): string {
+        let label = STAGES[0].label;
+        for (const s of STAGES) {
+            if (p >= s.threshold) label = s.label;
+        }
+        return label;
+    }
+
     // One pair of animated values per feature
     const itemAnims = useRef(
-        PLAN_FEATURES.map(() => ({
+        FEATURE_KEYS.map(() => ({
             opacity: new Animated.Value(0),
             translateY: new Animated.Value(10),
         }))
@@ -89,7 +92,7 @@ export function GeneratingView({ error, isComplete, onRetry, onClose, onAnimatio
         return () => clearInterval(sprint);
     }, [isComplete]);
 
-    // Notify parent once 100% is reached — outside of setState updater
+    // Notify parent once 100% is reached
     useEffect(() => {
         if (progress >= 100) {
             onAnimationComplete?.();
@@ -126,7 +129,7 @@ export function GeneratingView({ error, isComplete, onRetry, onClose, onAnimatio
                     <Ionicons name="close-circle-outline" size={52} color="#ef4444" />
                 </View>
                 <JempText type="h2" color={theme.text} style={styles.textCenter}>
-                    Fehler beim Erstellen
+                    {t('plan.error_title')}
                 </JempText>
                 <JempText type="caption" color={theme.textMuted} style={styles.textCenter}>
                     {error}
@@ -137,10 +140,10 @@ export function GeneratingView({ error, isComplete, onRetry, onClose, onAnimatio
                         onPress={onRetry}
                         activeOpacity={0.7}
                     >
-                        <JempText type="body-l" color={theme.text}>Erneut versuchen</JempText>
+                        <JempText type="body-l" color={theme.text}>{t('ui.retry')}</JempText>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={onClose} hitSlop={12}>
-                        <JempText type="caption" color={theme.textMuted}>Schließen</JempText>
+                        <JempText type="caption" color={theme.textMuted}>{t('ui.close')}</JempText>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -156,7 +159,7 @@ export function GeneratingView({ error, isComplete, onRetry, onClose, onAnimatio
 
             {/* Title */}
             <JempText type="h2" color={theme.text} style={styles.title}>
-                Dein Plan wird erstellt
+                {t('plan.generating_title')}
             </JempText>
 
             {/* Progress Bar */}
@@ -179,11 +182,11 @@ export function GeneratingView({ error, isComplete, onRetry, onClose, onAnimatio
             {/* Feature list */}
             <View style={styles.featureList}>
                 <JempText type="body-l" color={theme.text} style={styles.featureHeader}>
-                    Dein Plan enthält:
+                    {t('plan.features_header')}
                 </JempText>
-                {PLAN_FEATURES.map((f, i) => (
+                {FEATURE_KEYS.map((key, i) => (
                     <Animated.View
-                        key={f}
+                        key={key}
                         style={[
                             styles.featureRow,
                             {
@@ -192,7 +195,7 @@ export function GeneratingView({ error, isComplete, onRetry, onClose, onAnimatio
                             },
                         ]}
                     >
-                        <JempText type="body-sm" color={theme.textMuted}>·  {f}</JempText>
+                        <JempText type="body-sm" color={theme.textMuted}>·  {t(key)}</JempText>
                     </Animated.View>
                 ))}
             </View>
