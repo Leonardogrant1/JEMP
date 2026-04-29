@@ -17,6 +17,7 @@ export type UserProfile = {
   preferred_session_duration: SessionDuration | null
   schedule_notes: string | null
   preferred_language: 'en' | 'de' | null
+  push_token: string | null
   timezone: string | null
   has_onboarded: boolean
   created_at: string

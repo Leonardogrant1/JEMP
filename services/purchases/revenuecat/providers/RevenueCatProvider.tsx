@@ -4,7 +4,7 @@ import { useAuth } from '@/providers/auth-provider';
 import { scheduleTrialEndReminder } from '@/services/notifications';
 import { devError, devLog } from '@/utils/dev-log';
 import { wait } from '@/utils/wait';
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AppState, Platform } from "react-native";
 import Purchases, { type CustomerInfo, PurchasesPackage } from "react-native-purchases";
 import RevenueCatUI, { PAYWALL_RESULT } from "react-native-purchases-ui";
@@ -30,6 +30,7 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
     const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
     const { session } = useAuth();
     const userId = session?.user?.id;
+    const hasLoggedInRef = useRef(false);
 
     // Configure RC once on mount
     useEffect(() => {
@@ -43,13 +44,18 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
     // Log in/out whenever the Supabase user changes
     useEffect(() => {
         if (!userId) {
-            Purchases.logOut().catch(() => {});
+            // Only call logOut if we previously called logIn — RC warns when logging out an anonymous user
+            if (hasLoggedInRef.current) {
+                Purchases.logOut().catch(() => {});
+                hasLoggedInRef.current = false;
+            }
             setCustomerInfo(null);
             setPackages([]);
             return;
         }
         const init = async () => {
             await Purchases.logIn(userId);
+            hasLoggedInRef.current = true;
             trackerManager.identify(userId);
             const info = await Purchases.getCustomerInfo();
             setCustomerInfo(info);

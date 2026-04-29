@@ -74,7 +74,6 @@ export const SuperwallFunctionsProvider = ({ children }: { children: React.React
         },
     });
     const openWithPlacement = async (placement: string, onFeature?: () => void, params?: Record<string, any>, onDismiss?: () => void) => {
-        trackerManager.track('paywall_opened', { placement });
         pendingDismissRef.current = onDismiss ?? null;
         await registerPlacement({
             placement: placement,
@@ -118,9 +117,6 @@ export const SuperwallFunctionsProvider = ({ children }: { children: React.React
     const setSubscriptionStatus = async (status: SubscriptionStatus) => {
         await superwallSetSubscriptionStatus(status);
     };
-
-
-
 
     return (
         <SuperwallFunctionsContext.Provider value={{

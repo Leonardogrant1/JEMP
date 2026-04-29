@@ -9,7 +9,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -23,6 +25,10 @@ export default function ExerciseDetailScreen() {
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
     const { data: exercise, isLoading } = useExerciseDetailQuery(id);
+
+    useEffect(() => {
+        trackerManager.track('exercise_viewed', { exercise_id: id });
+    }, []);
 
     if (isLoading) {
         return (
@@ -56,7 +62,12 @@ export default function ExerciseDetailScreen() {
                 {/* ── Video Hero ── */}
                 <Pressable
                     style={styles.videoHero}
-                    onPress={() => exercise.youtube_url && Linking.openURL(exercise.youtube_url)}
+                    onPress={() => {
+                        if (exercise.youtube_url) {
+                            trackerManager.track('exercise_video_started', { exercise_id: id });
+                            Linking.openURL(exercise.youtube_url);
+                        }
+                    }}
                     disabled={!exercise.youtube_url}
                 >
                     <Image
@@ -161,7 +172,10 @@ export default function ExerciseDetailScreen() {
                 {exercise.youtube_url && (
                     <Pressable
                         style={styles.cta}
-                        onPress={() => Linking.openURL(exercise.youtube_url!)}
+                        onPress={() => {
+                            trackerManager.track('exercise_video_started', { exercise_id: id });
+                            Linking.openURL(exercise.youtube_url!);
+                        }}
                     >
                         <LinearGradient
                             colors={[Cyan[500], Electric[500]]}

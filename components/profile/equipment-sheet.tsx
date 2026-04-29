@@ -3,6 +3,7 @@ import { SelectableRow } from '@/components/ui/selectable-row';
 import { SelectableChip } from '@/components/ui/selectable-chip';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { supabase } from '@/services/supabase/client';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -138,6 +139,10 @@ export function EquipmentSheet({ visible, userId, onClose }: Props) {
             ));
         }
         await Promise.all(inserts);
+        trackerManager.track('equipment_changed', {
+            environment_count: selectedEnvIds.size,
+            equipment_count: selectedEquipmentIds.size,
+        });
         setSaving(false);
         onClose();
     }

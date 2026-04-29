@@ -3,6 +3,7 @@ import { RestDayCard } from '@/components/rest-day-card';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { getSessionImage } from '@/constants/session-images';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlan, WorkoutSession } from '@/providers/plan-provider';
@@ -54,11 +55,17 @@ export default function HomeScreen() {
         if (!nextSession) return;
         openWithPlacement('start_session', () => {
             if (nextSession.status === 'in_progress') {
+                trackerManager.track('session_continued', { session_id: nextSession.id });
                 router.push(`/active-session/${nextSession.id}`);
             } else {
                 updateStatus.mutate(
                     { sessionId: nextSession.id, status: 'in_progress' },
-                    { onSuccess: () => router.push(`/active-session/${nextSession.id}`) },
+                    {
+                        onSuccess: () => {
+                            trackerManager.track('session_started', { session_id: nextSession.id });
+                            router.push(`/active-session/${nextSession.id}`);
+                        },
+                    },
                 );
             }
         });

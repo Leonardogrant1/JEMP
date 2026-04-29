@@ -4,6 +4,7 @@ import { formatTargetReps, loadUnit } from '@/helpers/format';
 import { youtubeThumbUrl } from '@/helpers/youtube';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUpdateSessionProgress } from '@/mutations/use-update-session-progress';
+import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
 import { useUpsertPerformedSets } from '@/mutations/use-upsert-performed-set';
 import { useSessionDetailQuery } from '@/queries/use-session-detail-query';
@@ -193,7 +194,12 @@ export default function ActiveSessionScreen() {
             await saveSetAndProgress(exerciseIdx, currentSet);
             updateStatus.mutate(
                 { sessionId: id!, status: 'completed' },
-                { onSuccess: () => router.back() },
+                {
+                    onSuccess: () => {
+                        trackerManager.track('session_completed', { session_id: id });
+                        router.back();
+                    },
+                },
             );
         } else if (isLastSet) {
             const nextIdx = exerciseIdx + 1;
@@ -223,7 +229,12 @@ export default function ActiveSessionScreen() {
                     onPress: () => {
                         updateStatus.mutate(
                             { sessionId: id!, status: 'completed' },
-                            { onSuccess: () => router.back() },
+                            {
+                                onSuccess: () => {
+                                    trackerManager.track('session_completed', { session_id: id });
+                                    router.back();
+                                },
+                            },
                         );
                     },
                 },

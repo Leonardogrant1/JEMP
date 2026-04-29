@@ -1,55 +1,99 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { initI18n, loadAndApplyLanguage } from '@/i18n';
+import { trackerManager } from '@/lib/tracking/tracker-manager';
+// import { AppsFlyerTracker } from '@/lib/tracking/trackers/appsflyer-tracker';
+import { PostHogTracker } from '@/lib/tracking/trackers/posthog-tracker';
 import { AuthProvider } from '@/providers/auth-provider';
 import { CurrentUserProvider, useCurrentUser } from '@/providers/current-user-provider';
+import { NotificationProvider } from '@/providers/notification-provider';
 import { PlanProvider } from '@/providers/plan-provider';
-import { RevenueCatProvider } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
+import { initPosthog } from '@/services/posthog/init';
 import { PurchaseWrapper } from '@/services/purchases/PurchasesWrapper';
+import { RevenueCatProvider } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
+import { devLog } from '@/utils/dev-log';
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useFonts } from 'expo-font';
+import * as Notifications from 'expo-notifications';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { PostHogProvider, PostHogSurveyProvider } from 'posthog-react-native';
 import { useEffect, useState } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
+import 'react-native-reanimated';
 
 initI18n();
 
+trackerManager.register(new PostHogTracker());
+// trackerManager.register(new AppsFlyerTracker());
+trackerManager.init();
+
 const queryClient = new QueryClient();
+
+
+Notifications.setNotificationHandler({
+  handleNotification: async (notification) => {
+    devLog('🔔 handleNotification triggered:', JSON.stringify(notification))
+    return {
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }
+  },
+  handleSuccess: (id) => devLog('✅ handleSuccess:', id),
+  handleError: (id, error) => devLog('❌ handleError:', id, error),
+})
 
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [languageReady, setLanguageReady] = useState(false);
 
+
+
   useEffect(() => {
+    const notificationSub = Notifications.addNotificationResponseReceivedListener(() => {
+      trackerManager.track('notification_opened');
+    });
     loadAndApplyLanguage().then(() => setLanguageReady(true));
+
+    return () => {
+      notificationSub.remove();
+
+    }
   }, []);
 
+  const posthog = initPosthog();
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <KeyboardProvider>
-          <AuthProvider>
-            <CurrentUserProvider>
-              <RevenueCatProvider>
-                <PurchaseWrapper>
-                  <PlanProvider>
-                    <MainStack languageReady={languageReady} />
-                  </PlanProvider>
-                </PurchaseWrapper>
-              </RevenueCatProvider>
-            </CurrentUserProvider>
-          </AuthProvider>
-        </KeyboardProvider>
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    </QueryClientProvider>
-    </GestureHandlerRootView>
+    <PostHogProvider client={posthog}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <PostHogSurveyProvider>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <KeyboardProvider>
+                <AuthProvider>
+                  <CurrentUserProvider>
+                    <NotificationProvider>
+                      <RevenueCatProvider>
+                        <PurchaseWrapper>
+                          <PlanProvider>
+                            <MainStack languageReady={languageReady} />
+                          </PlanProvider>
+                        </PurchaseWrapper>
+                      </RevenueCatProvider>
+                    </NotificationProvider>
+                  </CurrentUserProvider>
+                </AuthProvider>
+              </KeyboardProvider>
+              <StatusBar style="auto" />
+            </ThemeProvider>
+          </QueryClientProvider>
+        </PostHogSurveyProvider>
+      </GestureHandlerRootView>
+    </PostHogProvider>
   );
 }
 

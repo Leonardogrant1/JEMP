@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useAuth } from '@/providers/auth-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
@@ -56,6 +57,12 @@ export function OnboardingProgressWrapper({ steps }: Props) {
 
     async function finishOnboarding() {
         try {
+            if (session?.user?.id) {
+                await supabase
+                    .from('user_profiles')
+                    .update({ has_onboarded: true })
+                    .eq('id', session.user.id);
+            }
             onboardingData.reset();
             await refreshProfile();
             const navigate = () => router.replace('/(tabs)');
@@ -77,6 +84,7 @@ export function OnboardingProgressWrapper({ steps }: Props) {
 
     function nextStep() {
         if (inFlightRef.current) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         if (step.preContinue) {
             inFlightRef.current = true;
             setIsLoading(true);

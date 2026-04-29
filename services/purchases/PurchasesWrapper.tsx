@@ -3,7 +3,8 @@ import { PREMIUM_IDENTIFIER } from "@/services/purchases/revenuecat/constants";
 import { SUPERWALL_API_KEYS, SUPERWALL_ENTITLEMENTS } from "@/services/purchases/superwall/constants";
 import {
     CustomPurchaseControllerProvider,
-    SuperwallProvider
+    SuperwallProvider,
+    useSuperwall
 } from "expo-superwall";
 import { useEffect } from "react";
 import Purchases, { PURCHASES_ERROR_CODE } from "react-native-purchases";
@@ -13,8 +14,6 @@ interface PurchaseWrapperProps {
     children: React.ReactNode;
 }
 export function PurchaseWrapper({ children }: PurchaseWrapperProps) {
-
-
     return (
         <CustomPurchaseControllerProvider
             controller={{
@@ -64,9 +63,13 @@ function PurchaseLogicWrapper({ children }: { children: React.ReactNode }) {
     const { identify, signOut: superwallSignOut, setSubscriptionStatus } = useSuperwallFunctions();
     const { session } = useAuth();
     const userId = session?.user?.id;
+    const isConfigured = useSuperwall((state) => state.isConfigured);
 
-    // Identify / sign out Superwall when the user changes
+    // Identify / sign out Superwall when the user changes.
+    // Guard on isConfigured: Superwall.configure() is async — calling Superwall.shared
+    // before it completes triggers assertionFailure in SuperwallKit.
     useEffect(() => {
+        if (!isConfigured) return;
         if (userId) {
             identify(userId);
             syncSubscriptionStatus();
@@ -74,7 +77,7 @@ function PurchaseLogicWrapper({ children }: { children: React.ReactNode }) {
             superwallSignOut();
             setSubscriptionStatus({ status: "INACTIVE" });
         }
-    }, [userId]);
+    }, [userId, isConfigured]);
 
     const syncSubscriptionStatus = async () => {
         const customerInfo = await Purchases.getCustomerInfo();

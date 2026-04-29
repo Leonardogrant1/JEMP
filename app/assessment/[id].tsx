@@ -5,6 +5,7 @@ import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { estimateOneRepMax } from '@/helpers/units';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useStopwatch } from '@/hooks/use-stopwatch';
+import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useCompleteAssessment } from '@/mutations/use-complete-assessment';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
@@ -84,6 +85,7 @@ export default function AssessmentScreen() {
     const handleSubmit = () => {
         if (!submitValue.trim() || !profile?.id || !metric?.id) return;
         if (!profile.birth_date || !profile.weight_in_kg || !profile.height_in_cm || !profile.gender) return;
+        if (completeAssessment.isPending) return;
 
         const numericValue = parseFloat(submitValue);
         if (isNaN(numericValue) || numericValue <= 0) return;
@@ -103,7 +105,13 @@ export default function AssessmentScreen() {
                 birth_date: profile.birth_date,
             },
         }, {
-            onSuccess: () => router.back(),
+            onSuccess: () => {
+                trackerManager.track('assessment_completed', {
+                    assessment_slug: assessment.slug,
+                    category_id: assessment.category_id,
+                });
+                router.back();
+            },
         });
     };
 

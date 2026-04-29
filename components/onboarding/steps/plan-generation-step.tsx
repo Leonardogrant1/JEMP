@@ -31,7 +31,6 @@ export function PlanGenerationStep() {
         setError(null);
         setIsComplete(false);
         try {
-            trackerManager.track('onboarding_completed');
 
             if (session) {
                 const {
@@ -46,7 +45,7 @@ export function PlanGenerationStep() {
 
                 const { error: profileError } = await supabase
                     .from('user_profiles')
-                    .update({ ...profileData, has_onboarded: true })
+                    .update({ ...profileData })
                     .eq('id', session.user.id);
                 if (profileError) throw profileError;
 
@@ -111,8 +110,10 @@ export function PlanGenerationStep() {
                 reset();
             }
 
+            trackerManager.track('plan_generation_success');
             setIsComplete(true);
         } catch (err: any) {
+            trackerManager.track('plan_generation_failed', { error: err?.message });
             setError(err?.message ?? t('plan.error_generate'));
         }
     }

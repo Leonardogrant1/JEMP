@@ -1,4 +1,6 @@
 import { OnboardingProgressWrapper } from '@/components/onboarding/onboarding-progress-wrapper';
+import { trackerManager } from '@/lib/tracking/tracker-manager';
+import { getATTStatus } from '@/utils/get-att-status';
 import { BirthdayStep } from '@/components/onboarding/steps/birthday-step';
 import { BodyStep } from '@/components/onboarding/steps/body-step';
 import { CategoryFocusStep } from '@/components/onboarding/steps/category-focus-step';
@@ -29,7 +31,15 @@ export default function OnboardingScreen() {
     const steps: OnboardingStep[] = [
 
         { component: WelcomeStep, theme: 'dark', showProgressIndicator: false, showContinueButton: false },
-        { component: TrackingStep, theme: 'dark', initialCanContinue: true },
+        {
+            component: TrackingStep, theme: 'dark', initialCanContinue: true,
+            preContinue: async () => {
+                const status = await getATTStatus();
+                trackerManager.track('tracking_permission', {
+                    status: status === 'granted' ? 'authorized' : 'declined',
+                });
+            },
+        },
         { component: RatingStep, theme: 'dark', initialCanContinue: true },
         { component: NameStep, theme: 'dark', initialCanContinue: false },
         { component: BirthdayStep, theme: 'dark', initialCanContinue: false },

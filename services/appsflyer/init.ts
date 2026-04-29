@@ -3,11 +3,11 @@ import type { InitSDKOptions } from "react-native-appsflyer";
 import appsFlyer from "react-native-appsflyer";
 
 const appsFlyerOptions: InitSDKOptions = {
-    isDebug: true,
+    isDebug: __DEV__,
     appId: process.env.EXPO_PUBLIC_APPSFLYER_APP_ID,
     devKey: process.env.EXPO_PUBLIC_APPSFLYER_DEV_KEY!,
     onInstallConversionDataListener: true,
-    timeToWaitForATTUserAuthorization: 10,
+    timeToWaitForATTUserAuthorization: 20,
     onDeepLinkListener: true,
 };
 

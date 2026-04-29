@@ -7,7 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { trackerManager } from '@/lib/tracking/tracker-manager';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,6 +34,10 @@ export default function SessionDetailScreen() {
 
     const { data: session, isLoading } = useSessionDetailQuery(id);
     const stats = useMemo(() => session ? computeStats(session) : null, [session]);
+
+    useEffect(() => {
+        trackerManager.track('session_details_opened', { session_id: id });
+    }, []);
 
     if (isLoading) {
         return (

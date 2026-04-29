@@ -24,6 +24,7 @@ import { StatCard } from '@/components/profile/stat-card';
 import { getSportLabelI18n } from '@/constants/sports';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useAuth } from '@/providers/auth-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
@@ -122,6 +123,7 @@ export default function ProfileScreen() {
         setSignOutLoading(true);
         try {
             await signOut();
+            trackerManager.track('user_logged_out');
         } catch (err: any) {
             Alert.alert(t('ui.error'), err?.message ?? t('ui.sign_out_error'));
             setSignOutLoading(false);
@@ -133,6 +135,7 @@ export default function ProfileScreen() {
         try {
             const { error } = await supabase.functions.invoke('delete-account');
             if (error) throw error;
+            trackerManager.track('user_deleted');
         } catch (err: any) {
             Alert.alert(t('ui.error'), err?.message ?? t('ui.delete_account_error'));
             setDeleteLoading(false);
@@ -228,12 +231,18 @@ export default function ProfileScreen() {
                         <SettingsRow
                             icon={<RocketIcon width={20} height={20} color="#fff" />}
                             label={t('ui.feature_request')}
-                            onPress={() => WebBrowser.openBrowserAsync(FEATURE_REQUEST_URL)}
+                            onPress={() => {
+                                trackerManager.track('feature_request_opened');
+                                WebBrowser.openBrowserAsync(FEATURE_REQUEST_URL);
+                            }}
                         />
                         <SettingsRow
                             icon={<BugIcon width={20} height={20} color="#fff" />}
                             label={t('ui.report_bug')}
-                            onPress={() => WebBrowser.openBrowserAsync(REPORT_BUG_URL)}
+                            onPress={() => {
+                                trackerManager.track('bug_report_opened');
+                                WebBrowser.openBrowserAsync(REPORT_BUG_URL);
+                            }}
                         />
                         <SettingsRow
                             icon={<HeadsetIcon width={20} height={20} color="#fff" />}

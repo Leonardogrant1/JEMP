@@ -1,3 +1,4 @@
+import { trackerManager } from "@/lib/tracking/tracker-manager";
 import { supabase } from "@/services/supabase/client";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import type { Session } from "@supabase/supabase-js";
@@ -7,7 +8,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 // iosClientId = reverse of iosUrlScheme set in app.json
 GoogleSignin.configure({
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "855255853074-c396ffah7fudi5coiairklfpe09984k1.apps.googleusercontent.com",
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
 });
 
 type AuthContextType = {
@@ -28,11 +29,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
+            if (session?.user?.id) {
+                trackerManager.identify(session.user.id);
+            }
             setLoading(false);
         });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             setSession(session);
+            if (event === 'SIGNED_IN' && session?.user?.id) {
+                trackerManager.identify(session.user.id);
+            }
+            if (event === 'SIGNED_OUT') {
+                trackerManager.logout();
+            }
         });
 
         return () => subscription.unsubscribe();

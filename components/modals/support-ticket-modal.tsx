@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { Ionicons } from '@expo/vector-icons';
+import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -95,7 +96,12 @@ export function SupportTicketModal({ visible, onClose }: Props) {
                     appSlug: 'jemp',
                 }),
             });
-            setStatus(res.ok ? 'success' : 'error');
+            if (res.ok) {
+                trackerManager.track('support_ticket_created');
+                setStatus('success');
+            } else {
+                setStatus('error');
+            }
         } catch {
             setStatus('error');
         }
