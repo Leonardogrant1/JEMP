@@ -174,6 +174,7 @@ const en = {
     'ui.log_and_next': 'Log & Next Exercise',
     'ui.log_and_finish': 'Log & Finish',
     'ui.previous': 'Previous',
+    'ui.progression_hint': '↑ Suggestion · last week {{value}}',
     'ui.session_completed': 'Session Completed',
     'ui.well_done': 'Well done!',
     'ui.summary': 'Summary',
@@ -404,7 +405,20 @@ const en = {
     'onboarding.trial_include_3': 'Cancel anytime',
     'onboarding.trial_badge': 'No payment now. You will be reminded before the trial ends.',
 
+    // ── Tutorial ──────────────────────────────────────────────────────────────
+    'tutorial.slide1.title': 'Your Plan',
+    'tutorial.slide1.body': 'JEMP builds you a personalized training plan — based on your goals, your level, and when you want to train.',
+    'tutorial.slide2.title': 'Test Yourself',
+    'tutorial.slide2.body': 'Regular assessments measure your real performance. The results flow directly into your score.',
+    'tutorial.slide3.title': 'Your Score',
+    'tutorial.slide3.body': 'Your score shows how your athleticism develops over time — across every fitness dimension.',
+    'tutorial.slide4.title': '4 Weeks. Then a new one.',
+    'tutorial.slide4.body': 'Your plan runs for 4 weeks. After that, you can generate a new one anytime — tailored to where you are now.',
+    'tutorial.cta_continue': 'Continue',
+    'tutorial.cta_start': "Let's go",
+
     // onboarding.tsx button labels
+    'onboarding.btn_continue': 'Continue',
     'onboarding.btn_create_plan': 'Create Plan',
     'onboarding.btn_try_free': 'Try for free',
 

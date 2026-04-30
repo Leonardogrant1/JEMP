@@ -9,4 +9,6 @@ export const queryKeys = {
     userCategoryHistory: (userId: string | undefined, since: string | undefined) => ['category-history', userId, since] as const,
     categoryAssessments: (userId: string | undefined, slug: string | undefined, since: string | undefined) =>
         ['category-assessments', userId, slug, since] as const,
+    previousExerciseSets: (exerciseId: string | undefined, sessionId: string | undefined) =>
+        ['previous-exercise-sets', exerciseId, sessionId] as const,
 };

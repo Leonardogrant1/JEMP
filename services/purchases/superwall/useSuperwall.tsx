@@ -9,7 +9,6 @@ import { PREMIUM_IDENTIFIER } from '../revenuecat/constants';
 export const paywallOpenRef = { current: false };
 export const dismissPaywallRef = { current: () => Promise.resolve() as Promise<void> };
 
-
 const SuperwallFunctionsContext = createContext<{
     openWithPlacement: (placement: string, onFeature?: () => void, params?: Record<string, any>, onDismiss?: () => void) => Promise<void>;
     placementState: PaywallState;

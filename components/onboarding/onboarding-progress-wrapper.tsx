@@ -10,6 +10,7 @@ import { devLog } from '@/utils/dev-log';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { Keyframe } from 'react-native-reanimated';
 
@@ -33,6 +34,7 @@ type Props = {
 };
 
 export function OnboardingProgressWrapper({ steps }: Props) {
+    const { t } = useTranslation();
     const [currentIndex, setCurrentIndex] = useState(0);
     const [canContinue, setCanContinue] = useState(steps[0].initialCanContinue ?? true);
     const [isLoading, setIsLoading] = useState(false);
@@ -52,7 +54,7 @@ export function OnboardingProgressWrapper({ steps }: Props) {
     const isLight = step.theme === 'light';
     const showProgress = step.showProgressIndicator ?? true;
     const showContinue = step.showContinueButton ?? true;
-    const continueText = step.continueButtonText ?? 'Continue';
+    const continueText = step.continueButtonText ?? t('onboarding.btn_continue');
 
 
     async function finishOnboarding() {
@@ -65,7 +67,7 @@ export function OnboardingProgressWrapper({ steps }: Props) {
             }
             onboardingData.reset();
             await refreshProfile();
-            const navigate = () => router.replace('/(tabs)');
+            const navigate = () => router.replace('/tutorial');
             await openWithPlacement('onboarding_completed', navigate, undefined, navigate);
         } catch (error) {
             console.error('Error finishing onboarding:', error);

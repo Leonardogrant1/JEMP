@@ -176,6 +176,7 @@ const de: Record<TranslationKeys, string> = {
     'ui.log_and_next': 'Eintragen & Nächste Übung',
     'ui.log_and_finish': 'Eintragen & Beenden',
     'ui.previous': 'Vorher',
+    'ui.progression_hint': '↑ Empfehlung · letzte Woche {{value}}',
     'ui.session_completed': 'Session abgeschlossen',
     'ui.well_done': 'Gut gemacht!',
     'ui.summary': 'Zusammenfassung',
@@ -373,7 +374,7 @@ const de: Record<TranslationKeys, string> = {
     'onboarding.complete_title': 'Dein Plan wartet.',
     'onboarding.complete_subtitle': 'Drück auf "Plan erstellen" und wir generieren deinen persönlichen Trainingsplan.',
     'onboarding.complete_feature_0': 'Personalisierter Wochenplan',
-    'onboarding.complete_feature_1': 'Fortschritts-Tracking & Assessments',
+    'onboarding.complete_feature_1': 'Fortschritts-Tracking & Tests',
     'onboarding.complete_feature_2': 'Übungen passend zu deinem Equipment',
     'onboarding.complete_feature_3': 'Sessions direkt in deinem Kalender',
 
@@ -393,7 +394,7 @@ const de: Record<TranslationKeys, string> = {
     'onboarding.wyg_benefit_1_desc': 'Verfolge deine Leistung und sieh wie du dich verbesserst.',
     'onboarding.wyg_benefit_2_title': 'KI-gestützte Anpassung',
     'onboarding.wyg_benefit_2_desc': 'Dein Plan entwickelt sich mit dir weiter.',
-    'onboarding.wyg_benefit_3_title': 'Assessments',
+    'onboarding.wyg_benefit_3_title': 'Tests',
     'onboarding.wyg_benefit_3_desc': 'Regelmäßige Tests zeigen dir deinen aktuellen Stand.',
 
     // trial-offer-step
@@ -406,7 +407,20 @@ const de: Record<TranslationKeys, string> = {
     'onboarding.trial_include_3': 'Jederzeit kündbar',
     'onboarding.trial_badge': 'Keine Zahlung jetzt. Du wirst vor Ende des Tests erinnert.',
 
+    // ── Tutorial ──────────────────────────────────────────────────────────────
+    'tutorial.slide1.title': 'Dein Plan',
+    'tutorial.slide1.body': 'JEMP erstellt dir einen individuellen Trainingsplan — basierend auf deinen Zielen, deinem Level und wann du trainieren möchtest.',
+    'tutorial.slide2.title': 'Dich testen',
+    'tutorial.slide2.body': 'Regelmäßige Tests messen deine echte Leistung. Die Ergebnisse fließen direkt in deinen Score ein.',
+    'tutorial.slide3.title': 'Dein Score',
+    'tutorial.slide3.body': 'Dein Score zeigt, wie sich deine Athletik über Zeit entwickelt — in jeder Fitnessdimension.',
+    'tutorial.slide4.title': '4 Wochen. Dann neu.',
+    'tutorial.slide4.body': 'Dein Plan läuft 4 Wochen. Danach kannst du dir jederzeit einen neuen erstellen lassen — abgestimmt auf deinen aktuellen Stand.',
+    'tutorial.cta_continue': 'Weiter',
+    'tutorial.cta_start': "Los geht's",
+
     // onboarding.tsx button labels
+    'onboarding.btn_continue': 'Weiter',
     'onboarding.btn_create_plan': 'Plan erstellen',
     'onboarding.btn_try_free': 'Kostenlos testen',
 
@@ -435,7 +449,7 @@ const de: Record<TranslationKeys, string> = {
     'plan.stage_scheduling': 'Plane Trainingstage...',
     'plan.feature_weekly_plan': 'Personalisierter Wochenplan',
     'plan.feature_exercises': 'Gezielte Übungsauswahl',
-    'plan.feature_assessments': 'Kraft-Assessments',
+    'plan.feature_assessments': 'Kraft-Tests',
     'plan.feature_tracking': 'Fortschritts-Tracking',
     'plan.success_title': 'Plan erstellt!',
     'plan.success_subtitle': 'Dein personalisierter Trainingsplan ist bereit.',

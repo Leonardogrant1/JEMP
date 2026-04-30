@@ -15,6 +15,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
+import * as SplashScreen from 'expo-splash-screen';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PostHogProvider, PostHogSurveyProvider } from 'posthog-react-native';
@@ -22,6 +23,8 @@ import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import 'react-native-reanimated';
+
+SplashScreen.preventAutoHideAsync();
 
 initI18n();
 
@@ -113,6 +116,12 @@ function MainStack({ languageReady }: { languageReady: boolean }) {
     SatoshiRegular: require('@/assets/fonts/Satoshi-Regular.otf'),
   });
 
+  useEffect(() => {
+    if (fontsLoaded && !isLoading && languageReady) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, isLoading, languageReady]);
+
   if (!fontsLoaded || isLoading || !languageReady) return null;
 
   return (
@@ -126,6 +135,7 @@ function MainStack({ languageReady }: { languageReady: boolean }) {
         <Stack.Screen name="onboarding" options={{ animation: 'slide_from_right', headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={!!profile?.has_onboarded}>
+        <Stack.Screen name="tutorial" options={{ animation: 'fade', headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'slide_from_right', headerShown: false }} />
         <Stack.Screen name="session/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="exercise/[id]" options={{ headerShown: false }} />

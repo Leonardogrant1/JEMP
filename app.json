@@ -16,7 +16,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "studio.northbyte.jemp",
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "We use tracking to measure marketing performance and improve the app experience."
+        "NSUserTrackingUsageDescription": "We use tracking to measure marketing performance and improve the app experience.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -36,18 +37,6 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
-        }
-      ],
       "expo-font",
       "@react-native-google-signin/google-signin",
       "expo-apple-authentication",
@@ -62,6 +51,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a32d6215-cd4b-4f00-81c0-aa351311fa64"
+      }
     }
   }
 }

@@ -111,16 +111,18 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
     const refreshUserInfoWithRetry = async (entitlement: string) => {
         for (let attempt = 1; attempt <= 5; attempt++) {
             try {
-                const customerInfo = await Purchases.getCustomerInfo();
+                await Purchases.invalidateCustomerInfoCache();
+                const info = await Purchases.getCustomerInfo();
 
                 const hasActiveEntitlement =
-                    customerInfo != null &&
-                    customerInfo.entitlements != null &&
-                    customerInfo.entitlements.active[entitlement] !== undefined;
+                    info != null &&
+                    info.entitlements != null &&
+                    info.entitlements.active[entitlement] !== undefined;
 
                 devLog(`Refresh attempt ${attempt}: active entitlement =`, hasActiveEntitlement);
 
                 if (hasActiveEntitlement) {
+                    setCustomerInfo(info);
                     return true;
                 }
             } catch (error) {

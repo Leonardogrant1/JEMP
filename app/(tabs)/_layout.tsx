@@ -7,7 +7,7 @@ import { supabase } from '@/services/supabase/client';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { useTutorialStore } from '@/stores/tutorial-store';
 import { useQueryClient } from '@tanstack/react-query';
-import { Tabs } from 'expo-router';
+import { router, Tabs } from 'expo-router';
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -89,7 +89,10 @@ export default function TabLayout() {
 
               <TouchableOpacity
                 style={styles.debugButton}
-                onPress={() => setHasSeenTutorial(false)}
+                onPress={() => {
+                  setHasSeenTutorial(false);
+                  router.replace('/tutorial');
+                }}
               >
                 <Text style={styles.debugButtonText}>🎓 Reset Tutorial</Text>
               </TouchableOpacity>

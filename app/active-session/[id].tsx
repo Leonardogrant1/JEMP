@@ -8,6 +8,8 @@ import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
 import { useUpsertPerformedSets } from '@/mutations/use-upsert-performed-set';
 import { useSessionDetailQuery } from '@/queries/use-session-detail-query';
+import { usePreviousExerciseSetsQuery } from '@/queries/use-previous-exercise-sets-query';
+import { calculateProgression } from '@/helpers/progression-suggestion';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -85,6 +87,7 @@ export default function ActiveSessionScreen() {
     const [reps, setReps] = useState('');
     const [load, setLoad] = useState('');
     const [previousSet, setPreviousSet] = useState<{ reps: string; load: string } | null>(null);
+    const [suggestionHint, setSuggestionHint] = useState<string | null>(null);
 
     // Restore progress from DB on first load
     useEffect(() => {
@@ -103,6 +106,7 @@ export default function ActiveSessionScreen() {
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const current = allExercises[exerciseIdx] ?? null;
+    const { data: prevSets } = usePreviousExerciseSetsQuery(current?.exercise.id, id);
     const totalSets = current?.target_sets ?? 1;
     const isLastSet = currentSet >= totalSets;
     const isLastExercise = exerciseIdx === allExercises.length - 1;
@@ -116,14 +120,32 @@ export default function ActiveSessionScreen() {
     }, [id, updateProgress]);
 
 
-    // Reset when exercise changes (but not on initial restore)
+    // On exercise change: clear session state + timer
     useEffect(() => {
         if (!current || !initialized) return;
-        setReps('');
-        setLoad(current.target_load_value != null ? String(current.target_load_value) : '');
         setPreviousSet(null);
         stopTimer();
     }, [exerciseIdx, current?.id]);
+
+    // On exercise or set change: apply progression suggestion
+    useEffect(() => {
+        if (!current || !initialized) return;
+
+        const suggestion = prevSets?.length
+            ? calculateProgression(current.target_load_type, prevSets, currentSet)
+            : null;
+
+        setLoad(suggestion?.suggestedLoad ?? (current.target_load_value != null ? String(current.target_load_value) : ''));
+        setReps(suggestion?.suggestedReps ?? '');
+
+        if (suggestion?.previousLoad != null) {
+            setSuggestionHint(`${suggestion.previousLoad} ${unit}`);
+        } else if (suggestion?.previousReps != null && !showLoad) {
+            setSuggestionHint(`${suggestion.previousReps} ${t('ui.reps').toLowerCase()}`);
+        } else {
+            setSuggestionHint(null);
+        }
+    }, [exerciseIdx, currentSet, current?.id, prevSets]);
 
     // Timer logic
     const startTimer = useCallback((seconds: number) => {
@@ -458,10 +480,17 @@ export default function ActiveSessionScreen() {
                         </View>
                     </View>
 
-                    {/* Previous set info */}
+                    {/* Previous set info (within current session) */}
                     {previousSet && (
                         <JempText type="caption" color={theme.textMuted} style={styles.previousLabel}>
                             {t('ui.previous')}: {previousSet.load && unit ? `${previousSet.load} ${unit || 'kg'} × ` : ''}{previousSet.reps} {t('ui.reps').toLowerCase()}
+                        </JempText>
+                    )}
+
+                    {/* Progression hint (from previous week) */}
+                    {suggestionHint && !previousSet && (
+                        <JempText type="caption" color={theme.textMuted} style={styles.previousLabel}>
+                            {t('ui.progression_hint' as any, { value: suggestionHint })}
                         </JempText>
                     )}
                 </View>
