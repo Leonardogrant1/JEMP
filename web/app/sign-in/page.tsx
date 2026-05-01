@@ -2,6 +2,7 @@
 
 import { createBrowserClient } from '@supabase/ssr'
 import { useState } from 'react'
+import { sendAdminOtp } from '../actions/auth'
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,13 +21,10 @@ export default function SignInPage() {
     setLoading(true)
     setError('')
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: false },
-    })
+    const result = await sendAdminOtp(email)
 
-    if (error) {
-      setError(error.message)
+    if (result.error) {
+      setError(result.error)
       setLoading(false)
     } else {
       setStep('code')
@@ -39,20 +37,16 @@ export default function SignInPage() {
     setLoading(true)
     setError('')
 
-    const { data, error } = await supabase.auth.verifyOtp({
+    const { error } = await supabase.auth.verifyOtp({
       email,
       token: code,
       type: 'email',
     })
 
-    console.log('verifyOtp result:', { data, error })
-
     if (error) {
       setError(error.message)
       setLoading(false)
     } else {
-      const { data: sessionData } = await supabase.auth.getSession()
-      console.log('session after verifyOtp:', sessionData)
       window.location.href = '/admin'
     }
   }
@@ -79,7 +73,7 @@ export default function SignInPage() {
             disabled={loading}
             className="w-full bg-white text-black py-2 rounded text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Sending...' : 'Send code'}
+            {loading ? 'Checking...' : 'Send code'}
           </button>
         </form>
       ) : (
@@ -95,7 +89,7 @@ export default function SignInPage() {
             type="text"
             value={code}
             onChange={e => setCode(e.target.value)}
-            placeholder="123456"
+            placeholder="12345678"
             required
             maxLength={8}
             className="w-full bg-gray-800 border border-gray-700 text-white px-3 py-2 rounded text-sm text-center tracking-widest font-mono focus:outline-none focus:border-gray-500"
