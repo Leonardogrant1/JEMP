@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import YoutubeIframe from 'react-native-youtube-iframe';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Dimensions, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 
 const PLACEHOLDER = require('@/assets/images/splash-icon.png');
@@ -40,9 +40,10 @@ function StorageVideoPlayer({ uri }: { uri: string }) {
 }
 
 function YoutubePlayer({ videoId }: { videoId: string }) {
+    const { width } = Dimensions.get('window');
     return (
         <View style={styles.hero}>
-            <YoutubeIframe height={HERO_HEIGHT} videoId={videoId} play={false} />
+            <YoutubeIframe height={HERO_HEIGHT} width={width} videoId={videoId} play={false} />
         </View>
     );
 }
