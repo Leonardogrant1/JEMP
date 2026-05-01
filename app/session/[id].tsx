@@ -1,6 +1,7 @@
 import { JempText } from '@/components/jemp-text';
 import { Colors, Cyan, Electric, GradientMid, Neutral } from '@/constants/theme';
 import { formatLoad, formatReps, formatRest } from '@/helpers/format';
+import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSessionDetailQuery, type SessionDetail } from '@/queries/use-session-detail-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,8 +21,6 @@ function computeStats(session: SessionDetail) {
     }
     return { totalExercises };
 }
-
-const PLACEHOLDER_THUMB = require('@/assets/images/splash-icon.png');
 
 // ── Screen ───────────────────────────────────────────────────────────────
 
@@ -155,7 +154,11 @@ export default function SessionDetailScreen() {
                                     {/* Thumbnail */}
                                     <View style={styles.thumbWrap}>
                                         <Image
-                                            source={PLACEHOLDER_THUMB}
+                                            source={
+                                                ex.exercise.thumbnail_storage_path
+                                                    ? { uri: exerciseThumbnailUrl(ex.exercise.thumbnail_storage_path)! }
+                                                    : require('@/assets/images/splash-icon.png')
+                                            }
                                             style={styles.thumb}
                                             contentFit="cover"
                                         />
