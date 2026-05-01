@@ -1,6 +1,7 @@
 import { JempText } from '@/components/jemp-text';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { formatTargetReps, loadUnit } from '@/helpers/format';
+import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
 import { youtubeThumbUrl } from '@/helpers/youtube';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUpdateSessionProgress } from '@/mutations/use-update-session-progress';
@@ -42,6 +43,7 @@ type FlatExercise = {
         body_region: string | null;
         movement_pattern: string | null;
         youtube_url: string | null;
+        thumbnail_storage_path: string | null;
         equipment: { slug: string; name_i18n: Record<string, string> | null }[];
     };
     target_sets: number | null;
@@ -311,9 +313,9 @@ export default function ActiveSessionScreen() {
 
     if (!current) return null;
 
-    const thumbUrl = current.exercise.youtube_url
-        ? youtubeThumbUrl(current.exercise.youtube_url)
-        : null;
+    const thumbUrl =
+        exerciseThumbnailUrl(current.exercise.thumbnail_storage_path) ??
+        (current.exercise.youtube_url ? youtubeThumbUrl(current.exercise.youtube_url) : null);
     const repsTarget = formatTargetReps(current.target_reps_min, current.target_reps_max);
 
     return (
