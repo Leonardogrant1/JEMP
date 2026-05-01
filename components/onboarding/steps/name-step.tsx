@@ -4,7 +4,7 @@ import { JempInput } from '@/components/ui/jemp-input';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Keyboard, StyleSheet, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -13,12 +13,19 @@ import { useTranslation } from 'react-i18next';
 export function NameStep() {
     const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
+    const storedFirstName = useOnboardingStore((s) => s.first_name);
+    const storedLastName = useOnboardingStore((s) => s.last_name);
     const setStore = useOnboardingStore((s) => s.set);
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
+    const [firstName, setFirstName] = useState(storedFirstName ?? '');
+    const [lastName, setLastName] = useState(storedLastName ?? '');
     const lastNameRef = useRef<TextInput>(null);
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+
+    useEffect(() => {
+        validate(firstName, lastName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     function validate(first: string, last: string) {
         const valid = first.trim().length >= 2 && last.trim().length >= 2;

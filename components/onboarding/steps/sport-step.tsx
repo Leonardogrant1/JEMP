@@ -6,7 +6,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { supabase } from '@/services/supabase/client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
@@ -14,16 +14,22 @@ import { useTranslation } from 'react-i18next';
 export function SportStep() {
     const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
+    const storedSlug = useOnboardingStore((s) => s.sport_slug);
     const setStore = useOnboardingStore((s) => s.set);
-    const [selected, setSelected] = useState<string | null>(null);
+    const [selected, setSelected] = useState<string | null>(storedSlug);
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+
+    useEffect(() => {
+        if (storedSlug) setCanContinue(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     async function select(slug: string) {
         setSelected(slug);
         const { data } = await supabase.from('sports').select('id').eq('slug', slug).single();
         if (data) {
-            setStore({ sport_id: data.id });
+            setStore({ sport_id: data.id, sport_slug: slug });
             setCanContinue(true);
         }
     }

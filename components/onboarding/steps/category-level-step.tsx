@@ -47,8 +47,13 @@ export function CategoryLevelStep() {
     const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
     const setStore = useOnboardingStore((s) => s.set);
+    const storedLevels = useOnboardingStore((s) => s.categoryLevels);
     const [categories, setCategories] = useState<CategoryItem[]>([]);
-    const [scores, setScores] = useState<Record<string, number>>({});
+    const [scores, setScores] = useState<Record<string, number>>(() => {
+        const prefilled: Record<string, number> = {};
+        storedLevels.forEach((l) => { prefilled[l.categoryId] = l.score; });
+        return prefilled;
+    });
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
@@ -57,14 +62,20 @@ export function CategoryLevelStep() {
             if (!data) return;
             const cats = data as CategoryItem[];
             setCategories(cats);
-            const initial: Record<string, number> = {};
-            cats.forEach((c) => { initial[c.id] = DEFAULT_SCORE; });
-            setScores(initial);
-            saveLevels(cats, initial);
+            setScores((prev) => {
+                const merged: Record<string, number> = {};
+                cats.forEach((c) => { merged[c.id] = prev[c.id] ?? DEFAULT_SCORE; });
+                return merged;
+            });
             setCanContinue(true);
         });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    useEffect(() => {
+        if (categories.length > 0) saveLevels(categories, scores);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [categories, scores]);
 
     function saveLevels(cats: CategoryItem[], s: Record<string, number>) {
         const levels: CategoryLevel[] = cats.map((c) => ({

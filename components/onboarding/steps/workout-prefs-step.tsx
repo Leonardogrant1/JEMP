@@ -6,7 +6,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { SessionDuration } from '@/types/database';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -22,6 +22,9 @@ const DURATIONS: { value: SessionDuration; label: string }[] = [
 export function WorkoutPrefsStep() {
     const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
+    const storedDays = useOnboardingStore((s) => s.preferred_workout_days);
+    const storedDuration = useOnboardingStore((s) => s.preferred_session_duration);
+    const storedNotes = useOnboardingStore((s) => s.schedule_notes);
     const setStore = useOnboardingStore((s) => s.set);
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
@@ -35,9 +38,14 @@ export function WorkoutPrefsStep() {
         { value: 7, label: t('onboarding.workout_prefs_day_sun') },
     ];
 
-    const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set());
-    const [selectedDuration, setSelectedDuration] = useState<SessionDuration | null>(null);
-    const [notes, setNotes] = useState('');
+    const [selectedDays, setSelectedDays] = useState<Set<number>>(() => new Set(storedDays ?? []));
+    const [selectedDuration, setSelectedDuration] = useState<SessionDuration | null>(storedDuration ?? null);
+    const [notes, setNotes] = useState(storedNotes ?? '');
+
+    useEffect(() => {
+        validate(selectedDays, selectedDuration);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     function validate(days: Set<number>, duration: SessionDuration | null) {
         setCanContinue(days.size > 0 && duration !== null);

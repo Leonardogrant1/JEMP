@@ -28,11 +28,13 @@ export type CategoryLevel = {
 };
 
 type OnboardingStore = ProfileData & {
+    sport_slug: string | null;
     targetedCategories: TargetedCategory[];
     categoryLevels: CategoryLevel[];
     equipmentIds: string[];
     environmentIds: string[];
     set: (data: Partial<ProfileData & {
+        sport_slug: string | null;
         targetedCategories: TargetedCategory[];
         categoryLevels: CategoryLevel[];
         equipmentIds: string[];
@@ -47,6 +49,7 @@ const initialState: Omit<OnboardingStore, 'set' | 'reset'> = {
     birth_date: null,
     gender: null,
     sport_id: null,
+    sport_slug: null,
     height_in_cm: null,
     weight_in_kg: null,
     preferred_workout_days: [],

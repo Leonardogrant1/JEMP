@@ -5,7 +5,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { Gender } from '@/types/database';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
@@ -13,10 +13,16 @@ import { useTranslation } from 'react-i18next';
 export function GenderStep() {
     const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
+    const storedGender = useOnboardingStore((s) => s.gender);
     const setStore = useOnboardingStore((s) => s.set);
-    const [selected, setSelected] = useState<Gender | null>(null);
+    const [selected, setSelected] = useState<Gender | null>(storedGender);
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+
+    useEffect(() => {
+        if (storedGender) setCanContinue(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const OPTIONS: { value: Gender; label: string; icon: 'male' | 'female' }[] = [
         { value: 'male', label: t('onboarding.gender_male'), icon: 'male' },

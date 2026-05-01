@@ -5,6 +5,7 @@ import { devError, devLog } from "@/utils/dev-log";
 import { type PaywallState, type SubscriptionStatus, type UserAttributes, usePlacement, useSuperwall, useUser } from "expo-superwall";
 import { createContext, useContext, useRef } from "react";
 import { PREMIUM_IDENTIFIER } from '../revenuecat/constants';
+import { SUPERWALL_ENTITLEMENTS } from './constants';
 
 export const paywallOpenRef = { current: false };
 export const dismissPaywallRef = { current: () => Promise.resolve() as Promise<void> };
@@ -65,7 +66,13 @@ export const SuperwallFunctionsProvider = ({ children }: { children: React.React
                     : 'paywall_declined';
             trackerManager.track(eventName, { paywall_name: info?.name ?? 'unknown', result: result?.type });
             if (result?.type === 'purchased' || result?.type === 'restored') {
-                await refreshUserInfoWithRetry(PREMIUM_IDENTIFIER);
+                const hasEntitlement = await refreshUserInfoWithRetry(PREMIUM_IDENTIFIER);
+                if (hasEntitlement) {
+                    await superwallSetSubscriptionStatus({
+                        entitlements: [SUPERWALL_ENTITLEMENTS["full_access"]],
+                        status: "ACTIVE",
+                    });
+                }
             }
             const cb = pendingDismissRef.current;
             pendingDismissRef.current = null;

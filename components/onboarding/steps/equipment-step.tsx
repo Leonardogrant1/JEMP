@@ -39,6 +39,7 @@ export function EquipmentStep() {
     const { t, i18n } = useTranslation();
     const locale = i18n.language;
 
+    const storedEquipmentIds = useOnboardingStore((s) => s.equipmentIds);
     const [equipments, setEquipments] = useState<EquipmentItem[]>([]);
     const [deselected, setDeselected] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
@@ -64,7 +65,13 @@ export function EquipmentStep() {
                 });
                 const items = Array.from(map.values());
                 setEquipments(items);
-                setStore({ equipmentIds: items.map((e) => e.id) });
+                if (storedEquipmentIds.length > 0) {
+                    const storedSet = new Set(storedEquipmentIds);
+                    const initialDeselected = new Set(items.filter((e) => !storedSet.has(e.id)).map((e) => e.id));
+                    setDeselected(initialDeselected);
+                } else {
+                    setStore({ equipmentIds: items.map((e) => e.id) });
+                }
             }
             setLoading(false);
         }

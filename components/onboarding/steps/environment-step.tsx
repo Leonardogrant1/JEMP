@@ -14,15 +14,17 @@ type EnvItem = { id: string; slug: string; name_i18n: Record<string, string> | n
 
 export function EnvironmentStep() {
     const { setCanContinue } = useOnboardingControl();
+    const storedEnvIds = useOnboardingStore((s) => s.environmentIds);
     const setStore = useOnboardingStore((s) => s.set);
     const { t, i18n } = useTranslation();
     const locale = i18n.language;
     const [environments, setEnvironments] = useState<EnvItem[]>([]);
-    const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [selected, setSelected] = useState<Set<string>>(() => new Set(storedEnvIds));
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
     useEffect(() => {
+        if (storedEnvIds.length > 0) setCanContinue(true);
         supabase.from('environments').select('id, slug, name_i18n, description_i18n').then(({ data }) => {
             if (data) {
                 setEnvironments(

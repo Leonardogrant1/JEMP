@@ -16,13 +16,17 @@ type CategoryItem = { id: string; slug: string; label: string };
 export function CategoryFocusStep() {
     const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
+    const storedTargeted = useOnboardingStore((s) => s.targetedCategories);
     const setStore = useOnboardingStore((s) => s.set);
     const [categories, setCategories] = useState<CategoryItem[]>([]);
-    const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [selected, setSelected] = useState<Set<string>>(
+        () => new Set(storedTargeted.map((c) => c.categoryId))
+    );
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
     useEffect(() => {
+        if (storedTargeted.length > 0) setCanContinue(true);
         supabase.from('categories').select('id, slug').then(({ data }) => {
             if (data) {
                 setCategories(
@@ -30,6 +34,7 @@ export function CategoryFocusStep() {
                 );
             }
         });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     function toggleCategory(cat: CategoryItem) {

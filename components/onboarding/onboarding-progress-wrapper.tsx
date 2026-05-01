@@ -23,6 +23,16 @@ const exitToLeft = new Keyframe({
     0: { opacity: 1, transform: [{ translateX: 0 }] },
     100: { opacity: 0, transform: [{ translateX: -48 }] },
 }).duration(340);
+
+const enterFromLeft = new Keyframe({
+    0: { opacity: 0, transform: [{ translateX: -48 }] },
+    100: { opacity: 1, transform: [{ translateX: 0 }] },
+}).duration(340);
+
+const exitToRight = new Keyframe({
+    0: { opacity: 1, transform: [{ translateX: 0 }] },
+    100: { opacity: 0, transform: [{ translateX: 48 }] },
+}).duration(340);
 import { OnboardingBackground } from './onboarding-background';
 import { OnboardingControlContext } from './onboarding-control-context';
 import { OnboardingStep } from './types';
@@ -36,6 +46,7 @@ type Props = {
 export function OnboardingProgressWrapper({ steps }: Props) {
     const { t } = useTranslation();
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [direction, setDirection] = useState<'forward' | 'back'>('forward');
     const [canContinue, setCanContinue] = useState(steps[0].initialCanContinue ?? true);
     const [isLoading, setIsLoading] = useState(false);
     const onDisabledPressRef = useRef<(() => void) | null>(null);
@@ -77,11 +88,20 @@ export function OnboardingProgressWrapper({ steps }: Props) {
     function advance() {
         if (currentIndex < steps.length - 1) {
             const nextIndex = currentIndex + 1;
+            setDirection('forward');
             setCurrentIndex(nextIndex);
             setCanContinue(steps[nextIndex].initialCanContinue ?? true);
         } else {
             finishOnboarding();
         }
+    }
+
+    function prevStep() {
+        if (currentIndex <= 0) return;
+        const prevIndex = currentIndex - 1;
+        setDirection('back');
+        setCurrentIndex(prevIndex);
+        setCanContinue(steps[prevIndex].initialCanContinue ?? true);
     }
 
     function nextStep() {
@@ -112,23 +132,30 @@ export function OnboardingProgressWrapper({ steps }: Props) {
                 <OnboardingBackground />
                 {showProgress && (
                     <View style={styles.progressBar}>
-                        {steps.map((_, i) => (
-                            <View
-                                key={i}
-                                style={[
-                                    styles.progressSegment,
-                                    { backgroundColor: i <= currentIndex ? GradientMid : (isLight ? '#bfbfbf' : '#595959') },
-                                ]}
-                            />
-                        ))}
+                        {currentIndex > 0 && (
+                            <TouchableOpacity onPress={prevStep} style={styles.backButton} hitSlop={12}>
+                                <Text style={[styles.backArrow, isLight && styles.backArrowLight]}>‹</Text>
+                            </TouchableOpacity>
+                        )}
+                        <View style={styles.progressSegments}>
+                            {steps.map((_, i) => (
+                                <View
+                                    key={i}
+                                    style={[
+                                        styles.progressSegment,
+                                        { backgroundColor: i <= currentIndex ? GradientMid : (isLight ? '#bfbfbf' : '#595959') },
+                                    ]}
+                                />
+                            ))}
+                        </View>
                     </View>
                 )}
 
                 <View style={styles.stepContainer}>
                     <Animated.View
                         key={currentIndex}
-                        entering={enterFromRight}
-                        exiting={exitToLeft}
+                        entering={direction === 'back' ? enterFromLeft : enterFromRight}
+                        exiting={direction === 'back' ? exitToRight : exitToLeft}
                         style={StyleSheet.absoluteFill}
                     >
                         <StepComponent />
@@ -179,8 +206,28 @@ const styles = StyleSheet.create({
     },
     progressBar: {
         flexDirection: 'row',
+        alignItems: 'center',
         paddingHorizontal: 20,
         paddingTop: 60,
+        gap: 10,
+    },
+    backButton: {
+        width: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    backArrow: {
+        color: 'white',
+        fontSize: 36,
+        lineHeight: 36,
+        marginTop: -4,
+    },
+    backArrowLight: {
+        color: '#1a1a1a',
+    },
+    progressSegments: {
+        flex: 1,
+        flexDirection: 'row',
         gap: 6,
     },
     progressSegment: {

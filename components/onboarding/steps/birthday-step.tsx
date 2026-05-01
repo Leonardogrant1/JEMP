@@ -4,7 +4,7 @@ import { JempInput } from '@/components/ui/jemp-input';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
@@ -29,14 +29,20 @@ function isAtLeast13(day: number, month: number, year: number): boolean {
 export function BirthdayStep() {
     const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
+    const storedBirthDate = useOnboardingStore((s) => s.birth_date);
     const setStore = useOnboardingStore((s) => s.set);
-    const [day, setDay] = useState('');
-    const [month, setMonth] = useState('');
-    const [year, setYear] = useState('');
+    const [day, setDay] = useState(() => storedBirthDate ? String(parseInt(storedBirthDate.split('-')[2], 10)) : '');
+    const [month, setMonth] = useState(() => storedBirthDate ? String(parseInt(storedBirthDate.split('-')[1], 10)) : '');
+    const [year, setYear] = useState(() => storedBirthDate ? storedBirthDate.split('-')[0] : '');
     const monthRef = useRef<TextInput>(null);
     const yearRef = useRef<TextInput>(null);
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+
+    useEffect(() => {
+        validate(day, month, year);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     function validate(d: string, m: string, y: string) {
         const dd = parseInt(d, 10);

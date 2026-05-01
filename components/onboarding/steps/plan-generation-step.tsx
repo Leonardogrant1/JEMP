@@ -36,6 +36,7 @@ export function PlanGenerationStep() {
                 const {
                     set,
                     reset,
+                    sport_slug,
                     targetedCategories,
                     categoryLevels,
                     equipmentIds,
@@ -101,11 +102,7 @@ export function PlanGenerationStep() {
                 const { error: genError } = await supabase.functions.invoke('generate-trainings-plan');
                 if (genError) throw genError;
 
-                // Invalidate plan cache only if a previous plan was already loaded
-                const cached = queryClient.getQueryData<{ plan: any }>(queryKeys.plan(session.user.id));
-                if (cached?.plan != null) {
-                    queryClient.invalidateQueries({ queryKey: queryKeys.plan(session.user.id) });
-                }
+                queryClient.invalidateQueries({ queryKey: queryKeys.plan(session.user.id) });
 
                 reset();
             }

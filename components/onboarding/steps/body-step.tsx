@@ -12,9 +12,11 @@ import { useTranslation } from 'react-i18next';
 export function BodyStep() {
     const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
+    const storedWeight = useOnboardingStore((s) => s.weight_in_kg);
+    const storedHeight = useOnboardingStore((s) => s.height_in_cm);
     const setStore = useOnboardingStore((s) => s.set);
-    const [weightKg, setWeightKg] = useState(75);
-    const [heightCm, setHeightCm] = useState(175);
+    const [weightKg, setWeightKg] = useState(storedWeight ?? 75);
+    const [heightCm, setHeightCm] = useState(storedHeight ?? 175);
     const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg');
     const [heightUnit, setHeightUnit] = useState<'cm' | 'ft'>('cm');
     const colorScheme = useColorScheme();
