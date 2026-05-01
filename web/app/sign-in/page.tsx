@@ -97,7 +97,7 @@ export default function SignInPage() {
             onChange={e => setCode(e.target.value)}
             placeholder="123456"
             required
-            maxLength={6}
+            maxLength={8}
             className="w-full bg-gray-800 border border-gray-700 text-white px-3 py-2 rounded text-sm text-center tracking-widest font-mono focus:outline-none focus:border-gray-500"
           />
           {error && <p className="text-red-400 text-xs">{error}</p>}
