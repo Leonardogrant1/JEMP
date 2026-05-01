@@ -1,21 +1,17 @@
 import InfoIcon from '@/assets/icons/info.svg';
+import { ExerciseVideoHero } from '@/components/exercise-video-hero';
 import { JempText } from '@/components/jemp-text';
 import { getCategoryMeta } from '@/constants/categories';
-import { Colors, Cyan, Electric } from '@/constants/theme';
-import { youtubeThumbUrl } from '@/helpers/youtube';
+import { Colors, Cyan } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useExerciseDetailQuery } from '@/queries/use-exercise-detail-query';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const PLACEHOLDER = require('@/assets/images/splash-icon.png');
 
 export default function ExerciseDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -51,48 +47,27 @@ export default function ExerciseDetailScreen() {
     const locale = i18n.language;
     const i18nMap = exercise.description_i18n as Record<string, string> | null;
     const description = i18nMap?.[locale] ?? i18nMap?.['en'] ?? exercise.description ?? null;
-    const thumbUrl = exercise.youtube_url ? youtubeThumbUrl(exercise.youtube_url) : null;
     const hasEquipment = exercise.equipments.length > 0;
     const cat = exercise.category ? getCategoryMeta(exercise.category.slug) : null;
 
     return (
         <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
+            {/* Back button — fixed, outside scroll */}
+            <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+                <View style={styles.backCircle}>
+                    <Ionicons name="chevron-back" size={22} color="#fff" />
+                </View>
+            </Pressable>
+
             <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
                 {/* ── Video Hero ── */}
-                <Pressable
-                    style={styles.videoHero}
-                    onPress={() => {
-                        if (exercise.youtube_url) {
-                            trackerManager.track('exercise_video_started', { exercise_id: id });
-                            Linking.openURL(exercise.youtube_url);
-                        }
-                    }}
-                    disabled={!exercise.youtube_url}
-                >
-                    <Image
-                        source={thumbUrl ? { uri: thumbUrl } : PLACEHOLDER}
-                        style={StyleSheet.absoluteFill}
-                        contentFit="cover"
-                    />
-                    <LinearGradient
-                        colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.6)']}
-                        locations={[0.4, 1]}
-                        style={StyleSheet.absoluteFill}
-                    />
-                    {exercise.youtube_url && (
-                        <View style={styles.playButton}>
-                            <Ionicons name="play" size={28} color="#fff" />
-                        </View>
-                    )}
-                </Pressable>
-
-                {/* ── Back button ── */}
-                <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-                    <View style={styles.backCircle}>
-                        <Ionicons name="chevron-back" size={22} color="#fff" />
-                    </View>
-                </Pressable>
+                <ExerciseVideoHero
+                    videoStoragePath={exercise.video_storage_path}
+                    youtubeUrl={exercise.youtube_url}
+                    thumbnailStoragePath={exercise.thumbnail_storage_path}
+                    exerciseId={id}
+                />
 
                 {/* ── Title + Category + Level ── */}
                 <View style={styles.titleSection}>
@@ -168,26 +143,6 @@ export default function ExerciseDetailScreen() {
                     </View>
                 )}
 
-                {/* ── Watch video CTA ── */}
-                {exercise.youtube_url && (
-                    <Pressable
-                        style={styles.cta}
-                        onPress={() => {
-                            trackerManager.track('exercise_video_started', { exercise_id: id });
-                            Linking.openURL(exercise.youtube_url!);
-                        }}
-                    >
-                        <LinearGradient
-                            colors={[Cyan[500], Electric[500]]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.ctaGradient}
-                        >
-                            <Ionicons name="play-circle-outline" size={20} color="#fff" />
-                            <JempText type="button" color="#fff">{t('ui.watch_video')}</JempText>
-                        </LinearGradient>
-                    </Pressable>
-                )}
             </ScrollView>
         </SafeAreaView>
     );
@@ -197,20 +152,6 @@ const styles = StyleSheet.create({
     root: { flex: 1 },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     scroll: { paddingBottom: 48, gap: 20 },
-
-    videoHero: {
-        height: 240,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    playButton: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: 'rgba(0,0,0,0.45)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
 
     backBtn: { position: 'absolute', top: 56, left: 16, zIndex: 10 },
     backCircle: {
@@ -240,12 +181,4 @@ const styles = StyleSheet.create({
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 100 },
 
-    cta: { marginHorizontal: 20, borderRadius: 100, overflow: 'hidden' },
-    ctaGradient: {
-        height: 52,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-    },
 });
