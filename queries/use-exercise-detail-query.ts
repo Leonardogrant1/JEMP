@@ -7,7 +7,7 @@ async function fetchExerciseDetail(id: string) {
         .from('exercises')
         .select(`
             id, name, slug, description, description_i18n, body_region, movement_pattern,
-            min_level, max_level, youtube_url, thumbnail_storage_path,
+            min_level, max_level, youtube_url, thumbnail_storage_path, video_storage_path,
             category:categories ( slug ),
             exercise_equipments ( equipment:equipments ( slug, name_i18n ) ),
             exercise_blocks ( block_type:block_types ( slug ) )
