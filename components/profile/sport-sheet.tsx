@@ -1,5 +1,4 @@
 import { JempText } from '@/components/jemp-text';
-import { getSportLabelI18n, SPORT_GROUPS } from '@/constants/sports';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/services/supabase/client';
@@ -20,6 +19,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
 
+const GROUP_TITLE_KEYS: Record<string, string> = {
+    combat_sports: 'sport_group.martial_arts',
+    team_sports: 'sport_group.team',
+    athletics: 'sport_group.athletics',
+    strength: 'sport_group.strength',
+    endurance: 'sport_group.endurance',
+    racket_sports: 'sport_group.racket',
+    other: 'sport_group.other',
+};
+
+const GROUP_ORDER = ['combat_sports', 'team_sports', 'athletics', 'strength', 'endurance', 'racket_sports', 'other'];
+
+type Sport = { id: string; slug: string; group_name: string; name_i18n: Record<string, string> | null };
+
 interface Props {
     visible: boolean;
     userId: string;
@@ -29,41 +42,50 @@ interface Props {
 }
 
 export function SportSheet({ visible, userId, currentSportId, onClose, onSaved }: Props) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
+    const [sports, setSports] = useState<Sport[]>([]);
     const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        if (!visible) return;
-        setSelectedSlug(null);
-        if (!currentSportId) return;
         supabase
             .from('sports')
-            .select('slug')
-            .eq('id', currentSportId)
-            .single()
+            .select('id, slug, group_name, name_i18n')
             .then(({ data }) => {
-                if (data) setSelectedSlug(data.slug);
+                if (data) setSports(data as Sport[]);
             });
-    }, [visible, currentSportId]);
+    }, []);
 
-    async function handleSelect(slug: string) {
-        setSelectedSlug(slug);
-        setSaving(true);
-        const { data } = await supabase.from('sports').select('id').eq('slug', slug).single();
-        if (data) {
-            await supabase.from('user_profiles').update({ sport_id: data.id }).eq('id', userId);
-            setSaving(false);
-            onSaved();
-            onClose();
+    useEffect(() => {
+        if (!visible) return;
+        if (currentSportId && sports.length > 0) {
+            const current = sports.find(s => s.id === currentSportId);
+            setSelectedSlug(current?.slug ?? null);
         } else {
-            setSaving(false);
+            setSelectedSlug(null);
         }
+    }, [visible, currentSportId, sports]);
+
+    async function handleSelect(sport: Sport) {
+        setSelectedSlug(sport.slug);
+        setSaving(true);
+        await supabase.from('user_profiles').update({ sport_id: sport.id }).eq('id', userId);
+        setSaving(false);
+        onSaved();
+        onClose();
     }
+
+    const groups = GROUP_ORDER
+        .map(groupName => ({
+            groupName,
+            titleKey: GROUP_TITLE_KEYS[groupName],
+            sports: sports.filter(s => s.group_name === groupName),
+        }))
+        .filter(g => g.sports.length > 0);
 
     return (
         <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
@@ -86,15 +108,15 @@ export function SportSheet({ visible, userId, currentSportId, onClose, onSaved }
                         {t('plan.sport_sheet_subtitle')}
                     </JempText>
 
-                    {SPORT_GROUPS.map((group) => (
-                        <View key={group.titleKey} style={styles.group}>
+                    {groups.map((group) => (
+                        <View key={group.groupName} style={styles.group}>
                             <JempText type="caption" color={theme.textSubtle} style={styles.groupTitle}>
                                 {t(group.titleKey as any).toUpperCase()}
                             </JempText>
                             <View style={styles.grid}>
                                 {group.sports.map((sport) => {
                                     const active = selectedSlug === sport.slug;
-                                    const label = getSportLabelI18n(sport.slug, t) ?? sport.slug;
+                                    const label = sport.name_i18n?.[i18n.language] ?? sport.slug;
                                     if (active) {
                                         return (
                                             <LinearGradient
@@ -116,7 +138,7 @@ export function SportSheet({ visible, userId, currentSportId, onClose, onSaved }
                                         <TouchableOpacity
                                             key={sport.slug}
                                             style={[styles.chip, { backgroundColor: theme.surface }]}
-                                            onPress={() => handleSelect(sport.slug)}
+                                            onPress={() => handleSelect(sport)}
                                             activeOpacity={0.7}
                                             disabled={saving}
                                         >

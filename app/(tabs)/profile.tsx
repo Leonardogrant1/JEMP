@@ -21,7 +21,6 @@ import { GeneratePlanSheet } from '@/components/profile/generate-plan-sheet';
 import { GoalsSheet } from '@/components/profile/goals-sheet';
 import { SportSheet } from '@/components/profile/sport-sheet';
 import { StatCard } from '@/components/profile/stat-card';
-import { getSportLabelI18n } from '@/constants/sports';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
@@ -142,7 +141,7 @@ export default function ProfileScreen() {
         }
     }
 
-    const sportLabel = useMemo(() => getSportLabelI18n(profile?.sport?.slug, t), [profile, t]);
+    const sportLabel = useMemo(() => (profile?.sport as any)?.name_i18n?.[i18n.language] ?? null, [profile, i18n.language]);
     const age = useMemo(() => profile?.birth_date ? calculateAge(profile.birth_date) : null, [profile]);
     const weight = useMemo(() => profile?.weight_in_kg ? `${profile.weight_in_kg} kg` : '—', [profile]);
     const height = useMemo(() => profile?.height_in_cm ? `${profile.height_in_cm} cm` : '—', [profile]);

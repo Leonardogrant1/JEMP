@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -622,6 +627,7 @@ export type Database = {
           created_at: string | null
           group_name: string
           id: string
+          name_i18n: Json | null
           slug: string
           updated_at: string | null
         }
@@ -629,6 +635,7 @@ export type Database = {
           created_at?: string | null
           group_name: string
           id?: string
+          name_i18n?: Json | null
           slug: string
           updated_at?: string | null
         }
@@ -636,6 +643,7 @@ export type Database = {
           created_at?: string | null
           group_name?: string
           id?: string
+          name_i18n?: Json | null
           slug?: string
           updated_at?: string | null
         }
@@ -851,10 +859,13 @@ export type Database = {
           id: string
           last_active_at: string | null
           last_name: string | null
+          preferred_language: string | null
           preferred_session_duration:
             | Database["public"]["Enums"]["session_duration"]
             | null
           preferred_workout_days: number[] | null
+          push_token: string | null
+          role: string
           schedule_notes: string | null
           sport_id: string | null
           timezone: string | null
@@ -872,10 +883,13 @@ export type Database = {
           id?: string
           last_active_at?: string | null
           last_name?: string | null
+          preferred_language?: string | null
           preferred_session_duration?:
             | Database["public"]["Enums"]["session_duration"]
             | null
           preferred_workout_days?: number[] | null
+          push_token?: string | null
+          role?: string
           schedule_notes?: string | null
           sport_id?: string | null
           timezone?: string | null
@@ -893,10 +907,13 @@ export type Database = {
           id?: string
           last_active_at?: string | null
           last_name?: string | null
+          preferred_language?: string | null
           preferred_session_duration?:
             | Database["public"]["Enums"]["session_duration"]
             | null
           preferred_workout_days?: number[] | null
+          push_token?: string | null
+          role?: string
           schedule_notes?: string | null
           sport_id?: string | null
           timezone?: string | null
@@ -1780,4 +1797,3 @@ export const Constants = {
     },
   },
 } as const
-
