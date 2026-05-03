@@ -506,6 +506,12 @@ const de: Record<TranslationKeys, string> = {
     'magic_link.error_generic': 'Etwas ist schiefgelaufen. Bitte versuche es erneut.',
     'magic_link.error_invalid_code': 'Ungültiger oder abgelaufener Code.',
 
+    // ── Mobilität-Bewertungslabels ─────────────────────────────────────────
+    'mobility.rating_strongly_restricted': 'Stark eingeschränkt',
+    'mobility.rating_restricted': 'Eingeschränkt',
+    'mobility.rating_good': 'Gut',
+    'mobility.rating_full': 'Volle Beweglichkeit',
+
 };
 
 export default de;

@@ -9,3 +9,5 @@ export type { JumpExercise } from './jumps';
 
 export { bodyweightStrengthLevel, oneRmLevel } from './strength';
 export type { BodyweightExercise, OneRmExercise } from './strength';
+
+export { mobilityEaseLevel } from './mobility';

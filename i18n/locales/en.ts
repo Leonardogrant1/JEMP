@@ -504,6 +504,12 @@ const en = {
     'magic_link.error_generic': 'Something went wrong. Please try again.',
     'magic_link.error_invalid_code': 'Invalid or expired code.',
 
+    // ── Mobility rating labels ─────────────────────────────────────────────
+    'mobility.rating_strongly_restricted': 'Very restricted',
+    'mobility.rating_restricted': 'Restricted',
+    'mobility.rating_good': 'Good',
+    'mobility.rating_full': 'Full range of motion',
+
 } as const;
 
 export type TranslationKeys = keyof typeof en;

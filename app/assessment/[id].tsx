@@ -8,9 +8,10 @@ import { useStopwatch } from '@/hooks/use-stopwatch';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useCompleteAssessment } from '@/mutations/use-complete-assessment';
 import { useCurrentUser } from '@/providers/current-user-provider';
-import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { useUserAssessmentQuery } from '@/queries/use-user-assessment-query';
+import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { Ionicons } from '@expo/vector-icons';
+import Slider from '@react-native-community/slider';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -20,6 +21,23 @@ import {
     StyleSheet, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+function lerpColor(a: string, b: string, t: number): string {
+    const parse = (hex: string) => [
+        parseInt(hex.slice(1, 3), 16),
+        parseInt(hex.slice(3, 5), 16),
+        parseInt(hex.slice(5, 7), 16),
+    ];
+    const [ar, ag, ab] = parse(a);
+    const [br, bg, bb] = parse(b);
+    return `rgb(${Math.round(ar + (br - ar) * t)},${Math.round(ag + (bg - ag) * t)},${Math.round(ab + (bb - ab) * t)})`;
+}
+
+function ratingToColor(rating: number): string {
+    const t = (rating - 1) / 9;
+    if (t <= 0.5) return lerpColor('#ef4444', '#f59e0b', t * 2);
+    return lerpColor('#f59e0b', '#22c55e', (t - 0.5) * 2);
+}
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -35,6 +53,7 @@ export default function AssessmentScreen() {
     const completeAssessment = useCompleteAssessment();
     const { openWithPlacement } = useSuperwallFunctions();
     const [value, setValue] = useState('');
+    const [rating, setRating] = useState(5);
     const [mode, setMode] = useState<'manual' | 'timer'>('manual');
     const [repMode, setRepMode] = useState<'1rm' | '5rm'>('5rm');
     const stopwatch = useStopwatch();
@@ -57,7 +76,9 @@ export default function AssessmentScreen() {
         );
     }
 
+
     const { assessment } = data;
+    console.log(assessment)
     const locale = i18n.language;
     const assessmentName = (assessment.name_i18n as Record<string, string> | null)?.[locale] ?? assessment.name;
     const description = (assessment.description_i18n as Record<string, string> | null)?.[locale]
@@ -68,6 +89,7 @@ export default function AssessmentScreen() {
     const unitLabel = UNIT_LABELS[unitKey]?.en ?? unitKey;
     const isTimeBased = unitKey === 's';
     const isKgBased = unitKey === 'kg';
+    const isRatingBased = unitKey === 'rating';
 
     const rawSubmitValue = mode === 'timer'
         ? stopwatch.bestTime !== null ? String(stopwatch.bestTime) : ''
@@ -82,8 +104,45 @@ export default function AssessmentScreen() {
         ? estimateOneRepMax(parseFloat(rawSubmitValue), 5)
         : null;
 
+    const ratingColor = ratingToColor(rating);
+    const ratingLabelKey = rating <= 3
+        ? 'mobility.rating_strongly_restricted'
+        : rating <= 6
+            ? 'mobility.rating_restricted'
+            : rating <= 9
+                ? 'mobility.rating_good'
+                : 'mobility.rating_full';
+
     const handleSubmit = () => {
-        if (!submitValue.trim() || !profile?.id || !metric?.id) return;
+        if (!profile?.id || !metric?.id) return;
+        if (isRatingBased) {
+            if (completeAssessment.isPending) return;
+            completeAssessment.mutate({
+                userAssessmentId: data.id,
+                assessmentId: assessment.id,
+                userId: profile.id,
+                metricId: metric.id,
+                value: rating,
+                assessmentSlug: assessment.slug,
+                categoryId: assessment.category_id,
+                userProfile: {
+                    gender: profile.gender as 'male' | 'female',
+                    weight_kg: profile.weight_in_kg!,
+                    height_cm: profile.height_in_cm!,
+                    birth_date: profile.birth_date!,
+                },
+            }, {
+                onSuccess: () => {
+                    trackerManager.track('assessment_completed', {
+                        assessment_slug: assessment.slug,
+                        category_id: assessment.category_id,
+                    });
+                    router.back();
+                },
+            });
+            return;
+        }
+        if (!submitValue.trim()) return;
         if (!profile.birth_date || !profile.weight_in_kg || !profile.height_in_cm || !profile.gender) return;
         if (completeAssessment.isPending) return;
 
@@ -235,8 +294,37 @@ export default function AssessmentScreen() {
                     </View>
                 )}
 
+                {/* Rating slider — mobility assessments */}
+                {isRatingBased && (
+                    <View style={styles.ratingSection}>
+                        <View style={styles.ratingHeader}>
+                            <JempText type="h1" color={ratingColor} style={styles.ratingNumber}>
+                                {rating}
+                            </JempText>
+                            <JempText type="body-l" color={ratingColor}>
+                                {t(ratingLabelKey as any)}
+                            </JempText>
+                        </View>
+                        <Slider
+                            style={styles.slider}
+                            minimumValue={1}
+                            maximumValue={10}
+                            step={1}
+                            value={rating}
+                            onValueChange={setRating}
+                            minimumTrackTintColor={ratingColor}
+                            maximumTrackTintColor={theme.borderStrong}
+                            thumbTintColor={ratingColor}
+                        />
+                        <View style={styles.ratingLabels}>
+                            <JempText type="caption" color={theme.textSubtle}>1</JempText>
+                            <JempText type="caption" color={theme.textSubtle}>10</JempText>
+                        </View>
+                    </View>
+                )}
+
                 {/* Input section */}
-                {mode === 'manual' ? (
+                {!isRatingBased && mode === 'manual' ? (
                     <View style={styles.inputSection}>
                         <JempText type="h2">{t('ui.enter_result')}</JempText>
                         <JempText type="caption" color={theme.textMuted}>
@@ -259,7 +347,7 @@ export default function AssessmentScreen() {
                             </View>
                         )}
                     </View>
-                ) : (
+                ) : !isRatingBased ? (
                     <View style={styles.timerSection}>
                         {/* Elapsed display */}
                         <View style={[styles.timerDisplay, { backgroundColor: theme.surface }]}>
@@ -333,7 +421,7 @@ export default function AssessmentScreen() {
                             </View>
                         )}
                     </View>
-                )}
+                ) : null}
             </ScrollView>
 
             {/* CTA */}
@@ -341,7 +429,7 @@ export default function AssessmentScreen() {
                 <Pressable
                     style={styles.submitBtn}
                     onPress={() => openWithPlacement('log_assessment', handleSubmit)}
-                    disabled={!submitValue || completeAssessment.isPending}
+                    disabled={(!isRatingBased && !submitValue) || completeAssessment.isPending}
                 >
                     <LinearGradient
                         colors={submitValue ? [Cyan[500], Electric[500]] : [`${Cyan[500]}40`, `${Electric[500]}40`]}
@@ -432,6 +520,13 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     modeBtnActive: {},
+
+    // Rating slider
+    ratingSection: { gap: 8, paddingTop: 12 },
+    ratingHeader: { alignItems: 'center', gap: 4 },
+    ratingNumber: { fontSize: 56, lineHeight: 64, fontWeight: '700', letterSpacing: -2 },
+    slider: { width: '100%', height: 40, marginHorizontal: -8 },
+    ratingLabels: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: 4 },
 
     // Manual input
     inputSection: { alignItems: 'center', gap: 8, paddingTop: 12 },

@@ -1,4 +1,4 @@
-import { jumpLevel, bodyweightStrengthLevel, oneRmLevel, lowerBodyPlyometricsLevel, upperBodyPlyometricsLevel } from './index';
+import { jumpLevel, bodyweightStrengthLevel, oneRmLevel, lowerBodyPlyometricsLevel, upperBodyPlyometricsLevel, mobilityEaseLevel } from './index';
 import type { JumpExercise, BodyweightExercise, OneRmExercise, LowerBodyPlyometricsExercise, UpperBodyPlyometricsExercise } from './index';
 import { calculateAge } from '@/types/user-data';
 
@@ -14,7 +14,8 @@ type ScoreEntry =
     | { type: 'bodyweight'; exercise: BodyweightExercise }
     | { type: 'one_rm';     exercise: OneRmExercise }
     | { type: 'lower_plyo'; exercise: LowerBodyPlyometricsExercise }
-    | { type: 'upper_plyo'; exercise: UpperBodyPlyometricsExercise };
+    | { type: 'upper_plyo'; exercise: UpperBodyPlyometricsExercise }
+    | { type: 'mobility' };
 
 const ASSESSMENT_SCORE_MAP: Record<string, ScoreEntry> = {
     // Jumps
@@ -41,6 +42,20 @@ const ASSESSMENT_SCORE_MAP: Record<string, ScoreEntry> = {
     mb_rotational_throw:        { type: 'upper_plyo', exercise: 'mb_rotational_throw_cm' },
     mb_overhead_throw:          { type: 'upper_plyo', exercise: 'mb_overhead_throw_cm' },
     clap_pushups:               { type: 'upper_plyo', exercise: 'clap_push_ups' },
+    // Mobility — 1–10 ease rating
+    deep_squat_hold:            { type: 'mobility' },
+    pigeon_pose:                { type: 'mobility' },
+    hip_90_90_switch:           { type: 'mobility' },
+    couch_stretch:              { type: 'mobility' },
+    thomas_test:                { type: 'mobility' },
+    standing_toe_touch:         { type: 'mobility' },
+    seated_forward_fold:        { type: 'mobility' },
+    thoracic_rotation:          { type: 'mobility' },
+    cat_cow_range:              { type: 'mobility' },
+    thread_the_needle:          { type: 'mobility' },
+    behind_back_clasp:          { type: 'mobility' },
+    wall_slide:                 { type: 'mobility' },
+    ankle_dorsiflexion:         { type: 'mobility' },
 };
 
 /**
@@ -72,5 +87,7 @@ export function calculateAssessmentScore(
             return lowerBodyPlyometricsLevel(value, weight_kg, age, gender, entry.exercise);
         case 'upper_plyo':
             return upperBodyPlyometricsLevel(value, weight_kg, age, gender, entry.exercise);
+        case 'mobility':
+            return mobilityEaseLevel(value);
     }
 }

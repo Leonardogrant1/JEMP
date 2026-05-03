@@ -865,7 +865,7 @@ export type Database = {
             | null
           preferred_workout_days: number[] | null
           push_token: string | null
-          role: string
+          role: Database["public"]["Enums"]["user_role"]
           schedule_notes: string | null
           sport_id: string | null
           timezone: string | null
@@ -889,7 +889,7 @@ export type Database = {
             | null
           preferred_workout_days?: number[] | null
           push_token?: string | null
-          role?: string
+          role?: Database["public"]["Enums"]["user_role"]
           schedule_notes?: string | null
           sport_id?: string | null
           timezone?: string | null
@@ -913,7 +913,7 @@ export type Database = {
             | null
           preferred_workout_days?: number[] | null
           push_token?: string | null
-          role?: string
+          role?: Database["public"]["Enums"]["user_role"]
           schedule_notes?: string | null
           sport_id?: string | null
           timezone?: string | null
@@ -1604,6 +1604,7 @@ export type Database = {
         | "skipped"
         | "cancelled"
       session_type: "training" | "recovery"
+      user_role: "user" | "admin" | "tester"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1794,6 +1795,7 @@ export const Constants = {
         "cancelled",
       ],
       session_type: ["training", "recovery"],
+      user_role: ["user", "admin", "tester"],
     },
   },
 } as const
