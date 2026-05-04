@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -162,19 +157,25 @@ export type Database = {
       categories: {
         Row: {
           created_at: string | null
+          description_i18n: Json | null
           id: string
+          name_i18n: Json | null
           slug: string
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          description_i18n?: Json | null
           id?: string
+          name_i18n?: Json | null
           slug: string
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          description_i18n?: Json | null
           id?: string
+          name_i18n?: Json | null
           slug?: string
           updated_at?: string | null
         }
@@ -558,6 +559,7 @@ export type Database = {
           created_at: string | null
           higher_is_better: boolean
           id: string
+          name_i18n: Json | null
           slug: string
           unit: Database["public"]["Enums"]["metric_unit"]
           updated_at: string | null
@@ -566,6 +568,7 @@ export type Database = {
           created_at?: string | null
           higher_is_better?: boolean
           id?: string
+          name_i18n?: Json | null
           slug: string
           unit: Database["public"]["Enums"]["metric_unit"]
           updated_at?: string | null
@@ -574,6 +577,7 @@ export type Database = {
           created_at?: string | null
           higher_is_better?: boolean
           id?: string
+          name_i18n?: Json | null
           slug?: string
           unit?: Database["public"]["Enums"]["metric_unit"]
           updated_at?: string | null
@@ -1585,6 +1589,7 @@ export type Database = {
         | "percent"
         | "count"
         | "other"
+        | "rating"
       movement_pattern:
         | "push"
         | "pull"
@@ -1773,6 +1778,7 @@ export const Constants = {
         "percent",
         "count",
         "other",
+        "rating",
       ],
       movement_pattern: [
         "push",
@@ -1799,3 +1805,4 @@ export const Constants = {
     },
   },
 } as const
+

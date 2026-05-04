@@ -1,23 +1,24 @@
 'use server'
 
+import { supabase } from '@/lib/supabase'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { supabase } from '@/lib/supabase'
+import { Json } from '../../../database.types'
 
 export type I18n = { en: string; de: string }
 
 export type Equipment = {
   id: string
   slug: string
-  name_i18n: I18n
-  created_at: string
-  updated_at: string
+  name_i18n: Json | null
+  created_at: string | null
+  updated_at: string | null
 }
 
 export type Environment = {
   id: string
   slug: string
-  name_i18n: I18n
+  name_i18n: Json | null
 }
 
 async function requireUser() {
@@ -80,7 +81,7 @@ export async function getEnvironments(): Promise<Environment[]> {
     .select('id, slug, name_i18n')
     .order('slug')
   if (error) throw new Error(error.message)
-  return data
+  return data;
 }
 
 export async function createEquipment(fields: {

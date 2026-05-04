@@ -1,23 +1,22 @@
 'use server'
 
+import { supabase } from '@/lib/supabase'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { supabase } from '@/lib/supabase'
-
-export type I18n = { en: string; de: string }
+import { Json } from '../../../database.types'
 
 export type MetricUnit = 'kg' | 'm' | 'cm' | 's' | 'min' | 'hr' | 'kcal' | 'bpm' | 'percent' | 'count' | 'other' | 'rating'
 
 export const METRIC_UNITS: MetricUnit[] = ['kg', 'm', 'cm', 's', 'min', 'hr', 'kcal', 'bpm', 'percent', 'count', 'other', 'rating']
 
-export type Metric = {
+export type Metric = {  
   id: string
   slug: string
   unit: MetricUnit
   higher_is_better: boolean
-  name_i18n: I18n
-  created_at: string
-  updated_at: string
+  name_i18n: Json | null
+  created_at: string | null
+  updated_at: string | null
 }
 
 async function requireUser() {
@@ -73,7 +72,7 @@ export async function createMetric(fields: {
   slug: string
   unit: MetricUnit
   higher_is_better: boolean
-  name_i18n: I18n
+  name_i18n: Json
 }): Promise<string> {
   await requireAdmin()
   const { data, error } = await supabase
@@ -89,7 +88,7 @@ export async function updateMetric(id: string, fields: {
   slug: string
   unit: MetricUnit
   higher_is_better: boolean
-  name_i18n: I18n
+  name_i18n: Json
 }): Promise<void> {
   await requireAdmin()
   const { error } = await supabase

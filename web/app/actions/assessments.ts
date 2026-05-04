@@ -1,8 +1,9 @@
 'use server'
 
+import { supabase } from '@/lib/supabase'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { supabase } from '@/lib/supabase'
+import { Json } from '../../../database.types'
 
 export type I18n = { en: string; de: string }
 
@@ -10,21 +11,21 @@ export type Assessment = {
   id: string
   slug: string
   name: string
-  name_i18n: I18n
-  description_i18n: I18n
-  category_id: string
-  measured_metric_id: string
-  min_level: number
-  max_level: number
-  created_at: string
-  updated_at: string
+  name_i18n: Json | null
+  description_i18n: Json | null
+  category_id: string | null
+  measured_metric_id: string | null
+  min_level: number | null
+  max_level: number | null
+  created_at: string | null
+  updated_at: string | null
 }
 
 export type AssessmentWithRelations = Assessment & {
   category_slug: string
   metric_slug: string
   metric_unit: string
-  equipmentIds: string[]
+  equipmentIds: (string | null)[]
 }
 
 async function requireUser() {
@@ -101,11 +102,7 @@ export async function getAssessment(id: string): Promise<AssessmentWithRelations
     .eq('id', id)
     .single()
   if (error) throw new Error(error.message)
-  const r = data as Assessment & {
-    categories: { slug: string } | null
-    metrics: { slug: string; unit: string } | null
-    assessment_equipments: { equipment_id: string }[]
-  }
+  const r = data 
   return {
     id: r.id,
     slug: r.slug,

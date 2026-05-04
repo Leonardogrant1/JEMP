@@ -1,18 +1,17 @@
 'use server'
 
+import { supabase } from '@/lib/supabase'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { supabase } from '@/lib/supabase'
-
-export type I18n = { en: string; de: string }
+import { Json } from '../../../database.types'
 
 export type SportCategory = {
   id: string
   slug: string
-  name_i18n: I18n
-  description_i18n: I18n
-  created_at: string
-  updated_at: string
+  name_i18n: Json | null
+  description_i18n: Json | null
+  created_at: string | null
+  updated_at: string | null
 }
 
 async function requireUser() {
@@ -66,8 +65,8 @@ export async function getCategory(id: string): Promise<SportCategory> {
 
 export async function createCategory(fields: {
   slug: string
-  name_i18n: I18n
-  description_i18n: I18n
+  name_i18n: Json
+  description_i18n: Json
 }): Promise<string> {
   await requireAdmin()
   const { data, error } = await supabase
@@ -81,8 +80,8 @@ export async function createCategory(fields: {
 
 export async function updateCategory(id: string, fields: {
   slug: string
-  name_i18n: I18n
-  description_i18n: I18n
+  name_i18n: Json
+  description_i18n: Json
 }): Promise<void> {
   await requireAdmin()
   const { error } = await supabase

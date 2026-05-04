@@ -1,8 +1,12 @@
 'use server'
 
+import { supabase } from '@/lib/supabase'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { supabase } from '@/lib/supabase'
+import { Database, Json } from '../../../database.types'
+
+type BodyRegion = Database['public']['Enums']['body_region']
+type MovementPattern = Database['public']['Enums']['movement_pattern']
 
 export type ExerciseListItem = {
   id: string
@@ -15,8 +19,8 @@ export type ExerciseListItem = {
 
 export type Exercise = ExerciseListItem & {
   description_i18n: { en: string; de: string } | null
-  movement_pattern: string | null
-  body_region: string | null
+  movement_pattern: MovementPattern | null
+  body_region: BodyRegion | null
   category_id: string | null
   min_level: number | null
   max_level: number | null
@@ -107,16 +111,16 @@ export async function updateExercise(
   fields: {
     name?: string
     slug?: string
-    description_i18n?: { en: string; de: string }
-    movement_pattern?: string | null
-    body_region?: string | null
+    description_i18n?: Json
+    movement_pattern?: MovementPattern | null
+    body_region?: BodyRegion | null
     category_id?: string | null
-    min_level?: number | null
-    max_level?: number | null
-    youtube_url?: string
-    thumbnail_storage_path?: string
-    video_storage_path?: string
-    equipmentIds?: string[]
+    min_level?: number | undefined
+    max_level?: number | undefined
+    youtube_url?: string | null
+    thumbnail_storage_path?: string | null
+    video_storage_path?: string | null
+    equipmentIds?: string[] 
     environmentIds?: string[]
   }
 ): Promise<void> {
@@ -157,9 +161,9 @@ export async function deleteExercise(id: string): Promise<void> {
 }
 
 export async function getExerciseRelations(): Promise<{
-  categories: { id: string; slug: string; name_i18n: { en: string; de: string } | null }[]
-  equipments: { id: string; slug: string; name_i18n: { en: string; de: string } | null }[]
-  environments: { id: string; slug: string; name_i18n: { en: string; de: string } | null }[]
+  categories: { id: string; slug: string; name_i18n: Json | null }[]
+  equipments: { id: string; slug: string; name_i18n: Json | null }[]
+  environments: { id: string; slug: string; name_i18n: Json | null }[]
 }> {
   await requireUser()
   const [catResult, eqResult, envResult] = await Promise.all([
