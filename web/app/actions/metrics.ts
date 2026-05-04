@@ -4,10 +4,8 @@ import { supabase } from '@/lib/supabase'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Json } from '../../../database.types'
-
-export type MetricUnit = 'kg' | 'm' | 'cm' | 's' | 'min' | 'hr' | 'kcal' | 'bpm' | 'percent' | 'count' | 'other' | 'rating'
-
-export const METRIC_UNITS: MetricUnit[] = ['kg', 'm', 'cm', 's', 'min', 'hr', 'kcal', 'bpm', 'percent', 'count', 'other', 'rating']
+export type { MetricUnit } from '@/lib/metric-units'
+import type { MetricUnit } from '@/lib/metric-units'
 
 export type Metric = {  
   id: string

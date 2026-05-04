@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { createMetric, METRIC_UNITS, type MetricUnit } from '../../../actions/metrics'
+import { createMetric, type MetricUnit } from '../../../actions/metrics'
+import { METRIC_UNITS } from '@/lib/metric-units'
 
 function isValidSlug(s: string): boolean {
   return /^[a-z0-9]+(_[a-z0-9]+)*$/.test(s)

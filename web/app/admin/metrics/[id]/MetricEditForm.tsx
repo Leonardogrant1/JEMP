@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { updateMetric, METRIC_UNITS, type Metric, type MetricUnit } from '../../../actions/metrics'
+import { updateMetric, type Metric, type MetricUnit } from '../../../actions/metrics'
+import { METRIC_UNITS } from '@/lib/metric-units'
 import { asI18n } from '@/lib/i18n'
 
 type Props = { metric: Metric }
