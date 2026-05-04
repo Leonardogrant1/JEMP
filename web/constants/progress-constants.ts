@@ -1,6 +1,6 @@
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-import { Ionicons } from "@expo/vector-icons";
+ 
 
 const ALL_STAT_SLUGS = [
     'strength',
@@ -10,7 +10,7 @@ const ALL_STAT_SLUGS = [
     'mobility',
 ] as const;
 
-const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+const CATEGORY_ICONS: Record<string, string> = {
     strength: 'barbell',
     jumps: 'arrow-up',
     lower_body_plyometrics: 'footsteps',
