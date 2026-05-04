@@ -1,3 +1,4 @@
+import { Toaster } from 'sonner'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -45,6 +46,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <div className="flex flex-1 overflow-hidden">
         <AdminSidebar />
         <main className="flex-1 overflow-auto px-6 py-8">{children}</main>
+        <Toaster theme="dark" position="bottom-right" />
       </div>
     </div>
   )

@@ -10,9 +10,17 @@ export default async function AdminPage() {
 
   return (
     <div>
-      <p className="text-sm text-gray-400 mb-6">
-        {exercises.length} exercises — {withYoutube} with YouTube, {withThumbnail} with thumbnail, {withVideo} with video
-      </p>
+      <div className="flex items-center justify-between mb-6">
+        <p className="text-sm text-gray-400">
+          {exercises.length} exercises — {withYoutube} with YouTube, {withThumbnail} with thumbnail, {withVideo} with video
+        </p>
+        <Link
+          href="/admin/exercises/new"
+          className="px-4 py-2 bg-white text-black rounded text-sm font-medium hover:bg-gray-200"
+        >
+          + Neue Übung
+        </Link>
+      </div>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-800 text-left text-gray-400">

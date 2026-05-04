@@ -151,6 +151,41 @@ export async function updateExercise(
   }
 }
 
+export async function createExercise(fields: {
+  name: string
+  slug: string
+  category_id?: string | null
+  description_i18n?: Json
+  movement_pattern?: MovementPattern | null
+  body_region?: BodyRegion | null
+  min_level?: number
+  max_level?: number
+  equipmentIds?: string[]
+  environmentIds?: string[]
+  youtube_url?: string | null
+}): Promise<string> {
+  await requireAdmin()
+  const { equipmentIds, environmentIds, ...dbFields } = fields
+  const { data, error } = await supabase
+    .from('exercises')
+    .insert({ ...dbFields, category_id: dbFields.category_id ?? null })
+    .select('id')
+    .single()
+  if (error) throw new Error(error.message)
+  const id = data.id
+  if (equipmentIds && equipmentIds.length > 0) {
+    const links = equipmentIds.map(eid => ({ exercise_id: id, equipment_id: eid }))
+    const { error: eqErr } = await supabase.from('exercise_equipments').insert(links)
+    if (eqErr) throw new Error(eqErr.message)
+  }
+  if (environmentIds && environmentIds.length > 0) {
+    const links = environmentIds.map(eid => ({ exercise_id: id, environment_id: eid }))
+    const { error: envErr } = await supabase.from('exercise_environments').insert(links)
+    if (envErr) throw new Error(envErr.message)
+  }
+  return id
+}
+
 export async function deleteExercise(id: string): Promise<void> {
   await requireAdmin()
   // Junction tables have ON DELETE CASCADE, but delete explicitly to be safe
