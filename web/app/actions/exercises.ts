@@ -165,10 +165,16 @@ export async function createExercise(fields: {
   youtube_url?: string | null
 }): Promise<string> {
   await requireAdmin()
-  const { equipmentIds, environmentIds, ...dbFields } = fields
+  const { equipmentIds, environmentIds, min_level, max_level, ...dbFields } = fields
+  const insertRow = {
+    ...dbFields,
+    category_id: dbFields.category_id ?? null,
+    min_level: min_level ?? 1,
+    max_level: max_level ?? 100,
+  }
   const { data, error } = await supabase
     .from('exercises')
-    .insert({ ...dbFields, category_id: dbFields.category_id ?? null })
+    .insert(insertRow)
     .select('id')
     .single()
   if (error) throw new Error(error.message)
