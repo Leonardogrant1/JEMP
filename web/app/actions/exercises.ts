@@ -4,13 +4,22 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { supabase } from '@/lib/supabase'
 
-export type Exercise = {
+export type ExerciseListItem = {
   id: string
   name: string
   slug: string
   youtube_url: string | null
   thumbnail_storage_path: string | null
   video_storage_path: string | null
+}
+
+export type Exercise = ExerciseListItem & {
+  description_i18n: { en: string; de: string } | null
+  movement_pattern: string | null
+  body_region: string | null
+  category_id: string | null
+  min_level: number | null
+  max_level: number | null
 }
 
 async function requireUser() {
@@ -41,7 +50,7 @@ async function requireAdmin() {
   return user
 }
 
-export async function getExercises(): Promise<Exercise[]> {
+export async function getExercises(): Promise<ExerciseListItem[]> {
   await requireUser()
   const { data, error } = await supabase
     .from('exercises')
@@ -52,16 +61,28 @@ export async function getExercises(): Promise<Exercise[]> {
   return data
 }
 
-export async function getExercise(id: string): Promise<Exercise> {
+export async function getExercise(id: string): Promise<Exercise & { equipmentIds: string[]; environmentIds: string[] }> {
   await requireUser()
   const { data, error } = await supabase
     .from('exercises')
-    .select('id, name, slug, youtube_url, thumbnail_storage_path, video_storage_path')
+    .select(`
+      id, name, slug, description_i18n, movement_pattern, body_region, category_id, min_level, max_level,
+      youtube_url, thumbnail_storage_path, video_storage_path,
+      exercise_equipments(equipment_id),
+      exercise_environments(environment_id)
+    `)
     .eq('id', id)
     .single()
-
   if (error) throw new Error(error.message)
-  return data
+  const { exercise_equipments, exercise_environments, ...exercise } = data as Exercise & {
+    exercise_equipments: { equipment_id: string }[]
+    exercise_environments: { environment_id: string }[]
+  }
+  return {
+    ...exercise,
+    equipmentIds: exercise_equipments.map(e => e.equipment_id),
+    environmentIds: exercise_environments.map(e => e.environment_id),
+  }
 }
 
 export async function getSignedUploadUrl(
@@ -84,17 +105,74 @@ export async function getSignedUploadUrl(
 export async function updateExercise(
   id: string,
   fields: {
+    name?: string
+    slug?: string
+    description_i18n?: { en: string; de: string }
+    movement_pattern?: string | null
+    body_region?: string | null
+    category_id?: string | null
+    min_level?: number | null
+    max_level?: number | null
     youtube_url?: string
     thumbnail_storage_path?: string
     video_storage_path?: string
+    equipmentIds?: string[]
+    environmentIds?: string[]
   }
 ): Promise<void> {
   await requireAdmin()
+  const { equipmentIds, environmentIds, ...dbFields } = fields
+  if (Object.keys(dbFields).length > 0) {
+    const { error } = await supabase
+      .from('exercises')
+      .update({ ...dbFields, updated_at: new Date().toISOString() })
+      .eq('id', id)
+    if (error) throw new Error(error.message)
+  }
+  if (equipmentIds !== undefined) {
+    await supabase.from('exercise_equipments').delete().eq('exercise_id', id)
+    if (equipmentIds.length > 0) {
+      const links = equipmentIds.map(eid => ({ exercise_id: id, equipment_id: eid }))
+      const { error } = await supabase.from('exercise_equipments').insert(links)
+      if (error) throw new Error(error.message)
+    }
+  }
+  if (environmentIds !== undefined) {
+    await supabase.from('exercise_environments').delete().eq('exercise_id', id)
+    if (environmentIds.length > 0) {
+      const links = environmentIds.map(eid => ({ exercise_id: id, environment_id: eid }))
+      const { error } = await supabase.from('exercise_environments').insert(links)
+      if (error) throw new Error(error.message)
+    }
+  }
+}
 
-  const { error } = await supabase
-    .from('exercises')
-    .update({ ...fields, updated_at: new Date().toISOString() })
-    .eq('id', id)
-
+export async function deleteExercise(id: string): Promise<void> {
+  await requireAdmin()
+  // Junction tables have ON DELETE CASCADE, but delete explicitly to be safe
+  await supabase.from('exercise_equipments').delete().eq('exercise_id', id)
+  await supabase.from('exercise_environments').delete().eq('exercise_id', id)
+  const { error } = await supabase.from('exercises').delete().eq('id', id)
   if (error) throw new Error(error.message)
+}
+
+export async function getExerciseRelations(): Promise<{
+  categories: { id: string; slug: string; name_i18n: { en: string; de: string } | null }[]
+  equipments: { id: string; slug: string; name_i18n: { en: string; de: string } | null }[]
+  environments: { id: string; slug: string; name_i18n: { en: string; de: string } | null }[]
+}> {
+  await requireUser()
+  const [catResult, eqResult, envResult] = await Promise.all([
+    supabase.from('categories').select('id, slug, name_i18n').order('slug'),
+    supabase.from('equipments').select('id, slug, name_i18n').order('slug'),
+    supabase.from('environments').select('id, slug, name_i18n').order('slug'),
+  ])
+  if (catResult.error) throw new Error(catResult.error.message)
+  if (eqResult.error) throw new Error(eqResult.error.message)
+  if (envResult.error) throw new Error(envResult.error.message)
+  return {
+    categories: catResult.data,
+    equipments: eqResult.data,
+    environments: envResult.data,
+  }
 }

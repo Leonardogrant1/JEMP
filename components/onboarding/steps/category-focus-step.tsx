@@ -1,7 +1,7 @@
 import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
 import { SelectableRow } from '@/components/ui/selectable-row';
-import { CATEGORY_DESCRIPTIONS, CATEGORY_LABELS } from '@/constants/category-labels';
+import { getCategoryLabel, getCategoryDescription, type CategoryI18n } from '@/constants/category-labels';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore, TargetedCategory } from '@/stores/onboarding-store';
@@ -11,7 +11,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
-type CategoryItem = { id: string; slug: string; label: string };
+type CategoryItem = { id: string; slug: string; label: string; name_i18n: CategoryI18n; description_i18n: CategoryI18n };
 
 export function CategoryFocusStep() {
     const { t } = useTranslation();
@@ -27,10 +27,16 @@ export function CategoryFocusStep() {
 
     useEffect(() => {
         if (storedTargeted.length > 0) setCanContinue(true);
-        supabase.from('categories').select('id, slug').then(({ data }) => {
+        supabase.from('categories').select('id, slug, name_i18n, description_i18n').then(({ data }) => {
             if (data) {
                 setCategories(
-                    data.map((c) => ({ id: c.id, slug: c.slug, label: CATEGORY_LABELS[c.slug] ?? c.slug }))
+                    data.map((c) => ({
+                        id: c.id,
+                        slug: c.slug,
+                        name_i18n: c.name_i18n as CategoryI18n,
+                        description_i18n: c.description_i18n as CategoryI18n,
+                        label: getCategoryLabel(c.slug, t, c.name_i18n as CategoryI18n),
+                    }))
                 );
             }
         });
@@ -69,7 +75,7 @@ export function CategoryFocusStep() {
                     <Animated.View key={cat.id} entering={FadeInDown.delay(Math.min(360 + i * 120, 720)).duration(500).springify()}>
                         <SelectableRow
                             label={cat.label}
-                            description={CATEGORY_DESCRIPTIONS[cat.slug]}
+                            description={getCategoryDescription(cat.slug, t, cat.description_i18n)}
                             selected={selected.has(cat.id)}
                             onPress={() => toggleCategory(cat)}
                         />

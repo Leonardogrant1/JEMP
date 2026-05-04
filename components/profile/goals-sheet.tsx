@@ -1,6 +1,6 @@
 import { JempText } from '@/components/jemp-text';
 import { SelectableChip } from '@/components/ui/selectable-chip';
-import { getCategoryLabel } from '@/constants/category-labels';
+import { getCategoryLabel, type CategoryI18n } from '@/constants/category-labels';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/services/supabase/client';
@@ -32,7 +32,7 @@ const LEVEL_PRESET_KEYS = [
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Phase = 'select' | 'rank' | 'level';
-type CategoryItem = { id: string; slug: string; label: string };
+type CategoryItem = { id: string; slug: string; label: string; name_i18n: CategoryI18n };
 
 interface Props {
     visible: boolean;
@@ -82,14 +82,15 @@ export function GoalsSheet({ visible, userId, onClose }: Props) {
         setLoading(true);
 
         Promise.all([
-            supabase.from('categories').select('id, slug'),
+            supabase.from('categories').select('id, slug, name_i18n'),
             supabase.from('user_targeted_categories').select('category_id, priority').eq('user_id', userId).order('priority'),
             supabase.from('user_category_levels').select('category_id, level_score').eq('user_id', userId),
         ]).then(([catsRes, targetedRes, levelsRes]) => {
             const items: CategoryItem[] = (catsRes.data ?? []).map(c => ({
                 id: c.id,
                 slug: c.slug,
-                label: getCategoryLabel(c.slug, t),
+                name_i18n: c.name_i18n as CategoryI18n,
+                label: getCategoryLabel(c.slug, t, c.name_i18n as CategoryI18n),
             }));
             setCategories(items);
 

@@ -1,15 +1,29 @@
 'use client'
 
 import { useEffect, useRef, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   getSignedUploadUrl,
   updateExercise,
+  deleteExercise,
   type Exercise,
 } from '../../actions/exercises'
 
-type Props = { exercise: Exercise }
+type Props = {
+  exercise: Exercise & { equipmentIds: string[]; environmentIds: string[] }
+  relations: {
+    categories: { id: string; slug: string; name_i18n: { en: string; de: string } | null }[]
+    equipments: { id: string; slug: string; name_i18n: { en: string; de: string } | null }[]
+    environments: { id: string; slug: string; name_i18n: { en: string; de: string } | null }[]
+  }
+}
 
 type Statuses = {
+  basics?: string
+  description?: string
+  classification?: string
+  equipment?: string
+  environments?: string
   youtube?: string
   thumbnail?: string
   video?: string
@@ -67,11 +81,43 @@ function DropZone({
   )
 }
 
-export function ExerciseEditForm({ exercise: initial }: Props) {
+function isValidSlug(s: string): boolean {
+  return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(s)
+}
+
+export function ExerciseEditForm({ exercise: initial, relations }: Props) {
   const [exercise, setExercise] = useState(initial)
-  const [youtubeUrl, setYoutubeUrl] = useState(initial.youtube_url ?? '')
   const [statuses, setStatuses] = useState<Statuses>({})
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
+
+  // Danger zone
+  const [deleteConfirmSlug, setDeleteConfirmSlug] = useState('')
+  const [deleteStatus, setDeleteStatus] = useState('')
+  const [isDeleting, startDeleteTransition] = useTransition()
+
+  // Basics
+  const [name, setName] = useState(initial.name ?? '')
+  const [slug, setSlug] = useState(initial.slug ?? '')
+  const [slugError, setSlugError] = useState('')
+  const [categoryId, setCategoryId] = useState(initial.category_id ?? '')
+
+  // Description
+  const [descEn, setDescEn] = useState(initial.description_i18n?.en ?? '')
+  const [descDe, setDescDe] = useState(initial.description_i18n?.de ?? '')
+
+  // Classification
+  const [movementPattern, setMovementPattern] = useState(initial.movement_pattern ?? '')
+  const [bodyRegion, setBodyRegion] = useState(initial.body_region ?? '')
+  const [minLevel, setMinLevel] = useState(String(initial.min_level ?? ''))
+  const [maxLevel, setMaxLevel] = useState(String(initial.max_level ?? ''))
+
+  // Relations
+  const [equipmentIds, setEquipmentIds] = useState<string[]>(initial.equipmentIds)
+  const [environmentIds, setEnvironmentIds] = useState<string[]>(initial.environmentIds)
+
+  // YouTube / media
+  const [youtubeUrl, setYoutubeUrl] = useState(initial.youtube_url ?? '')
 
   const [pendingThumbnail, setPendingThumbnail] = useState<File | null>(null)
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
@@ -89,6 +135,75 @@ export function ExerciseEditForm({ exercise: initial }: Props) {
 
   const setStatus = (field: keyof Statuses, msg: string) =>
     setStatuses(s => ({ ...s, [field]: msg }))
+
+  const saveBasics = () => {
+    if (!isValidSlug(slug)) {
+      setSlugError('Nur Kleinbuchstaben und Bindestriche erlaubt (z.B. back-squat)')
+      return
+    }
+    setSlugError('')
+    startTransition(async () => {
+      try {
+        await updateExercise(exercise.id, {
+          name,
+          slug,
+          category_id: categoryId || null,
+        })
+        setStatus('basics', 'Saved ✓')
+      } catch {
+        setStatus('basics', 'Error saving')
+      }
+    })
+  }
+
+  const saveDescription = () => {
+    startTransition(async () => {
+      try {
+        await updateExercise(exercise.id, { description_i18n: { en: descEn, de: descDe } })
+        setStatus('description', 'Saved ✓')
+      } catch {
+        setStatus('description', 'Error saving')
+      }
+    })
+  }
+
+  const saveClassification = () => {
+    startTransition(async () => {
+      try {
+        await updateExercise(exercise.id, {
+          movement_pattern: movementPattern || null,
+          body_region: bodyRegion || null,
+          min_level: minLevel ? Number(minLevel) : null,
+          max_level: maxLevel ? Number(maxLevel) : null,
+        })
+        setStatus('classification', 'Saved ✓')
+      } catch {
+        setStatus('classification', 'Error saving')
+      }
+    })
+  }
+
+  const saveEquipment = () => {
+    startTransition(async () => {
+      try {
+        await updateExercise(exercise.id, { equipmentIds })
+        setStatus('equipment', 'Saved ✓')
+      } catch {
+        setStatus('equipment', 'Error saving')
+      }
+    })
+  }
+
+  const saveEnvironments = () => {
+    startTransition(async () => {
+      try {
+        await updateExercise(exercise.id, { environmentIds })
+        setStatus('environments', 'Saved ✓')
+      } catch {
+        setStatus('environments', 'Error saving')
+      }
+    })
+  }
 
   const saveYoutube = () => {
     startTransition(async () => {
@@ -179,6 +294,202 @@ export function ExerciseEditForm({ exercise: initial }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Basics */}
+      <section className="bg-gray-900 rounded-lg p-5">
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Basics</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Slug</label>
+            <input
+              type="text"
+              value={slug}
+              onChange={e => { setSlug(e.target.value); setSlugError('') }}
+              placeholder="z.B. back-squat"
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500 font-mono"
+            />
+            {slugError && <p className="text-xs text-red-400 mt-1">{slugError}</p>}
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Kategorie</label>
+            <select
+              value={categoryId}
+              onChange={e => setCategoryId(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+            >
+              <option value="">— keine —</option>
+              {relations.categories.map(cat => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name_i18n?.de ?? cat.slug}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <button onClick={saveBasics} disabled={isPending} className="px-4 py-2 bg-white text-black rounded text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
+            Save
+          </button>
+          {statuses.basics && <p className="text-xs text-gray-400">{statuses.basics}</p>}
+        </div>
+      </section>
+
+      {/* Beschreibung */}
+      <section className="bg-gray-900 rounded-lg p-5">
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Beschreibung</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Englisch</label>
+            <textarea
+              value={descEn}
+              onChange={e => setDescEn(e.target.value)}
+              rows={3}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500 resize-y"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Deutsch</label>
+            <textarea
+              value={descDe}
+              onChange={e => setDescDe(e.target.value)}
+              rows={3}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500 resize-y"
+            />
+          </div>
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <button onClick={saveDescription} disabled={isPending} className="px-4 py-2 bg-white text-black rounded text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
+            Save
+          </button>
+          {statuses.description && <p className="text-xs text-gray-400">{statuses.description}</p>}
+        </div>
+      </section>
+
+      {/* Klassifizierung */}
+      <section className="bg-gray-900 rounded-lg p-5">
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Klassifizierung</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Movement Pattern</label>
+            <select
+              value={movementPattern}
+              onChange={e => setMovementPattern(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+            >
+              <option value="">— keine —</option>
+              {['push','pull','legs','core','isometric','plyometric','mobility','cardio','other'].map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Body Region</label>
+            <select
+              value={bodyRegion}
+              onChange={e => setBodyRegion(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+            >
+              <option value="">— keine —</option>
+              {['ankle','calf','knee','quad','hamstring','glute','hip','groin','lower_back','core','obliques','thoracic','upper_back','chest','shoulder','bicep','tricep','forearm','full_body','neck'].map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-xs text-gray-400 mb-1">Min Level (1–100)</label>
+              <input
+                type="number"
+                min={1} max={100}
+                value={minLevel}
+                onChange={e => setMinLevel(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs text-gray-400 mb-1">Max Level (1–100)</label>
+              <input
+                type="number"
+                min={1} max={100}
+                value={maxLevel}
+                onChange={e => setMaxLevel(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+              />
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <button onClick={saveClassification} disabled={isPending} className="px-4 py-2 bg-white text-black rounded text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
+            Save
+          </button>
+          {statuses.classification && <p className="text-xs text-gray-400">{statuses.classification}</p>}
+        </div>
+      </section>
+
+      {/* Equipment */}
+      <section className="bg-gray-900 rounded-lg p-5">
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Equipment</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {relations.equipments.map(eq => (
+            <label key={eq.id} className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={equipmentIds.includes(eq.id)}
+                onChange={e => {
+                  setEquipmentIds(prev =>
+                    e.target.checked ? [...prev, eq.id] : prev.filter(id => id !== eq.id)
+                  )
+                }}
+                className="rounded border-gray-600 bg-gray-800"
+              />
+              <span className="text-gray-300">{eq.name_i18n?.de ?? eq.slug}</span>
+            </label>
+          ))}
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <button onClick={saveEquipment} disabled={isPending} className="px-4 py-2 bg-white text-black rounded text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
+            Save
+          </button>
+          {statuses.equipment && <p className="text-xs text-gray-400">{statuses.equipment}</p>}
+        </div>
+      </section>
+
+      {/* Environments */}
+      <section className="bg-gray-900 rounded-lg p-5">
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Environments</h3>
+        <div className="flex gap-4">
+          {relations.environments.map(env => (
+            <label key={env.id} className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={environmentIds.includes(env.id)}
+                onChange={e => {
+                  setEnvironmentIds(prev =>
+                    e.target.checked ? [...prev, env.id] : prev.filter(id => id !== env.id)
+                  )
+                }}
+                className="rounded border-gray-600 bg-gray-800"
+              />
+              <span className="text-gray-300">{env.name_i18n?.de ?? env.slug}</span>
+            </label>
+          ))}
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <button onClick={saveEnvironments} disabled={isPending} className="px-4 py-2 bg-white text-black rounded text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
+            Save
+          </button>
+          {statuses.environments && <p className="text-xs text-gray-400">{statuses.environments}</p>}
+        </div>
+      </section>
+
       {/* YouTube */}
       <section className="bg-gray-900 rounded-lg p-5">
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
@@ -305,6 +616,46 @@ export function ExerciseEditForm({ exercise: initial }: Props) {
         {statuses.video && (
           <p className="text-xs text-gray-400 mt-2">{statuses.video}</p>
         )}
+      </section>
+
+      {/* Danger Zone */}
+      <section className="border border-red-900 rounded-lg p-5 mt-4">
+        <h3 className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-1">
+          Danger Zone
+        </h3>
+        <p className="text-xs text-gray-500 mb-4">
+          Diese Aktion ist nicht umkehrbar. Die Übung wird samt aller verknüpften Session-Daten (absolvierte Sets, Trainingshistorie) und Plan-Blöcke gelöscht. Tippe den Slug der Übung ein um das Löschen zu bestätigen.
+        </p>
+        <p className="text-xs text-gray-400 mb-2">
+          Slug: <span className="font-mono text-gray-300">{exercise.slug}</span>
+        </p>
+        <div className="flex gap-3 items-center">
+          <input
+            type="text"
+            value={deleteConfirmSlug}
+            onChange={e => { setDeleteConfirmSlug(e.target.value); setDeleteStatus('') }}
+            placeholder={exercise.slug}
+            className="bg-gray-800 border border-red-900 rounded px-3 py-2 text-sm focus:outline-none focus:border-red-700 font-mono w-64"
+          />
+          <button
+            disabled={deleteConfirmSlug !== exercise.slug || isDeleting}
+            onClick={() => {
+              if (deleteConfirmSlug !== exercise.slug) return
+              startDeleteTransition(async () => {
+                try {
+                  await deleteExercise(exercise.id)
+                  router.push('/admin')
+                } catch {
+                  setDeleteStatus('Fehler beim Löschen')
+                }
+              })
+            }}
+            className="px-4 py-2 bg-red-700 text-white rounded text-sm font-medium hover:bg-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            {isDeleting ? 'Löschen...' : 'Übung löschen'}
+          </button>
+        </div>
+        {deleteStatus && <p className="text-xs text-red-400 mt-2">{deleteStatus}</p>}
       </section>
     </div>
   )

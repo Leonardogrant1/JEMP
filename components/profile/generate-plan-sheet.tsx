@@ -4,7 +4,7 @@ import { SelectableRow } from '@/components/ui/selectable-row';
 import { GeneratingView } from '@/components/ui/generating-view';
 import { SelectableChip } from '@/components/ui/selectable-chip';
 import { WeightSlider, HeightSlider } from '@/components/ui/measurement-slider';
-import { getCategoryLabel } from '@/constants/category-labels';
+import { getCategoryLabel, type CategoryI18n } from '@/constants/category-labels';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { getSportLabelI18n, SPORT_GROUPS } from '@/constants/sports';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
@@ -30,7 +30,7 @@ type GoalsSubPhase = 'select' | 'rank';
 
 interface EnvItem { id: string; slug: string; icon: keyof typeof Ionicons.glyphMap; name_i18n: Record<string, string> | null; description_i18n: Record<string, string> | null }
 interface EquipmentItem { id: string; slug: string; name_i18n: Record<string, string> | null }
-interface CategoryItem { id: string; slug: string; label: string }
+interface CategoryItem { id: string; slug: string; label: string; name_i18n: CategoryI18n }
 
 interface Props {
     visible: boolean;
@@ -138,13 +138,16 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
             supabase.from('environments').select('id, slug, name_i18n, description_i18n'),
             supabase.from('user_equipments').select('equipment_id').eq('user_id', profile.id),
             supabase.from('environment_equipments').select('environment_id, equipment:equipments(id, slug, name_i18n)'),
-            supabase.from('categories').select('id, slug'),
+            supabase.from('categories').select('id, slug, name_i18n'),
             supabase.from('user_targeted_categories').select('category_id, priority').eq('user_id', profile.id).order('priority'),
             supabase.from('user_environments').select('environment_id').eq('user_id', profile.id),
         ]).then(async ([envsRes, userEquipRes, envEqRes, catsRes, targetedRes, userEnvsRes]) => {
             // Categories
             const catItems: CategoryItem[] = (catsRes.data ?? []).map(c => ({
-                id: c.id, slug: c.slug, label: getCategoryLabel(c.slug, t),
+                id: c.id,
+                slug: c.slug,
+                name_i18n: c.name_i18n as CategoryI18n,
+                label: getCategoryLabel(c.slug, t, c.name_i18n as CategoryI18n),
             }));
             setAllCategories(catItems);
             if (targetedRes.data?.length) {
