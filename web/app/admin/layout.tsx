@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { supabase as adminClient } from '@/lib/supabase'
 import { SignOutButton } from './_components/SignOutButton'
+import { AdminSidebar } from './_components/AdminSidebar'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
@@ -13,9 +14,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
+        getAll() { return cookieStore.getAll() },
         setAll() {},
       },
     }
@@ -33,8 +32,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (profile?.role !== 'admin') redirect('/sign-in')
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+    <div className="h-screen bg-gray-950 text-white flex flex-col">
+      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between shrink-0">
         <Link href="/admin" className="text-lg font-semibold hover:opacity-80">
           JEMP Admin
         </Link>
@@ -43,7 +42,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <SignOutButton />
         </div>
       </header>
-      <main className="px-6 py-8">{children}</main>
+      <div className="flex flex-1 overflow-hidden">
+        <AdminSidebar />
+        <main className="flex-1 overflow-auto px-6 py-8">{children}</main>
+      </div>
     </div>
   )
 }
