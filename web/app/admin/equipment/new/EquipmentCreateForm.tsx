@@ -8,7 +8,7 @@ import { asI18n } from '@/lib/i18n'
 type Props = { environments: Environment[] }
 
 function isValidSlug(s: string): boolean {
-  return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(s)
+  return /^[a-z0-9]+(_[a-z0-9]+)*$/.test(s)
 }
 
 export function EquipmentCreateForm({ environments }: Props) {
@@ -23,7 +23,7 @@ export function EquipmentCreateForm({ environments }: Props) {
 
   const create = () => {
     if (!isValidSlug(slug)) {
-      setSlugError('Nur Kleinbuchstaben und Bindestriche erlaubt (z.B. pull-up-bar)')
+      setSlugError('Nur Kleinbuchstaben und Unterstriche erlaubt (z.B. pull_up_bar)')
       return
     }
     setSlugError('')

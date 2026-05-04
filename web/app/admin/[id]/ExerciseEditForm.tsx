@@ -86,7 +86,7 @@ function DropZone({
 }
 
 function isValidSlug(s: string): boolean {
-  return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(s)
+  return /^[a-z0-9]+(_[a-z0-9]+)*$/.test(s)
 }
 
 export function ExerciseEditForm({ exercise: initial, relations }: Props) {
@@ -142,7 +142,7 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
 
   const saveBasics = () => {
     if (!isValidSlug(slug)) {
-      setSlugError('Nur Kleinbuchstaben und Bindestriche erlaubt (z.B. back-squat)')
+      setSlugError('Nur Kleinbuchstaben und Unterstriche erlaubt (z.B. back_squat)')
       return
     }
     setSlugError('')

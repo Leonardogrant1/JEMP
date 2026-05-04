@@ -11,7 +11,7 @@ type Props = {
 }
 
 function isValidSlug(s: string): boolean {
-  return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(s)
+  return /^[a-z0-9]+(_[a-z0-9]+)*$/.test(s)
 }
 
 export function EquipmentEditForm({ equipment: initial, environments }: Props) {
@@ -26,7 +26,7 @@ export function EquipmentEditForm({ equipment: initial, environments }: Props) {
 
   const save = () => {
     if (!isValidSlug(slug)) {
-      setSlugError('Nur Kleinbuchstaben und Bindestriche erlaubt (z.B. pull-up-bar)')
+      setSlugError('Nur Kleinbuchstaben und Unterstriche erlaubt (z.B. pull_up_bar)')
       return
     }
     setSlugError('')

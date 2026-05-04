@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createCategory } from '../../../actions/sport-categories'
 
 function isValidSlug(s: string): boolean {
-  return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(s)
+  return /^[a-z0-9]+(_[a-z0-9]+)*$/.test(s)
 }
 
 export function SportCategoryCreateForm() {
@@ -21,7 +21,7 @@ export function SportCategoryCreateForm() {
 
   const create = () => {
     if (!isValidSlug(slug)) {
-      setSlugError('Nur Kleinbuchstaben und Bindestriche erlaubt')
+      setSlugError('Nur Kleinbuchstaben und Unterstriche erlaubt')
       return
     }
     setSlugError('')

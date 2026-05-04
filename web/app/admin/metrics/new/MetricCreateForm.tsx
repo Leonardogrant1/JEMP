@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createMetric, METRIC_UNITS, type MetricUnit } from '../../../actions/metrics'
 
 function isValidSlug(s: string): boolean {
-  return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(s)
+  return /^[a-z0-9]+(_[a-z0-9]+)*$/.test(s)
 }
 
 export function MetricCreateForm() {
@@ -21,7 +21,7 @@ export function MetricCreateForm() {
 
   const create = () => {
     if (!isValidSlug(slug)) {
-      setSlugError('Nur Kleinbuchstaben und Bindestriche erlaubt')
+      setSlugError('Nur Kleinbuchstaben und Unterstriche erlaubt')
       return
     }
     setSlugError('')

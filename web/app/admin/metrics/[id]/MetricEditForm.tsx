@@ -8,7 +8,7 @@ import { asI18n } from '@/lib/i18n'
 type Props = { metric: Metric }
 
 function isValidSlug(s: string): boolean {
-  return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(s)
+  return /^[a-z0-9]+(_[a-z0-9]+)*$/.test(s)
 }
 
 export function MetricEditForm({ metric: initial }: Props) {
@@ -24,7 +24,7 @@ export function MetricEditForm({ metric: initial }: Props) {
 
   const save = () => {
     if (!isValidSlug(slug)) {
-      setSlugError('Nur Kleinbuchstaben und Bindestriche erlaubt')
+      setSlugError('Nur Kleinbuchstaben und Unterstriche erlaubt')
       return
     }
     setSlugError('')
