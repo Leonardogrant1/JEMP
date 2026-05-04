@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateCategory, type SportCategory } from '../../../actions/sport-categories'
+import { asI18n } from '@/lib/i18n'
 
 type Props = { category: SportCategory }
 
@@ -13,10 +14,10 @@ function isValidSlug(s: string): boolean {
 export function SportCategoryEditForm({ category: initial }: Props) {
   const [slug, setSlug] = useState(initial.slug)
   const [slugError, setSlugError] = useState('')
-  const [nameEn, setNameEn] = useState(initial.name_i18n?.en ?? '')
-  const [nameDe, setNameDe] = useState(initial.name_i18n?.de ?? '')
-  const [descEn, setDescEn] = useState(initial.description_i18n?.en ?? '')
-  const [descDe, setDescDe] = useState(initial.description_i18n?.de ?? '')
+  const [nameEn, setNameEn] = useState(asI18n(initial.name_i18n).en)
+  const [nameDe, setNameDe] = useState(asI18n(initial.name_i18n).de)
+  const [descEn, setDescEn] = useState(asI18n(initial.description_i18n).en)
+  const [descDe, setDescDe] = useState(asI18n(initial.description_i18n).de)
   const [status, setStatus] = useState('')
   const [isPending, startTransition] = useTransition()
   const router = useRouter()

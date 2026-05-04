@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getAssessments } from '../../actions/assessments'
+import { asI18n } from '@/lib/i18n'
 
 export default async function AssessmentsListPage() {
   const assessments = await getAssessments()
@@ -32,7 +33,7 @@ export default async function AssessmentsListPage() {
                   {a.slug}
                 </Link>
               </td>
-              <td className="py-3 pr-6">{a.name_i18n?.de ?? a.name ?? '—'}</td>
+              <td className="py-3 pr-6">{asI18n(a.name_i18n).de || a.name || '—'}</td>
               <td className="py-3 pr-6 text-gray-400">{a.category_slug}</td>
               <td className="py-3 text-gray-400">{a.metric_slug} <span className="text-gray-600">({a.metric_unit})</span></td>
             </tr>

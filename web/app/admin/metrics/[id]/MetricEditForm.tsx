@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateMetric, METRIC_UNITS, type Metric, type MetricUnit } from '../../../actions/metrics'
+import { asI18n } from '@/lib/i18n'
 
 type Props = { metric: Metric }
 
@@ -13,8 +14,8 @@ function isValidSlug(s: string): boolean {
 export function MetricEditForm({ metric: initial }: Props) {
   const [slug, setSlug] = useState(initial.slug)
   const [slugError, setSlugError] = useState('')
-  const [nameEn, setNameEn] = useState(initial.name_i18n?.en ?? '')
-  const [nameDe, setNameDe] = useState(initial.name_i18n?.de ?? '')
+  const [nameEn, setNameEn] = useState(asI18n(initial.name_i18n).en)
+  const [nameDe, setNameDe] = useState(asI18n(initial.name_i18n).de)
   const [unit, setUnit] = useState<MetricUnit>(initial.unit)
   const [higherIsBetter, setHigherIsBetter] = useState(initial.higher_is_better)
   const [status, setStatus] = useState('')

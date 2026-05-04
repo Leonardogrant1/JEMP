@@ -5,8 +5,8 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database, Json } from '../../../database.types'
 
-type BodyRegion = Database['public']['Enums']['body_region']
-type MovementPattern = Database['public']['Enums']['movement_pattern']
+export type BodyRegion = Database['public']['Enums']['body_region']
+export type MovementPattern = Database['public']['Enums']['movement_pattern']
 
 export type ExerciseListItem = {
   id: string

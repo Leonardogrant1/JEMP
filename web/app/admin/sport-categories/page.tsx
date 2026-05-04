@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getCategories } from '../../actions/sport-categories'
+import { asI18n } from '@/lib/i18n'
 
 export default async function SportCategoriesListPage() {
   const categories = await getCategories()
@@ -31,8 +32,8 @@ export default async function SportCategoriesListPage() {
                   {cat.slug}
                 </Link>
               </td>
-              <td className="py-3 pr-6">{cat.name_i18n?.de ?? '—'}</td>
-              <td className="py-3 pr-6 text-gray-400">{cat.name_i18n?.en ?? '—'}</td>
+              <td className="py-3 pr-6">{asI18n(cat.name_i18n).de || '—'}</td>
+              <td className="py-3 pr-6 text-gray-400">{asI18n(cat.name_i18n).en || '—'}</td>
             </tr>
           ))}
         </tbody>

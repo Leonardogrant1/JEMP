@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateEquipment, type Equipment, type Environment } from '../../../actions/equipment'
+import { asI18n } from '@/lib/i18n'
 
 type Props = {
   equipment: Equipment & { environmentIds: string[] }
@@ -14,8 +15,8 @@ function isValidSlug(s: string): boolean {
 }
 
 export function EquipmentEditForm({ equipment: initial, environments }: Props) {
-  const [nameEn, setNameEn] = useState(initial.name_i18n?.en ?? '')
-  const [nameDe, setNameDe] = useState(initial.name_i18n?.de ?? '')
+  const [nameEn, setNameEn] = useState(asI18n(initial.name_i18n).en)
+  const [nameDe, setNameDe] = useState(asI18n(initial.name_i18n).de)
   const [slug, setSlug] = useState(initial.slug)
   const [slugError, setSlugError] = useState('')
   const [environmentIds, setEnvironmentIds] = useState<string[]>(initial.environmentIds)
@@ -95,7 +96,7 @@ export function EquipmentEditForm({ equipment: initial, environments }: Props) {
                 }}
                 className="rounded border-gray-600 bg-gray-800"
               />
-              <span className="text-gray-300">{env.name_i18n?.de ?? env.slug}</span>
+              <span className="text-gray-300">{asI18n(env.name_i18n).de || env.slug}</span>
             </label>
           ))}
         </div>

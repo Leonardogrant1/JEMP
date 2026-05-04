@@ -7,14 +7,18 @@ import {
   updateExercise,
   deleteExercise,
   type Exercise,
+  type MovementPattern,
+  type BodyRegion,
 } from '../../actions/exercises'
+import { asI18n } from '@/lib/i18n'
+import type { Json } from '../../../../database.types'
 
 type Props = {
   exercise: Exercise & { equipmentIds: string[]; environmentIds: string[] }
   relations: {
-    categories: { id: string; slug: string; name_i18n: { en: string; de: string } | null }[]
-    equipments: { id: string; slug: string; name_i18n: { en: string; de: string } | null }[]
-    environments: { id: string; slug: string; name_i18n: { en: string; de: string } | null }[]
+    categories: { id: string; slug: string; name_i18n: Json | null }[]
+    equipments: { id: string; slug: string; name_i18n: Json | null }[]
+    environments: { id: string; slug: string; name_i18n: Json | null }[]
   }
 }
 
@@ -103,8 +107,8 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
   const [categoryId, setCategoryId] = useState(initial.category_id ?? '')
 
   // Description
-  const [descEn, setDescEn] = useState(initial.description_i18n?.en ?? '')
-  const [descDe, setDescDe] = useState(initial.description_i18n?.de ?? '')
+  const [descEn, setDescEn] = useState(asI18n(initial.description_i18n).en)
+  const [descDe, setDescDe] = useState(asI18n(initial.description_i18n).de)
 
   // Classification
   const [movementPattern, setMovementPattern] = useState(initial.movement_pattern ?? '')
@@ -171,10 +175,10 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
     startTransition(async () => {
       try {
         await updateExercise(exercise.id, {
-          movement_pattern: movementPattern || null,
-          body_region: bodyRegion || null,
-          min_level: minLevel ? Number(minLevel) : null,
-          max_level: maxLevel ? Number(maxLevel) : null,
+          movement_pattern: (movementPattern as MovementPattern) || null,
+          body_region: (bodyRegion as BodyRegion) || null,
+          min_level: minLevel ? Number(minLevel) : undefined,
+          max_level: maxLevel ? Number(maxLevel) : undefined,
         })
         setStatus('classification', 'Saved ✓')
       } catch {
@@ -328,7 +332,7 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
               <option value="">— keine —</option>
               {relations.categories.map(cat => (
                 <option key={cat.id} value={cat.id}>
-                  {cat.name_i18n?.de ?? cat.slug}
+                  {asI18n(cat.name_i18n).de || cat.slug}
                 </option>
               ))}
             </select>
@@ -450,7 +454,7 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
                 }}
                 className="rounded border-gray-600 bg-gray-800"
               />
-              <span className="text-gray-300">{eq.name_i18n?.de ?? eq.slug}</span>
+              <span className="text-gray-300">{asI18n(eq.name_i18n).de || eq.slug}</span>
             </label>
           ))}
         </div>
@@ -478,7 +482,7 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
                 }}
                 className="rounded border-gray-600 bg-gray-800"
               />
-              <span className="text-gray-300">{env.name_i18n?.de ?? env.slug}</span>
+              <span className="text-gray-300">{asI18n(env.name_i18n).de || env.slug}</span>
             </label>
           ))}
         </div>

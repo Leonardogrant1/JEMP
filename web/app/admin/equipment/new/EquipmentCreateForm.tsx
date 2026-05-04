@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createEquipment, type Environment } from '../../../actions/equipment'
+import { asI18n } from '@/lib/i18n'
 
 type Props = { environments: Environment[] }
 
@@ -92,7 +93,7 @@ export function EquipmentCreateForm({ environments }: Props) {
                 }}
                 className="rounded border-gray-600 bg-gray-800"
               />
-              <span className="text-gray-300">{env.name_i18n?.de ?? env.slug}</span>
+              <span className="text-gray-300">{asI18n(env.name_i18n).de || env.slug}</span>
             </label>
           ))}
         </div>

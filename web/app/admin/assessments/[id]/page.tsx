@@ -4,6 +4,7 @@ import { getCategories } from '../../../actions/sport-categories'
 import { getMetrics } from '../../../actions/metrics'
 import { getEquipments } from '../../../actions/equipment'
 import { AssessmentEditForm } from './AssessmentEditForm'
+import { asI18n } from '@/lib/i18n'
 
 export default async function AssessmentEditPage({
   params,
@@ -23,7 +24,7 @@ export default async function AssessmentEditPage({
       <Link href="/admin/assessments" className="text-sm text-gray-400 hover:text-white mb-6 block">
         ← Zurück zu Assessments
       </Link>
-      <h2 className="text-2xl font-semibold mb-8">{assessment.name_i18n?.de ?? assessment.name}</h2>
+      <h2 className="text-2xl font-semibold mb-8">{asI18n(assessment.name_i18n).de || assessment.name}</h2>
       <AssessmentEditForm
         assessment={assessment}
         categories={categories}

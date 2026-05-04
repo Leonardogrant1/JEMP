@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getMetrics } from '../../actions/metrics'
+import { asI18n } from '@/lib/i18n'
 
 export default async function MetricsListPage() {
   const metrics = await getMetrics()
@@ -32,7 +33,7 @@ export default async function MetricsListPage() {
                   {metric.slug}
                 </Link>
               </td>
-              <td className="py-3 pr-6">{metric.name_i18n?.de ?? '—'}</td>
+              <td className="py-3 pr-6">{asI18n(metric.name_i18n).de || '—'}</td>
               <td className="py-3 pr-4 text-gray-400">{metric.unit}</td>
               <td className="py-3">
                 <span className={metric.higher_is_better ? 'text-green-400' : 'text-red-400'}>

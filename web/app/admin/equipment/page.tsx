@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getEquipments } from '../../actions/equipment'
+import { asI18n } from '@/lib/i18n'
 
 export default async function EquipmentListPage() {
   const equipments = await getEquipments()
@@ -31,8 +32,8 @@ export default async function EquipmentListPage() {
                   {eq.slug}
                 </Link>
               </td>
-              <td className="py-3 pr-6">{eq.name_i18n?.de ?? '—'}</td>
-              <td className="py-3 pr-6 text-gray-400">{eq.name_i18n?.en ?? '—'}</td>
+              <td className="py-3 pr-6">{asI18n(eq.name_i18n).de || '—'}</td>
+              <td className="py-3 pr-6 text-gray-400">{asI18n(eq.name_i18n).en || '—'}</td>
             </tr>
           ))}
         </tbody>

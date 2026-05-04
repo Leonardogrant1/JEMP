@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateAssessment, type AssessmentWithRelations } from '../../../actions/assessments'
+import { asI18n } from '@/lib/i18n'
 import type { SportCategory } from '../../../actions/sport-categories'
 import type { Metric } from '../../../actions/metrics'
 import type { Equipment } from '../../../actions/equipment'
@@ -22,15 +23,15 @@ export function AssessmentEditForm({ assessment: initial, categories, metrics, e
   const [slug, setSlug] = useState(initial.slug)
   const [slugError, setSlugError] = useState('')
   const [name, setName] = useState(initial.name ?? '')
-  const [nameEn, setNameEn] = useState(initial.name_i18n?.en ?? '')
-  const [nameDe, setNameDe] = useState(initial.name_i18n?.de ?? '')
-  const [descEn, setDescEn] = useState(initial.description_i18n?.en ?? '')
-  const [descDe, setDescDe] = useState(initial.description_i18n?.de ?? '')
+  const [nameEn, setNameEn] = useState(asI18n(initial.name_i18n).en)
+  const [nameDe, setNameDe] = useState(asI18n(initial.name_i18n).de)
+  const [descEn, setDescEn] = useState(asI18n(initial.description_i18n).en)
+  const [descDe, setDescDe] = useState(asI18n(initial.description_i18n).de)
   const [categoryId, setCategoryId] = useState(initial.category_id ?? '')
   const [metricId, setMetricId] = useState(initial.measured_metric_id ?? '')
   const [minLevel, setMinLevel] = useState(String(initial.min_level ?? ''))
   const [maxLevel, setMaxLevel] = useState(String(initial.max_level ?? ''))
-  const [equipmentIds, setEquipmentIds] = useState<string[]>(initial.equipmentIds)
+  const [equipmentIds, setEquipmentIds] = useState<string[]>(initial.equipmentIds.filter((id): id is string => id !== null))
   const [status, setStatus] = useState('')
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
@@ -144,7 +145,7 @@ export function AssessmentEditForm({ assessment: initial, categories, metrics, e
               <option value="">— keine —</option>
               {categories.map(cat => (
                 <option key={cat.id} value={cat.id}>
-                  {cat.name_i18n?.de ?? cat.slug}
+                  {asI18n(cat.name_i18n).de || cat.slug}
                 </option>
               ))}
             </select>
@@ -159,7 +160,7 @@ export function AssessmentEditForm({ assessment: initial, categories, metrics, e
               <option value="">— keine —</option>
               {metrics.map(m => (
                 <option key={m.id} value={m.id}>
-                  {m.name_i18n?.de ?? m.slug} ({m.unit})
+                  {asI18n(m.name_i18n).de || m.slug} ({m.unit})
                 </option>
               ))}
             </select>
@@ -204,7 +205,7 @@ export function AssessmentEditForm({ assessment: initial, categories, metrics, e
                 }}
                 className="rounded border-gray-600 bg-gray-800"
               />
-              <span className="text-gray-300">{eq.name_i18n?.de ?? eq.slug}</span>
+              <span className="text-gray-300">{asI18n(eq.name_i18n).de || eq.slug}</span>
             </label>
           ))}
         </div>

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createAssessment } from '../../../actions/assessments'
+import { asI18n } from '@/lib/i18n'
 import type { SportCategory } from '../../../actions/sport-categories'
 import type { Metric } from '../../../actions/metrics'
 import type { Equipment } from '../../../actions/equipment'
@@ -143,7 +144,7 @@ export function AssessmentCreateForm({ categories, metrics, equipments }: Props)
               <option value="">— keine —</option>
               {categories.map(cat => (
                 <option key={cat.id} value={cat.id}>
-                  {cat.name_i18n?.de ?? cat.slug}
+                  {asI18n(cat.name_i18n).de || cat.slug}
                 </option>
               ))}
             </select>
@@ -158,7 +159,7 @@ export function AssessmentCreateForm({ categories, metrics, equipments }: Props)
               <option value="">— keine —</option>
               {metrics.map(m => (
                 <option key={m.id} value={m.id}>
-                  {m.name_i18n?.de ?? m.slug} ({m.unit})
+                  {asI18n(m.name_i18n).de || m.slug} ({m.unit})
                 </option>
               ))}
             </select>
@@ -203,7 +204,7 @@ export function AssessmentCreateForm({ categories, metrics, equipments }: Props)
                 }}
                 className="rounded border-gray-600 bg-gray-800"
               />
-              <span className="text-gray-300">{eq.name_i18n?.de ?? eq.slug}</span>
+              <span className="text-gray-300">{asI18n(eq.name_i18n).de || eq.slug}</span>
             </label>
           ))}
         </div>
