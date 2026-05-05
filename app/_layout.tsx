@@ -101,6 +101,7 @@ export default function RootLayout() {
 }
 
 
+
 function MainStack({ languageReady }: { languageReady: boolean }) {
   const { profile, isLoading } = useCurrentUser();
   const [fontsLoaded] = useFonts({

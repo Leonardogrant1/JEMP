@@ -156,6 +156,8 @@ const en = {
     'ui.finish_session_message': 'Are you sure you want to finish this session?',
     'ui.finish': 'Finish',
     'ui.cancel': 'Cancel',
+    'ui.congrats_title': 'Workout complete!',
+    'ui.view_summary': 'View summary',
     'ui.set': 'Set',
     'ui.target': 'Target',
     'ui.exercise_of': 'Exercise {{current}} of {{total}}',

@@ -11,7 +11,7 @@ async function upsertPerformedSets(sets: PerformedSetInput[]) {
     const { data, error } = await supabase
         .from('workout_session_performed_sets')
         .upsert(sets, {
-            onConflict: 'workout_session_block_exercise_id,set_number',
+            onConflict: 'workout_session_block_exercise_id,set_number,side',
         })
         .select('id');
 

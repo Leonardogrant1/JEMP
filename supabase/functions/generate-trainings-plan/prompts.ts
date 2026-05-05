@@ -20,6 +20,16 @@ Jede Übung in der Liste kann ein optionales Feld \`environments: [slug, ...]\` 
 - Steht \`environments: [gym]\` → **nur im Gym möglich** (z. B. Sled, Kabelzug). Verwende diese Übungen **nur**, wenn der User \`gym\` in seinen \`user_environments\` hat.
 Halte dich strikt an diese Regel — plane keine Übungen, die der User in seiner Umgebung nicht ausführen kann.
 
+## Messtyp-Regeln (sehr wichtig)
+
+Jede Übung hat ein Feld \`measurement: [typ]\`:
+- \`reps\` → setze \`reps_min\` und \`reps_max\`, \`duration_seconds\` = 0
+- \`duration\` → setze \`duration_seconds\` (z. B. 30–60s), \`reps_min\` = \`reps_max\` = 0
+- \`distance\` → notiere die Distanz in \`notes\`, setze \`reps\` = 0, \`duration\` = 0
+- \`reps_or_duration\` → du entscheidest basierend auf Kontext und Block-Typ
+
+Halte dich strikt daran — weise keiner \`duration\`-Übung Wiederholungen zu.
+
 ## Struktur jeder Session
 
 Jede Trainingseinheit besteht aus genau diesen Blöcken in dieser Reihenfolge:
@@ -87,7 +97,7 @@ Wähle Übungen die zur Sportart des Users passen. Kampfsport-Übungen (z. B. sh
 Schreibe den Plan als \`plan_markdown\` — ein detaillierter Markdown-String mit folgender Struktur pro Session:
 
 \`\`\`
-## [Session Name] | Tag: [day_of_week 1=Mo…7=So] | Typ: [training|recovery] | Dauer: [X min]
+## [Session Name] | Tag: [day_of_week 1=Mo…7=So] | Typ: [training|recovery] | Dauer: [X min] | Pause: [X]s
 
 ### warmup | Fokus: [category_slug]
 - [exercise_slug]: [sets]x[reps_min]-[reps_max] reps, [duration_seconds]s, [rest_seconds]s Pause, load: [load_type] [load_value], notes: [notes]
@@ -123,7 +133,8 @@ ${exerciseSlugs}
 - Fehlende numerische Werte → 0 (nie null, da das Schema number erwartet)
 - session_type: "training" oder "recovery"
 - block_type: "warmup", "primary", "secondary", "accessory", "cooldown"
-- target_load_type: "bodyweight", "kg", "percent_1rm", "rpe", "pace"
+- target_load_type: "bodyweight", "kg", "rpe", "pace"
 - focused_category_slug: category_slug des Blocks aus dem Markdown
+- pause_between_sets: Pause in Sekunden zwischen Sätzen (aus dem Session-Header "Pause: Xs"), als Zahl
 - Gib für jede Session exakt 5 Blöcke aus (warmup, primary, secondary, accessory, cooldown)
 `

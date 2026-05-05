@@ -30,6 +30,8 @@ export function ExerciseCreateForm({ categories, equipments, environments }: Pro
   const [bodyRegion, setBodyRegion] = useState('')
   const [minLevel, setMinLevel] = useState('')
   const [maxLevel, setMaxLevel] = useState('')
+  const [isUnilateral, setIsUnilateral] = useState(false)
+  const [measurementType, setMeasurementType] = useState('reps_or_duration')
 
   const [equipmentIds, setEquipmentIds] = useState<string[]>([])
   const [environmentIds, setEnvironmentIds] = useState<string[]>([])
@@ -57,6 +59,8 @@ export function ExerciseCreateForm({ categories, equipments, environments }: Pro
           description_i18n: (descDe || descEn) ? { de: descDe, en: descEn } : undefined,
           movement_pattern: (movementPattern as MovementPattern) || null,
           body_region: (bodyRegion as BodyRegion) || null,
+          is_unilateral: isUnilateral,
+          measurement_type: measurementType,
           min_level: minLevel ? Number(minLevel) : undefined,
           max_level: maxLevel ? Number(maxLevel) : undefined,
           equipmentIds,
@@ -169,6 +173,30 @@ export function ExerciseCreateForm({ categories, equipments, environments }: Pro
               {['ankle','calf','knee','quad','hamstring','glute','hip','groin','lower_back','core','obliques','thoracic','upper_back','chest','shoulder','bicep','tricep','forearm','full_body','neck'].map(r => (
                 <option key={r} value={r}>{r}</option>
               ))}
+            </select>
+          </div>
+          <div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isUnilateral}
+                onChange={e => setIsUnilateral(e.target.checked)}
+                className="rounded border-gray-600 bg-gray-800"
+              />
+              <span className="text-gray-300">Unilateral <span className="text-gray-500 text-xs">(Sätze pro Seite)</span></span>
+            </label>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Messtyp</label>
+            <select
+              value={measurementType}
+              onChange={e => setMeasurementType(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+            >
+              <option value="reps_or_duration">Flexibel (KI entscheidet)</option>
+              <option value="reps">Wiederholungen (reps)</option>
+              <option value="duration">Zeit (duration)</option>
+              <option value="distance">Distanz (distance)</option>
             </select>
           </div>
           <div className="flex gap-3">

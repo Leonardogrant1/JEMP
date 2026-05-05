@@ -46,7 +46,8 @@
           "iosUrlScheme": "com.googleusercontent.apps.855255853074-c396ffah7fudi5coiairklfpe09984k1"
         }
       ],
-      "react-native-appsflyer"
+      "react-native-appsflyer",
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,

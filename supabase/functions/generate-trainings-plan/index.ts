@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
 
     // ── 4. Fetch exercise ↔ equipment map + all exercises ───────────────────
 
-    const exerciseSelect = "*, categories(id, slug), exercise_blocks(block_types(slug))"
+    const exerciseSelect = "*, measurement_type, categories(id, slug), exercise_blocks(block_types(slug))"
 
     const [{ data: allEquipmentRows }, { data: allExercises }] = await Promise.all([
       supabase.from("exercise_equipments").select("exercise_id, equipment_id"),
@@ -183,7 +183,8 @@ Deno.serve(async (req) => {
         const envTag = allowedEnvs && allowedEnvs.size > 0
           ? `, environments: [${[...allowedEnvs].map(id => envSlugMap.get(id) ?? id).join(", ")}]`
           : ""
-        return `[${e.slug}]: ${e.name}, category: ${e.categories?.slug}, blocks: [${blocks}]${envTag}`
+        const mType = e.measurement_type ?? 'reps_or_duration'
+        return `[${e.slug}]: ${e.name}, category: ${e.categories?.slug}, blocks: [${blocks}], measurement: ${mType}${envTag}`
       })
       .join("\n")
 
@@ -332,6 +333,7 @@ Deno.serve(async (req) => {
           day_of_week: aiSession.day_of_week,
           order_index: aiSession.order_index,
           estimated_duration_minutes: nz(aiSession.estimated_duration_minutes),
+          pause_between_sets: aiSession.pause_between_sets > 0 ? aiSession.pause_between_sets : 90,
         })
         .select("id")
         .single()
@@ -442,7 +444,7 @@ Deno.serve(async (req) => {
 
     const { data: allPlanSessions } = await supabase
       .from("workout_plan_sessions")
-      .select("id, day_of_week, name, description, session_type, estimated_duration_minutes")
+      .select("id, day_of_week, name, description, session_type, estimated_duration_minutes, pause_between_sets")
       .eq("plan_id", planId)
 
     if (!allPlanSessions || allPlanSessions.length === 0) {
@@ -470,6 +472,7 @@ Deno.serve(async (req) => {
           scheduled_at: date.toISOString(),
           status: "scheduled",
           estimated_duration_minutes: planSession.estimated_duration_minutes,
+          pause_between_sets: (planSession as any).pause_between_sets ?? 90,
         })
       }
     }

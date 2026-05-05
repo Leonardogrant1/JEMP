@@ -17,7 +17,7 @@ async function fetchSessionSummary(id: string) {
                     target_load_type, target_load_value, target_rest_seconds,
                     exercise:exercises ( id, name, body_region ),
                     workout_session_performed_sets (
-                        set_number, performed_reps, performed_load_value,
+                        set_number, side, performed_reps, performed_load_value,
                         performed_rpe, performed_duration_seconds
                     )
                 )
@@ -37,7 +37,7 @@ async function fetchSessionSummary(id: string) {
                 .map((ex) => ({
                     ...ex,
                     performed_sets: (ex.workout_session_performed_sets ?? [])
-                        .sort((a, b) => a.set_number - b.set_number),
+                        .sort((a, b) => a.set_number - b.set_number || (a.side ?? '').localeCompare(b.side ?? '')),
                 }))
                 .sort((a, b) => a.order_index - b.order_index),
         }))

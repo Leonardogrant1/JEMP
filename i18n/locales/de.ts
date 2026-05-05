@@ -158,6 +158,8 @@ const de: Record<TranslationKeys, string> = {
     'ui.finish_session_message': 'Bist du sicher, dass du diese Session beenden möchtest?',
     'ui.finish': 'Beenden',
     'ui.cancel': 'Abbrechen',
+    'ui.congrats_title': 'Workout abgeschlossen!',
+    'ui.view_summary': 'Zusammenfassung anzeigen',
     'ui.set': 'Satz',
     'ui.target': 'Ziel',
     'ui.exercise_of': 'Übung {{current}} von {{total}}',

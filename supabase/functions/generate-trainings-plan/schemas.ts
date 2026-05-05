@@ -10,7 +10,7 @@ const exerciseSchema = z.object({
   target_duration_seconds: z.number(),
   target_distance_meters: z.number(),
   target_rest_seconds: z.number(),
-  target_load_type: z.enum(["bodyweight", "kg", "percent_1rm", "rpe", "pace"]),
+  target_load_type: z.enum(["bodyweight", "kg", "rpe", "pace"]),
   target_load_value: z.number(),
 })
 
@@ -28,7 +28,7 @@ const sessionSchema = z.object({
   order_index: z.number(),
   session_type: z.enum(["training", "recovery"]),
   description: z.string(),
-  pause_between_exercises: z.number(),
+  pause_between_sets: z.number(),
   blocks: z.array(blockSchema),
 })
 

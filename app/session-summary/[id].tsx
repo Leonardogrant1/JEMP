@@ -93,8 +93,8 @@ export default function SessionSummaryScreen() {
                     <View style={styles.completedIcon}>
                         <Ionicons name="checkmark-circle" size={36} color={GradientMid} />
                     </View>
-                    <JempText type="hero">{session.name}</JempText>
-                    <JempText type="body-sm" color={theme.textMuted}>
+                    <JempText type="hero" style={{ textAlign: 'center' }}>{session.name}</JempText>
+                    <JempText type="body-sm" color={theme.textMuted} style={{ textAlign: 'center' }}>
                         {t(`session_type.${session.session_type}`)}
                     </JempText>
                 </View>
@@ -160,64 +160,73 @@ export default function SessionSummaryScreen() {
                             </View>
 
                             <View style={styles.exerciseGrid}>
-                            {block.exercises.map(ex => {
-                                if (ex.performed_sets.length === 0) return null;
-                                const unit = loadUnit(ex.target_load_type);
+                                {block.exercises.map(ex => {
+                                    if (ex.performed_sets.length === 0) return null;
+                                    const unit = loadUnit(ex.target_load_type);
 
-                                return (
-                                    <View key={ex.id} style={[styles.exerciseCard, { backgroundColor: theme.surface }]}>
-                                        <View style={styles.exerciseHeader}>
-                                            <View style={styles.exerciseNameWrap}>
-                                                <JempText type="body-l" color={theme.text}>
-                                                    {ex.exercise.name}
-                                                </JempText>
-                                                {ex.exercise.body_region && (
-                                                    <JempText type="caption" color={theme.textMuted}>
-                                                        {t(`body_region.${ex.exercise.body_region}`)}
+                                    return (
+                                        <View key={ex.id} style={[styles.exerciseCard, { backgroundColor: theme.surface }]}>
+                                            <View style={styles.exerciseHeader}>
+                                                <View style={styles.exerciseNameWrap}>
+                                                    <JempText type="body-l" color={theme.text}>
+                                                        {ex.exercise.name}
                                                     </JempText>
-                                                )}
-                                            </View>
-                                        </View>
-
-                                        {/* Set results */}
-                                        <View style={styles.setGrid}>
-                                            <View style={styles.setHeaderRow}>
-                                                <JempText type="caption" color={theme.textMuted} style={styles.colSet}>
-                                                    {t('ui.set')}
-                                                </JempText>
-                                                {unit !== '' && (
-                                                    <JempText type="caption" color={theme.textMuted} style={styles.colValue}>
-                                                        {t('ui.load')}
-                                                    </JempText>
-                                                )}
-                                                <JempText type="caption" color={theme.textMuted} style={styles.colValue}>
-                                                    {t('ui.reps')}
-                                                </JempText>
-                                            </View>
-                                            {ex.performed_sets.map(set => (
-                                                <View
-                                                    key={set.set_number}
-                                                    style={[styles.setRow, { borderTopColor: theme.borderDivider }]}
-                                                >
-                                                    <JempText type="body-sm" color={theme.textMuted} style={styles.colSet}>
-                                                        {set.set_number}
-                                                    </JempText>
-                                                    {unit !== '' && (
-                                                        <JempText type="body-sm" color={theme.text} style={styles.colValue}>
-                                                            {set.performed_load_value != null
-                                                                ? `${set.performed_load_value} ${unit}`
-                                                                : '–'}
+                                                    {ex.exercise.body_region && (
+                                                        <JempText type="caption" color={theme.textMuted}>
+                                                            {t(`body_region.${ex.exercise.body_region}`)}
                                                         </JempText>
                                                     )}
-                                                    <JempText type="body-sm" color={theme.text} style={styles.colValue}>
-                                                        {set.performed_reps ?? '–'}
+                                                </View>
+                                            </View>
+
+                                            {/* Set results */}
+                                            <View style={styles.setGrid}>
+                                                <View style={styles.setHeaderRow}>
+                                                    <JempText type="caption" color={theme.textMuted} style={styles.colSet}>
+                                                        {t('ui.set')}
+                                                    </JempText>
+                                                    {unit !== '' && (
+                                                        <JempText type="caption" color={theme.textMuted} style={styles.colValue}>
+                                                            {t('ui.load')}
+                                                        </JempText>
+                                                    )}
+                                                    <JempText type="caption" color={theme.textMuted} style={styles.colValue}>
+                                                        {t('ui.reps')}
                                                     </JempText>
                                                 </View>
-                                            ))}
+                                                {ex.performed_sets.map((set, si) => (
+                                                    <View
+                                                        key={`${ex.id}-${si}`}
+                                                        style={[styles.setRow, { borderTopColor: theme.borderDivider }]}
+                                                    >
+                                                        <JempText type="body-sm" color={theme.textMuted} style={styles.colSet}>
+                                                            {set.set_number}
+                                                            {set.side && set.side !== 'bilateral' && (
+                                                                <JempText type="body-sm" color={theme.textMuted}>
+                                                                    {` ${set.side === 'left' ? 'L' : 'R'}`}
+                                                                </JempText>
+                                                            )}
+                                                        </JempText>
+                                                        {unit !== '' && (
+                                                            <JempText type="body-sm" color={theme.text} style={styles.colValue}>
+                                                                {set.performed_load_value != null
+                                                                    ? `${set.performed_load_value} ${unit}`
+                                                                    : '–'}
+                                                            </JempText>
+                                                        )}
+                                                        <JempText type="body-sm" color={theme.text} style={styles.colValue}>
+                                                            {set.performed_duration_seconds != null
+                                                                ? `${set.performed_duration_seconds}s`
+                                                                : set.performed_reps != null
+                                                                    ? String(set.performed_reps)
+                                                                    : '–'}
+                                                        </JempText>
+                                                    </View>
+                                                ))}
+                                            </View>
                                         </View>
-                                    </View>
-                                );
-                            })}
+                                    );
+                                })}
                             </View>
                         </View>
                     );

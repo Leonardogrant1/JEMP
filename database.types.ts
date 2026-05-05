@@ -426,7 +426,9 @@ export type Database = {
           description: string | null
           description_i18n: Json | null
           id: string
+          is_unilateral: boolean
           max_level: number
+          measurement_type: string
           min_level: number
           movement_pattern:
             | Database["public"]["Enums"]["movement_pattern"]
@@ -445,7 +447,9 @@ export type Database = {
           description?: string | null
           description_i18n?: Json | null
           id?: string
+          is_unilateral?: boolean
           max_level: number
+          measurement_type?: string
           min_level: number
           movement_pattern?:
             | Database["public"]["Enums"]["movement_pattern"]
@@ -464,7 +468,9 @@ export type Database = {
           description?: string | null
           description_i18n?: Json | null
           id?: string
+          is_unilateral?: boolean
           max_level?: number
+          measurement_type?: string
           min_level?: number
           movement_pattern?:
             | Database["public"]["Enums"]["movement_pattern"]
@@ -1106,6 +1112,7 @@ export type Database = {
           id: string
           name: string
           order_index: number
+          pause_between_sets: number
           plan_id: string | null
           session_type: Database["public"]["Enums"]["session_type"]
           updated_at: string | null
@@ -1118,6 +1125,7 @@ export type Database = {
           id?: string
           name: string
           order_index: number
+          pause_between_sets?: number
           plan_id?: string | null
           session_type: Database["public"]["Enums"]["session_type"]
           updated_at?: string | null
@@ -1130,6 +1138,7 @@ export type Database = {
           id?: string
           name?: string
           order_index?: number
+          pause_between_sets?: number
           plan_id?: string | null
           session_type?: Database["public"]["Enums"]["session_type"]
           updated_at?: string | null
@@ -1394,6 +1403,7 @@ export type Database = {
           performed_reps: number | null
           performed_rpe: number | null
           set_number: number
+          side: string
           updated_at: string
           workout_session_block_exercise_id: string
           workout_session_block_id: string
@@ -1408,6 +1418,7 @@ export type Database = {
           performed_reps?: number | null
           performed_rpe?: number | null
           set_number: number
+          side?: string
           updated_at?: string
           workout_session_block_exercise_id: string
           workout_session_block_id: string
@@ -1422,6 +1433,7 @@ export type Database = {
           performed_reps?: number | null
           performed_rpe?: number | null
           set_number?: number
+          side?: string
           updated_at?: string
           workout_session_block_exercise_id?: string
           workout_session_block_id?: string
@@ -1461,6 +1473,7 @@ export type Database = {
           estimated_duration_minutes: number | null
           id: string
           name: string
+          pause_between_sets: number
           scheduled_at: string | null
           session_type: Database["public"]["Enums"]["session_type"] | null
           started_at: string | null
@@ -1479,6 +1492,7 @@ export type Database = {
           estimated_duration_minutes?: number | null
           id?: string
           name: string
+          pause_between_sets?: number
           scheduled_at?: string | null
           session_type?: Database["public"]["Enums"]["session_type"] | null
           started_at?: string | null
@@ -1497,6 +1511,7 @@ export type Database = {
           estimated_duration_minutes?: number | null
           id?: string
           name?: string
+          pause_between_sets?: number
           scheduled_at?: string | null
           session_type?: Database["public"]["Enums"]["session_type"] | null
           started_at?: string | null

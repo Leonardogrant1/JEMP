@@ -24,6 +24,8 @@ export type Exercise = ExerciseListItem & {
   category_id: string | null
   min_level: number | null
   max_level: number | null
+  is_unilateral: boolean
+  measurement_type: string
 }
 
 async function requireUser() {
@@ -70,7 +72,7 @@ export async function getExercise(id: string): Promise<Exercise & { equipmentIds
   const { data, error } = await supabase
     .from('exercises')
     .select(`
-      id, name, slug, description_i18n, movement_pattern, body_region, category_id, min_level, max_level,
+      id, name, slug, description_i18n, movement_pattern, body_region, category_id, min_level, max_level, is_unilateral, measurement_type,
       youtube_url, thumbnail_storage_path, video_storage_path,
       exercise_equipments(equipment_id),
       exercise_environments(environment_id)
@@ -117,10 +119,12 @@ export async function updateExercise(
     category_id?: string | null
     min_level?: number | undefined
     max_level?: number | undefined
+    is_unilateral?: boolean
+    measurement_type?: string
     youtube_url?: string | null
     thumbnail_storage_path?: string | null
     video_storage_path?: string | null
-    equipmentIds?: string[] 
+    equipmentIds?: string[]
     environmentIds?: string[]
   }
 ): Promise<void> {
@@ -160,6 +164,8 @@ export async function createExercise(fields: {
   body_region?: BodyRegion | null
   min_level?: number
   max_level?: number
+  is_unilateral?: boolean
+  measurement_type?: string
   equipmentIds?: string[]
   environmentIds?: string[]
   youtube_url?: string | null

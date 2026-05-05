@@ -1,5 +1,6 @@
 import { useAuth } from "@/providers/auth-provider";
 import { PREMIUM_IDENTIFIER } from "@/services/purchases/revenuecat/constants";
+import { useRevenueCat } from "@/services/purchases/revenuecat/providers/RevenueCatProvider";
 import { SUPERWALL_API_KEYS, SUPERWALL_ENTITLEMENTS } from "@/services/purchases/superwall/constants";
 import {
     CustomPurchaseControllerProvider,
@@ -61,6 +62,7 @@ export function PurchaseWrapper({ children }: PurchaseWrapperProps) {
 // necessary because to use useSuperwallFunctions we need to be inside SuperwallProvider
 function PurchaseLogicWrapper({ children }: { children: React.ReactNode }) {
     const { identify, signOut: superwallSignOut, setSubscriptionStatus } = useSuperwallFunctions();
+    const { customerInfo } = useRevenueCat();
     const { session } = useAuth();
     const userId = session?.user?.id;
     const isConfigured = useSuperwall((state) => state.isConfigured);
@@ -72,22 +74,25 @@ function PurchaseLogicWrapper({ children }: { children: React.ReactNode }) {
         if (!isConfigured) return;
         if (userId) {
             identify(userId);
-            syncSubscriptionStatus();
         } else {
             superwallSignOut();
             setSubscriptionStatus({ status: "INACTIVE" });
         }
     }, [userId, isConfigured]);
 
-    const syncSubscriptionStatus = async () => {
-        const customerInfo = await Purchases.getCustomerInfo();
+    // Sync Superwall subscription status whenever RevenueCat customerInfo changes.
+    // This runs AFTER RevenueCatProvider has called Purchases.logIn() and loaded the
+    // correct customer info — avoiding the race condition where getCustomerInfo()
+    // would return anonymous user data (no entitlements) before login completes.
+    useEffect(() => {
+        if (!isConfigured || !userId || customerInfo === null) return;
         const isActive = !!customerInfo.entitlements.active[PREMIUM_IDENTIFIER];
         setSubscriptionStatus(
             isActive
                 ? { entitlements: [SUPERWALL_ENTITLEMENTS["full_access"]], status: "ACTIVE" }
                 : { status: "INACTIVE" }
         );
-    };
+    }, [customerInfo, isConfigured, userId]);
 
     return <>{children}</>;
 }

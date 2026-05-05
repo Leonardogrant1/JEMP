@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from './query-keys';
 
 const SESSION_DETAIL_SELECT = `
-    id, name, description, session_type, scheduled_at, status, estimated_duration_minutes, current_exercise_index, current_set_number,
+    id, name, description, session_type, scheduled_at, status, estimated_duration_minutes, pause_between_sets, current_exercise_index, current_set_number,
     workout_session_blocks (
         id, order_index,
         block_type:block_types ( slug ),
@@ -13,7 +13,7 @@ const SESSION_DETAIL_SELECT = `
             target_sets, target_reps_min, target_reps_max,
             target_duration_seconds, target_rest_seconds,
             target_load_type, target_load_value,
-            exercise:exercises ( id, name, body_region, movement_pattern, thumbnail_storage_path, youtube_url )
+            exercise:exercises ( id, name, body_region, movement_pattern, thumbnail_storage_path, video_storage_path, youtube_url, is_unilateral, measurement_type )
         )
     )
 ` as const;
