@@ -101,10 +101,25 @@ export default function TabLayout() {
                 style={styles.debugButton}
                 onPress={() => {
                   setHasSeenTutorial(false);
-                  router.replace('/tutorial');
                 }}
               >
                 <Text style={styles.debugButtonText}>🎓 Reset Tutorial</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={async () => {
+                  if (!session) return;
+                  await supabase
+                    .from('user_profiles')
+                    .update({ has_onboarded: false })
+                    .eq('id', session.user.id);
+                  resetOnboardingStore();
+                  setHasSeenTutorial(false);
+                  await refreshProfile();
+                }}
+              >
+                <Text style={styles.debugButtonText}>🔁 Reset All</Text>
               </TouchableOpacity>
 
               <TouchableOpacity

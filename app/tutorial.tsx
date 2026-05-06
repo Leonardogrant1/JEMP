@@ -2,6 +2,7 @@ import { GaugeCard } from '@/components/progress/gauge-card';
 import { JempText } from '@/components/jemp-text';
 import { OverallCard } from '@/components/progress/overall-card';
 import { Cyan, Electric, Neutral } from '@/constants/theme';
+import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useTutorialStore } from '@/stores/tutorial-store';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -145,6 +146,7 @@ export default function TutorialScreen() {
     function advance() {
         if (isLast) {
             setHasSeenTutorial(true);
+            trackerManager.track('tutorial_completed');
             router.replace('/(tabs)');
         } else {
             setCurrentIndex((i) => i + 1);

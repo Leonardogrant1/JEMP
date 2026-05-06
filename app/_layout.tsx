@@ -10,6 +10,7 @@ import { PlanProvider } from '@/providers/plan-provider';
 import { initPosthog } from '@/services/posthog/init';
 import { PurchaseWrapper } from '@/services/purchases/PurchasesWrapper';
 import { RevenueCatProvider } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
+import { useTutorialStore } from '@/stores/tutorial-store';
 import { devLog } from '@/utils/dev-log';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -104,6 +105,7 @@ export default function RootLayout() {
 
 function MainStack({ languageReady }: { languageReady: boolean }) {
   const { profile, isLoading } = useCurrentUser();
+  const { hasSeenTutorial } = useTutorialStore();
   const [fontsLoaded] = useFonts({
     SatoshiBlack: require('@/assets/fonts/Satoshi-Black.otf'),
     SatoshiBlackItalic: require('@/assets/fonts/Satoshi-BlackItalic.otf'),
@@ -135,8 +137,11 @@ function MainStack({ languageReady }: { languageReady: boolean }) {
       <Stack.Protected guard={!!profile && !profile.has_onboarded}>
         <Stack.Screen name="onboarding" options={{ animation: 'slide_from_right', headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={!!profile?.has_onboarded}>
+      <Stack.Protected guard={!!profile?.has_onboarded && !hasSeenTutorial}>
         <Stack.Screen name="tutorial" options={{ animation: 'fade', headerShown: false }} />
+      </Stack.Protected>
+
+      <Stack.Protected guard={!!profile?.has_onboarded && hasSeenTutorial}>
         <Stack.Screen name="(tabs)" options={{ animation: 'slide_from_right', headerShown: false }} />
         <Stack.Screen name="session/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="exercise/[id]" options={{ headerShown: false }} />
