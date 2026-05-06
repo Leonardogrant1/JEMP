@@ -7,8 +7,8 @@ import { type PlanSession, type SessionStatus, type WorkoutSession, usePlan } fr
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -208,7 +208,16 @@ export default function PlanScreen() {
 
     const { plan, sessions, planSessions, isLoading, streak } = usePlan();
 
+    const { date } = useLocalSearchParams<{ date?: string }>();
     const [selectedDay, setSelectedDay] = useState<Date>(new Date());
+    const appliedDate = useRef<string | undefined>(undefined);
+
+    useEffect(() => {
+        if (date && date !== appliedDate.current) {
+            appliedDate.current = date;
+            setSelectedDay(new Date(date));
+        }
+    }, [date]);
     const [trackWidth, setTrackWidth] = useState(0);
     const barWidth = useSharedValue(0);
 

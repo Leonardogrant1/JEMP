@@ -53,11 +53,11 @@ async function fetchActivePlan(userId: string) {
         plan,
         sessions: (sessionsRes.data ?? []).map(s => ({
             ...s,
-            primary_exercise_slug: extractPrimaryExerciseSlug((s as any).workout_session_blocks ?? []),
+            primary_exercise_slug: extractPrimaryExerciseSlug((s ).workout_session_blocks ?? []),
         })),
         planSessions: (planSessionsRes.data ?? []).map(ps => ({
             ...ps,
-            primary_exercise_slug: extractPrimaryExerciseSlug((ps as any).workout_plan_session_blocks ?? []),
+            primary_exercise_slug: extractPrimaryExerciseSlug((ps ).workout_plan_session_blocks ?? []),
         })),
     };
 }

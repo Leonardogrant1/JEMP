@@ -87,6 +87,42 @@ const explosive_push = [
     'clap_push_up',
 ];
 
+const mobility = [ 
+   "glute_foam_roll",
+   "yoga_sun_salutation",
+   "shoulder_cars",
+   "wrist_mobility_circles",
+   "worlds_greatest_stretch",
+   "standing_spinal_rotation",
+   "prone_hip_internal_rotation",
+   "hip_90_90_stretch",
+   "leg_swing_side_to_side",
+   "ankle_cars",
+   "hip_flexor_lunge_stretch",
+   "hip_cars",
+   "leg_swing_front_to_back",
+   "supine_twist",
+    "thoracic_foam_roll",
+    "arm_circle",
+   "quad_foam_roll",
+    "lat_foam_roll"  ,
+    "kneeling_adductor_stretch",
+    "it_band_foam_roll",
+    "hamstring_foam_roll",
+    "diaphragmatic_breathing",
+    "cat_cow_stretch", 
+    "childs_pose",
+    "doorway_chest_stretch",
+   "box_breathing",
+   "standing_quad_stretch",
+   "banded_ankle_distraction",
+   "thread_the_needle",
+   "upper_trap_stretch",
+   "thoracic_extension_chair",
+   "standing_calf_stretch",
+   "seated_piriformis_stretch"  
+];
+
 // ── Map: group name → slug array ──────────────────────────────────────────────
 
 export const EXERCISE_GROUPS: Record<string, string[]> = {
@@ -107,7 +143,8 @@ export const EXERCISE_GROUPS: Record<string, string[]> = {
     conditioning,
     medicine_ball,
     explosive_push,
-    sled_exercises
+    sled_exercises,
+    mobility
 };
 
 // ── Reverse map: exercise slug → group name ───────────────────────────────────

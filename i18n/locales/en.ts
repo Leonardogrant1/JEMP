@@ -120,6 +120,8 @@ const en = {
 
     // ── UI strings ───────────────────────────────────────────────────────
     'ui.rest_day': 'Rest Day',
+    'ui.next_session_on': 'Next session · {{day}}',
+    'ui.view_in_plan': 'View in Plan',
     'ui.no_session': 'No Session',
     'ui.next_session': 'Next Session',
     'ui.current_session': 'Current Session',

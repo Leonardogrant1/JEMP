@@ -122,6 +122,8 @@ const de: Record<TranslationKeys, string> = {
 
     // ── UI strings ───────────────────────────────────────────────────────
     'ui.rest_day': 'Ruhetag',
+    'ui.next_session_on': 'Nächste Session · {{day}}',
+    'ui.view_in_plan': 'Im Plan ansehen',
     'ui.no_session': 'Keine Session',
     'ui.next_session': 'Nächste Session',
     'ui.current_session': 'Aktuelle Session',

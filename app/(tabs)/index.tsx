@@ -1,7 +1,7 @@
 import { JempText } from '@/components/jemp-text';
 import { RestDayCard } from '@/components/rest-day-card';
-import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { getSessionImage } from '@/constants/session-images';
+import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
@@ -16,6 +16,17 @@ import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+function getNextScheduledSession(sessions: WorkoutSession[]): WorkoutSession | null {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+    return sessions
+        .filter(s => s.status === 'scheduled' && s.scheduled_at != null && new Date(s.scheduled_at) >= tomorrowStart)
+        .sort((a, b) => new Date(a.scheduled_at!).getTime() - new Date(b.scheduled_at!).getTime())[0] ?? null;
+}
 
 function getTodaySession(sessions: WorkoutSession[]) {
     const today = new Date();
@@ -49,6 +60,10 @@ export default function HomeScreen() {
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
     const nextSession = useMemo(() => getTodaySession(sessions), [sessions]);
+    const nextScheduledSession = useMemo(
+        () => (nextSession ? null : getNextScheduledSession(sessions)),
+        [nextSession, sessions],
+    );
     const { openWithPlacement } = useSuperwallFunctions();
 
     const handleStartSession = useCallback(() => {
@@ -160,7 +175,13 @@ export default function HomeScreen() {
                         )}
                     </>
                 ) : (
-                    <RestDayCard />
+                    <RestDayCard
+                        nextSessionDate={nextScheduledSession ? new Date(nextScheduledSession.scheduled_at!) : undefined}
+                        onViewInPlan={nextScheduledSession ? () => {
+                            const dateStr = new Date(nextScheduledSession.scheduled_at!).toISOString().split('T')[0];
+                            router.push(`/(tabs)/plan?date=${dateStr}`);
+                        } : undefined}
+                    />
                 )}
 
             </View>
