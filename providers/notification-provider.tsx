@@ -20,17 +20,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
 
     useEffect(() => {
-        const tokenListener = Notifications.addPushTokenListener(async ({ data: token }) => {
-            devLog('Push token refreshed:', token);
-            setExpoPushToken(token);
-            if (token && profile?.id) {
-                await supabase
-                    .from('user_profiles')
-                    .update({ push_token: token })
-                    .eq('id', profile.id);
-            }
-        });
+        if (profile?.has_onboarded) {
+            registerPushNotificationsAndSaveToken();
+        }
+    }, [profile?.id]);
 
+    useEffect(() => {
         const notificationListener = Notifications.addNotificationReceivedListener(notification => {
             devLog('Notification received:', notification);
         });
@@ -47,7 +42,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         });
 
         return () => {
-            tokenListener.remove();
             notificationListener.remove();
             responseListener.remove();
         };
@@ -59,7 +53,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             status: status === 'granted' ? 'authorized' : 'declined',
         });
         setExpoPushToken(pushTokenString ?? null);
-        if (pushTokenString && profile?.id) {
+        if (pushTokenString && profile?.id && pushTokenString !== profile.push_token) {
+            devLog('Push token changed, saving to DB:', pushTokenString);
             await supabase
                 .from('user_profiles')
                 .update({ push_token: pushTokenString })

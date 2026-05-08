@@ -10,7 +10,7 @@ import { getSportLabelI18n, SPORT_GROUPS } from '@/constants/sports';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/services/supabase/client';
-import { UserProfile } from '@/types/database';
+import { SessionDuration, UserProfile } from '@/types/database';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
@@ -42,9 +42,21 @@ interface Props {
 const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
 const PHASES: Phase[] = ['sport', 'environment', 'equipment', 'goals', 'body', 'schedule'];
 
-const WEEK_DAYS: { dow: number }[] = [
-    { dow: 1 }, { dow: 2 }, { dow: 3 }, { dow: 4 },
-    { dow: 5 }, { dow: 6 }, { dow: 7 },
+const DURATIONS: { value: SessionDuration; label: string }[] = [
+    { value: '30min', label: '30 min' },
+    { value: '45min', label: '45 min' },
+    { value: '60min', label: '60 min' },
+    { value: '90min', label: '90 min' },
+];
+
+const WEEK_DAYS: { dow: number; key: string }[] = [
+    { dow: 1, key: 'onboarding.workout_prefs_day_mon' },
+    { dow: 2, key: 'onboarding.workout_prefs_day_tue' },
+    { dow: 3, key: 'onboarding.workout_prefs_day_wed' },
+    { dow: 4, key: 'onboarding.workout_prefs_day_thu' },
+    { dow: 5, key: 'onboarding.workout_prefs_day_fri' },
+    { dow: 6, key: 'onboarding.workout_prefs_day_sat' },
+    { dow: 7, key: 'onboarding.workout_prefs_day_sun' },
 ];
 
 const ENV_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -113,6 +125,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
 
     // Schedule
     const [preferredDays, setPreferredDays] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6, 7]));
+    const [preferredDuration, setPreferredDuration] = useState<SessionDuration | null>(null);
     const [scheduleNotes, setScheduleNotes] = useState('');
 
     // Pre-fill on open
@@ -132,6 +145,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
         if (profile.preferred_workout_days?.length) {
             setPreferredDays(new Set(profile.preferred_workout_days));
         }
+        setPreferredDuration(profile.preferred_session_duration ?? null);
         setScheduleNotes(profile.schedule_notes ?? '');
 
         Promise.all([
@@ -290,10 +304,11 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                 );
             }
 
-            // 6. Update preferred workout days + notes
+            // 6. Update preferred workout days, duration + notes
             await supabase.from('user_profiles')
                 .update({
                     preferred_workout_days: [...preferredDays].sort((a, b) => a - b),
+                    preferred_session_duration: preferredDuration,
                     schedule_notes: scheduleNotes.trim() || null,
                 })
                 .eq('id', profile.id);
@@ -336,7 +351,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
         phase === 'sport' ? canProceedSport :
         phase === 'environment' ? canProceedEnv :
         phase === 'goals' ? selectedCategoryIds.size > 0 :
-        phase === 'schedule' ? preferredDays.size >= 2 :
+        phase === 'schedule' ? preferredDays.size >= 2 && preferredDuration !== null :
         true;
 
     return (
@@ -521,53 +536,63 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                         <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
                             {t('plan.schedule_subtitle')}
                         </JempText>
-                        <View style={styles.dayList}>
-                            {WEEK_DAYS.map(({ dow }) => {
-                                const selected = preferredDays.has(dow);
-                                return (
-                                    <TouchableOpacity
+
+                        <View style={styles.section}>
+                            <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                                {t('onboarding.workout_prefs_days_label')}
+                            </JempText>
+                            <View style={styles.dayChipRow}>
+                                {WEEK_DAYS.map(({ dow, key }) => (
+                                    <SelectableChip
                                         key={dow}
-                                        activeOpacity={0.7}
-                                        style={[
-                                            styles.dayRow,
-                                            { backgroundColor: theme.surface },
-                                            selected
-                                                ? { borderWidth: 1, borderColor: GradientMid }
-                                                : { borderWidth: 1, borderColor: 'transparent' },
-                                        ]}
+                                        label={t(key as any)}
+                                        selected={preferredDays.has(dow)}
                                         onPress={() => setPreferredDays(prev => {
                                             const next = new Set(prev);
                                             if (next.has(dow) && next.size <= 2) return prev;
                                             next.has(dow) ? next.delete(dow) : next.add(dow);
                                             return next;
                                         })}
-                                    >
-                                        <JempText type="body-l" color={selected ? '#fff' : theme.text}>
-                                            {t(`plan.day_${dow}` as any)}
-                                        </JempText>
-                                        {selected
-                                            ? <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                                            : <View style={[styles.dayEmptyCheck, { borderColor: theme.borderStrong }]} />
-                                        }
-                                    </TouchableOpacity>
-                                );
-                            })}
+                                        style={styles.dayChip}
+                                    />
+                                ))}
+                            </View>
                         </View>
-                        <JempText type="caption" color={theme.textMuted} style={styles.notesLabel}>
-                            {t('plan.schedule_notes_label')}
-                        </JempText>
-                        <JempText type="body-sm" color={theme.textMuted} style={styles.notesHint}>
-                            {t('plan.schedule_notes_hint')}
-                        </JempText>
-                        <JempInput
-                            value={scheduleNotes}
-                            onChangeText={setScheduleNotes}
-                            placeholder={t('plan.schedule_notes_placeholder')}
-                            multiline
-                            numberOfLines={4}
-                            textAlignVertical="top"
-                            style={styles.notesInput}
-                        />
+
+                        <View style={styles.section}>
+                            <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                                {t('plan.schedule_duration_label')}
+                            </JempText>
+                            <View style={styles.durationRow}>
+                                {DURATIONS.map(d => (
+                                    <SelectableChip
+                                        key={d.value}
+                                        label={d.label}
+                                        selected={preferredDuration === d.value}
+                                        onPress={() => setPreferredDuration(d.value)}
+                                        style={styles.durationChip}
+                                    />
+                                ))}
+                            </View>
+                        </View>
+
+                        <View style={styles.section}>
+                            <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                                {t('plan.schedule_notes_label')}
+                            </JempText>
+                            <JempText type="body-sm" color={theme.textMuted} style={styles.notesHint}>
+                                {t('plan.schedule_notes_hint')}
+                            </JempText>
+                            <JempInput
+                                value={scheduleNotes}
+                                onChangeText={setScheduleNotes}
+                                placeholder={t('plan.schedule_notes_placeholder')}
+                                multiline
+                                numberOfLines={4}
+                                textAlignVertical="top"
+                                style={styles.notesInput}
+                            />
+                        </View>
                     </KeyboardAwareScrollView>
                 )}
 
@@ -661,27 +686,16 @@ const styles = StyleSheet.create({
     envList: { gap: 12 },
 
     // Schedule
-    dayList: { gap: 10 },
-    dayRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 16,
-        paddingHorizontal: 16,
-        borderRadius: 16,
-    },
-    dayEmptyCheck: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        borderWidth: 1.5,
-    },
-    notesLabel: {
+    section: { marginBottom: 32 },
+    sectionLabel: {
         textTransform: 'uppercase',
         letterSpacing: 0.8,
-        marginTop: 28,
-        marginBottom: 10,
+        marginBottom: 14,
     },
+    dayChipRow: { flexDirection: 'row', gap: 6 },
+    dayChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
+    durationRow: { flexDirection: 'row', gap: 8 },
+    durationChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
     notesHint: { marginBottom: 12 },
     notesInput: { minHeight: 100 },
 });

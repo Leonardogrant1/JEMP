@@ -439,6 +439,7 @@ const de: Record<TranslationKeys, string> = {
     'plan.body_subtitle': 'Aktuelle Angaben helfen dem KI einen präziseren Plan zu erstellen.',
     'plan.schedule_title': 'Trainingstage',
     'plan.schedule_subtitle': 'An welchen Tagen möchtest du trainieren? Mindestens 2 Tage.',
+    'plan.schedule_duration_label': 'Trainingsdauer',
     'plan.schedule_notes_label': 'Zusätzliche Hinweise',
     'plan.schedule_notes_hint': 'Z.B. "Mittwochs habe ich Fußballtraining — lieber eine leichte Session."',
     'plan.schedule_notes_placeholder': 'Optionale Hinweise...',

@@ -437,6 +437,7 @@ const en = {
     'plan.body_subtitle': 'Current data helps the AI create a more precise plan.',
     'plan.schedule_title': 'Training days',
     'plan.schedule_subtitle': 'Which days do you want to train? At least 2 days.',
+    'plan.schedule_duration_label': 'Session duration',
     'plan.schedule_notes_label': 'Additional notes',
     'plan.schedule_notes_hint': 'E.g. "Wednesdays I have football training — prefer a lighter session."',
     'plan.schedule_notes_placeholder': 'Optional notes...',

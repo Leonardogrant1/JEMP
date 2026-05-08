@@ -4,6 +4,7 @@ import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/providers/auth-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
+import { useNotifications } from '@/providers/notification-provider';
 import { useRevenueCat } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
 import { PREMIUM_IDENTIFIER } from '@/services/purchases/revenuecat/constants';
 import { supabase } from '@/services/supabase/client';
@@ -20,6 +21,7 @@ import { Alert, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } fro
 export default function TabLayout() {
   const { session, signOut } = useAuth();
   const { refreshProfile } = useCurrentUser();
+  const { registerPushNotificationsAndSaveToken } = useNotifications();
   const { hasEntitlement } = useRevenueCat();
   const resetOnboardingStore = useOnboardingStore(s => s.reset);
   const setHasSeenTutorial = useTutorialStore(s => s.setHasSeenTutorial);
@@ -165,6 +167,20 @@ export default function TabLayout() {
                 }}
               >
                 <Text style={styles.debugButtonText}>🌱 Seed History</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={async () => {
+                  try {
+                    await registerPushNotificationsAndSaveToken();
+                    Alert.alert('Notifications', 'Token registered successfully');
+                  } catch (e: any) {
+                    Alert.alert('Error', e.message);
+                  }
+                }}
+              >
+                <Text style={styles.debugButtonText}>🔔 Register Notifications</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
