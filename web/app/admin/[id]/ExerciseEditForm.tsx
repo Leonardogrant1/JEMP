@@ -19,6 +19,7 @@ type Props = {
     categories: { id: string; slug: string; name_i18n: Json | null }[]
     equipments: { id: string; slug: string; name_i18n: Json | null }[]
     environments: { id: string; slug: string; name_i18n: Json | null }[]
+    blockTypes: { id: string; slug: string }[]
   }
 }
 
@@ -28,6 +29,7 @@ type Statuses = {
   classification?: string
   equipment?: string
   environments?: string
+  blockTypes?: string
   youtube?: string
   thumbnail?: string
   video?: string
@@ -117,10 +119,13 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
   const [maxLevel, setMaxLevel] = useState(String(initial.max_level ?? ''))
   const [isUnilateral, setIsUnilateral] = useState(initial.is_unilateral)
   const [measurementType, setMeasurementType] = useState(initial.measurement_type ?? 'reps_or_duration')
+  const [intensityScore, setIntensityScore] = useState(String(initial.intensity_score ?? ''))
+  const [exerciseType, setExerciseType] = useState(initial.exercise_type ?? '')
 
   // Relations
   const [equipmentIds, setEquipmentIds] = useState<string[]>(initial.equipmentIds)
   const [environmentIds, setEnvironmentIds] = useState<string[]>(initial.environmentIds)
+  const [blockTypeIds, setBlockTypeIds] = useState<string[]>(initial.blockTypeIds)
 
   // YouTube / media
   const [youtubeUrl, setYoutubeUrl] = useState(initial.youtube_url ?? '')
@@ -183,6 +188,8 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
           max_level: maxLevel ? Number(maxLevel) : undefined,
           is_unilateral: isUnilateral,
           measurement_type: measurementType,
+          intensity_score: intensityScore ? Number(intensityScore) : null,
+          exercise_type: exerciseType || null,
         })
         setStatus('classification', 'Saved ✓')
       } catch {
@@ -209,6 +216,17 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
         setStatus('environments', 'Saved ✓')
       } catch {
         setStatus('environments', 'Error saving')
+      }
+    })
+  }
+
+  const saveBlockTypes = () => {
+    startTransition(async () => {
+      try {
+        await updateExercise(exercise.id, { blockTypeIds })
+        setStatus('blockTypes', 'Saved ✓')
+      } catch {
+        setStatus('blockTypes', 'Error saving')
       }
     })
   }
@@ -457,6 +475,32 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
               />
             </div>
           </div>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-xs text-gray-400 mb-1">Intensity Score (1–10)</label>
+              <input
+                type="number"
+                min={1} max={10}
+                value={intensityScore}
+                onChange={e => setIntensityScore(e.target.value)}
+                placeholder="z.B. 7"
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs text-gray-400 mb-1">Exercise Type</label>
+              <select
+                value={exerciseType}
+                onChange={e => setExerciseType(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+              >
+                <option value="">— keine —</option>
+                <option value="dynamic">dynamic</option>
+                <option value="restorative">restorative</option>
+                <option value="breathing">breathing</option>
+              </select>
+            </div>
+          </div>
         </div>
         <div className="mt-4 flex items-center gap-3">
           <button onClick={saveClassification} disabled={isPending} className="px-4 py-2 bg-white text-black rounded text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -519,6 +563,34 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
             Save
           </button>
           {statuses.environments && <p className="text-xs text-gray-400">{statuses.environments}</p>}
+        </div>
+      </section>
+
+      {/* Block Types */}
+      <section className="bg-gray-900 rounded-lg p-5">
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Block Types</h3>
+        <div className="flex flex-wrap gap-4">
+          {relations.blockTypes.map(bt => (
+            <label key={bt.id} className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={blockTypeIds.includes(bt.id)}
+                onChange={e => {
+                  setBlockTypeIds(prev =>
+                    e.target.checked ? [...prev, bt.id] : prev.filter(id => id !== bt.id)
+                  )
+                }}
+                className="rounded border-gray-600 bg-gray-800"
+              />
+              <span className="text-gray-300">{bt.slug}</span>
+            </label>
+          ))}
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <button onClick={saveBlockTypes} disabled={isPending} className="px-4 py-2 bg-white text-black rounded text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
+            Save
+          </button>
+          {statuses.blockTypes && <p className="text-xs text-gray-400">{statuses.blockTypes}</p>}
         </div>
       </section>
 

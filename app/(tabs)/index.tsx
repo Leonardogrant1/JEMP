@@ -1,12 +1,12 @@
 import { JempText } from '@/components/jemp-text';
-import { RestDayCard } from '@/components/rest-day-card';
+import { RestDayCard, DayVariant } from '@/components/rest-day-card';
 import { getSessionImage } from '@/constants/session-images';
-import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
+import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
 import { useCurrentUser } from '@/providers/current-user-provider';
-import { usePlan, WorkoutSession } from '@/providers/plan-provider';
+import { usePlan, WorkoutSession, PlanSession } from '@/providers/plan-provider';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -50,9 +50,31 @@ function getTodaySession(sessions: WorkoutSession[]) {
     return scheduledToday ?? null;
 }
 
+const MODE_COLORS: Record<string, string> = {
+    full:       '#22c55e',
+    reduced:    '#f59e0b',
+    activation: '#3b82f6',
+    recovery:   '#a78bfa',
+};
+
+function ModeBadge({ mode }: { mode: string | null | undefined }) {
+    const { t } = useTranslation();
+    if (!mode) return null;
+    const color = MODE_COLORS[mode] ?? '#8c8c8c';
+    return (
+        <View style={[modeBadgeStyle.badge, { backgroundColor: `${color}33`, borderColor: `${color}55` }]}>
+            <JempText type="caption" color={color}>{t(`session_mode.${mode}` as any)}</JempText>
+        </View>
+    );
+}
+
+const modeBadgeStyle = StyleSheet.create({
+    badge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
+});
+
 export default function HomeScreen() {
     const { profile } = useCurrentUser();
-    const { sessions } = usePlan();
+    const { sessions, planSessions } = usePlan();
     const router = useRouter();
     const { t } = useTranslation();
     const updateStatus = useUpdateSessionStatus();
@@ -64,6 +86,26 @@ export default function HomeScreen() {
         () => (nextSession ? null : getNextScheduledSession(sessions)),
         [nextSession, sessions],
     );
+
+    const todayModeSlug = useMemo(() => {
+        if (!nextSession?.workout_plan_session_id) return null;
+        return planSessions.find(ps => ps.id === nextSession.workout_plan_session_id)?.mode_slug ?? null;
+    }, [nextSession, planSessions]);
+
+    const todayVariant = useMemo((): DayVariant => {
+        const weeklySchedule = (profile as any)?.weekly_schedule;
+        if (!weeklySchedule?.sessions?.length) return 'rest';
+        const jsDay = new Date().getDay();
+        const dow = jsDay === 0 ? 7 : jsDay;
+        const sportSession = weeklySchedule.sessions.find((s: any) => s.day_of_week === dow);
+        if (!sportSession) return 'rest';
+        const COMBAT_SPORTS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
+        const isCombat = COMBAT_SPORTS.has(profile?.sport?.slug ?? '');
+        if (sportSession.type === 'tournament') return 'tournament';
+        if (sportSession.type === 'game') return isCombat ? 'fight' : 'game';
+        return 'training';
+    }, [profile]);
+
     const { openWithPlacement } = useSuperwallFunctions();
 
     const handleStartSession = useCallback(() => {
@@ -134,7 +176,10 @@ export default function HomeScreen() {
                                 locations={[0.35, 1]}
                                 style={StyleSheet.absoluteFill}
                             />
-                            <View style={styles.cardContent}>
+                            <View style={styles.modeBadgeCorner}>
+                            <ModeBadge mode={todayModeSlug} />
+                        </View>
+                        <View style={styles.cardContent}>
                                 <JempText type="caption" gradient={nextSession.status == 'completed'} color={nextSession.status !== 'completed' ? theme.textMuted : ''}>
                                     {nextSession.status === 'completed'
                                         ? t('ui.session_completed')
@@ -176,6 +221,7 @@ export default function HomeScreen() {
                     </>
                 ) : (
                     <RestDayCard
+                        variant={todayVariant}
                         nextSessionDate={nextScheduledSession ? new Date(nextScheduledSession.scheduled_at!) : undefined}
                         onViewInPlan={nextScheduledSession ? () => {
                             const dateStr = new Date(nextScheduledSession.scheduled_at!).toISOString().split('T')[0];
@@ -234,6 +280,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 6,
         marginTop: 4,
+    },
+    modeBadgeCorner: {
+        position: 'absolute',
+        top: 14,
+        right: 14,
+        zIndex: 1,
     },
     cta: {
         borderRadius: 100,

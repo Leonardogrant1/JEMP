@@ -104,6 +104,16 @@ const en = {
     'session_type.training': 'Training',
     'session_type.recovery': 'Recovery',
 
+    'ui.training_day': 'Training day',
+    'ui.game_day': 'Game day',
+    'ui.fight_day': 'Fight day',
+    'ui.tournament_day': 'Tournament day',
+
+    'session_mode.full': 'Full intensity',
+    'session_mode.reduced': 'Light session',
+    'session_mode.activation': 'Activation',
+    'session_mode.recovery': 'Recovery',
+
     // ── Session status (session_status enum) ──────────────────────────────
     'session_status.scheduled': 'Scheduled',
     'session_status.in_progress': 'In Progress',
@@ -370,6 +380,19 @@ const en = {
     'onboarding.workout_prefs_day_fri': 'Fri',
     'onboarding.workout_prefs_day_sat': 'Sat',
     'onboarding.workout_prefs_day_sun': 'Sun',
+
+    // weekly-schedule-step
+    'onboarding.weekly_schedule_title': 'Sport schedule',
+    'onboarding.weekly_schedule_subtitle': 'When do you have team training or games? Only add what\'s relevant.',
+    'onboarding.weekly_schedule_days_label': 'Sport days',
+    'onboarding.weekly_schedule_type_training': 'Training',
+    'onboarding.weekly_schedule_type_game': 'Game',
+    'onboarding.weekly_schedule_type_fight': 'Fight',
+    'onboarding.weekly_schedule_type_tournament': 'Tournament',
+    'onboarding.weekly_schedule_intensity_label': 'Intensity',
+    'onboarding.weekly_schedule_intensity_light': 'Light',
+    'onboarding.weekly_schedule_intensity_medium': 'Medium',
+    'onboarding.weekly_schedule_intensity_hard': 'Intense',
 
     // complete-step
     'onboarding.complete_eyebrow': 'ALL READY',

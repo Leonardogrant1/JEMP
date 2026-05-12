@@ -101,7 +101,7 @@ SELECT ex.id, bt.id FROM exercises ex, block_types bt
 WHERE ex.slug IN (
     'back_squat', 'front_squat', 'romanian_deadlift', 'hip_thrust',
     'bench_press', 'incline_bench_press', 'pull_up', 'chin_up',
-    'dips', 'bulgarian_split_squat', 'nordic_curl'
+    'dips', 'bulgarian_split_squat', 'nordic_curl', 'sumo_squat'
 )
 AND bt.slug IN ('primary', 'secondary', 'accessory')
 ON CONFLICT DO NOTHING;
@@ -283,7 +283,7 @@ INSERT INTO exercises (name, slug, description, movement_pattern, body_region, c
     ('Standing Hip Abduction', 'standing_hip_abduction', 'Standing lateral leg raise to develop hip abductor strength and pelvic stability.', 'legs', 'hip', (SELECT id FROM categories WHERE slug = 'strength'), 1, 30),
     ('Standing Hip Extension', 'standing_hip_extension', 'Standing backward leg raise to activate glutes and reinforce hip extension mechanics.', 'legs', 'hip', (SELECT id FROM categories WHERE slug = 'strength'), 1, 30),
     ('Calf Raise (Bilateral)', 'calf_raise_bilateral', 'Two-leg heel raise to develop calf and Achilles tendon strength and endurance.', 'legs', 'calf', (SELECT id FROM categories WHERE slug = 'strength'), 1, 30),
-    ('Sumo Squat', 'sumo_squat', 'Wide-stance bodyweight squat targeting inner thighs and glutes with upright torso.', 'legs', 'quad', (SELECT id FROM categories WHERE slug = 'strength'), 1, 30),
+    ('Sumo Squat (Body Weight)', 'sumo_squat_body_weight', 'Wide-stance bodyweight squat targeting inner thighs and glutes with upright torso.', 'legs', 'quad', (SELECT id FROM categories WHERE slug = 'strength'), 1, 30),
     ('Hollow Body Hold', 'hollow_body_hold', 'Supine full-body tension position developing anterior core and body awareness for athletic movements', 'isometric', 'core', (SELECT id FROM categories WHERE slug = 'strength'), 30, 60),
     ('V-Up', 'v_up', 'Full sit-up reaching hands to feet to develop dynamic core flexion strength.', 'core', 'core', (SELECT id FROM categories WHERE slug = 'strength'), 30, 60),
     ('Reverse Crunch', 'reverse_crunch', 'Lying hip raise curling knees to chest to develop lower abdominal and hip flexor strength.', 'core', 'core', (SELECT id FROM categories WHERE slug = 'strength'), 1, 30),
@@ -461,7 +461,7 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO exercise_blocks (exercise_id, block_type_id)
 SELECT ex.id, bt.id FROM exercises ex, block_types bt
-WHERE ex.slug IN ('band_pull_apart', 'dead_bug', 'bird_dog', 'cable_chop', 'banded_hip_flexor_march', 'reactive_drop_catch', 'single_leg_glute_bridge', 'banded_clamshell', 'bodyweight_squat', 'walking_lunge', 'lateral_lunge', 'donkey_kick', 'standing_hip_abduction', 'standing_hip_extension', 'calf_raise_bilateral', 'sumo_squat', 'superman_hold', 'banded_squat', 'banded_good_morning', 'banded_kickback')
+WHERE ex.slug IN ('band_pull_apart', 'dead_bug', 'bird_dog', 'cable_chop', 'banded_hip_flexor_march', 'reactive_drop_catch', 'single_leg_glute_bridge', 'banded_clamshell', 'bodyweight_squat', 'walking_lunge', 'lateral_lunge', 'donkey_kick', 'standing_hip_abduction', 'standing_hip_extension', 'calf_raise_bilateral', 'sumo_squat', 'superman_hold', 'banded_squat', 'banded_good_morning', 'banded_kickback', 'sumo_squat_body_weight')
 AND bt.slug IN ('accessory', 'warmup')
 ON CONFLICT DO NOTHING;
 
@@ -479,7 +479,7 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO exercise_blocks (exercise_id, block_type_id)
 SELECT ex.id, bt.id FROM exercises ex, block_types bt
-WHERE ex.slug IN ('drop_jump', 'hang_power_clean', 'power_snatch', 'hang_power_snatch', 'push_press', 'trap_bar_deadlift', 'conventional_deadlift', 'sumo_deadlift', 'weighted_pull_up', 'isometric_mid_thigh_pull', 'resisted_sprint', 'sprint_parachute_run', 'flying_20_sprint', 'prowler_push_sprint', 'sprint_start_blocks', 'pro_agility_shuttle', 't_drill', 'med_ball_overhead_throw', 'med_ball_scoop_toss', 'squat_jump_to_stick', 'burpee_broad_jump', 'stair_sprint', 'banded_sprint_resistance_run', 'dumbbell_thruster', 'dumbbell_snatch', 'dumbbell_clean')
+WHERE ex.slug IN ('drop_jump', 'hang_power_clean', 'power_snatch', 'hang_power_snatch', 'push_press', 'trap_bar_deadlift', 'conventional_deadlift', 'sumo_deadlift', 'weighted_pull_up', 'isometric_mid_thigh_pull', 'resisted_sprint', 'sprint_parachute_run', 'flying_20_sprint', 'prowler_push_sprint', 'sprint_start_blocks', 'pro_agility_shuttle', 't_drill', 'med_ball_overhead_throw', 'med_ball_scoop_toss', 'squat_jump_to_stick', 'burpee_broad_jump', 'stair_sprint', 'banded_sprint_resistance_run', 'dumbbell_thruster', 'dumbbell_snatch', 'dumbbell_clean', 'sumo_squat')
 AND bt.slug IN ('primary', 'secondary')
 ON CONFLICT DO NOTHING;
 

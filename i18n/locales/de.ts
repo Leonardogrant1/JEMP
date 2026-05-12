@@ -107,6 +107,16 @@ const de: Record<TranslationKeys, string> = {
     'session_type.recovery': 'Regeneration',
 
     // ── Session status ───────────────────────────────────────────────────
+    'ui.training_day': 'Trainingstag',
+    'ui.game_day': 'Spieltag',
+    'ui.fight_day': 'Kampftag',
+    'ui.tournament_day': 'Turniertag',
+
+    'session_mode.full': 'Volle Intensität',
+    'session_mode.reduced': 'Leichte Einheit',
+    'session_mode.activation': 'Aktivierung',
+    'session_mode.recovery': 'Regeneration',
+
     'session_status.scheduled': 'Geplant',
     'session_status.in_progress': 'Läuft',
     'session_status.completed': 'Fertig',
@@ -372,6 +382,19 @@ const de: Record<TranslationKeys, string> = {
     'onboarding.workout_prefs_day_fri': 'Fr',
     'onboarding.workout_prefs_day_sat': 'Sa',
     'onboarding.workout_prefs_day_sun': 'So',
+
+    // weekly-schedule-step
+    'onboarding.weekly_schedule_title': 'Sportkalender',
+    'onboarding.weekly_schedule_subtitle': 'Wann hast du Teamtraining oder Spiele? Nur angeben was relevant ist.',
+    'onboarding.weekly_schedule_days_label': 'Sport-Tage',
+    'onboarding.weekly_schedule_type_training': 'Training',
+    'onboarding.weekly_schedule_type_game': 'Spiel',
+    'onboarding.weekly_schedule_type_fight': 'Kampf',
+    'onboarding.weekly_schedule_type_tournament': 'Turnier',
+    'onboarding.weekly_schedule_intensity_label': 'Intensität',
+    'onboarding.weekly_schedule_intensity_light': 'Leicht',
+    'onboarding.weekly_schedule_intensity_medium': 'Mittel',
+    'onboarding.weekly_schedule_intensity_hard': 'Intensiv',
 
     // complete-step
     'onboarding.complete_eyebrow': 'ALLES BEREIT',

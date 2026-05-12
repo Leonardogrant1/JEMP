@@ -11,13 +11,14 @@ type Props = {
   categories: { id: string; slug: string; name_i18n: Json | null }[]
   equipments: { id: string; slug: string; name_i18n: Json | null }[]
   environments: { id: string; slug: string; name_i18n: Json | null }[]
+  blockTypes: { id: string; slug: string }[]
 }
 
 function isValidSlug(s: string): boolean {
   return /^[a-z0-9]+(_[a-z0-9]+)*$/.test(s)
 }
 
-export function ExerciseCreateForm({ categories, equipments, environments }: Props) {
+export function ExerciseCreateForm({ categories, equipments, environments, blockTypes }: Props) {
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [slugError, setSlugError] = useState('')
@@ -32,9 +33,12 @@ export function ExerciseCreateForm({ categories, equipments, environments }: Pro
   const [maxLevel, setMaxLevel] = useState('')
   const [isUnilateral, setIsUnilateral] = useState(false)
   const [measurementType, setMeasurementType] = useState('reps_or_duration')
+  const [intensityScore, setIntensityScore] = useState('')
+  const [exerciseType, setExerciseType] = useState('')
 
   const [equipmentIds, setEquipmentIds] = useState<string[]>([])
   const [environmentIds, setEnvironmentIds] = useState<string[]>([])
+  const [blockTypeIds, setBlockTypeIds] = useState<string[]>([])
 
   const [youtubeUrl, setYoutubeUrl] = useState('')
 
@@ -61,10 +65,13 @@ export function ExerciseCreateForm({ categories, equipments, environments }: Pro
           body_region: (bodyRegion as BodyRegion) || null,
           is_unilateral: isUnilateral,
           measurement_type: measurementType,
+          intensity_score: intensityScore ? Number(intensityScore) : null,
+          exercise_type: exerciseType || null,
           min_level: minLevel ? Number(minLevel) : undefined,
           max_level: maxLevel ? Number(maxLevel) : undefined,
           equipmentIds,
           environmentIds,
+          blockTypeIds,
           youtube_url: youtubeUrl || null,
         })
         toast.success(`„${name.trim()}" wurde erstellt`)
@@ -221,6 +228,32 @@ export function ExerciseCreateForm({ categories, equipments, environments }: Pro
               />
             </div>
           </div>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-xs text-gray-400 mb-1">Intensity Score (1–10)</label>
+              <input
+                type="number"
+                min={1} max={10}
+                value={intensityScore}
+                onChange={e => setIntensityScore(e.target.value)}
+                placeholder="z.B. 7"
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs text-gray-400 mb-1">Exercise Type</label>
+              <select
+                value={exerciseType}
+                onChange={e => setExerciseType(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+              >
+                <option value="">— keine —</option>
+                <option value="dynamic">dynamic</option>
+                <option value="restorative">restorative</option>
+                <option value="breathing">breathing</option>
+              </select>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -263,6 +296,28 @@ export function ExerciseCreateForm({ categories, equipments, environments }: Pro
                 className="rounded border-gray-600 bg-gray-800"
               />
               <span className="text-gray-300">{asI18n(env.name_i18n).de || env.slug}</span>
+            </label>
+          ))}
+        </div>
+      </section>
+
+      {/* Block Types */}
+      <section className="bg-gray-900 rounded-lg p-5">
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Block Types</h3>
+        <div className="flex flex-wrap gap-4">
+          {blockTypes.map(bt => (
+            <label key={bt.id} className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={blockTypeIds.includes(bt.id)}
+                onChange={e => {
+                  setBlockTypeIds(prev =>
+                    e.target.checked ? [...prev, bt.id] : prev.filter(id => id !== bt.id)
+                  )
+                }}
+                className="rounded border-gray-600 bg-gray-800"
+              />
+              <span className="text-gray-300">{bt.slug}</span>
             </label>
           ))}
         </div>

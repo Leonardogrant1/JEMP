@@ -1,6 +1,7 @@
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
 import { GeneratingView } from '@/components/ui/generating-view';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
+import { computeLoadProfile } from '@/lib/load-profile';
 import { useAuth } from '@/providers/auth-provider';
 import { queryKeys } from '@/queries/query-keys';
 import { supabase } from '@/services/supabase/client';
@@ -41,12 +42,14 @@ export function PlanGenerationStep() {
                     categoryLevels,
                     equipmentIds,
                     environmentIds,
+                    weekly_schedule,
                     ...profileData
                 } = onboardingData;
 
+                const { load_score, load_profile } = computeLoadProfile(weekly_schedule?.sessions ?? []);
                 const { error: profileError } = await supabase
                     .from('user_profiles')
-                    .update({ ...profileData })
+                    .update({ ...profileData, weekly_schedule: weekly_schedule as any, load_score, load_profile })
                     .eq('id', session.user.id);
                 if (profileError) throw profileError;
 

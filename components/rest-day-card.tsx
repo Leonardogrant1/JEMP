@@ -6,6 +6,12 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { JempText } from './jemp-text';
+import GameIcon from '@/assets/icons/game.svg';
+import FightIcon from '@/assets/icons/fight.svg';
+import TournamentIcon from '@/assets/icons/tournament.svg';
+import WhistleIcon from '@/assets/icons/whistle.svg';
+
+// ── Icons ─────────────────────────────────────────────────────────────────
 
 function GradientMoonIcon({ size = 42 }: { size?: number }) {
     return (
@@ -24,13 +30,38 @@ function GradientMoonIcon({ size = 42 }: { size?: number }) {
     );
 }
 
+// ── Types ─────────────────────────────────────────────────────────────────
+
+export type DayVariant = 'rest' | 'training' | 'game' | 'fight' | 'tournament';
+
+const VARIANT_TITLE: Record<DayVariant, string> = {
+    rest:       'ui.rest_day',
+    training:   'ui.training_day',
+    game:       'ui.game_day',
+    fight:      'ui.fight_day',
+    tournament: 'ui.tournament_day',
+};
+
+function DayIcon({ variant, size = 42 }: { variant: DayVariant; size?: number }) {
+    switch (variant) {
+        case 'training':   return <WhistleIcon width={size} height={size} />;
+        case 'game':       return <GameIcon width={size} height={size} />;
+        case 'fight':      return <FightIcon width={size} height={size} />;
+        case 'tournament': return <TournamentIcon width={size} height={size} />;
+        default:           return <GradientMoonIcon size={size} />;
+    }
+}
+
+// ── Component ─────────────────────────────────────────────────────────────
+
 type Props = {
+    variant?: DayVariant;
     nextSessionDate?: Date;
     nextSessionLabel?: string;
     onViewInPlan?: () => void;
 };
 
-export function RestDayCard({ nextSessionDate, nextSessionLabel, onViewInPlan }: Props = {}) {
+export function RestDayCard({ variant = 'rest', nextSessionDate, nextSessionLabel, onViewInPlan }: Props = {}) {
     const { t, i18n } = useTranslation();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
@@ -41,8 +72,8 @@ export function RestDayCard({ nextSessionDate, nextSessionLabel, onViewInPlan }:
 
     return (
         <View style={styles.root}>
-            <GradientMoonIcon size={42} />
-            <JempText type="body-l" color={theme.textMuted}>{t('ui.rest_day')}</JempText>
+            <DayIcon variant={variant} size={42} />
+            <JempText type="body-l" color={theme.textMuted}>{t(VARIANT_TITLE[variant] as any)}</JempText>
 
             {dayLabel && (
                 <>

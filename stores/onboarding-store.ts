@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Gender, SessionDuration, UserProfile } from '@/types/database';
+import { WeeklySchedule } from '@/types/user-data';
 
 type ProfileData = Pick<
     UserProfile,
@@ -33,12 +34,14 @@ type OnboardingStore = ProfileData & {
     categoryLevels: CategoryLevel[];
     equipmentIds: string[];
     environmentIds: string[];
+    weekly_schedule: WeeklySchedule;
     set: (data: Partial<ProfileData & {
         sport_slug: string | null;
         targetedCategories: TargetedCategory[];
         categoryLevels: CategoryLevel[];
         equipmentIds: string[];
         environmentIds: string[];
+        weekly_schedule: WeeklySchedule;
     }>) => void;
     reset: () => void;
 };
@@ -60,6 +63,7 @@ const initialState: Omit<OnboardingStore, 'set' | 'reset'> = {
     categoryLevels: [],
     equipmentIds: [],
     environmentIds: [],
+    weekly_schedule: { sessions: [], notes: null },
 };
 
 export const useOnboardingStore = create<OnboardingStore>((set) => ({
