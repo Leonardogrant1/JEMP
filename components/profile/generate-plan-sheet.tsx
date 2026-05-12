@@ -11,6 +11,9 @@ import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/services/supabase/client';
 import { SessionDuration, UserProfile } from '@/types/database';
+import { WeeklyScheduleSession } from '@/types/user-data';
+import { computeLoadProfile } from '@/lib/load-profile';
+import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
@@ -25,7 +28,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Phase = 'sport' | 'environment' | 'equipment' | 'goals' | 'body' | 'schedule' | 'generating';
+type Phase = 'sport' | 'environment' | 'equipment' | 'goals' | 'body' | 'schedule' | 'weekly' | 'generating';
 type GoalsSubPhase = 'select' | 'rank';
 
 interface EnvItem { id: string; slug: string; icon: keyof typeof Ionicons.glyphMap; name_i18n: Record<string, string> | null; description_i18n: Record<string, string> | null }
@@ -40,7 +43,18 @@ interface Props {
 }
 
 const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
-const PHASES: Phase[] = ['sport', 'environment', 'equipment', 'goals', 'body', 'schedule'];
+const PHASES: Phase[] = ['sport', 'environment', 'equipment', 'goals', 'body', 'schedule', 'weekly'];
+
+const COMBAT_SPORTS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
+
+function getSessionTypes(sportSlug: string | null | undefined): { key: WeeklyScheduleSession['type']; labelKey: string }[] {
+    const isCombat = COMBAT_SPORTS.has(sportSlug ?? '');
+    return [
+        { key: 'team_training', labelKey: 'onboarding.weekly_schedule_type_training' },
+        { key: 'game', labelKey: isCombat ? 'onboarding.weekly_schedule_type_fight' : 'onboarding.weekly_schedule_type_game' },
+        { key: 'tournament', labelKey: 'onboarding.weekly_schedule_type_tournament' },
+    ];
+}
 
 const DURATIONS: { value: SessionDuration; label: string }[] = [
     { value: '30min', label: '30 min' },
@@ -128,6 +142,9 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
     const [preferredDuration, setPreferredDuration] = useState<SessionDuration | null>(null);
     const [scheduleNotes, setScheduleNotes] = useState('');
 
+    // Weekly sport schedule
+    const [sportSessions, setSportSessions] = useState<WeeklyScheduleSession[]>([]);
+
     // Pre-fill on open
     useEffect(() => {
         if (!visible) return;
@@ -147,6 +164,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
         }
         setPreferredDuration(profile.preferred_session_duration ?? null);
         setScheduleNotes(profile.schedule_notes ?? '');
+        setSportSessions((profile as any).weekly_schedule?.sessions ?? []);
 
         Promise.all([
             supabase.from('environments').select('id, slug, name_i18n, description_i18n'),
@@ -247,6 +265,23 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
         });
     }
 
+    function toggleSportDay(day: number) {
+        const exists = sportSessions.find(s => s.day_of_week === day);
+        if (exists) {
+            setSportSessions(prev => prev.filter(s => s.day_of_week !== day));
+        } else {
+            setSportSessions(prev => [...prev, { day_of_week: day, type: 'team_training', intensity: 6 }]);
+        }
+    }
+
+    function setSportType(day: number, type: WeeklyScheduleSession['type']) {
+        setSportSessions(prev => prev.map(s => s.day_of_week === day ? { ...s, type } : s));
+    }
+
+    function setSportIntensity(day: number, intensity: number) {
+        setSportSessions(prev => prev.map(s => s.day_of_week === day ? { ...s, intensity } : s));
+    }
+
     function goBack() {
         if (phase === 'environment') setPhase('sport');
         else if (phase === 'equipment') setPhase('environment');
@@ -256,6 +291,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
         }
         else if (phase === 'body') setPhase('goals');
         else if (phase === 'schedule') setPhase('body');
+        else if (phase === 'weekly') setPhase('schedule');
         else onClose();
     }
 
@@ -304,12 +340,16 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                 );
             }
 
-            // 6. Update preferred workout days, duration + notes
+            // 6. Update preferred workout days, duration, notes + weekly sport schedule
+            const { load_score, load_profile } = computeLoadProfile(sportSessions);
             await supabase.from('user_profiles')
                 .update({
                     preferred_workout_days: [...preferredDays].sort((a, b) => a - b),
                     preferred_session_duration: preferredDuration,
                     schedule_notes: scheduleNotes.trim() || null,
+                    weekly_schedule: { sessions: sportSessions, notes: null } as any,
+                    load_score,
+                    load_profile,
                 })
                 .eq('id', profile.id);
 
@@ -345,6 +385,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
             }
         }
         else if (phase === 'body') setPhase('schedule');
+        else if (phase === 'schedule') setPhase('weekly');
     }
 
     const canProceedNext =
@@ -596,6 +637,89 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                     </KeyboardAwareScrollView>
                 )}
 
+                {/* ── Weekly sport schedule ── */}
+                {phase === 'weekly' && (() => {
+                    const selectedSportDays = new Set(sportSessions.map(s => s.day_of_week));
+                    const sortedSportSessions = [...sportSessions].sort((a, b) => a.day_of_week - b.day_of_week);
+                    return (
+                        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                            <JempText type="h1" color={theme.text} style={styles.bodyTitle}>
+                                {t('onboarding.weekly_schedule_title')}
+                            </JempText>
+                            <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
+                                {t('onboarding.weekly_schedule_subtitle')}
+                            </JempText>
+
+                            <View style={styles.section}>
+                                <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                                    {t('onboarding.weekly_schedule_days_label')}
+                                </JempText>
+                                <View style={styles.dayChipRow}>
+                                    {WEEK_DAYS.map(({ dow, key }) => (
+                                        <SelectableChip
+                                            key={dow}
+                                            label={t(key as any)}
+                                            selected={selectedSportDays.has(dow)}
+                                            onPress={() => toggleSportDay(dow)}
+                                            style={styles.dayChip}
+                                        />
+                                    ))}
+                                </View>
+                            </View>
+
+                            {sortedSportSessions.map(session => {
+                                const dayLabel = WEEK_DAYS.find(d => d.dow === session.day_of_week);
+                                return (
+                                    <View key={session.day_of_week} style={[styles.sportCard, { backgroundColor: theme.surface }]}>
+                                        <View style={styles.sportCardHeader}>
+                                            <JempText type="body-m" style={{ fontWeight: '600' }}>
+                                                {t(dayLabel?.key as any)}
+                                            </JempText>
+                                            <TouchableOpacity onPress={() => toggleSportDay(session.day_of_week)} hitSlop={12}>
+                                                <JempText type="body-m" color={theme.textMuted}>✕</JempText>
+                                            </TouchableOpacity>
+                                        </View>
+
+                                        <View style={styles.chipGrid}>
+                                            {getSessionTypes(selectedSportSlug).map(st => (
+                                                <SelectableChip
+                                                    key={st.key}
+                                                    label={t(st.labelKey as any)}
+                                                    selected={session.type === st.key}
+                                                    onPress={() => setSportType(session.day_of_week, st.key)}
+                                                    size="sm"
+                                                />
+                                            ))}
+                                        </View>
+
+                                        {session.type !== 'game' && session.type !== 'tournament' && (
+                                            <View style={styles.intensityRow}>
+                                                <View style={styles.intensityHeader}>
+                                                    <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                                                        {t('onboarding.weekly_schedule_intensity_label')}
+                                                    </JempText>
+                                                    <JempText type="h2">{session.intensity}</JempText>
+                                                </View>
+                                                <Slider
+                                                    style={styles.slider}
+                                                    minimumValue={1}
+                                                    maximumValue={10}
+                                                    step={1}
+                                                    value={session.intensity}
+                                                    onValueChange={v => setSportIntensity(session.day_of_week, v)}
+                                                    minimumTrackTintColor={GradientMid}
+                                                    maximumTrackTintColor={theme.borderStrong}
+                                                    thumbTintColor={theme.text}
+                                                />
+                                            </View>
+                                        )}
+                                    </View>
+                                );
+                            })}
+                        </ScrollView>
+                    );
+                })()}
+
                 {/* ── Generating ── */}
                 {phase === 'generating' && (
                     <GeneratingView
@@ -611,7 +735,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                 {phase !== 'generating' && (
                     <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 20), backgroundColor: theme.background }]}>
                         <Pressable
-                            onPress={phase === 'schedule' ? generate : handleNext}
+                            onPress={phase === 'weekly' ? generate : handleNext}
                             disabled={!canProceedNext}
                             style={styles.bottomBtn}
                         >
@@ -622,7 +746,7 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                                 style={styles.bottomBtnGradient}
                             >
                                 <JempText type="button" color={canProceedNext ? '#fff' : theme.textMuted}>
-                                    {phase === 'schedule' ? t('plan.create') : t('ui.continue')}
+                                    {phase === 'weekly' ? t('plan.create') : t('ui.continue')}
                                 </JempText>
                             </LinearGradient>
                         </Pressable>
@@ -698,4 +822,11 @@ const styles = StyleSheet.create({
     durationChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
     notesHint: { marginBottom: 12 },
     notesInput: { minHeight: 100 },
+
+    // Weekly sport schedule
+    sportCard: { borderRadius: 14, padding: 16, marginBottom: 12 },
+    sportCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    intensityRow: { marginTop: 12 },
+    intensityHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+    slider: { width: '100%', height: 40, marginHorizontal: -8 },
 });

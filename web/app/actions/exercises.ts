@@ -26,6 +26,9 @@ export type Exercise = ExerciseListItem & {
   max_level: number | null
   is_unilateral: boolean
   measurement_type: string
+  intensity_score: number | null
+  exercise_type: string | null
+  blockTypeIds: string[]
 }
 
 async function requireUser() {
@@ -73,21 +76,25 @@ export async function getExercise(id: string): Promise<Exercise & { equipmentIds
     .from('exercises')
     .select(`
       id, name, slug, description_i18n, movement_pattern, body_region, category_id, min_level, max_level, is_unilateral, measurement_type,
+      intensity_score, exercise_type,
       youtube_url, thumbnail_storage_path, video_storage_path,
       exercise_equipments(equipment_id),
-      exercise_environments(environment_id)
+      exercise_environments(environment_id),
+      exercise_blocks(block_type_id)
     `)
     .eq('id', id)
     .single()
   if (error) throw new Error(error.message)
-  const { exercise_equipments, exercise_environments, ...exercise } = data as Exercise & {
+  const { exercise_equipments, exercise_environments, exercise_blocks, ...exercise } = data as Exercise & {
     exercise_equipments: { equipment_id: string }[]
     exercise_environments: { environment_id: string }[]
+    exercise_blocks: { block_type_id: string }[]
   }
   return {
     ...exercise,
     equipmentIds: exercise_equipments.map(e => e.equipment_id),
     environmentIds: exercise_environments.map(e => e.environment_id),
+    blockTypeIds: exercise_blocks.map(b => b.block_type_id),
   }
 }
 
@@ -121,15 +128,18 @@ export async function updateExercise(
     max_level?: number | undefined
     is_unilateral?: boolean
     measurement_type?: string
+    intensity_score?: number | null
+    exercise_type?: string | null
     youtube_url?: string | null
     thumbnail_storage_path?: string | null
     video_storage_path?: string | null
     equipmentIds?: string[]
     environmentIds?: string[]
+    blockTypeIds?: string[]
   }
 ): Promise<void> {
   await requireAdmin()
-  const { equipmentIds, environmentIds, ...dbFields } = fields
+  const { equipmentIds, environmentIds, blockTypeIds, ...dbFields } = fields
   if (Object.keys(dbFields).length > 0) {
     const { error } = await supabase
       .from('exercises')
@@ -140,16 +150,21 @@ export async function updateExercise(
   if (equipmentIds !== undefined) {
     await supabase.from('exercise_equipments').delete().eq('exercise_id', id)
     if (equipmentIds.length > 0) {
-      const links = equipmentIds.map(eid => ({ exercise_id: id, equipment_id: eid }))
-      const { error } = await supabase.from('exercise_equipments').insert(links)
+      const { error } = await supabase.from('exercise_equipments').insert(equipmentIds.map(eid => ({ exercise_id: id, equipment_id: eid })))
       if (error) throw new Error(error.message)
     }
   }
   if (environmentIds !== undefined) {
     await supabase.from('exercise_environments').delete().eq('exercise_id', id)
     if (environmentIds.length > 0) {
-      const links = environmentIds.map(eid => ({ exercise_id: id, environment_id: eid }))
-      const { error } = await supabase.from('exercise_environments').insert(links)
+      const { error } = await supabase.from('exercise_environments').insert(environmentIds.map(eid => ({ exercise_id: id, environment_id: eid })))
+      if (error) throw new Error(error.message)
+    }
+  }
+  if (blockTypeIds !== undefined) {
+    await supabase.from('exercise_blocks').delete().eq('exercise_id', id)
+    if (blockTypeIds.length > 0) {
+      const { error } = await supabase.from('exercise_blocks').insert(blockTypeIds.map(bid => ({ exercise_id: id, block_type_id: bid })))
       if (error) throw new Error(error.message)
     }
   }
@@ -166,12 +181,15 @@ export async function createExercise(fields: {
   max_level?: number
   is_unilateral?: boolean
   measurement_type?: string
+  intensity_score?: number | null
+  exercise_type?: string | null
   equipmentIds?: string[]
   environmentIds?: string[]
+  blockTypeIds?: string[]
   youtube_url?: string | null
 }): Promise<string> {
   await requireAdmin()
-  const { equipmentIds, environmentIds, min_level, max_level, ...dbFields } = fields
+  const { equipmentIds, environmentIds, blockTypeIds, min_level, max_level, ...dbFields } = fields
   const insertRow = {
     ...dbFields,
     category_id: dbFields.category_id ?? null,
@@ -186,14 +204,16 @@ export async function createExercise(fields: {
   if (error) throw new Error(error.message)
   const id = data.id
   if (equipmentIds && equipmentIds.length > 0) {
-    const links = equipmentIds.map(eid => ({ exercise_id: id, equipment_id: eid }))
-    const { error: eqErr } = await supabase.from('exercise_equipments').insert(links)
+    const { error: eqErr } = await supabase.from('exercise_equipments').insert(equipmentIds.map(eid => ({ exercise_id: id, equipment_id: eid })))
     if (eqErr) throw new Error(eqErr.message)
   }
   if (environmentIds && environmentIds.length > 0) {
-    const links = environmentIds.map(eid => ({ exercise_id: id, environment_id: eid }))
-    const { error: envErr } = await supabase.from('exercise_environments').insert(links)
+    const { error: envErr } = await supabase.from('exercise_environments').insert(environmentIds.map(eid => ({ exercise_id: id, environment_id: eid })))
     if (envErr) throw new Error(envErr.message)
+  }
+  if (blockTypeIds && blockTypeIds.length > 0) {
+    const { error: btErr } = await supabase.from('exercise_blocks').insert(blockTypeIds.map(bid => ({ exercise_id: id, block_type_id: bid })))
+    if (btErr) throw new Error(btErr.message)
   }
   return id
 }
@@ -211,19 +231,23 @@ export async function getExerciseRelations(): Promise<{
   categories: { id: string; slug: string; name_i18n: Json | null }[]
   equipments: { id: string; slug: string; name_i18n: Json | null }[]
   environments: { id: string; slug: string; name_i18n: Json | null }[]
+  blockTypes: { id: string; slug: string }[]
 }> {
   await requireUser()
-  const [catResult, eqResult, envResult] = await Promise.all([
+  const [catResult, eqResult, envResult, btResult] = await Promise.all([
     supabase.from('categories').select('id, slug, name_i18n').order('slug'),
     supabase.from('equipments').select('id, slug, name_i18n').order('slug'),
     supabase.from('environments').select('id, slug, name_i18n').order('slug'),
+    supabase.from('block_types').select('id, slug').order('slug'),
   ])
   if (catResult.error) throw new Error(catResult.error.message)
   if (eqResult.error) throw new Error(eqResult.error.message)
   if (envResult.error) throw new Error(envResult.error.message)
+  if (btResult.error) throw new Error(btResult.error.message)
   return {
     categories: catResult.data,
     equipments: eqResult.data,
     environments: envResult.data,
+    blockTypes: btResult.data,
   }
 }

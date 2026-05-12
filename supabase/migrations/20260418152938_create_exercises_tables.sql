@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS exercises (
     category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
     min_level INT NOT NULL CHECK (min_level >= 1 AND min_level <= 100),
     max_level INT NOT NULL CHECK (max_level >= 1 AND max_level <= 100),
+    intensity_score INT DEFAULT 1 CHECK (intensity_score >= 1 AND intensity_score <= 10),
     youtube_url TEXT,
     thumbnail_storage_path TEXT,
     video_storage_path TEXT,

@@ -20,6 +20,7 @@ import { TrialOfferStep } from '@/components/onboarding/steps/trial-offer-step';
 import { WelcomeStep } from '@/components/onboarding/steps/welcome-step';
 import { WhatYouWillGetStep } from '@/components/onboarding/steps/what-you-will-get-step';
 import { WorkoutPrefsStep } from '@/components/onboarding/steps/workout-prefs-step';
+import { WeeklyScheduleStep } from '@/components/onboarding/steps/weekly-schedule-step';
 import { OnboardingStep } from '@/components/onboarding/types';
 import * as Notifications from 'expo-notifications';
 import * as StoreReview from 'expo-store-review';
@@ -52,6 +53,7 @@ export default function OnboardingScreen() {
         { component: EnvironmentStep, theme: 'dark', initialCanContinue: false },
         { component: EquipmentStep, theme: 'dark', initialCanContinue: true },
         { component: WorkoutPrefsStep, theme: 'dark', initialCanContinue: false },
+        { component: WeeklyScheduleStep, theme: 'dark', initialCanContinue: true },
         { component: CompleteStep, theme: 'dark', continueButtonText: t('onboarding.btn_create_plan') },
         { component: PlanGenerationStep, theme: 'dark', showProgressIndicator: false, showContinueButton: false },
         {

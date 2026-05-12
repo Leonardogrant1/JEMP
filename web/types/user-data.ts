@@ -1,3 +1,18 @@
+export type SportSessionType = 'team_training' | 'game' | 'individual_training' | 'tournament'
+
+export type WeeklyScheduleSession = {
+  day_of_week: number   // 1 = Mon … 7 = Sun
+  type: SportSessionType
+  intensity: number     // 1–10
+}
+
+export type WeeklySchedule = {
+  sessions: WeeklyScheduleSession[]
+  notes: string | null
+}
+
+export type LoadProfile = 'low' | 'medium' | 'high'
+
 export type SelfReferenceImages = {
     face_front:  string | null
     face_left:   string | null

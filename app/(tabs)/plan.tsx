@@ -4,6 +4,8 @@ import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { getSessionImage } from '@/constants/session-images';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { type PlanSession, type SessionStatus, type WorkoutSession, usePlan } from '@/providers/plan-provider';
+import { useCurrentUser } from '@/providers/current-user-provider';
+import { type DayVariant } from '@/components/rest-day-card';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -63,9 +65,29 @@ function StatusBadge({ status }: { status: SessionStatus }) {
     );
 }
 
+// ── Mode badge ────────────────────────────────────────────────────────────
+
+const MODE_COLORS: Record<string, string> = {
+    full:       '#22c55e',
+    reduced:    '#f59e0b',
+    activation: '#3b82f6',
+    recovery:   '#a78bfa',
+};
+
+function ModeBadge({ mode }: { mode: string | null | undefined }) {
+    const { t } = useTranslation();
+    if (!mode) return null;
+    const color = MODE_COLORS[mode] ?? '#8c8c8c';
+    return (
+        <View style={[styles.modeBadge, { backgroundColor: `${color}33`, borderColor: `${color}55` }]}>
+            <JempText type="caption" color={color}>{t(`session_mode.${mode}` as any)}</JempText>
+        </View>
+    );
+}
+
 // ── Session card ──────────────────────────────────────────────────────────
 
-function SessionCard({ session, theme }: { session: WorkoutSession; theme: any }) {
+function SessionCard({ session, modeSlug, theme }: { session: WorkoutSession; modeSlug?: string | null; theme: any }) {
     const router = useRouter();
     const { t } = useTranslation();
 
@@ -82,8 +104,10 @@ function SessionCard({ session, theme }: { session: WorkoutSession; theme: any }
                 locations={[0.3, 1]}
                 style={StyleSheet.absoluteFill}
             />
+            <View style={styles.modeBadgeCorner}>
+                <ModeBadge mode={modeSlug} />
+            </View>
             <View style={styles.cardContent}>
-
                 <JempText type="hero" color="#fff">{session.name}</JempText>
                 <View style={styles.metaRow}>
                     {session.estimated_duration_minutes ? (
@@ -142,6 +166,9 @@ function PlanSessionCard({ planSession, nextSession, theme }: {
                 locations={[0.3, 1]}
                 style={StyleSheet.absoluteFill}
             />
+            <View style={styles.modeBadgeCorner}>
+                <ModeBadge mode={planSession.mode_slug} />
+            </View>
             <View style={styles.cardContent}>
                 <View style={[styles.previewBadge, { backgroundColor: 'rgba(255,255,255,0.12)' }]}>
                     <JempText type="caption" color="rgba(255,255,255,0.55)">
@@ -158,11 +185,6 @@ function PlanSessionCard({ planSession, nextSession, theme }: {
                             </JempText>
                         </>
                     ) : null}
-                    <View style={[styles.badge, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
-                        <JempText type="caption" color="rgba(255,255,255,0.4)">
-                            {t(`session_type.${planSession.session_type}`)}
-                        </JempText>
-                    </View>
                 </View>
                 {nextSession && (
                     <Pressable
@@ -207,6 +229,7 @@ export default function PlanScreen() {
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
     const { plan, sessions, planSessions, isLoading, streak } = usePlan();
+    const { profile } = useCurrentUser();
 
     const { date } = useLocalSearchParams<{ date?: string }>();
     const [selectedDay, setSelectedDay] = useState<Date>(new Date());
@@ -278,6 +301,21 @@ export default function PlanScreen() {
             toDateStr(new Date(s.scheduled_at)) > todayStr
         ) ?? null;
     }, [selectedDayPreview, sessions]);
+
+    // Day variant from weekly_schedule
+    const selectedDayVariant = useMemo((): DayVariant => {
+        const weeklySchedule = (profile as any)?.weekly_schedule;
+        if (!weeklySchedule?.sessions?.length) return 'rest';
+        const jsDay = selectedDay.getDay();
+        const dow = jsDay === 0 ? 7 : jsDay;
+        const sportSession = weeklySchedule.sessions.find((s: any) => s.day_of_week === dow);
+        if (!sportSession) return 'rest';
+        const COMBAT_SPORTS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
+        const isCombat = COMBAT_SPORTS.has(profile?.sport?.slug ?? '');
+        if (sportSession.type === 'tournament') return 'tournament';
+        if (sportSession.type === 'game') return isCombat ? 'fight' : 'game';
+        return 'training';
+    }, [selectedDay, profile]);
 
     useEffect(() => {
         if (trackWidth > 0) {
@@ -401,11 +439,18 @@ export default function PlanScreen() {
 
                         {/* Sessions for selected day */}
                         {selectedDaySessions.length > 0 ? (
-                            <SessionCard key={selectedDaySessions[0].id} session={selectedDaySessions[0]} theme={theme} />
+                            <SessionCard
+                                key={selectedDaySessions[0].id}
+                                session={selectedDaySessions[0]}
+                                modeSlug={planSessionByDow.get(
+                                    (() => { const js = selectedDay.getDay(); return js === 0 ? 7 : js; })()
+                                )?.mode_slug}
+                                theme={theme}
+                            />
                         ) : selectedDayPreview ? (
                             <PlanSessionCard key={selectedDayPreview.id} planSession={selectedDayPreview} nextSession={previewNextSession} theme={theme} />
                         ) : (
-                            <RestDayCard />
+                            <RestDayCard variant={selectedDayVariant} />
                         )}
                     </>
                 )}
@@ -461,6 +506,20 @@ const styles = StyleSheet.create({
 
     // Rest
     restCard: { borderRadius: 16, alignItems: 'center', gap: 8, flex: 1, justifyContent: "center" },
+
+    // Mode badge (top-right corner of card)
+    modeBadgeCorner: {
+        position: 'absolute',
+        top: 14,
+        right: 14,
+        zIndex: 1,
+    },
+    modeBadge: {
+        paddingHorizontal: 9,
+        paddingVertical: 4,
+        borderRadius: 8,
+        borderWidth: 1,
+    },
 
     // Plan template preview badge
     previewBadge: {

@@ -425,7 +425,9 @@ export type Database = {
           created_at: string | null
           description: string | null
           description_i18n: Json | null
+          exercise_type: string | null
           id: string
+          intensity_score: number | null
           is_unilateral: boolean
           max_level: number
           measurement_type: string
@@ -446,7 +448,9 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           description_i18n?: Json | null
+          exercise_type?: string | null
           id?: string
+          intensity_score?: number | null
           is_unilateral?: boolean
           max_level: number
           measurement_type?: string
@@ -467,7 +471,9 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           description_i18n?: Json | null
+          exercise_type?: string | null
           id?: string
+          intensity_score?: number | null
           is_unilateral?: boolean
           max_level?: number
           measurement_type?: string
@@ -587,6 +593,33 @@ export type Database = {
           slug?: string
           unit?: Database["public"]["Enums"]["metric_unit"]
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      session_modes: {
+        Row: {
+          description_i18n: Json
+          display_name_i18n: Json
+          overrides_user_duration: boolean
+          slug: string
+          typical_duration_max: number | null
+          typical_duration_min: number | null
+        }
+        Insert: {
+          description_i18n?: Json
+          display_name_i18n?: Json
+          overrides_user_duration?: boolean
+          slug: string
+          typical_duration_max?: number | null
+          typical_duration_min?: number | null
+        }
+        Update: {
+          description_i18n?: Json
+          display_name_i18n?: Json
+          overrides_user_duration?: boolean
+          slug?: string
+          typical_duration_max?: number | null
+          typical_duration_min?: number | null
         }
         Relationships: []
       }
@@ -869,6 +902,8 @@ export type Database = {
           id: string
           last_active_at: string | null
           last_name: string | null
+          load_profile: string
+          load_score: number
           preferred_language: string | null
           preferred_session_duration:
             | Database["public"]["Enums"]["session_duration"]
@@ -880,6 +915,8 @@ export type Database = {
           sport_id: string | null
           timezone: string | null
           updated_at: string | null
+          weekly_schedule: Json
+          weekly_schedule_updated_at: string | null
           weight_in_kg: number | null
         }
         Insert: {
@@ -893,6 +930,8 @@ export type Database = {
           id?: string
           last_active_at?: string | null
           last_name?: string | null
+          load_profile?: string
+          load_score?: number
           preferred_language?: string | null
           preferred_session_duration?:
             | Database["public"]["Enums"]["session_duration"]
@@ -904,6 +943,8 @@ export type Database = {
           sport_id?: string | null
           timezone?: string | null
           updated_at?: string | null
+          weekly_schedule?: Json
+          weekly_schedule_updated_at?: string | null
           weight_in_kg?: number | null
         }
         Update: {
@@ -917,6 +958,8 @@ export type Database = {
           id?: string
           last_active_at?: string | null
           last_name?: string | null
+          load_profile?: string
+          load_score?: number
           preferred_language?: string | null
           preferred_session_duration?:
             | Database["public"]["Enums"]["session_duration"]
@@ -928,6 +971,8 @@ export type Database = {
           sport_id?: string | null
           timezone?: string | null
           updated_at?: string | null
+          weekly_schedule?: Json
+          weekly_schedule_updated_at?: string | null
           weight_in_kg?: number | null
         }
         Relationships: [

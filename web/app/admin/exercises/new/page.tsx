@@ -3,7 +3,7 @@ import { getExerciseRelations } from '../../../actions/exercises'
 import { ExerciseCreateForm } from './ExerciseCreateForm'
 
 export default async function ExerciseNewPage() {
-  const { categories, equipments, environments } = await getExerciseRelations()
+  const { categories, equipments, environments, blockTypes } = await getExerciseRelations()
 
   return (
     <div className="max-w-2xl">
@@ -11,7 +11,7 @@ export default async function ExerciseNewPage() {
         ← Zurück zu Exercises
       </Link>
       <h2 className="text-2xl font-semibold mb-8">Neue Übung</h2>
-      <ExerciseCreateForm categories={categories} equipments={equipments} environments={environments} />
+      <ExerciseCreateForm categories={categories} equipments={equipments} environments={environments} blockTypes={blockTypes} />
     </div>
   )
 }
