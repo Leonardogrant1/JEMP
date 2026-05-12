@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   const supabase = createClient(supabaseUrl, serviceRoleKey)
 
   const { data, error } = await supabase.functions.invoke('admin-simulate-plan', {
-    body,
+    body: body as Record<string, unknown>,
   })
 
   if (error) {
