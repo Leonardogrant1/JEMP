@@ -14,16 +14,9 @@ const MESSAGES: Record<string, { title: (name: string) => string; body: (minutes
   },
 }
 
-Deno.serve(async (req) => {
-  // Allow cron calls (no user auth) but require service role key
-  const authHeader = req.headers.get("Authorization")
+Deno.serve(async (_req) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!
-
-  const expectedBearer = `Bearer ${serviceRoleKey}`
-  if (!authHeader || authHeader !== expectedBearer) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
-  }
 
   const admin = createClient(supabaseUrl, serviceRoleKey)
 
@@ -43,18 +36,19 @@ Deno.serve(async (req) => {
     .eq("status", "scheduled")
     .gte("scheduled_at", new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString())
     .lt("scheduled_at", new Date(new Date().setUTCHours(23, 59, 59, 999)).toISOString())
-    .not("user_profiles.push_token", "is", null)
 
   if (error) {
     console.error("Query error:", error)
     return new Response(JSON.stringify({ error: error.message }), { status: 500 })
   }
 
-  if (!rows || rows.length === 0) {
+  const withToken = (rows ?? []).filter((s: any) => s.user?.push_token)
+
+  if (withToken.length === 0) {
     return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
   }
 
-  const messages = rows.map((session: any) => {
+  const messages = withToken.map((session: any) => {
     const lang = session.user?.preferred_language ?? "en"
     const template = MESSAGES[lang] ?? MESSAGES.en
     return {

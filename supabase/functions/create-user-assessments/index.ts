@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
         body: msg.body,
         data: { screen: "assessments" },
         sound: "default",
+        channelId: "default",
       }
     })
 
