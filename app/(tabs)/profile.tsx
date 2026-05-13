@@ -26,8 +26,8 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useAuth } from '@/providers/auth-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
-import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { queryKeys } from '@/queries/query-keys';
+import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { supabase } from '@/services/supabase/client';
 import { calculateAge } from '@/types/user-data';
 import { Ionicons } from '@expo/vector-icons';
@@ -135,6 +135,7 @@ export default function ProfileScreen() {
             const { error } = await supabase.functions.invoke('delete-account');
             if (error) throw error;
             trackerManager.track('user_deleted');
+            await signOut();
         } catch (err: any) {
             Alert.alert(t('ui.error'), err?.message ?? t('ui.delete_account_error'));
             setDeleteLoading(false);
@@ -323,7 +324,7 @@ export default function ProfileScreen() {
                             style={styles.successOverlay}
                             onPress={() => setPlanSuccessOpen(false)}
                         >
-                            <Pressable style={[styles.successCard, { backgroundColor: theme.surface }]} onPress={() => {}}>
+                            <Pressable style={[styles.successCard, { backgroundColor: theme.surface }]} onPress={() => { }}>
                                 {/* Icon */}
                                 <LinearGradient
                                     colors={[Cyan[500], Electric[500]]}

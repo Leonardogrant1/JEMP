@@ -1,7 +1,8 @@
-import "@supabase/functions-js/edge-runtime.d.ts"
-import { createClient } from "@supabase/supabase-js"
+import "@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "@supabase/supabase-js";
 
 Deno.serve(async (req) => {
+
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 })
   }
@@ -19,7 +20,7 @@ Deno.serve(async (req) => {
   const userClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: authHeader } },
   })
-  const { data: { user }, error: userError } = await userClient.auth.getUser()
+  const { data: { user }, error: userError } = await userClient.auth.getUser();
   if (userError || !user) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
   }
