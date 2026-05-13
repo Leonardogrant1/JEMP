@@ -63,6 +63,7 @@ Deno.serve(async (req) => {
       body: template.body(session.estimated_duration_minutes),
       data: { sessionId: session.id },
       sound: "default",
+      channelId: "default",
     }
   })
 

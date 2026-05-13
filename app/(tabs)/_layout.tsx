@@ -185,6 +185,21 @@ export default function TabLayout() {
 
               <TouchableOpacity
                 style={styles.debugButton}
+                onPress={async () => {
+                  try {
+                    const { error } = await supabase.functions.invoke('test-push-notification');
+                    if (error) throw error;
+                    Alert.alert('Remote Notification', 'Push sent');
+                  } catch (e: any) {
+                    Alert.alert('Error', e.message);
+                  }
+                }}
+              >
+                <Text style={styles.debugButtonText}>📲 Remote Notification</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.debugButton}
                 onPress={() => {
                   setDevOpen(false);
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
