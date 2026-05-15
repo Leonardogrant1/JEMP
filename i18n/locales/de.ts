@@ -417,6 +417,15 @@ const de: Record<TranslationKeys, string> = {
     'onboarding.notification_row_1': 'Wöchentliche Fortschrittsupdates, die dich motivieren.',
     'onboarding.notification_row_2': 'Meilenstein-Alerts wenn du neue Bestleistungen erreichst.',
 
+    // referral-step
+    'onboarding.referral_title': 'Hast du einen Referral-Code?',
+    'onboarding.referral_subtitle': 'Optional — du kannst diesen Schritt überspringen.',
+    'onboarding.referral_placeholder': 'CODE EINGEBEN',
+    'onboarding.referral_submit': 'Einlösen',
+    'onboarding.referral_success': 'Code erfolgreich eingelöst!',
+    'onboarding.referral_error_not_found': 'Code nicht gefunden. Bitte prüfe deine Eingabe.',
+    'onboarding.referral_error_network': 'Verbindungsfehler. Bitte versuche es erneut.',
+
     // what-you-will-get-step
     'onboarding.wyg_title': 'Das bekommst du.',
     'onboarding.wyg_subtitle': 'Alles was du brauchst, um deine Leistung auf das nächste Level zu bringen.',

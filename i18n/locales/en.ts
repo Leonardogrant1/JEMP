@@ -415,6 +415,15 @@ const en = {
     'onboarding.notification_row_1': 'Weekly progress updates to keep you motivated.',
     'onboarding.notification_row_2': 'Milestone alerts when you hit new personal bests.',
 
+    // referral-step
+    'onboarding.referral_title': 'Got a referral code?',
+    'onboarding.referral_subtitle': 'Optional — you can skip this step.',
+    'onboarding.referral_placeholder': 'ENTER CODE',
+    'onboarding.referral_submit': 'Submit',
+    'onboarding.referral_success': 'Code successfully applied!',
+    'onboarding.referral_error_not_found': 'Code not found. Please check your input.',
+    'onboarding.referral_error_network': 'Connection error. Please try again.',
+
     // what-you-will-get-step
     'onboarding.wyg_title': 'What you will get.',
     'onboarding.wyg_subtitle': 'Everything you need to take your performance to the next level.',
