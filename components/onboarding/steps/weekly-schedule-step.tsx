@@ -44,6 +44,8 @@ export function WeeklyScheduleStep() {
         { value: 7, label: t('onboarding.workout_prefs_day_sun') },
     ];
 
+    const preferredWorkoutDays = useOnboardingStore((s) => s.preferred_workout_days);
+
     const [sessions, setSessions] = useState<WeeklyScheduleSession[]>(
         () => storedSchedule?.sessions ?? []
     );
@@ -77,6 +79,19 @@ export function WeeklyScheduleStep() {
 
     const selectedDays = new Set(sessions.map((s) => s.day_of_week));
     const sortedSessions = [...sessions].sort((a, b) => a.day_of_week - b.day_of_week);
+
+    function getAffectedJempDays(sportDay: number, mode: 'adjacent' | 'same'): number[] {
+        if (mode === 'same') {
+            return preferredWorkoutDays.includes(sportDay) ? [sportDay] : [];
+        }
+        const prev = sportDay === 1 ? 7 : sportDay - 1;
+        const next = sportDay === 7 ? 1 : sportDay + 1;
+        return preferredWorkoutDays.filter((d) => d === prev || d === next);
+    }
+
+    function formatDays(days: number[]): string {
+        return days.map((d) => DAYS.find((x) => x.value === d)?.label ?? '').join(', ');
+    }
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -133,6 +148,20 @@ export function WeeklyScheduleStep() {
                             ))}
                         </View>
 
+                        {(session.type === 'game' || session.type === 'tournament') && (() => {
+                            const prev = session.day_of_week === 1 ? 7 : session.day_of_week - 1;
+                            const next = session.day_of_week === 7 ? 1 : session.day_of_week + 1;
+                            const affected = preferredWorkoutDays.filter((d) => d === prev || d === next);
+                            if (affected.length === 0) return null;
+                            return (
+                                <View style={[styles.hintBox, { backgroundColor: 'rgba(61, 158, 203, 0.15)' }]}>
+                                    <JempText type="body-sm" color={GradientMid}>
+                                        {t('onboarding.weekly_schedule_hint_game', { days: formatDays(affected) })}
+                                    </JempText>
+                                </View>
+                            );
+                        })()}
+
                         {session.type !== 'game' && session.type !== 'tournament' && (
                             <View style={styles.intensityRow}>
                                 <View style={styles.intensityHeader}>
@@ -152,6 +181,34 @@ export function WeeklyScheduleStep() {
                                     maximumTrackTintColor={theme.borderStrong}
                                     thumbTintColor={theme.text}
                                 />
+                                {session.intensity === 7 && (() => {
+                                    const sameDay = getAffectedJempDays(session.day_of_week, 'same');
+                                    if (sameDay.length === 0) return null;
+                                    return (
+                                        <View style={[styles.hintBox, { backgroundColor: 'rgba(61, 158, 203, 0.15)' }]}>
+                                            <JempText type="body-sm" color={GradientMid}>
+                                                {t('onboarding.weekly_schedule_hint_intensity_7', { days: formatDays(sameDay) })}
+                                            </JempText>
+                                        </View>
+                                    );
+                                })()}
+                                {session.intensity >= 8 && (() => {
+                                    const sameDay = getAffectedJempDays(session.day_of_week, 'same');
+                                    const adjacent = getAffectedJempDays(session.day_of_week, 'adjacent');
+                                    if (sameDay.length === 0 && adjacent.length === 0) return null;
+                                    const key = sameDay.length > 0 && adjacent.length > 0
+                                        ? 'onboarding.weekly_schedule_hint_intensity_8plus_both'
+                                        : sameDay.length > 0
+                                        ? 'onboarding.weekly_schedule_hint_intensity_8plus_same'
+                                        : 'onboarding.weekly_schedule_hint_intensity_8plus_adjacent';
+                                    return (
+                                        <View style={[styles.hintBox, { backgroundColor: 'rgba(61, 158, 203, 0.15)' }]}>
+                                            <JempText type="body-sm" color={GradientMid}>
+                                                {t(key, { sameDays: formatDays(sameDay), adjacentDays: formatDays(adjacent) })}
+                                            </JempText>
+                                        </View>
+                                    );
+                                })()}
                             </View>
                         )}
                     </Animated.View>
@@ -201,5 +258,11 @@ const styles = StyleSheet.create({
         width: '100%',
         height: 40,
         marginHorizontal: -8,
+    },
+    hintBox: {
+        marginTop: 10,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
     },
 });

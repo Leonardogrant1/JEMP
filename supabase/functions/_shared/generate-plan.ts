@@ -84,7 +84,7 @@ export function determineSessionModes(
   // Precompute days with significant sport load (intensity ≥ 4, non-game)
   const sportLoadDays = new Set(
     weekly_schedule.sessions
-      .filter((s) => s.type !== "game" && s.type !== "tournament" && s.intensity >= 4)
+      .filter((s) => s.type !== "game" && s.type !== "tournament" && s.intensity >= 8)
       .map((s) => s.day_of_week),
   )
 
@@ -113,8 +113,8 @@ export function determineSessionModes(
     const sportSession = weekly_schedule.sessions.find((s) => s.day_of_week === day)
     if (sportSession) {
       if (sportSession.intensity >= 8) constraints.push("recovery")
-      else if (sportSession.intensity >= 4) constraints.push("activation")
-      // 1–3: FULL possible, no additional constraint
+      else if (sportSession.intensity >= 7) constraints.push("activation")
+      // 0–6: FULL possible, no additional constraint
     }
 
     // Rule 2: game day proximity (wrap-around not handled — week is linear 1–7)

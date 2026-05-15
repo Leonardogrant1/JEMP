@@ -669,6 +669,19 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
 
                             {sortedSportSessions.map(session => {
                                 const dayLabel = WEEK_DAYS.find(d => d.dow === session.day_of_week);
+                                const preferredDaysArray = [...preferredDays];
+
+                                function getAffectedJempDays(sportDay: number, mode: 'adjacent' | 'same'): number[] {
+                                    if (mode === 'same') return preferredDaysArray.includes(sportDay) ? [sportDay] : [];
+                                    const prev = sportDay === 1 ? 7 : sportDay - 1;
+                                    const next = sportDay === 7 ? 1 : sportDay + 1;
+                                    return preferredDaysArray.filter(d => d === prev || d === next);
+                                }
+
+                                function formatDays(days: number[]): string {
+                                    return days.map(d => t(WEEK_DAYS.find(x => x.dow === d)?.key as any ?? '')).join(', ');
+                                }
+
                                 return (
                                     <View key={session.day_of_week} style={[styles.sportCard, { backgroundColor: theme.surface }]}>
                                         <View style={styles.sportCardHeader}>
@@ -692,6 +705,20 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                                             ))}
                                         </View>
 
+                                        {(session.type === 'game' || session.type === 'tournament') && (() => {
+                                            const prev = session.day_of_week === 1 ? 7 : session.day_of_week - 1;
+                                            const next = session.day_of_week === 7 ? 1 : session.day_of_week + 1;
+                                            const affected = preferredDaysArray.filter(d => d === prev || d === next);
+                                            if (affected.length === 0) return null;
+                                            return (
+                                                <View style={styles.hintBox}>
+                                                    <JempText type="body-sm" color={GradientMid}>
+                                                        {t('onboarding.weekly_schedule_hint_game', { days: formatDays(affected) })}
+                                                    </JempText>
+                                                </View>
+                                            );
+                                        })()}
+
                                         {session.type !== 'game' && session.type !== 'tournament' && (
                                             <View style={styles.intensityRow}>
                                                 <View style={styles.intensityHeader}>
@@ -711,6 +738,34 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
                                                     maximumTrackTintColor={theme.borderStrong}
                                                     thumbTintColor={theme.text}
                                                 />
+                                                {session.intensity === 7 && (() => {
+                                                    const sameDay = getAffectedJempDays(session.day_of_week, 'same');
+                                                    if (sameDay.length === 0) return null;
+                                                    return (
+                                                        <View style={styles.hintBox}>
+                                                            <JempText type="body-sm" color={GradientMid}>
+                                                                {t('onboarding.weekly_schedule_hint_intensity_7', { days: formatDays(sameDay) })}
+                                                            </JempText>
+                                                        </View>
+                                                    );
+                                                })()}
+                                                {session.intensity >= 8 && (() => {
+                                                    const sameDay = getAffectedJempDays(session.day_of_week, 'same');
+                                                    const adjacent = getAffectedJempDays(session.day_of_week, 'adjacent');
+                                                    if (sameDay.length === 0 && adjacent.length === 0) return null;
+                                                    const key = sameDay.length > 0 && adjacent.length > 0
+                                                        ? 'onboarding.weekly_schedule_hint_intensity_8plus_both'
+                                                        : sameDay.length > 0
+                                                        ? 'onboarding.weekly_schedule_hint_intensity_8plus_same'
+                                                        : 'onboarding.weekly_schedule_hint_intensity_8plus_adjacent';
+                                                    return (
+                                                        <View style={styles.hintBox}>
+                                                            <JempText type="body-sm" color={GradientMid}>
+                                                                {t(key, { sameDays: formatDays(sameDay), adjacentDays: formatDays(adjacent) })}
+                                                            </JempText>
+                                                        </View>
+                                                    );
+                                                })()}
                                             </View>
                                         )}
                                     </View>
@@ -829,4 +884,11 @@ const styles = StyleSheet.create({
     intensityRow: { marginTop: 12 },
     intensityHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
     slider: { width: '100%', height: 40, marginHorizontal: -8 },
+    hintBox: {
+        marginTop: 10,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        backgroundColor: 'rgba(61, 158, 203, 0.15)',
+    },
 });

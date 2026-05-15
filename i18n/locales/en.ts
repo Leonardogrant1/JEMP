@@ -393,6 +393,11 @@ const en = {
     'onboarding.weekly_schedule_intensity_light': 'Light',
     'onboarding.weekly_schedule_intensity_medium': 'Medium',
     'onboarding.weekly_schedule_intensity_hard': 'Intense',
+    'onboarding.weekly_schedule_hint_intensity_7': 'On {{days}} your training load will be slightly adjusted.',
+    'onboarding.weekly_schedule_hint_intensity_8plus_same': 'On {{sameDays}} your JEMP workout will focus on recovery.',
+    'onboarding.weekly_schedule_hint_intensity_8plus_adjacent': 'On {{adjacentDays}} your training load will be reduced.',
+    'onboarding.weekly_schedule_hint_intensity_8plus_both': 'On {{sameDays}} your JEMP workout will focus on recovery, on {{adjacentDays}} your training load will be reduced.',
+    'onboarding.weekly_schedule_hint_game': 'On {{days}} your training will be adjusted — lighter before, recovery after.',
 
     // complete-step
     'onboarding.complete_eyebrow': 'ALL READY',

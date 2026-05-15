@@ -395,6 +395,11 @@ const de: Record<TranslationKeys, string> = {
     'onboarding.weekly_schedule_intensity_light': 'Leicht',
     'onboarding.weekly_schedule_intensity_medium': 'Mittel',
     'onboarding.weekly_schedule_intensity_hard': 'Intensiv',
+    'onboarding.weekly_schedule_hint_intensity_7': 'An {{days}} wird deine Trainingsbelastung leicht angepasst.',
+    'onboarding.weekly_schedule_hint_intensity_8plus_same': 'An {{sameDays}} wird dein JEMP-Workout auf Erholung ausgerichtet.',
+    'onboarding.weekly_schedule_hint_intensity_8plus_adjacent': 'An {{adjacentDays}} wird deine Trainingsbelastung reduziert.',
+    'onboarding.weekly_schedule_hint_intensity_8plus_both': 'An {{sameDays}} wird dein JEMP-Workout auf Erholung ausgerichtet, an {{adjacentDays}} wird deine Trainingsbelastung reduziert.',
+    'onboarding.weekly_schedule_hint_game': 'An {{days}} wird dein Training angepasst — leichter davor, Erholung danach.',
 
     // complete-step
     'onboarding.complete_eyebrow': 'ALLES BEREIT',
