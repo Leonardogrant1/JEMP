@@ -12,7 +12,6 @@ import {
     ActivityIndicator,
     StyleSheet,
     TouchableOpacity,
-    View,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import Purchases from 'react-native-purchases';
