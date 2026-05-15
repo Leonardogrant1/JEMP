@@ -20,6 +20,7 @@ export type UserProfile = {
   push_token: string | null
   timezone: string | null
   has_onboarded: boolean
+  referral_code: string | null
   created_at: string
   updated_at: string
   last_active_at: string
