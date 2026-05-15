@@ -35,6 +35,7 @@ type OnboardingStore = ProfileData & {
     equipmentIds: string[];
     environmentIds: string[];
     weekly_schedule: WeeklySchedule;
+    referral_code: string | null;
     set: (data: Partial<ProfileData & {
         sport_slug: string | null;
         targetedCategories: TargetedCategory[];
@@ -42,6 +43,7 @@ type OnboardingStore = ProfileData & {
         equipmentIds: string[];
         environmentIds: string[];
         weekly_schedule: WeeklySchedule;
+        referral_code: string | null;
     }>) => void;
     reset: () => void;
 };
@@ -64,6 +66,7 @@ const initialState: Omit<OnboardingStore, 'set' | 'reset'> = {
     equipmentIds: [],
     environmentIds: [],
     weekly_schedule: { sessions: [], notes: null },
+    referral_code: null,
 };
 
 export const useOnboardingStore = create<OnboardingStore>((set) => ({
