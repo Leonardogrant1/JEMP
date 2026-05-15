@@ -35,10 +35,14 @@ export function ReferralCodeStep() {
 
     function handleCodeChange(value: string) {
         setCode(value.toUpperCase());
+        if (status === 'error_not_found' || status === 'error_network') {
+            setStatus('idle');
+        }
     }
 
     async function handleSubmit() {
         if (!canSubmit) return;
+        if (!session?.user?.id) { setStatus('error_network'); return; }
         setStatus('loading');
         try {
             const revenueCatUserId = await Purchases.getAppUserID();
@@ -56,10 +60,11 @@ export function ReferralCodeStep() {
             if (response.status === 201) {
                 setStore({ referral_code: code.trim() });
                 if (session?.user?.id) {
-                    await supabase
+                    const { error: dbError } = await supabase
                         .from('user_profiles')
                         .update({ referral_code: code.trim() })
                         .eq('id', session.user.id);
+                    if (dbError) console.error('[ReferralCodeStep] Failed to save referral_code:', dbError);
                 }
                 setStatus('success');
             } else if (response.status === 404) {

@@ -14,6 +14,7 @@ import { NameStep } from '@/components/onboarding/steps/name-step';
 import { NotificationSetupStep } from '@/components/onboarding/steps/notification-setup-step';
 import { PlanGenerationStep } from '@/components/onboarding/steps/plan-generation-step';
 import { RatingStep } from '@/components/onboarding/steps/rating-step';
+import { ReferralCodeStep } from '@/components/onboarding/steps/referral-code-step';
 import { SportStep } from '@/components/onboarding/steps/sport-step';
 import { TrackingStep } from '@/components/onboarding/steps/tracking-step';
 import { TrialOfferStep } from '@/components/onboarding/steps/trial-offer-step';
@@ -64,6 +65,7 @@ export default function OnboardingScreen() {
                 await Notifications.requestPermissionsAsync();
             },
         },
+        { component: ReferralCodeStep, theme: 'dark', initialCanContinue: true },
         { component: WhatYouWillGetStep, theme: 'dark', initialCanContinue: true },
         { component: TrialOfferStep, theme: 'dark', continueButtonText: t('onboarding.btn_try_free') },
     ];
