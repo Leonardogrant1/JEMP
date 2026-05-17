@@ -79,7 +79,10 @@ export function OnboardingProgressWrapper({ steps }: Props) {
             onboardingData.reset();
             await refreshProfile();
             const navigate = () => router.replace('/tutorial');
-            await openWithPlacement('onboarding_completed', navigate, undefined, navigate);
+            const placement = onboardingData.referral_code
+                ? 'onboarding_completed_referral'
+                : 'onboarding_completed';
+            await openWithPlacement(placement, navigate, undefined, navigate);
         } catch (error) {
             console.error('Error finishing onboarding:', error);
         }

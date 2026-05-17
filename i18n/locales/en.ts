@@ -546,6 +546,12 @@ const en = {
     'magic_link.error_generic': 'Something went wrong. Please try again.',
     'magic_link.error_invalid_code': 'Invalid or expired code.',
 
+    // ── Assessment confirm modal ───────────────────────────────────────────
+    'ui.assessment_confirm_title': 'Save result?',
+    'ui.assessment_confirm_body': "Once you save your result, you won't be able to update this value for 4 weeks.",
+    'ui.assessment_confirm_cancel': 'Cancel',
+    'ui.assessment_confirm_submit': 'Save now',
+
     // ── Mobility rating labels ─────────────────────────────────────────────
     'mobility.rating_strongly_restricted': 'Very restricted',
     'mobility.rating_restricted': 'Restricted',

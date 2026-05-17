@@ -910,6 +910,7 @@ export type Database = {
             | null
           preferred_workout_days: number[] | null
           push_token: string | null
+          referral_code: string | null
           role: Database["public"]["Enums"]["user_role"]
           schedule_notes: string | null
           sport_id: string | null
@@ -938,6 +939,7 @@ export type Database = {
             | null
           preferred_workout_days?: number[] | null
           push_token?: string | null
+          referral_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           schedule_notes?: string | null
           sport_id?: string | null
@@ -966,6 +968,7 @@ export type Database = {
             | null
           preferred_workout_days?: number[] | null
           push_token?: string | null
+          referral_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           schedule_notes?: string | null
           sport_id?: string | null
@@ -1155,6 +1158,7 @@ export type Database = {
           description: string | null
           estimated_duration_minutes: number | null
           id: string
+          mode_slug: string | null
           name: string
           order_index: number
           pause_between_sets: number
@@ -1168,6 +1172,7 @@ export type Database = {
           description?: string | null
           estimated_duration_minutes?: number | null
           id?: string
+          mode_slug?: string | null
           name: string
           order_index: number
           pause_between_sets?: number
@@ -1181,6 +1186,7 @@ export type Database = {
           description?: string | null
           estimated_duration_minutes?: number | null
           id?: string
+          mode_slug?: string | null
           name?: string
           order_index?: number
           pause_between_sets?: number

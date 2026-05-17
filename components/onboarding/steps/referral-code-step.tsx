@@ -1,15 +1,18 @@
 import { JempText } from '@/components/jemp-text';
 import { JempInput } from '@/components/ui/jemp-input';
+import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/providers/auth-provider';
 import { supabase } from '@/services/supabase/client';
 import { useOnboardingStore } from '@/stores/onboarding-store';
+import { getBuildEnvironment } from '@/utils/build-environment';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator,
+    Keyboard,
     StyleSheet,
     TouchableOpacity,
 } from 'react-native';
@@ -27,11 +30,14 @@ export function ReferralCodeStep() {
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const { session } = useAuth();
     const setStore = useOnboardingStore((s) => s.set);
+    const existingCode = useOnboardingStore((s) => s.referral_code);
+    const { nextStep } = useOnboardingControl();
 
-    const [code, setCode] = useState('');
-    const [status, setStatus] = useState<SubmitStatus>('idle');
+    const alreadyRedeemed = !!existingCode;
+    const [code, setCode] = useState(existingCode ?? '');
+    const [status, setStatus] = useState<SubmitStatus>(alreadyRedeemed ? 'success' : 'idle');
 
-    const canSubmit = code.trim().length > 0 && status === 'idle';
+    const canSubmit = code.trim().length > 0 && status === 'idle' && !alreadyRedeemed;
 
     function handleCodeChange(value: string) {
         setCode(value.toUpperCase());
@@ -45,7 +51,10 @@ export function ReferralCodeStep() {
         if (!session?.user?.id) { setStatus('error_network'); return; }
         setStatus('loading');
         try {
-            const revenueCatUserId = await Purchases.getAppUserID();
+            const [revenueCatUserId, environment] = await Promise.all([
+                Purchases.getAppUserID(),
+                getBuildEnvironment(),
+            ]);
             const response = await fetch('https://www.northbyte.studio/api/affiliate/track', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -54,6 +63,7 @@ export function ReferralCodeStep() {
                     affiliateCode: code.trim(),
                     appUserId: session?.user?.id ?? '',
                     revenueCatUserId,
+                    environment,
                 }),
             });
 
@@ -67,6 +77,8 @@ export function ReferralCodeStep() {
                     if (dbError) console.error('[ReferralCodeStep] Failed to save referral_code:', dbError);
                 }
                 setStatus('success');
+                Keyboard.dismiss();
+                setTimeout(() => nextStep(), 600);
             } else if (response.status === 404) {
                 setStatus('error_not_found');
             } else {
@@ -113,7 +125,8 @@ export function ReferralCodeStep() {
                     autoCorrect={false}
                     returnKeyType="done"
                     onSubmitEditing={handleSubmit}
-                    style={styles.input}
+                    editable={!alreadyRedeemed}
+                    style={[styles.input, alreadyRedeemed && styles.inputLocked]}
                 />
                 <TouchableOpacity
                     onPress={handleSubmit}
@@ -168,6 +181,9 @@ const styles = StyleSheet.create({
     },
     input: {
         flex: 1,
+    },
+    inputLocked: {
+        opacity: 0.5,
     },
     submitWrapper: {
         borderRadius: 14,

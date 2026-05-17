@@ -48,6 +48,7 @@
     "expo-superwall": "^1.0.11",
     "expo-symbols": "~55.0.7",
     "expo-system-ui": "~55.0.14",
+    "expo-testflight": "^0.3.0",
     "expo-tracking-transparency": "~55.0.12",
     "expo-video": "~55.0.14",
     "expo-web-browser": "~15.0.10",

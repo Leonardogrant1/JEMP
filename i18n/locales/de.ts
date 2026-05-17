@@ -548,6 +548,12 @@ const de: Record<TranslationKeys, string> = {
     'magic_link.error_generic': 'Etwas ist schiefgelaufen. Bitte versuche es erneut.',
     'magic_link.error_invalid_code': 'Ungültiger oder abgelaufener Code.',
 
+    // ── Assessment-Bestätigungs-Modal ──────────────────────────────────────
+    'ui.assessment_confirm_title': 'Ergebnis speichern?',
+    'ui.assessment_confirm_body': 'Sobald du dein Ergebnis speicherst, kannst du diesen Wert erst in 4 Wochen wieder aktualisieren.',
+    'ui.assessment_confirm_cancel': 'Abbrechen',
+    'ui.assessment_confirm_submit': 'Jetzt speichern',
+
     // ── Mobilität-Bewertungslabels ─────────────────────────────────────────
     'mobility.rating_strongly_restricted': 'Stark eingeschränkt',
     'mobility.rating_restricted': 'Eingeschränkt',
