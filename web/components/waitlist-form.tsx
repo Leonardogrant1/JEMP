@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 export function WaitlistForm() {
+  const t = useTranslations("waitlist");
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "loading" | "success" | "error">("idle");
 
@@ -18,11 +20,7 @@ export function WaitlistForm() {
   }
 
   if (state === "success") {
-    return (
-      <p className="text-brand-cyan font-semibold text-lg">
-        Du bist auf der Liste. Wir melden uns! 🎯
-      </p>
-    );
+    return <p className="text-brand-cyan font-semibold text-lg">{t("success")}</p>;
   }
 
   return (
@@ -30,7 +28,7 @@ export function WaitlistForm() {
       <input
         type="email"
         required
-        placeholder="deine@email.com"
+        placeholder={t("placeholder")}
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         className="flex-1 px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-brand-cyan"
@@ -40,12 +38,10 @@ export function WaitlistForm() {
         disabled={state === "loading"}
         className="px-6 py-3 rounded-xl bg-brand-gradient font-bold text-white disabled:opacity-50 whitespace-nowrap"
       >
-        {state === "loading" ? "..." : "Frühen Zugang sichern"}
+        {state === "loading" ? "..." : t("cta")}
       </button>
       {state === "error" && (
-        <p className="text-red-400 text-sm mt-2">
-          Etwas ist schiefgelaufen. Versuch es nochmal.
-        </p>
+        <p className="text-red-400 text-sm mt-2">{t("error")}</p>
       )}
     </form>
   );

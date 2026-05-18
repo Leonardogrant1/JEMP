@@ -1,0 +1,58 @@
+{
+  "nav": {
+    "features": "Features",
+    "earlyAccess": "Early Access",
+    "cta": "Early Access"
+  },
+  "hero": {
+    "badge": "Coming soon for iOS & Android",
+    "headline1": "Train like a",
+    "headline2": "Pro Athlete.",
+    "subtitle": "JEMP creates your personal training plan — tailored to your sport, your level, and your equipment.",
+    "cta": "Get Early Access"
+  },
+  "features": {
+    "headline1": "Everything you need.",
+    "headline2": "Nothing you don't.",
+    "subtitle": "No generic training plan. Everything is based on your profile.",
+    "items": [
+      {
+        "title": "Sport-specific",
+        "description": "Whether boxer, sprinter, or basketball player — your plan is tailored to your sport."
+      },
+      {
+        "title": "Level-adaptive",
+        "description": "The system evaluates your current level and scales with you as you improve."
+      },
+      {
+        "title": "Your Equipment",
+        "description": "Only exercises you can do with the equipment you actually have."
+      },
+      {
+        "title": "Track Progress",
+        "description": "See how you improve week by week — with clear metrics."
+      }
+    ],
+    "centerTitle1": "Your Plan.",
+    "centerTitle2": "Your Level.",
+    "centerSubtitle": "Personalized down to the last detail."
+  },
+  "earlyAccess": {
+    "badge": "Limited spots available",
+    "headline1": "Be among the",
+    "headline2": "First.",
+    "subtitle": "Enter your email and secure early access to JEMP — the training plan built around you."
+  },
+  "waitlist": {
+    "placeholder": "your@email.com",
+    "cta": "Get Early Access",
+    "success": "You're on the list. We'll be in touch!",
+    "error": "Something went wrong. Please try again."
+  },
+  "footer": {
+    "copyright": "JEMP · studio.northbyte",
+    "impressum": "Imprint",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Use"
+  }
+}

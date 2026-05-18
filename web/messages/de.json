@@ -1,0 +1,58 @@
+{
+  "nav": {
+    "features": "Features",
+    "earlyAccess": "Early Access",
+    "cta": "Early Access"
+  },
+  "hero": {
+    "badge": "Bald verfügbar für iOS & Android",
+    "headline1": "Trainiere wie ein",
+    "headline2": "Profi-Athlet.",
+    "subtitle": "JEMP erstellt deinen persönlichen Trainingsplan — abgestimmt auf deine Sportart, dein Level und dein Equipment.",
+    "cta": "Early Access sichern"
+  },
+  "features": {
+    "headline1": "Alles was du brauchst.",
+    "headline2": "Nichts was du nicht brauchst.",
+    "subtitle": "Kein generischer Trainingsplan. Alles basiert auf deinem Profil.",
+    "items": [
+      {
+        "title": "Sportart-spezifisch",
+        "description": "Ob Boxer, Sprinter oder Basketballer — dein Plan ist auf deine Sportart zugeschnitten."
+      },
+      {
+        "title": "Level-adaptiv",
+        "description": "Das System bewertet dein aktuelles Level und skaliert mit dir mit."
+      },
+      {
+        "title": "Dein Equipment",
+        "description": "Nur Übungen, die du mit dem Equipment machen kannst, das du wirklich hast."
+      },
+      {
+        "title": "Fortschritt tracken",
+        "description": "Sieh wie du dich Woche für Woche verbesserst — mit klaren Metriken."
+      }
+    ],
+    "centerTitle1": "Dein Plan.",
+    "centerTitle2": "Dein Level.",
+    "centerSubtitle": "Personalisiert bis ins Detail."
+  },
+  "earlyAccess": {
+    "badge": "Limitierte Plätze verfügbar",
+    "headline1": "Sei unter den",
+    "headline2": "Ersten.",
+    "subtitle": "Trag deine E-Mail ein und sichere dir frühen Zugang zu JEMP — dem Trainingsplan, der auf dich zugeschnitten ist."
+  },
+  "waitlist": {
+    "placeholder": "deine@email.com",
+    "cta": "Frühen Zugang sichern",
+    "success": "Du bist auf der Liste. Wir melden uns!",
+    "error": "Etwas ist schiefgelaufen. Versuch es nochmal."
+  },
+  "footer": {
+    "copyright": "JEMP · studio.northbyte",
+    "impressum": "Impressum",
+    "privacy": "Datenschutz",
+    "terms": "AGB"
+  }
+}

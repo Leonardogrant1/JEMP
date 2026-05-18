@@ -1,8 +1,28 @@
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr';
+import createMiddleware from 'next-intl/middleware';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
-export async function proxy(req: NextRequest) {
+
+const LANDING_ROUTES = /^\/(?!admin|api|sign-in|impressum|datenschutz|agb|_next|.*\..*).*$/
+
+
+export default async function proxy(req: NextRequest) {
+
+  if (LANDING_ROUTES.test(req.nextUrl.pathname)) {
+    const defaultLocale = "de"
+    const handleI18nRouting = createMiddleware({
+      locales: ['en', 'de'],
+      defaultLocale,
+      localePrefix: 'as-needed'
+    });
+    const response = handleI18nRouting(req);
+
+    return response;
+  }
+
+
+  // Supabase auth for admin routes
   let response = NextResponse.next({ request: req })
 
   const supabase = createServerClient(
@@ -26,13 +46,16 @@ export async function proxy(req: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
+
   if (!user && req.nextUrl.pathname.startsWith('/admin')) {
     return NextResponse.redirect(new URL('/sign-in', req.url))
   }
+
+
 
   return response
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*).+)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)'],
 }

@@ -1,20 +1,10 @@
-import type { Metadata } from "next";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "JEMP — Train like a pro athlete",
-  description: "The training app built for serious athletes.",
-  icons: {
-    icon: "/logo.svg"
-  }
-};
-
+// Root shell — required by Next.js. All route-specific content lives in nested layouts.
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="de">
-      <body className="bg-brand-bg text-white font-sans antialiased">
-        {children}
-      </body>
+    <html suppressHydrationWarning>
+      <body>{children}</body>
     </html>
   );
 }
