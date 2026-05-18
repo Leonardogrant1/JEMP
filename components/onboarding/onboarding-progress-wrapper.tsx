@@ -55,7 +55,7 @@ export function OnboardingProgressWrapper({ steps }: Props) {
 
     const [visionDescription, setVisionDescription] = useState('');
     const inFlightRef = useRef(false);
-    const { openWithPlacement } = useSuperwallFunctions();
+    const { openWithPlacement, update } = useSuperwallFunctions();
     const { session } = useAuth();
     const { refreshProfile } = useCurrentUser();
     const onboardingData = useOnboardingStore();
@@ -76,13 +76,14 @@ export function OnboardingProgressWrapper({ steps }: Props) {
                     .update({ has_onboarded: true })
                     .eq('id', session.user.id);
             }
+            const referralCode = onboardingData.referral_code;
             onboardingData.reset();
             await refreshProfile();
             const navigate = () => router.replace('/tutorial');
-            const placement = onboardingData.referral_code
-                ? 'onboarding_completed_referral'
-                : 'onboarding_completed';
-            await openWithPlacement(placement, navigate, undefined, navigate);
+            if (referralCode) {
+                await update({ promocode: referralCode });
+            }
+            await openWithPlacement('onboarding_completed', navigate, undefined, navigate);
         } catch (error) {
             console.error('Error finishing onboarding:', error);
         }

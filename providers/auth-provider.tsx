@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             if (session?.user?.id) {
-                trackerManager.identify(session.user.id);
+                trackerManager.identify(session.user.id, { email: session.user.email });
             }
             setLoading(false);
         });
@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             setSession(session);
             if (event === 'SIGNED_IN' && session?.user?.id) {
-                trackerManager.identify(session.user.id);
+                trackerManager.identify(session.user.id, { email: session.user.email });
             }
             if (event === 'SIGNED_OUT') {
                 trackerManager.logout();

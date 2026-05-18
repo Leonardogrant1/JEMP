@@ -1,12 +1,12 @@
 import { JempText } from '@/components/jemp-text';
-import { RestDayCard, DayVariant } from '@/components/rest-day-card';
+import { DayVariant, RestDayCard } from '@/components/rest-day-card';
 import { getSessionImage } from '@/constants/session-images';
-import { Colors, Cyan, Electric } from '@/constants/theme';
+import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
 import { useCurrentUser } from '@/providers/current-user-provider';
-import { usePlan, WorkoutSession, PlanSession } from '@/providers/plan-provider';
+import { usePlan, WorkoutSession } from '@/providers/plan-provider';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -51,10 +51,10 @@ function getTodaySession(sessions: WorkoutSession[]) {
 }
 
 const MODE_COLORS: Record<string, string> = {
-    full:       '#22c55e',
-    reduced:    '#f59e0b',
+    full: '#22c55e',
+    reduced: '#f59e0b',
     activation: '#3b82f6',
-    recovery:   '#a78bfa',
+    recovery: '#a78bfa',
 };
 
 function ModeBadge({ mode }: { mode: string | null | undefined }) {
@@ -177,9 +177,9 @@ export default function HomeScreen() {
                                 style={StyleSheet.absoluteFill}
                             />
                             <View style={styles.modeBadgeCorner}>
-                            <ModeBadge mode={todayModeSlug} />
-                        </View>
-                        <View style={styles.cardContent}>
+                                <ModeBadge mode={todayModeSlug} />
+                            </View>
+                            <View style={styles.cardContent}>
                                 <JempText type="caption" gradient={nextSession.status == 'completed'} color={nextSession.status !== 'completed' ? theme.textMuted : ''}>
                                     {nextSession.status === 'completed'
                                         ? t('ui.session_completed')

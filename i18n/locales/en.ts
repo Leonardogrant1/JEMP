@@ -278,6 +278,15 @@ const en = {
     'ui.progress_no_history': 'No history yet for this period',
     'ui.progress_no_assessments': 'No assessments in this period',
 
+    'ui.session_manage_title': 'Manage Session',
+    'ui.session_manage_cancel': 'Cancel Session',
+    'ui.session_manage_reschedule': 'Reschedule',
+    'ui.session_cancel_confirm_title': 'Cancel session?',
+    'ui.session_cancel_confirm_body': 'This session will be marked as cancelled and removed from your plan.',
+    'ui.session_cancel_confirm_submit': 'Yes, cancel',
+    'ui.session_reschedule_title': 'Reschedule to...',
+    'ui.session_reschedule_no_free_days': 'No free days available this week.',
+
     // ── Tabs ─────────────────────────────────────────────────────────────
     'tab.today': 'Today',
     'tab.plan': 'Plan',

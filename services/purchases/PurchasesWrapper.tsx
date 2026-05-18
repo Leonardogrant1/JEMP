@@ -1,4 +1,5 @@
 import { useAuth } from "@/providers/auth-provider";
+import { useCurrentUser } from "@/providers/current-user-provider";
 import { PREMIUM_IDENTIFIER } from "@/services/purchases/revenuecat/constants";
 import { useRevenueCat } from "@/services/purchases/revenuecat/providers/RevenueCatProvider";
 import { SUPERWALL_API_KEYS, SUPERWALL_ENTITLEMENTS } from "@/services/purchases/superwall/constants";
@@ -61,9 +62,10 @@ export function PurchaseWrapper({ children }: PurchaseWrapperProps) {
 
 // necessary because to use useSuperwallFunctions we need to be inside SuperwallProvider
 function PurchaseLogicWrapper({ children }: { children: React.ReactNode }) {
-    const { identify, signOut: superwallSignOut, setSubscriptionStatus } = useSuperwallFunctions();
+    const { identify, signOut: superwallSignOut, setSubscriptionStatus, update } = useSuperwallFunctions();
     const { customerInfo } = useRevenueCat();
     const { session } = useAuth();
+    const { profile } = useCurrentUser();
     const userId = session?.user?.id;
     const isConfigured = useSuperwall((state) => state.isConfigured);
 
@@ -79,6 +81,12 @@ function PurchaseLogicWrapper({ children }: { children: React.ReactNode }) {
             setSubscriptionStatus({ status: "INACTIVE" });
         }
     }, [userId, isConfigured]);
+
+    // Re-apply Superwall user attributes after identify (survives reinstalls).
+    useEffect(() => {
+        if (!isConfigured || !userId || !profile?.referral_code) return;
+        update({ promocode: profile.referral_code });
+    }, [userId, profile?.referral_code, isConfigured]);
 
     // Sync Superwall subscription status whenever RevenueCat customerInfo changes.
     // This runs AFTER RevenueCatProvider has called Purchases.logIn() and loaded the

@@ -1,18 +1,21 @@
 import { JempText } from '@/components/jemp-text';
-import { RestDayCard } from '@/components/rest-day-card';
-import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
+import { SessionManageSheet } from '@/components/modals/session-manage-sheet';
+import { SessionRescheduleModal } from '@/components/modals/session-reschedule-modal';
+import { type DayVariant, RestDayCard } from '@/components/rest-day-card';
 import { getSessionImage } from '@/constants/session-images';
+import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { type PlanSession, type SessionStatus, type WorkoutSession, usePlan } from '@/providers/plan-provider';
+import { useRescheduleSession } from '@/mutations/use-reschedule-session';
+import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
 import { useCurrentUser } from '@/providers/current-user-provider';
-import { type DayVariant } from '@/components/rest-day-card';
+import { type PlanSession, type SessionStatus, type WorkoutSession, usePlan } from '@/providers/plan-provider';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { router, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -68,10 +71,10 @@ function StatusBadge({ status }: { status: SessionStatus }) {
 // ── Mode badge ────────────────────────────────────────────────────────────
 
 const MODE_COLORS: Record<string, string> = {
-    full:       '#22c55e',
-    reduced:    '#f59e0b',
+    full: '#22c55e',
+    reduced: '#f59e0b',
     activation: '#3b82f6',
-    recovery:   '#a78bfa',
+    recovery: '#a78bfa',
 };
 
 function ModeBadge({ mode }: { mode: string | null | undefined }) {
@@ -120,25 +123,27 @@ function SessionCard({ session, modeSlug, theme }: { session: WorkoutSession; mo
                     ) : null}
                     <StatusBadge status={session.status} />
                 </View>
-                <Pressable
-                    style={styles.cta}
-                    onPress={() => router.push(
-                        session.status === 'completed'
-                            ? `/session-summary/${session.id}`
-                            : `/session/${session.id}`
-                    )}
-                >
-                    <LinearGradient
-                        colors={[Cyan[500], Electric[500]]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.ctaGradient}
+                {session.status !== 'scheduled' && (
+                    <Pressable
+                        style={styles.cta}
+                        onPress={() => router.push(
+                            session.status === 'completed'
+                                ? `/session-summary/${session.id}`
+                                : `/session/${session.id}`
+                        )}
                     >
-                        <JempText type="button" color="#fff">
-                            {session.status === 'completed' ? t('ui.view_summary') : t('ui.view_details')}
-                        </JempText>
-                    </LinearGradient>
-                </Pressable>
+                        <LinearGradient
+                            colors={[Cyan[500], Electric[500]]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.ctaGradient}
+                        >
+                            <JempText type="button" color="#fff">
+                                {session.status === 'completed' ? t('ui.view_summary') : t('ui.view_details')}
+                            </JempText>
+                        </LinearGradient>
+                    </Pressable>
+                )}
             </View>
         </View>
     );
@@ -231,6 +236,14 @@ export default function PlanScreen() {
     const { plan, sessions, planSessions, isLoading, streak } = usePlan();
     const { profile } = useCurrentUser();
 
+    const { mutate: updateSessionStatus } = useUpdateSessionStatus();
+    const { mutate: rescheduleSession } = useRescheduleSession();
+
+    // managedSession persists across both the manage sheet and the reschedule modal
+    const [managedSession, setManagedSession] = useState<WorkoutSession | null>(null);
+    const [showManageSheet, setShowManageSheet] = useState(false);
+    const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+
     const { date } = useLocalSearchParams<{ date?: string }>();
     const [selectedDay, setSelectedDay] = useState<Date>(new Date());
     const appliedDate = useRef<string | undefined>(undefined);
@@ -271,10 +284,13 @@ export default function PlanScreen() {
                 .map(s => toDateStr(new Date(s.scheduled_at!)))
                 .filter(dateStr => weekDays.some(wd => toDateStr(wd) === dateStr))
         );
-        // Add plan-template previews for empty days
+        // Add plan-template previews for empty days (only if no WorkoutSession with same plan_session_id exists this week)
         for (const day of weekDays) {
-            if (!set.has(toDateStr(day)) && getPreviewSession(day, sessions, planSessionByDow)) {
-                set.add(toDateStr(day));
+            if (!set.has(toDateStr(day))) {
+                const preview = getPreviewSession(day, sessions, planSessionByDow);
+                if (preview && !sessions.some(s => s.workout_plan_session_id === preview.id)) {
+                    set.add(toDateStr(day));
+                }
             }
         }
         return set;
@@ -286,10 +302,13 @@ export default function PlanScreen() {
         s => toDateStr(new Date(s.scheduled_at!)) === selectedDayStr
     ), [sessions, selectedDayStr]);
 
-    // Plan-template preview for tapped day (only when no real session)
-    const selectedDayPreview = useMemo(() =>
-        getPreviewSession(selectedDay, sessions, planSessionByDow)
-        , [selectedDay, sessions, planSessionByDow]);
+    // Plan-template preview for tapped day (only when no real session AND no WorkoutSession with same plan_session_id exists this week)
+    const selectedDayPreview = useMemo(() => {
+        const preview = getPreviewSession(selectedDay, sessions, planSessionByDow);
+        if (!preview) return null;
+        if (sessions.some(s => s.workout_plan_session_id === preview.id)) return null;
+        return preview;
+    }, [selectedDay, sessions, planSessionByDow]);
 
     // First upcoming concrete session for the preview template (for "View Details" navigation)
     const previewNextSession = useMemo(() => {
@@ -439,14 +458,39 @@ export default function PlanScreen() {
 
                         {/* Sessions for selected day */}
                         {selectedDaySessions.length > 0 ? (
-                            <SessionCard
-                                key={selectedDaySessions[0].id}
-                                session={selectedDaySessions[0]}
-                                modeSlug={planSessionByDow.get(
-                                    (() => { const js = selectedDay.getDay(); return js === 0 ? 7 : js; })()
-                                )?.mode_slug}
-                                theme={theme}
-                            />
+                            <>
+                                <SessionCard
+                                    key={selectedDaySessions[0].id}
+                                    session={selectedDaySessions[0]}
+                                    modeSlug={planSessionByDow.get(
+                                        (() => { const js = selectedDay.getDay(); return js === 0 ? 7 : js; })()
+                                    )?.mode_slug}
+                                    theme={theme}
+                                />
+                                {selectedDaySessions[0].status === 'scheduled' && (
+                                    <View style={styles.sessionActionRow}>
+                                        <TouchableOpacity
+                                            style={[styles.actionBtn, { backgroundColor: theme.surface }]}
+                                            onPress={() => { setManagedSession(selectedDaySessions[0]); setShowManageSheet(true); }}
+                                        >
+                                            <JempText type="button" color={theme.text}>{t('ui.session_manage_title')}</JempText>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.actionBtnGradient}
+                                            onPress={() => router.push(`/session/${selectedDaySessions[0].id}`)}
+                                        >
+                                            <LinearGradient
+                                                colors={[Cyan[500], Electric[500]]}
+                                                start={{ x: 0, y: 0 }}
+                                                end={{ x: 1, y: 0 }}
+                                                style={styles.actionBtnGradientInner}
+                                            >
+                                                <JempText type="button" color="#fff">{t('ui.view_details')}</JempText>
+                                            </LinearGradient>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                            </>
                         ) : selectedDayPreview ? (
                             <PlanSessionCard key={selectedDayPreview.id} planSession={selectedDayPreview} nextSession={previewNextSession} theme={theme} />
                         ) : (
@@ -455,6 +499,41 @@ export default function PlanScreen() {
                     </>
                 )}
             </View>
+
+            <SessionManageSheet
+                visible={showManageSheet}
+                onClose={() => {
+                    setShowManageSheet(false);
+                    if (!showRescheduleModal) setManagedSession(null);
+                }}
+                onCancel={() => {
+                    if (!managedSession) return;
+                    updateSessionStatus({ sessionId: managedSession.id, status: 'cancelled' });
+                }}
+                onReschedule={() => {
+                    setShowManageSheet(false);
+                    setShowRescheduleModal(true);
+                }}
+            />
+
+            <SessionRescheduleModal
+                visible={showRescheduleModal}
+                onClose={() => {
+                    setShowRescheduleModal(false);
+                    setManagedSession(null);
+                }}
+                onConfirm={(newDate) => {
+                    if (!managedSession) return;
+                    rescheduleSession({
+                        sessionId: managedSession.id,
+                        newDate,
+                        originalScheduledAt: managedSession.scheduled_at!,
+                    });
+                }}
+                sessions={sessions}
+                currentSessionId={managedSession?.id ?? ''}
+                weekDays={weekDays}
+            />
         </SafeAreaView>
     );
 }
@@ -519,6 +598,32 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
         borderRadius: 8,
         borderWidth: 1,
+    },
+
+    // Session action buttons
+    sessionActionRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    actionBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+        borderRadius: 14,
+        gap: 6,
+    },
+    actionBtnGradient: {
+        flex: 1,
+        borderRadius: 14,
+        overflow: 'hidden',
+    },
+    actionBtnGradientInner: {
+        flex: 1,
+        paddingVertical: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 
     // Plan template preview badge

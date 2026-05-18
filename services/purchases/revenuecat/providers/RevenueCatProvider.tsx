@@ -46,7 +46,7 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
         if (!userId) {
             // Only call logOut if we previously called logIn — RC warns when logging out an anonymous user
             if (hasLoggedInRef.current) {
-                Purchases.logOut().catch(() => {});
+                Purchases.logOut().catch(() => { });
                 hasLoggedInRef.current = false;
             }
             setCustomerInfo(null);

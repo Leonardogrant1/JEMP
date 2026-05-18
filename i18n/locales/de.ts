@@ -280,6 +280,15 @@ const de: Record<TranslationKeys, string> = {
     'ui.progress_no_history': 'Noch keine Daten für diesen Zeitraum',
     'ui.progress_no_assessments': 'Keine Tests in diesem Zeitraum',
 
+    'ui.session_manage_title': 'Session verwalten',
+    'ui.session_manage_cancel': 'Session absagen',
+    'ui.session_manage_reschedule': 'Verschieben',
+    'ui.session_cancel_confirm_title': 'Session absagen?',
+    'ui.session_cancel_confirm_body': 'Die Session wird als abgesagt markiert und aus deinem Plan entfernt.',
+    'ui.session_cancel_confirm_submit': 'Ja, absagen',
+    'ui.session_reschedule_title': 'Verschieben auf...',
+    'ui.session_reschedule_no_free_days': 'Keine freien Tage diese Woche.',
+
     // ── Tabs ─────────────────────────────────────────────────────────────
     'tab.today': 'Heute',
     'tab.plan': 'Plan',
