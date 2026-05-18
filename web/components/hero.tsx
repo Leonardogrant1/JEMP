@@ -28,7 +28,7 @@ export async function Hero() {
         aria-hidden="true"
       />
 
-      <div className="max-w-5xl mx-auto w-full flex flex-col sm:flex-row items-center gap-12 sm:gap-16">
+      <div className="max-w-5xl mx-auto w-full flex flex-col sm:flex-row items-center gap-12 sm:gap-16 pt-20 sm:pt-0">
         <div className="flex-1 text-left">
           <div className="inline-block px-3 py-1 rounded-full bg-white/10 text-sm text-white/60 mb-6 border border-white/10">
             {t("badge")}
