@@ -1,6 +1,6 @@
 'use server'
 
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase';
 
 export type SportOption = { id: string; slug: string; name: string }
 export type EnvironmentOption = { id: string; slug: string; name: string }
@@ -34,6 +34,8 @@ export async function getSimulatorRefData(): Promise<SimulatorRefData> {
     supabase.from('equipments').select('id, slug, name_i18n, environment_equipments(environment_id)').order('slug'),
     supabase.from('categories').select('id, slug, name_i18n').order('slug'),
   ])
+
+  console.log('getSimulatorRefData', sports?.length, environments?.length, equipments?.length, categories?.length)
 
   return {
     sports: (sports ?? []).map(s => ({ id: s.id, slug: s.slug, name: label(s.name_i18n, s.slug) })),
