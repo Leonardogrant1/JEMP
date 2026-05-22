@@ -5,8 +5,6 @@ export async function POST(req: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  console.log('admin-simulate-plan', supabaseUrl, serviceRoleKey?.slice(0, 10) + '...')
-
   if (!supabaseUrl || !serviceRoleKey) {
     return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
   }
@@ -25,6 +23,7 @@ export async function POST(req: NextRequest) {
   })
 
   if (error) {
+    console.error('admin-simulate-plan error', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
