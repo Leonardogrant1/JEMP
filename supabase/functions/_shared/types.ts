@@ -27,11 +27,15 @@ export type PlanGenerationInput = {
   user_focus_categories: { category: string; priority: number }[]
 }
 
+export type PlannedBlockSummary = {
+  block_type: "primary" | "secondary" | "accessory"
+  category_slug: string
+  exercise_slugs: string[]
+}
+
 export type PlannedSessionSummary = {
   day_of_week: number
   mode_slug: SessionModeSlug
   name: string
-  primary_category: string
-  secondary_category: string
-  exercise_slugs: string[]
+  blocks: PlannedBlockSummary[]
 }

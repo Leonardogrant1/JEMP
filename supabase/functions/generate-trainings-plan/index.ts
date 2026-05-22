@@ -1,42 +1,35 @@
 import "@supabase/functions-js/edge-runtime.d.ts"
-import { createClient } from "@supabase/supabase-js"
+import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import { OpenAI } from "openai"
-import { z } from "zod"
-import { generatePlan, intensityToPoints, pointsToLoadProfile } from "../_shared/generate-plan.ts"
-import { planSchema } from "../_shared/schemas.ts"
+import { generatePlan } from "../_shared/generate-plan.ts"
+import { intensityToPoints, pointsToLoadProfile } from "../_shared/helpers.ts"
 import { computePlanDates, getScheduledDates } from "./helpers/date-helpers.ts"
 
 const nz = (v: number): number | null => (v > 0 ? v : null)
 
-Deno.serve(async (req) => {
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 })
-  }
 
-  const authHeader = req.headers.get("Authorization")
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
-  }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!
-  const openaiApiKey = Deno.env.get("OPENAI_API_KEY")!
+type UserData = {
+  success: boolean,
+  error: string | null,
+  data: {
+    userProfile: any,
+    equipmentIds: string[],
+    categoryLevels: Array<{ category_id: string; level_score: number }>,
+    environmentIds: string[],
+    environmentSlugs: string[],
+    sportRequiredCategories: Array<{ category: string; relevance: number }>,
+    userFocusCategories: Array<{ category: string; priority: number }>,
+    weeklySchedule: any,
+    sportData: any,
+    loadScore: number,
+    loadProfile: "low" | "medium" | "high" | undefined,
+  } | null
+}
 
-  const userClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authHeader } },
-  })
-  const { data: { user }, error: authError } = await userClient.auth.getUser()
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
-  }
 
-  const userId = user.id
-  const supabase = createClient(supabaseUrl, serviceRoleKey)
-  const openai = new OpenAI({ apiKey: openaiApiKey })
-
+const getUserData = async (supabase: SupabaseClient, userId: string): Promise<UserData> => {
   try {
-    // ── 1. Fetch user profile + equipment + category levels ──────
 
     const { data: userProfile, error: profileError } = await supabase
       .from("user_profiles")
@@ -45,7 +38,11 @@ Deno.serve(async (req) => {
       .single()
 
     if (profileError || !userProfile) {
-      return new Response(JSON.stringify({ error: "User profile not found" }), { status: 404 })
+      return {
+        success: false,
+        error: "User profile not found",
+        data: null
+      }
     }
 
     const equipmentIds = (userProfile.user_equipments as any[]).map((e) => e.equipments.id) as string[]
@@ -87,6 +84,77 @@ Deno.serve(async (req) => {
     const weeklySchedule = (userProfile.weekly_schedule as any) ?? { sessions: [], notes: null }
     const loadScore = weeklySchedule.sessions.reduce((sum: number, s: any) => sum + intensityToPoints(s.intensity), 0)
     const loadProfile = pointsToLoadProfile(loadScore)
+
+    return {
+      success: true,
+      error: null,
+      data: {
+        userProfile,
+        equipmentIds,
+        sportData,
+        categoryLevels,
+        environmentIds,
+        environmentSlugs,
+        sportRequiredCategories,
+        userFocusCategories,
+        weeklySchedule,
+        loadScore,
+        loadProfile,
+      }
+    }
+  }
+  catch (e: any) {
+    console.error("Error getting user data:", e)
+    return {
+      success: false,
+      error: e.message,
+      data: null,
+    }
+  }
+}
+
+
+
+
+Deno.serve(async (req) => {
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 })
+  }
+
+  const authHeader = req.headers.get("Authorization")
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!
+  const openaiApiKey = Deno.env.get("OPENAI_API_KEY")!
+
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+  })
+  const { data: { user }, error: authError } = await userClient.auth.getUser()
+  if (authError || !user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
+  }
+
+  const userId = user.id
+  const supabase = createClient(supabaseUrl, serviceRoleKey)
+  const openai = new OpenAI({ apiKey: openaiApiKey })
+
+  try {
+    // ── 1. Fetch user profile + equipment + category levels ──────
+
+    const userData = await getUserData(supabase, userId)
+    if (!userData.success || userData.data === null) {
+      if (userData.error === "User profile not found") {
+        return new Response(JSON.stringify({ error: userData.error }), { status: 404 })
+      }
+      return new Response(JSON.stringify({ error: userData.error }), { status: 500 })
+    }
+
+    const { userProfile, sportData, equipmentIds, categoryLevels, environmentIds, environmentSlugs, sportRequiredCategories, userFocusCategories, weeklySchedule, loadScore, loadProfile } = userData.data
 
     // Derive min/max from preferred_session_duration until DB has dedicated columns
     const durationMap: Record<string, { min: number; max: number }> = {

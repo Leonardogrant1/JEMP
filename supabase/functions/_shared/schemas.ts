@@ -39,21 +39,18 @@ const planSchema = z.object({
   sessions: z.array(sessionSchema),
 })
 
-
-const planOverviewSchema = z.object({
+// Single call that plans the entire week: name, description + exercise slugs per block per session
+const weekPlanSchema = z.object({
   name: z.string(),
   description: z.string(),
+  sessions: z.array(z.object({
+    day_of_week: z.number(),
+    blocks: z.array(z.object({
+      block_type: z.enum(["primary", "secondary", "accessory"]),
+      category_slug: z.string(),
+      exercise_slugs: z.array(z.string()).min(1).max(4),
+    })),
+  })),
 })
 
-const primarySecondarySchema = z.object({
-  primary: z.object({
-    category_slug: z.string(),
-    exercise_slugs: z.array(z.string()).min(1).max(2),
-  }),
-  secondary: z.object({
-    category_slug: z.string(),
-    exercise_slugs: z.array(z.string()).min(1).max(2),
-  }),
-})
-
-export { blockSchema, exerciseSchema, planOverviewSchema, planSchema, primarySecondarySchema, sessionSchema }
+export { blockSchema, exerciseSchema, planSchema, sessionSchema, weekPlanSchema }

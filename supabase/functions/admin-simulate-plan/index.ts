@@ -1,7 +1,8 @@
 import "@supabase/functions-js/edge-runtime.d.ts"
 import { createClient } from "@supabase/supabase-js"
 import { OpenAI } from "openai"
-import { generatePlan, intensityToPoints, pointsToLoadProfile } from "../_shared/generate-plan.ts"
+import { generatePlan } from "../_shared/generate-plan.ts"
+import { intensityToPoints, pointsToLoadProfile } from "../_shared/helpers.ts"
 import { PlanGenerationInput, WeeklySchedule } from "../_shared/types.ts"
 
 // Shape expected from the admin simulator store
