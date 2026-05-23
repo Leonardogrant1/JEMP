@@ -19,6 +19,7 @@ type SimUserData = {
   environment_ids?: string[]
   equipment_ids?: string[]
   focus_categories?: { category_slug: string; priority: number }[]
+  category_levels?: { category_id: string; level_score: number }[]
 }
 
 Deno.serve(async (req) => {
@@ -91,7 +92,7 @@ Deno.serve(async (req) => {
       environment_ids: environmentIds,
       environment_slugs: environmentSlugs,
       equipment_ids: userData.equipment_ids ?? [],
-      category_levels: [],
+      category_levels: userData.category_levels ?? [],
       sport_required_categories: sportRequiredCategories,
       user_focus_categories: (userData.focus_categories ?? []).map(fc => ({
         category: fc.category_slug,

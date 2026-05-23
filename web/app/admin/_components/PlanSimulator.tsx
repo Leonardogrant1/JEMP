@@ -8,6 +8,7 @@ import {
   type UserData,
   type SportSessionType,
   type WeeklySchedule,
+  type CategoryLevel,
   usePlanSimulatorStore
 } from '../plan-simulator/store'
 
@@ -146,6 +147,23 @@ function ConfigPanel({
     updateUserData({
       focus_categories: userData.focus_categories.map(f =>
         f.category_slug === slug ? { ...f, priority } : f,
+      ),
+    })
+  }
+
+  function toggleCategoryLevel(id: string) {
+    const exists = userData.category_levels.find(c => c.category_id === id)
+    if (exists) {
+      updateUserData({ category_levels: userData.category_levels.filter(c => c.category_id !== id) })
+    } else {
+      updateUserData({ category_levels: [...userData.category_levels, { category_id: id, level_score: 50 }] })
+    }
+  }
+
+  function setCategoryLevelScore(id: string, level_score: number) {
+    updateUserData({
+      category_levels: userData.category_levels.map(c =>
+        c.category_id === id ? { ...c, level_score } : c,
       ),
     })
   }
@@ -402,6 +420,47 @@ function ConfigPanel({
                     />
                     <span className="text-[11px] font-mono text-gray-400 w-4 text-right shrink-0">
                       {focus.priority}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="border-t border-gray-800" />
+
+      {/* Category Levels */}
+      <div className="flex flex-col gap-2">
+        <SectionTitle>Category Levels</SectionTitle>
+        <p className="text-[10px] text-gray-600 -mt-1">Leer = kein Level-Filter (wie bisher). Aktiviere Kategorien um den User-Level zu simulieren.</p>
+        <div className="flex flex-col gap-1.5">
+          {refData.categories.map(cat => {
+            const level = userData.category_levels.find(c => c.category_id === cat.id)
+            return (
+              <div key={cat.id} className="flex items-center gap-2">
+                <button
+                  onClick={() => toggleCategoryLevel(cat.id)}
+                  className={`shrink-0 px-2 py-1 rounded text-[10px] font-medium transition-colors border
+                    ${level
+                      ? 'bg-gray-700 text-white border-gray-600'
+                      : 'bg-transparent text-gray-700 border-gray-800 hover:border-gray-600 hover:text-gray-500'
+                    }`}
+                >
+                  {cat.name}
+                </button>
+                {level && (
+                  <div className="flex items-center gap-2 flex-1">
+                    <input
+                      type="range"
+                      min={0} max={100}
+                      value={level.level_score}
+                      onChange={e => setCategoryLevelScore(cat.id, Number(e.target.value))}
+                      className="flex-1 accent-white h-1"
+                    />
+                    <span className="text-[11px] font-mono text-gray-400 w-6 text-right shrink-0">
+                      {level.level_score}
                     </span>
                   </div>
                 )}

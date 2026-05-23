@@ -11,6 +11,11 @@ export type FocusCategory = {
   priority: number
 }
 
+export type CategoryLevel = {
+  category_id: string
+  level_score: number
+}
+
 export type UserData = {
   gender: Gender
   age: number
@@ -24,6 +29,7 @@ export type UserData = {
   environment_ids: string[]
   equipment_ids: string[]
   focus_categories: FocusCategory[]
+  category_levels: CategoryLevel[]
 }
 
 export type { WeeklySchedule, SportSessionType, LoadProfile }
@@ -52,6 +58,7 @@ const DEFAULT_USER_DATA: UserData = {
   environment_ids: [],
   equipment_ids: [],
   focus_categories: [],
+  category_levels: [],
 }
 
 // ─── Store ────────────────────────────────────────────────────
