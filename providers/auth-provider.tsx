@@ -1,5 +1,6 @@
 import { trackerManager } from "@/lib/tracking/tracker-manager";
 import { supabase } from "@/services/supabase/client";
+import { useOnboardingStore } from "@/stores/onboarding-store";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import type { Session } from "@supabase/supabase-js";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -25,6 +26,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
+    const setOnboardingStore = useOnboardingStore((s) => s.set);
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -59,6 +61,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             token: idToken,
         });
         if (error) throw error;
+
+        const givenName = data?.user?.givenName;
+        const familyName = data?.user?.familyName;
+        if (givenName || familyName) {
+            setOnboardingStore({
+                ...(givenName ? { first_name: givenName } : {}),
+                ...(familyName ? { last_name: familyName } : {}),
+            });
+        }
     };
 
     const signInWithApple = async () => {
@@ -75,6 +86,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             token: credential.identityToken,
         });
         if (error) throw error;
+
+        // Apple only provides fullName on first sign-in
+        const givenName = credential.fullName?.givenName;
+        const familyName = credential.fullName?.familyName;
+        if (givenName || familyName) {
+            setOnboardingStore({
+                ...(givenName ? { first_name: givenName } : {}),
+                ...(familyName ? { last_name: familyName } : {}),
+            });
+        }
     };
 
     const sendMagicLink = async (email: string) => {
