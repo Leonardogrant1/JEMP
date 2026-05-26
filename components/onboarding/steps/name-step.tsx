@@ -15,6 +15,7 @@ export function NameStep() {
     const { setCanContinue } = useOnboardingControl();
     const storedFirstName = useOnboardingStore((s) => s.first_name);
     const storedLastName = useOnboardingStore((s) => s.last_name);
+    const nameSource = useOnboardingStore((s) => s.name_source);
     const setStore = useOnboardingStore((s) => s.set);
     const [firstName, setFirstName] = useState(storedFirstName ?? '');
     const [lastName, setLastName] = useState(storedLastName ?? '');
@@ -22,8 +23,17 @@ export function NameStep() {
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
+    const hasProviderName =
+        (nameSource === 'apple' || nameSource === 'google') &&
+        !!storedFirstName &&
+        !!storedLastName;
+
     useEffect(() => {
-        validate(firstName, lastName);
+        if (hasProviderName) {
+            setCanContinue(true);
+        } else {
+            validate(firstName, lastName);
+        }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -43,6 +53,23 @@ export function NameStep() {
     function handleLastChange(value: string) {
         setLastName(value);
         validate(firstName, value);
+    }
+
+    if (hasProviderName) {
+        return (
+            <View style={[styles.container, styles.inner]}>
+                <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
+                    <JempText type="h1" style={styles.headline}>
+                        {t('onboarding.name_greeting_title', { name: storedFirstName })}
+                    </JempText>
+                </Animated.View>
+                <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
+                    <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
+                        {t('onboarding.name_greeting_subtitle')}
+                    </JempText>
+                </Animated.View>
+            </View>
+        );
     }
 
     return (

@@ -326,6 +326,8 @@ const de: Record<TranslationKeys, string> = {
     'onboarding.name_subtitle': 'So werden wir dich ansprechen',
     'onboarding.name_first_placeholder': 'Vorname',
     'onboarding.name_last_placeholder': 'Nachname',
+    'onboarding.name_greeting_title': 'Schön, dich kennenzulernen, {{name}}!',
+    'onboarding.name_greeting_subtitle': 'Dein Name wurde automatisch übernommen.',
 
     // birthday-step
     'onboarding.birthday_title': "Wann wurdest du\ngeboren?",

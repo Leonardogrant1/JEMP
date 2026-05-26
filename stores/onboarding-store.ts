@@ -36,6 +36,7 @@ type OnboardingStore = ProfileData & {
     environmentIds: string[];
     weekly_schedule: WeeklySchedule;
     referral_code: string | null;
+    name_source: 'apple' | 'google' | null;
     set: (data: Partial<ProfileData & {
         sport_slug: string | null;
         targetedCategories: TargetedCategory[];
@@ -44,6 +45,7 @@ type OnboardingStore = ProfileData & {
         environmentIds: string[];
         weekly_schedule: WeeklySchedule;
         referral_code: string | null;
+        name_source: 'apple' | 'google' | null;
     }>) => void;
     reset: () => void;
 };
@@ -67,6 +69,7 @@ const initialState: Omit<OnboardingStore, 'set' | 'reset'> = {
     environmentIds: [],
     weekly_schedule: { sessions: [], notes: null },
     referral_code: null,
+    name_source: null,
 };
 
 export const useOnboardingStore = create<OnboardingStore>((set) => ({

@@ -68,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setOnboardingStore({
                 ...(givenName ? { first_name: givenName } : {}),
                 ...(familyName ? { last_name: familyName } : {}),
+                name_source: 'google',
             });
         }
     };
@@ -90,10 +91,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Apple only provides fullName on first sign-in
         const givenName = credential.fullName?.givenName;
         const familyName = credential.fullName?.familyName;
+
         if (givenName || familyName) {
             setOnboardingStore({
                 ...(givenName ? { first_name: givenName } : {}),
                 ...(familyName ? { last_name: familyName } : {}),
+                name_source: 'apple',
             });
         }
     };

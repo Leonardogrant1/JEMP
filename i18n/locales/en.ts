@@ -324,6 +324,8 @@ const en = {
     'onboarding.name_subtitle': 'This is how we will address you',
     'onboarding.name_first_placeholder': 'First name',
     'onboarding.name_last_placeholder': 'Last name',
+    'onboarding.name_greeting_title': 'Nice to meet you, {{name}}!',
+    'onboarding.name_greeting_subtitle': 'Your name was automatically provided.',
 
     // birthday-step
     'onboarding.birthday_title': "When were you\nborn?",
