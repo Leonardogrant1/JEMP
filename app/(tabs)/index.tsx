@@ -166,7 +166,7 @@ export default function HomeScreen() {
                             disabled={nextSession.status !== 'completed'}
                         >
                             <Image
-                                source={getSessionImage(nextSession.primary_exercise_slug)}
+                                source={getSessionImage(nextSession.primary_exercise_slug, nextSession.primary_image_group)}
                                 style={StyleSheet.absoluteFill}
                                 contentFit="cover"
                                 contentPosition="top center"

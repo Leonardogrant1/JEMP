@@ -97,7 +97,7 @@ function SessionCard({ session, modeSlug, theme }: { session: WorkoutSession; mo
     return (
         <View style={styles.sessionCard}>
             <Image
-                source={getSessionImage(session.primary_exercise_slug)}
+                source={getSessionImage(session.primary_exercise_slug, session.primary_image_group)}
                 style={StyleSheet.absoluteFill}
                 contentFit="cover"
                 contentPosition="center"
@@ -161,7 +161,7 @@ function PlanSessionCard({ planSession, nextSession, theme }: {
     return (
         <View style={styles.sessionCard}>
             <Image
-                source={getSessionImage(planSession.primary_exercise_slug)}
+                source={getSessionImage(planSession.primary_exercise_slug, planSession.primary_image_group)}
                 style={StyleSheet.absoluteFill}
                 contentFit="cover"
                 contentPosition="center"
