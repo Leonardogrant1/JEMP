@@ -427,6 +427,9 @@ export type Database = {
           description_i18n: Json | null
           exercise_type: string | null
           id: string
+          image_group:
+            | Database["public"]["Enums"]["exercise_image_group"]
+            | null
           intensity_score: number | null
           is_unilateral: boolean
           max_level: number
@@ -450,6 +453,9 @@ export type Database = {
           description_i18n?: Json | null
           exercise_type?: string | null
           id?: string
+          image_group?:
+            | Database["public"]["Enums"]["exercise_image_group"]
+            | null
           intensity_score?: number | null
           is_unilateral?: boolean
           max_level: number
@@ -473,6 +479,9 @@ export type Database = {
           description_i18n?: Json | null
           exercise_type?: string | null
           id?: string
+          image_group?:
+            | Database["public"]["Enums"]["exercise_image_group"]
+            | null
           intensity_score?: number | null
           is_unilateral?: boolean
           max_level?: number
@@ -1640,6 +1649,26 @@ export type Database = {
         | "forearm"
         | "full_body"
         | "neck"
+      exercise_image_group:
+        | "squat_patterns"
+        | "hip_hinge"
+        | "hip_thrust"
+        | "upper_push"
+        | "upper_pull"
+        | "olympic_lifts"
+        | "dumbbell_complex"
+        | "loaded_carry"
+        | "vertical_jumps"
+        | "horizontal_jumps"
+        | "hurdle_hops"
+        | "reactive_jumps"
+        | "sprints"
+        | "sled_exercises"
+        | "agility"
+        | "conditioning"
+        | "medicine_ball"
+        | "explosive_push"
+        | "mobility"
       gender: "male" | "female" | "other"
       load_type: "bodyweight" | "kg" | "percent_1rm" | "rpe" | "pace"
       metric_source_type: "manual" | "assessment" | "session" | "derived"
@@ -1828,6 +1857,27 @@ export const Constants = {
         "forearm",
         "full_body",
         "neck",
+      ],
+      exercise_image_group: [
+        "squat_patterns",
+        "hip_hinge",
+        "hip_thrust",
+        "upper_push",
+        "upper_pull",
+        "olympic_lifts",
+        "dumbbell_complex",
+        "loaded_carry",
+        "vertical_jumps",
+        "horizontal_jumps",
+        "hurdle_hops",
+        "reactive_jumps",
+        "sprints",
+        "sled_exercises",
+        "agility",
+        "conditioning",
+        "medicine_ball",
+        "explosive_push",
+        "mobility",
       ],
       gender: ["male", "female", "other"],
       load_type: ["bodyweight", "kg", "percent_1rm", "rpe", "pace"],
