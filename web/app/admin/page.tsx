@@ -7,12 +7,13 @@ export default async function AdminPage() {
   const withYoutube = exercises.filter(e => e.youtube_url).length
   const withThumbnail = exercises.filter(e => e.thumbnail_storage_path).length
   const withVideo = exercises.filter(e => e.video_storage_path).length
+  const withImageGroup = exercises.filter(e => e.image_group).length
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <p className="text-sm text-gray-400">
-          {exercises.length} exercises — {withYoutube} with YouTube, {withThumbnail} with thumbnail, {withVideo} with video
+          {exercises.length} exercises — {withYoutube} with YouTube, {withThumbnail} with thumbnail, {withVideo} with video, {withImageGroup}/{exercises.length} with image group
         </p>
         <Link
           href="/admin/exercises/new"
@@ -26,6 +27,7 @@ export default async function AdminPage() {
           <tr className="border-b border-gray-800 text-left text-gray-400">
             <th className="pb-3 pr-6 font-medium">Name</th>
             <th className="pb-3 pr-6 font-medium">Slug</th>
+            <th className="pb-3 pr-4 font-medium">Image Group</th>
             <th className="pb-3 pr-4 font-medium">YouTube</th>
             <th className="pb-3 pr-4 font-medium">Thumbnail</th>
             <th className="pb-3 font-medium">Video</th>
@@ -47,6 +49,12 @@ export default async function AdminPage() {
               </td>
               <td className="py-3 pr-6 text-gray-400 font-mono text-xs">
                 {exercise.slug}
+              </td>
+              <td className="py-3 pr-4">
+                {exercise.image_group
+                  ? <span className="text-xs font-mono text-green-400">{exercise.image_group}</span>
+                  : <span className="text-red-500">✗</span>
+                }
               </td>
               <td className="py-3 pr-4">
                 <span className={exercise.youtube_url ? 'text-green-400' : 'text-red-500'}>

@@ -15,6 +15,7 @@ export type ExerciseListItem = {
   youtube_url: string | null
   thumbnail_storage_path: string | null
   video_storage_path: string | null
+  image_group: string | null
 }
 
 export type Exercise = ExerciseListItem & {
@@ -64,7 +65,7 @@ export async function getExercises(): Promise<ExerciseListItem[]> {
   await requireUser()
   const { data, error } = await supabase
     .from('exercises')
-    .select('id, name, slug, youtube_url, thumbnail_storage_path, video_storage_path')
+    .select('id, name, slug, youtube_url, thumbnail_storage_path, video_storage_path, image_group')
     .order('name')
 
   if (error) throw new Error(error.message)
