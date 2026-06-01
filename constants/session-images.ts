@@ -26,8 +26,16 @@ const GROUP_IMAGES: Record<string, any> = {
 
 const FALLBACK = require('@/assets/images/splash-icon.png');
 
-/** Maps a primary exercise slug → stock image via SLUG_TO_GROUP lookup */
-export function getSessionImage(exerciseSlug?: string | null): any {
+/**
+ * Returns a static stock image for a session card.
+ * Prefers the DB-stored imageGroup value; falls back to deriving from exerciseSlug
+ * via SLUG_TO_GROUP for exercises where image_group is not yet set.
+ */
+export function getSessionImage(
+    exerciseSlug?: string | null,
+    imageGroup?: string | null,
+): any {
+    if (imageGroup) return GROUP_IMAGES[imageGroup] ?? FALLBACK;
     if (!exerciseSlug) return FALLBACK;
     const group = SLUG_TO_GROUP[exerciseSlug];
     return GROUP_IMAGES[group] ?? FALLBACK;
