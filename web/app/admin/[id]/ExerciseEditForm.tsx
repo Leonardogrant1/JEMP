@@ -512,7 +512,7 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
               className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
             >
               <option value="">— keine —</option>
-              {['squat_patterns','hip_hinge','hip_thrust','upper_push','upper_pull','olympic_lifts','dumbbell_complex','loaded_carry','vertical_jumps','horizontal_jumps','hurdle_hops','reactive_jumps','sprints','sled_exercises','agility','conditioning','medicine_ball','explosive_push','mobility','lunges','glute_hip_activation','posterior_chain_iso','calf_ankle','core','adductor','sprint_drills','mobility_development'].map(g => (
+              {['squat_patterns','hip_hinge','hip_thrust','upper_push','upper_pull','olympic_lifts','dumbbell_complex','loaded_carry','vertical_jumps','horizontal_jumps','hurdle_hops','reactive_jumps','sprints','sled_exercises','agility','conditioning','medicine_ball','explosive_push','mobility','mobility_development'].map(g => (
                 <option key={g} value={g}>{g}</option>
               ))}
             </select>
