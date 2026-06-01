@@ -87,7 +87,53 @@ const explosive_push = [
     'clap_push_up',
 ];
 
-const mobility = [ 
+const lunges = [
+    'reverse_lunge', 'walking_lunge', 'lateral_lunge',
+    'dumbbell_lateral_lunge', 'dumbbell_goblet_reverse_lunge', 'dumbbell_step_up_to_press',
+];
+
+const glute_hip_activation = [
+    'single_leg_glute_bridge', 'banded_monster_walk', 'lateral_band_walk',
+    'banded_clamshell', 'donkey_kick', 'fire_hydrant',
+    'standing_hip_abduction', 'standing_hip_extension', 'banded_kickback',
+];
+
+const posterior_chain_iso = [
+    'reverse_hyperextension', 'back_extension_45deg', 'superman_hold',
+];
+
+const calf_ankle = [
+    'single_leg_calf_raise', 'tibialis_raise', 'calf_raise_bilateral',
+];
+
+const core = [
+    'dead_bug', 'bird_dog', 'ab_wheel_rollout', 'cable_chop',
+    'hanging_leg_raise', 'hollow_body_hold', 'v_up', 'reverse_crunch',
+    'bicycle_crunch', 'spiderman_plank', 'toe_touch_crunch', 'banded_bicycle',
+];
+
+const adductor = [
+    'copenhagen_plank', 'copenhagen_hip_adduction',
+];
+
+const sprint_drills = [
+    'a_skip_drill', 'b_skip_drill', 'high_knees', 'butt_kicks',
+    'wall_drill_march', 'banded_hip_flexor_march',
+];
+
+const mobility_development = [
+    'cossack_squat', 'loaded_cossack_squat',
+    'atg_split_squat', 'loaded_atg_split_squat',
+    'deep_squat_hold', 'loaded_deep_squat_hold',
+    'bodyweight_good_morning', 'loaded_good_morning',
+    'segmental_spinal_roll', 'jefferson_curl',
+    'tempo_hip_cars', 'resisted_hip_cars',
+    'deep_lunge_rotation', 'loaded_deep_lunge_rotation',
+    'dowel_overhead_squat', 'overhead_squat_loaded',
+    'hip_flexion_lift_off', 'sots_press',
+];
+
+const mobility = [
    "glute_foam_roll",
    "yoga_sun_salutation",
    "shoulder_cars",
@@ -144,7 +190,15 @@ export const EXERCISE_GROUPS: Record<string, string[]> = {
     medicine_ball,
     explosive_push,
     sled_exercises,
-    mobility
+    mobility,
+    lunges,
+    glute_hip_activation,
+    posterior_chain_iso,
+    calf_ankle,
+    core,
+    adductor,
+    sprint_drills,
+    mobility_development,
 };
 
 // ── Reverse map: exercise slug → group name ───────────────────────────────────

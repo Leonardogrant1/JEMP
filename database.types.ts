@@ -1669,6 +1669,14 @@ export type Database = {
         | "medicine_ball"
         | "explosive_push"
         | "mobility"
+        | "lunges"
+        | "glute_hip_activation"
+        | "posterior_chain_iso"
+        | "calf_ankle"
+        | "core"
+        | "adductor"
+        | "sprint_drills"
+        | "mobility_development"
       gender: "male" | "female" | "other"
       load_type: "bodyweight" | "kg" | "percent_1rm" | "rpe" | "pace"
       metric_source_type: "manual" | "assessment" | "session" | "derived"
@@ -1878,6 +1886,14 @@ export const Constants = {
         "medicine_ball",
         "explosive_push",
         "mobility",
+        "lunges",
+        "glute_hip_activation",
+        "posterior_chain_iso",
+        "calf_ankle",
+        "core",
+        "adductor",
+        "sprint_drills",
+        "mobility_development",
       ],
       gender: ["male", "female", "other"],
       load_type: ["bodyweight", "kg", "percent_1rm", "rpe", "pace"],

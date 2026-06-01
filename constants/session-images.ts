@@ -22,6 +22,7 @@ const GROUP_IMAGES: Record<string, any> = {
     explosive_push:         require('@/assets/stock_images/explosive_push.jpg'),
     sled_exercises:         require('@/assets/stock_images/sled_exercises.jpeg'),
     mobility:               require('@/assets/stock_images/mobility.jpeg'),
+    mobility_development:   require('@/assets/stock_images/mobility_development.jpg'),
 };
 
 const FALLBACK = require('@/assets/images/splash-icon.png');
