@@ -3,7 +3,6 @@ import { supabase } from '@/services/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from './query-keys';
 
- 
 async function fetchActivePlan(userId: string) {
     const { data: plan } = await supabase
         .from('workout_plans')
@@ -23,7 +22,7 @@ async function fetchActivePlan(userId: string) {
                 estimated_duration_minutes, workout_plan_session_id,
                 workout_session_blocks(
                     block_type:block_types(slug),
-                    workout_session_block_exercises(order_index, exercise:exercises(slug))
+                    workout_session_block_exercises(order_index, exercise:exercises(slug, image_group))
                 )
             `)
             .eq('workout_plan_id', plan.id)
@@ -35,30 +34,31 @@ async function fetchActivePlan(userId: string) {
                 estimated_duration_minutes, mode_slug,
                 workout_plan_session_blocks(
                     block_type:block_types(slug),
-                    workout_plan_session_block_exercises(order_index, exercise:exercises(slug))
+                    workout_plan_session_block_exercises(order_index, exercise:exercises(slug, image_group))
                 )
             `)
             .eq('plan_id', plan.id),
     ]);
 
-    function extractPrimaryExerciseSlug(blocks: any[]): string | null {
+    function extractPrimaryExerciseInfo(blocks: any[]): { slug: string | null; imageGroup: string | null } {
         const primary = (blocks ?? []).find((b: any) => b.block_type?.slug === 'primary');
-        if (!primary) return null;
+        if (!primary) return { slug: null, imageGroup: null };
         const exercises = (primary.workout_session_block_exercises ?? primary.workout_plan_session_block_exercises ?? []);
         const sorted = [...exercises].sort((a: any, b: any) => a.order_index - b.order_index);
-        return sorted[0]?.exercise?.slug ?? null;
+        const first = sorted[0]?.exercise;
+        return { slug: first?.slug ?? null, imageGroup: first?.image_group ?? null };
     }
 
     return {
         plan,
-        sessions: (sessionsRes.data ?? []).map(s => ({
-            ...s,
-            primary_exercise_slug: extractPrimaryExerciseSlug((s ).workout_session_blocks ?? []),
-        })),
-        planSessions: (planSessionsRes.data ?? []).map(ps => ({
-            ...ps,
-            primary_exercise_slug: extractPrimaryExerciseSlug((ps ).workout_plan_session_blocks ?? []),
-        })),
+        sessions: (sessionsRes.data ?? []).map(s => {
+            const { slug, imageGroup } = extractPrimaryExerciseInfo((s as any).workout_session_blocks ?? []);
+            return { ...s, primary_exercise_slug: slug, primary_image_group: imageGroup };
+        }),
+        planSessions: (planSessionsRes.data ?? []).map(ps => {
+            const { slug, imageGroup } = extractPrimaryExerciseInfo((ps as any).workout_plan_session_blocks ?? []);
+            return { ...ps, primary_exercise_slug: slug, primary_image_group: imageGroup };
+        }),
     };
 }
 
