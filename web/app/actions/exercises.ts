@@ -7,6 +7,7 @@ import { Database, Json } from '../../../database.types'
 
 export type BodyRegion = Database['public']['Enums']['body_region']
 export type MovementPattern = Database['public']['Enums']['movement_pattern']
+export type ExerciseImageGroup = Database['public']['Enums']['exercise_image_group']
 
 export type ExerciseListItem = {
   id: string
@@ -15,7 +16,7 @@ export type ExerciseListItem = {
   youtube_url: string | null
   thumbnail_storage_path: string | null
   video_storage_path: string | null
-  image_group: string | null
+  image_group: ExerciseImageGroup | null
 }
 
 export type Exercise = ExerciseListItem & {
@@ -29,7 +30,7 @@ export type Exercise = ExerciseListItem & {
   measurement_type: string
   intensity_score: number | null
   exercise_type: string | null
-  image_group: string | null
+  image_group: ExerciseImageGroup | null
   blockTypeIds: string[]
 }
 
@@ -132,7 +133,7 @@ export async function updateExercise(
     measurement_type?: string
     intensity_score?: number | null
     exercise_type?: string | null
-    image_group?: string | null
+    image_group?: ExerciseImageGroup | null
     youtube_url?: string | null
     thumbnail_storage_path?: string | null
     video_storage_path?: string | null
@@ -186,7 +187,7 @@ export async function createExercise(fields: {
   measurement_type?: string
   intensity_score?: number | null
   exercise_type?: string | null
-  image_group?: string | null
+  image_group?: ExerciseImageGroup | null
   equipmentIds?: string[]
   environmentIds?: string[]
   blockTypeIds?: string[]

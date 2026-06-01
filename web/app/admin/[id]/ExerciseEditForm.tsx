@@ -9,6 +9,7 @@ import {
   type Exercise,
   type MovementPattern,
   type BodyRegion,
+  type ExerciseImageGroup,
 } from '../../actions/exercises'
 import { asI18n } from '@/lib/i18n'
 import type { Json } from '../../../../database.types'
@@ -191,7 +192,7 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
           measurement_type: measurementType,
           intensity_score: intensityScore ? Number(intensityScore) : null,
           exercise_type: exerciseType || null,
-          image_group: imageGroup || null,
+          image_group: (imageGroup as ExerciseImageGroup) || null,
         })
         setStatus('classification', 'Saved ✓')
       } catch {

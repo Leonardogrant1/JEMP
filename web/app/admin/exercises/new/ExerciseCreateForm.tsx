@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { createExercise, type MovementPattern, type BodyRegion } from '../../../actions/exercises'
+import { createExercise, type MovementPattern, type BodyRegion, type ExerciseImageGroup } from '../../../actions/exercises'
 import { asI18n } from '@/lib/i18n'
 import type { Json } from '../../../../../database.types'
 
@@ -68,7 +68,7 @@ export function ExerciseCreateForm({ categories, equipments, environments, block
           measurement_type: measurementType,
           intensity_score: intensityScore ? Number(intensityScore) : null,
           exercise_type: exerciseType || null,
-          image_group: imageGroup || null,
+          image_group: (imageGroup as ExerciseImageGroup) || null,
           min_level: minLevel ? Number(minLevel) : undefined,
           max_level: maxLevel ? Number(maxLevel) : undefined,
           equipmentIds,
