@@ -28,6 +28,7 @@ export type Exercise = ExerciseListItem & {
   measurement_type: string
   intensity_score: number | null
   exercise_type: string | null
+  image_group: string | null
   blockTypeIds: string[]
 }
 
@@ -76,7 +77,7 @@ export async function getExercise(id: string): Promise<Exercise & { equipmentIds
     .from('exercises')
     .select(`
       id, name, slug, description_i18n, movement_pattern, body_region, category_id, min_level, max_level, is_unilateral, measurement_type,
-      intensity_score, exercise_type,
+      intensity_score, exercise_type, image_group,
       youtube_url, thumbnail_storage_path, video_storage_path,
       exercise_equipments(equipment_id),
       exercise_environments(environment_id),
@@ -130,6 +131,7 @@ export async function updateExercise(
     measurement_type?: string
     intensity_score?: number | null
     exercise_type?: string | null
+    image_group?: string | null
     youtube_url?: string | null
     thumbnail_storage_path?: string | null
     video_storage_path?: string | null
@@ -183,6 +185,7 @@ export async function createExercise(fields: {
   measurement_type?: string
   intensity_score?: number | null
   exercise_type?: string | null
+  image_group?: string | null
   equipmentIds?: string[]
   environmentIds?: string[]
   blockTypeIds?: string[]

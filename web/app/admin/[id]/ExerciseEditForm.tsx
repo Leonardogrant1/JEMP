@@ -121,6 +121,7 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
   const [measurementType, setMeasurementType] = useState(initial.measurement_type ?? 'reps_or_duration')
   const [intensityScore, setIntensityScore] = useState(String(initial.intensity_score ?? ''))
   const [exerciseType, setExerciseType] = useState(initial.exercise_type ?? '')
+  const [imageGroup, setImageGroup] = useState(initial.image_group ?? '')
 
   // Relations
   const [equipmentIds, setEquipmentIds] = useState<string[]>(initial.equipmentIds)
@@ -190,6 +191,7 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
           measurement_type: measurementType,
           intensity_score: intensityScore ? Number(intensityScore) : null,
           exercise_type: exerciseType || null,
+          image_group: imageGroup || null,
         })
         setStatus('classification', 'Saved ✓')
       } catch {
@@ -500,6 +502,19 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
                 <option value="breathing">breathing</option>
               </select>
             </div>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Image Group</label>
+            <select
+              value={imageGroup}
+              onChange={e => setImageGroup(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+            >
+              <option value="">— keine —</option>
+              {['squat_patterns','hip_hinge','hip_thrust','upper_push','upper_pull','olympic_lifts','dumbbell_complex','loaded_carry','vertical_jumps','horizontal_jumps','hurdle_hops','reactive_jumps','sprints','sled_exercises','agility','conditioning','medicine_ball','explosive_push','mobility'].map(g => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
           </div>
         </div>
         <div className="mt-4 flex items-center gap-3">
