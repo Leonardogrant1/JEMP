@@ -41,12 +41,14 @@ async function fetchActivePlan(userId: string) {
     ]);
 
     function extractPrimaryExerciseInfo(blocks: any[]): { slug: string | null; imageGroup: string | null } {
-        const primary = (blocks ?? []).find((b: any) => b.block_type?.slug === 'primary');
-        if (!primary) return { slug: null, imageGroup: null };
-        const exercises = (primary.workout_session_block_exercises ?? primary.workout_plan_session_block_exercises ?? []);
-        const sorted = [...exercises].sort((a: any, b: any) => a.order_index - b.order_index);
-        const first = sorted[0]?.exercise;
-        return { slug: first?.slug ?? null, imageGroup: first?.image_group ?? null };
+        for (const blockSlug of ['primary', 'secondary', 'accessory'] as const) {
+            const block = (blocks ?? []).find((b: any) => b.block_type?.slug === blockSlug);
+            if (!block) continue;
+            const exercises = (block.workout_session_block_exercises ?? block.workout_plan_session_block_exercises ?? []);
+            const first = [...exercises].sort((a: any, b: any) => a.order_index - b.order_index)[0]?.exercise;
+            if (first) return { slug: first.slug ?? null, imageGroup: first.image_group ?? null };
+        }
+        return { slug: null, imageGroup: null };
     }
 
     return {
