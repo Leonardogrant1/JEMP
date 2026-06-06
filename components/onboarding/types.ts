@@ -7,5 +7,6 @@ export type OnboardingStep = {
     continueButtonText?: string;
     initialCanContinue?: boolean;
     preContinue?: () => Promise<void>;
+    shouldSkip?: () => boolean;
     theme?: 'dark' | 'light';
 };

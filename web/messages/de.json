@@ -1,15 +1,15 @@
 {
   "nav": {
     "features": "Features",
-    "earlyAccess": "Early Access",
-    "cta": "Early Access"
+    "earlyAccess": "Download",
+    "cta": "App laden"
   },
   "hero": {
-    "badge": "Bald verfügbar für iOS & Android",
+    "badge": "Jetzt verfügbar für iOS",
     "headline1": "Trainiere wie ein",
     "headline2": "Profi-Athlet.",
     "subtitle": "JEMP erstellt deinen persönlichen Trainingsplan — abgestimmt auf deine Sportart, dein Level und dein Equipment.",
-    "cta": "Early Access sichern"
+    "cta": "Im App Store laden"
   },
   "features": {
     "headline1": "Alles was du brauchst.",
@@ -38,16 +38,11 @@
     "centerSubtitle": "Personalisiert bis ins Detail."
   },
   "earlyAccess": {
-    "badge": "Limitierte Plätze verfügbar",
-    "headline1": "Sei unter den",
-    "headline2": "Ersten.",
-    "subtitle": "Trag deine E-Mail ein und sichere dir frühen Zugang zu JEMP — dem Trainingsplan, der auf dich zugeschnitten ist."
-  },
-  "waitlist": {
-    "placeholder": "deine@email.com",
-    "cta": "Frühen Zugang sichern",
-    "success": "Du bist auf der Liste. Wir melden uns!",
-    "error": "Etwas ist schiefgelaufen. Versuch es nochmal."
+    "badge": "Jetzt verfügbar",
+    "headline1": "Bereit für dein",
+    "headline2": "nächstes Level?",
+    "subtitle": "Lade JEMP jetzt kostenlos im App Store und starte mit deinem persönlichen Trainingsplan.",
+    "cta": "Im App Store laden"
   },
   "footer": {
     "copyright": "JEMP · studio.northbyte",

@@ -36,13 +36,13 @@ export function PlanGenerationStep() {
             if (session) {
                 const {
                     set,
-                    reset,
                     sport_slug,
                     targetedCategories,
                     categoryLevels,
                     equipmentIds,
                     environmentIds,
                     weekly_schedule,
+                    name_source,
                     ...profileData
                 } = onboardingData;
 
@@ -106,8 +106,6 @@ export function PlanGenerationStep() {
                 if (genError) throw genError;
 
                 queryClient.invalidateQueries({ queryKey: queryKeys.plan(session.user.id) });
-
-                reset();
             }
 
             trackerManager.track('plan_generation_success');

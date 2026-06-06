@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const OTP_LENGTH = 6;
+const OTP_LENGTH = __DEV__ ? 6 : 8;
 
 export default function MagicLinkScreen() {
     const router = useRouter();

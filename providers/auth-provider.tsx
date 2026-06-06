@@ -1,10 +1,12 @@
 import { trackerManager } from "@/lib/tracking/tracker-manager";
 import { supabase } from "@/services/supabase/client";
 import { useOnboardingStore } from "@/stores/onboarding-store";
+import { devLog } from "@/utils/dev-log";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import type { Session } from "@supabase/supabase-js";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { createContext, useContext, useEffect, useState } from "react";
+
 
 // iosClientId = reverse of iosUrlScheme set in app.json
 GoogleSignin.configure({
@@ -51,25 +53,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const signInWithGoogle = async () => {
-        await GoogleSignin.hasPlayServices();
-        const { data } = await GoogleSignin.signIn();
-        const idToken = data?.idToken;
-        if (!idToken) throw new Error("No ID token from Google");
-
-        const { error } = await supabase.auth.signInWithIdToken({
-            provider: "google",
-            token: idToken,
-        });
-        if (error) throw error;
-
-        const givenName = data?.user?.givenName;
-        const familyName = data?.user?.familyName;
-        if (givenName || familyName) {
-            setOnboardingStore({
-                ...(givenName ? { first_name: givenName } : {}),
-                ...(familyName ? { last_name: familyName } : {}),
-                name_source: 'google',
+        try {
+            await GoogleSignin.hasPlayServices();
+            const { data } = await GoogleSignin.signIn();
+            const idToken = data?.idToken;
+            if (!idToken) throw new Error("No ID token from Google");
+            const { error } = await supabase.auth.signInWithIdToken({
+                provider: "google",
+                token: idToken
             });
+            if (error) throw error;
+
+            const givenName = data?.user?.givenName;
+            const familyName = data?.user?.familyName;
+            if (givenName || familyName) {
+                setOnboardingStore({
+                    ...(givenName ? { first_name: givenName } : {}),
+                    ...(familyName ? { last_name: familyName } : {}),
+                    name_source: 'google',
+                });
+            }
+        } catch (error: any) {
+            devLog('signInWithGoogle error:', error?.message);
         }
     };
 

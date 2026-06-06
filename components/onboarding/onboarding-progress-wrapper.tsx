@@ -71,9 +71,10 @@ export function OnboardingProgressWrapper({ steps }: Props) {
     async function finishOnboarding() {
         try {
             if (session?.user?.id) {
+                const { first_name, last_name, birth_date, gender, sport_id, height_in_cm, weight_in_kg, preferred_workout_days, preferred_session_duration, schedule_notes, timezone } = onboardingData;
                 await supabase
                     .from('user_profiles')
-                    .update({ has_onboarded: true })
+                    .update({ first_name, last_name, birth_date, gender, sport_id, height_in_cm, weight_in_kg, preferred_workout_days, preferred_session_duration, schedule_notes, timezone, has_onboarded: true })
                     .eq('id', session.user.id);
             }
             const referralCode = onboardingData.referral_code;
@@ -91,7 +92,10 @@ export function OnboardingProgressWrapper({ steps }: Props) {
 
     function advance() {
         if (currentIndex < steps.length - 1) {
-            const nextIndex = currentIndex + 1;
+            let nextIndex = currentIndex + 1;
+            while (nextIndex < steps.length - 1 && steps[nextIndex].shouldSkip?.()) {
+                nextIndex++;
+            }
             setDirection('forward');
             setCurrentIndex(nextIndex);
             setCanContinue(steps[nextIndex].initialCanContinue ?? true);
@@ -102,7 +106,10 @@ export function OnboardingProgressWrapper({ steps }: Props) {
 
     function prevStep() {
         if (currentIndex <= 0) return;
-        const prevIndex = currentIndex - 1;
+        let prevIndex = currentIndex - 1;
+        while (prevIndex > 0 && steps[prevIndex].shouldSkip?.()) {
+            prevIndex--;
+        }
         setDirection('back');
         setCurrentIndex(prevIndex);
         setCanContinue(steps[prevIndex].initialCanContinue ?? true);

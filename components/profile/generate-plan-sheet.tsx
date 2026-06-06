@@ -289,7 +289,12 @@ export function GeneratePlanSheet({ visible, profile, onClose, onComplete }: Pro
             if (goalsSubPhase === 'rank') setGoalsSubPhase('select');
             else setPhase('equipment');
         }
-        else if (phase === 'body') setPhase('goals');
+        else if (phase === 'body') {
+            if (selectedCategoryIds.size <= 1) {
+                setGoalsSubPhase('select');
+            }
+            setPhase('goals');
+        }
         else if (phase === 'schedule') setPhase('body');
         else if (phase === 'weekly') setPhase('schedule');
         else onClose();

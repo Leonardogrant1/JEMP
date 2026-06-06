@@ -1,4 +1,5 @@
 import { OnboardingProgressWrapper } from '@/components/onboarding/onboarding-progress-wrapper';
+import { useOnboardingStore } from '@/stores/onboarding-store';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { getATTStatus } from '@/utils/get-att-status';
 import { BirthdayStep } from '@/components/onboarding/steps/birthday-step';
@@ -29,6 +30,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function OnboardingScreen() {
     const { t } = useTranslation();
+    const targetedCategories = useOnboardingStore((s) => s.targetedCategories);
 
     const steps: OnboardingStep[] = [
 
@@ -50,7 +52,7 @@ export default function OnboardingScreen() {
         { component: SportStep, theme: 'dark', initialCanContinue: false },
         { component: CategoryLevelStep, theme: 'dark', initialCanContinue: true },
         { component: CategoryFocusStep, theme: 'dark', initialCanContinue: false },
-        { component: CategoryPriorityStep, theme: 'dark', initialCanContinue: true },
+        { component: CategoryPriorityStep, theme: 'dark', initialCanContinue: true, shouldSkip: () => targetedCategories.length <= 1 },
         { component: EnvironmentStep, theme: 'dark', initialCanContinue: false },
         { component: EquipmentStep, theme: 'dark', initialCanContinue: true },
         { component: WorkoutPrefsStep, theme: 'dark', initialCanContinue: false },

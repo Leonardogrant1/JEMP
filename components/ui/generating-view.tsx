@@ -40,6 +40,7 @@ export function GeneratingView({ error, isComplete, onRetry, onClose, onAnimatio
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const [progress, setProgress] = useState(0);
+    const [featureAnimsDone, setFeatureAnimsDone] = useState(false);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const STAGES = [
@@ -92,12 +93,12 @@ export function GeneratingView({ error, isComplete, onRetry, onClose, onAnimatio
         return () => clearInterval(sprint);
     }, [isComplete]);
 
-    // Notify parent once 100% is reached
+    // Notify parent once 100% is reached AND feature animations are done
     useEffect(() => {
-        if (progress >= 100) {
+        if (progress >= 100 && featureAnimsDone) {
             onAnimationComplete?.();
         }
-    }, [progress]);
+    }, [progress, featureAnimsDone]);
 
     // Staggered pop-in on mount
     useEffect(() => {
@@ -120,6 +121,9 @@ export function GeneratingView({ error, isComplete, onRetry, onClose, onAnimatio
                 }),
             ]).start();
         });
+        const lastItemEnd = ITEM_START_DELAY_MS + (FEATURE_KEYS.length - 1) * ITEM_STAGGER_MS + 380;
+        const timer = setTimeout(() => setFeatureAnimsDone(true), lastItemEnd);
+        return () => clearTimeout(timer);
     }, []);
 
     if (error) {
