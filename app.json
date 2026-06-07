@@ -2,7 +2,7 @@
   "expo": {
     "name": "JEMP",
     "slug": "jemp",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "jemp",
@@ -29,7 +29,13 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "studio.northbyte.jemp"
+      "package": "studio.northbyte.jemp",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "output": "static",
@@ -64,6 +70,12 @@
       "eas": {
         "projectId": "a32d6215-cd4b-4f00-81c0-aa351311fa64"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a32d6215-cd4b-4f00-81c0-aa351311fa64"
     }
   }
 }

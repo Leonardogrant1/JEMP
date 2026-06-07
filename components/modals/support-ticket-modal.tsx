@@ -1,11 +1,11 @@
 import { JempText } from '@/components/jemp-text';
 import { JempInput } from '@/components/ui/jemp-input';
 import { Colors, Cyan, Electric } from '@/constants/theme';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { Ionicons } from '@expo/vector-icons';
-import { trackerManager } from '@/lib/tracking/tracker-manager';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -93,6 +93,7 @@ export function SupportTicketModal({ visible, onClose }: Props) {
                     title: title.trim(),
                     description: description.trim(),
                     userId: profile?.id,
+                    email: profile?.email,
                     appSlug: 'jemp',
                 }),
             });

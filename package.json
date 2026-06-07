@@ -51,6 +51,7 @@
     "expo-system-ui": "~55.0.14",
     "expo-testflight": "^0.3.0",
     "expo-tracking-transparency": "~55.0.12",
+    "expo-updates": "~55.0.24",
     "expo-video": "~55.0.14",
     "expo-web-browser": "~15.0.10",
     "i18next": "^26.0.6",

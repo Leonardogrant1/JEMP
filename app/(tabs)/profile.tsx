@@ -91,7 +91,7 @@ function SectionLabel({ label }: { label: string }) {
 // ── Screen ───────────────────────────────────────────────────
 
 const FEATURE_REQUEST_URL = 'https://northbyte.studio/features/jemp';
-const REPORT_BUG_URL = 'https://northbyte.studio/features/jemp/bugs';
+const REPORT_BUG_URL = 'https://northbyte.studio/bugs/jemp';
 const PRIVACY_POLICY_URL = 'https://www.northbyte.studio/privacy-policy/jemp';
 
 export default function ProfileScreen() {
