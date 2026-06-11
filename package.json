@@ -8,6 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "ios:device": "expo run:ios --device",
+    "android:device": "expo run:android --device",
     "web": "expo start --web",
     "lint": "expo lint",
     "postinstall": "patch-package"
@@ -35,7 +36,7 @@
     "expo-haptics": "~55.0.13",
     "expo-image": "~55.0.8",
     "expo-image-manipulator": "~55.0.14",
-    "expo-image-picker": "~55.0.17",
+    "expo-image-picker": "~55.0.20",
     "expo-linear-gradient": "~55.0.12",
     "expo-linking": "~55.0.11",
     "expo-localization": "~55.0.12",

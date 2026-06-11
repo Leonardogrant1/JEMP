@@ -240,6 +240,10 @@ const en = {
     'ui.support_error': 'Something went wrong. Please try again.',
     'ui.support_success_title': 'Ticket submitted!',
     'ui.support_success_subtitle': 'We received your message and will get back to you as soon as possible.',
+    'ui.support_field_attachments': 'Media (images & videos, max. 50 MB)',
+    'ui.support_add_media': 'Add media',
+    'ui.support_file_too_large_title': 'File too large',
+    'ui.support_file_too_large_desc_v2': 'The file must not exceed {{limit}}.',
     'ui.privacy_policy': 'Privacy Policy',
     'ui.privacy_policy_subtitle': 'How we handle your data',
 

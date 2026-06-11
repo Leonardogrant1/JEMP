@@ -240,6 +240,10 @@ const de: Record<TranslationKeys, string> = {
     'ui.support_error': 'Etwas ist schiefgelaufen. Bitte versuche es erneut.',
     'ui.support_success_title': 'Ticket eingereicht!',
     'ui.support_success_subtitle': 'Wir haben deine Nachricht erhalten und melden uns so schnell wie möglich.',
+    'ui.support_field_attachments': 'Medien (Bilder & Videos, max. 50 MB)',
+    'ui.support_add_media': 'Medien hinzufügen',
+    'ui.support_file_too_large_title': 'Datei zu groß',
+    'ui.support_file_too_large_desc_v2': 'Die Datei darf maximal {{limit}} groß sein.',
     'ui.privacy_policy': 'Datenschutzrichtlinie',
     'ui.privacy_policy_subtitle': 'So gehen wir mit deinen Daten um',
 
