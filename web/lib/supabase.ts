@@ -9,4 +9,6 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars')
 }
 
+console.log("supabaseUrl", supabaseUrl)
+console.log("supabaseKey", supabaseKey)
 export const supabase = createClient<Database>(supabaseUrl, supabaseKey)
