@@ -11,7 +11,8 @@ const anonClient = createClient(
 
 export async function sendAdminOtp(email: string): Promise<{ error?: string }> {
   // Look up user in auth.users via admin API — no RLS, case-insensitive
-  const { data: profile, error: listError } = await supabase.from('user_profiles').select('id, role').eq('email', email.toLowerCase().trim()).single()
+  const lowerCaseEmail = email.toLowerCase().trim();
+  const { data: profile, error: listError } = await supabase.from('user_profiles').select('id, role').eq('email', lowerCaseEmail).single()
 
   if (listError && listError.code != "PGRST116") return { error: listError.message }
 
@@ -25,7 +26,7 @@ export async function sendAdminOtp(email: string): Promise<{ error?: string }> {
   }
 
   const { error } = await anonClient.auth.signInWithOtp({
-    email,
+    email: lowerCaseEmail,
     options: { shouldCreateUser: false },
   })
 
