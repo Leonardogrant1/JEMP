@@ -102,18 +102,22 @@ export type PlanExercise = {
   id: string
   order_index: number
   exercise_name: string
+  notes: string | null
   target_sets: number | null
   target_reps_min: number | null
   target_reps_max: number | null
   target_load_type: string | null
   target_load_value: number | null
   target_duration_seconds: number | null
+  target_distance_meters: number | null
+  target_rest_seconds: number | null
 }
 
 export type PlanBlock = {
   id: string
   order_index: number
   block_type_slug: string | null
+  focused_category_slug: string | null
   exercises: PlanExercise[]
 }
 
@@ -122,7 +126,9 @@ export type PlanSessionWithBlocks = {
   name: string
   day_of_week: number
   session_type: string | null
+  mode_slug: string | null
   estimated_duration_minutes: number | null
+  pause_between_sets: number | null
   order_index: number
   blocks: PlanBlock[]
 }
@@ -344,14 +350,16 @@ export async function fetchUserPlanStructure(planId: string): Promise<PlanStruct
   const { data, error } = await supabase
     .from('workout_plan_sessions')
     .select(`
-      id, name, day_of_week, session_type, estimated_duration_minutes, order_index,
+      id, name, day_of_week, session_type, mode_slug, estimated_duration_minutes, pause_between_sets, order_index,
       workout_plan_session_blocks(
         id, order_index,
         block_type:block_types(slug),
+        focused_category:categories(slug),
         workout_plan_session_block_exercises(
-          id, order_index,
+          id, order_index, notes,
           target_sets, target_reps_min, target_reps_max,
           target_load_type, target_load_value, target_duration_seconds,
+          target_distance_meters, target_rest_seconds,
           exercise:exercises(name)
         )
       )
@@ -367,7 +375,9 @@ export async function fetchUserPlanStructure(planId: string): Promise<PlanStruct
     name: session.name,
     day_of_week: session.day_of_week,
     session_type: session.session_type,
+    mode_slug: session.mode_slug,
     estimated_duration_minutes: session.estimated_duration_minutes,
+    pause_between_sets: session.pause_between_sets,
     order_index: session.order_index,
     blocks: (session.workout_plan_session_blocks ?? [])
       .sort((a: any, b: any) => a.order_index - b.order_index)
@@ -375,18 +385,22 @@ export async function fetchUserPlanStructure(planId: string): Promise<PlanStruct
         id: block.id,
         order_index: block.order_index,
         block_type_slug: block.block_type?.slug ?? null,
+        focused_category_slug: block.focused_category?.slug ?? null,
         exercises: (block.workout_plan_session_block_exercises ?? [])
           .sort((a: any, b: any) => a.order_index - b.order_index)
           .map((ex: any) => ({
             id: ex.id,
             order_index: ex.order_index,
             exercise_name: ex.exercise?.name ?? '—',
+            notes: ex.notes,
             target_sets: ex.target_sets,
             target_reps_min: ex.target_reps_min,
             target_reps_max: ex.target_reps_max,
             target_load_type: ex.target_load_type,
             target_load_value: ex.target_load_value,
             target_duration_seconds: ex.target_duration_seconds,
+            target_distance_meters: ex.target_distance_meters,
+            target_rest_seconds: ex.target_rest_seconds,
           })),
       })),
   }))

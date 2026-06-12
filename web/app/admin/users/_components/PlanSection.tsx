@@ -4,11 +4,18 @@ import type { UserActivePlan, PlanStructure, PlanBlock, PlanExercise } from '@/a
 // ─── Constants ────────────────────────────────────────────────
 
 const BLOCK_STYLES: Record<string, { label: string; dot: string; border: string; text: string }> = {
-  warm_up:   { label: 'Aufwärmen', dot: 'bg-amber-400', border: 'border-amber-900/40',  text: 'text-amber-400' },
-  main:      { label: 'Hauptteil', dot: 'bg-blue-400',  border: 'border-blue-900/40',   text: 'text-blue-400'  },
-  cool_down: { label: 'Abkühlen', dot: 'bg-teal-400',  border: 'border-teal-900/40',   text: 'text-teal-400'  },
+  warm_up:   { label: 'Aufwärmen', dot: 'bg-amber-400', border: 'border-amber-900/40', text: 'text-amber-400' },
+  main:      { label: 'Hauptteil', dot: 'bg-blue-400',  border: 'border-blue-900/40',  text: 'text-blue-400'  },
+  cool_down: { label: 'Abkühlen', dot: 'bg-teal-400',  border: 'border-teal-900/40',  text: 'text-teal-400'  },
 }
 const BLOCK_STYLE_FALLBACK = { label: 'Block', dot: 'bg-gray-500', border: 'border-gray-700/60', text: 'text-gray-400' }
+
+const MODE_STYLES: Record<string, { label: string; badge: string }> = {
+  full:       { label: 'Full',       badge: 'text-blue-400 bg-blue-950/40 border-blue-900/50'     },
+  reduced:    { label: 'Reduced',    badge: 'text-amber-400 bg-amber-950/40 border-amber-900/50'  },
+  activation: { label: 'Activation', badge: 'text-violet-400 bg-violet-950/40 border-violet-900/50' },
+  recovery:   { label: 'Recovery',   badge: 'text-teal-400 bg-teal-950/40 border-teal-900/50'    },
+}
 
 const SESSION_TYPE_BADGE: Record<string, string> = {
   training: 'text-blue-400 bg-blue-950/40 border-blue-900/50',
@@ -36,6 +43,7 @@ function formatDate(iso: string | null): string {
 
 function formatReps(ex: PlanExercise): string {
   if (ex.target_duration_seconds != null) return `${ex.target_duration_seconds}s`
+  if (ex.target_distance_meters != null)  return `${ex.target_distance_meters}m`
   if (ex.target_reps_min == null && ex.target_reps_max == null) return '—'
   if (ex.target_reps_min === ex.target_reps_max || ex.target_reps_max == null) return `${ex.target_reps_min ?? ex.target_reps_max} Wdh`
   if (ex.target_reps_min == null) return `${ex.target_reps_max} Wdh`
@@ -61,6 +69,11 @@ function BlockSection({ block }: { block: PlanBlock }) {
       <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-800/60">
         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`} />
         <span className={`text-[10px] font-semibold uppercase tracking-wider ${style.text}`}>{style.label}</span>
+        {block.focused_category_slug && (
+          <span className="text-[10px] text-gray-600 ml-auto">
+            {block.focused_category_slug.replace(/_/g, ' ')}
+          </span>
+        )}
       </div>
       <div className="px-3">
         {block.exercises.length === 0 ? (
@@ -69,10 +82,18 @@ function BlockSection({ block }: { block: PlanBlock }) {
           block.exercises.map((ex, i) => (
             <div key={ex.id} className="flex items-start gap-2 py-1.5 border-b border-gray-800/60 last:border-0">
               <span className="text-[10px] font-mono text-gray-600 w-4 shrink-0 mt-0.5">{i + 1}</span>
-              <p className="text-xs text-gray-300 flex-1 min-w-0 truncate">{ex.exercise_name}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-300 truncate">{ex.exercise_name}</p>
+                {ex.notes && (
+                  <p className="text-[10px] text-gray-600 mt-0.5 leading-snug">{ex.notes}</p>
+                )}
+              </div>
               <div className="flex items-center gap-2 shrink-0 text-[10px] font-mono">
                 {ex.target_sets != null && (
                   <span className="text-gray-400">{ex.target_sets}×{formatReps(ex)}</span>
+                )}
+                {ex.target_rest_seconds != null && ex.target_rest_seconds > 0 && (
+                  <span className="text-gray-600">{ex.target_rest_seconds}s Pause</span>
                 )}
                 <span className="text-gray-600">{formatLoad(ex)}</span>
               </div>
@@ -95,23 +116,30 @@ function SessionCard({
   execSession: ExecutedSession | undefined
   userId: string
 }) {
+  const modeStyle = session.mode_slug ? MODE_STYLES[session.mode_slug] : null
   const typeBadge = SESSION_TYPE_BADGE[session.session_type ?? '']
-  const statusCfg = execSession ? (STATUS_CONFIG[execSession.status] ?? { label: execSession.status, className: 'text-gray-400' }) : null
+  const statusCfg = execSession
+    ? (STATUS_CONFIG[execSession.status] ?? { label: execSession.status, className: 'text-gray-400' })
+    : null
 
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900/30 flex flex-col min-w-0">
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-800/60 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">
               {DAY_LABELS[session.day_of_week] ?? '—'}
             </span>
-            {session.session_type && (
+            {modeStyle ? (
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${modeStyle.badge}`}>
+                {modeStyle.label}
+              </span>
+            ) : session.session_type ? (
               <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${typeBadge ?? 'text-gray-400 bg-gray-900 border-gray-700'}`}>
                 {session.session_type}
               </span>
-            )}
+            ) : null}
             {statusCfg && (
               <span className={`text-[10px] ${statusCfg.className}`}>{statusCfg.label}</span>
             )}
@@ -121,6 +149,9 @@ function SessionCard({
         <div className="shrink-0 text-right flex flex-col items-end gap-1">
           {session.estimated_duration_minutes != null && (
             <p className="text-xs font-mono text-gray-400">{session.estimated_duration_minutes} min</p>
+          )}
+          {session.pause_between_sets != null && session.pause_between_sets > 0 && (
+            <p className="text-[10px] text-gray-600">{session.pause_between_sets}s Satzpause</p>
           )}
           {execSession?.status === 'completed' && (
             <Link
