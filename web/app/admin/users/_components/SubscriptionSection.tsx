@@ -1,4 +1,4 @@
-import { getRevenueCatSubscriber } from '@/lib/revenuecat'
+import { getRevenueCatSubscriber } from '@/lib/revenuecat';
 
 const ENTITLEMENT_ID = 'full_access'
 

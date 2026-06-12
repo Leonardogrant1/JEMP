@@ -8,7 +8,7 @@ const BLOCK_STYLES: Record<string, { label: string; dot: string; border: string;
   main:      { label: 'Hauptteil', dot: 'bg-blue-400',  border: 'border-blue-900/40',  text: 'text-blue-400'  },
   cool_down: { label: 'Abkühlen', dot: 'bg-teal-400',  border: 'border-teal-900/40',  text: 'text-teal-400'  },
 }
-const BLOCK_STYLE_FALLBACK = { label: 'Block', dot: 'bg-gray-500', border: 'border-gray-700/60', text: 'text-gray-400' }
+const BLOCK_STYLE_FALLBACK = { dot: 'bg-gray-500', border: 'border-gray-700/60', text: 'text-gray-400' }
 
 const MODE_STYLES: Record<string, { label: string; badge: string }> = {
   full:       { label: 'Full',       badge: 'text-blue-400 bg-blue-950/40 border-blue-900/50'     },
@@ -63,12 +63,14 @@ function formatLoad(ex: PlanExercise): string {
 // ─── Sub-components ──────────────────────────────────────────
 
 function BlockSection({ block }: { block: PlanBlock }) {
-  const style = BLOCK_STYLES[block.block_type_slug ?? ''] ?? BLOCK_STYLE_FALLBACK
+  const predefined = BLOCK_STYLES[block.block_type_slug ?? '']
+  const style = predefined ?? BLOCK_STYLE_FALLBACK
+  const label = predefined?.label ?? (block.block_type_slug?.replace(/_/g, ' ') ?? 'Block')
   return (
     <div className={`rounded-lg border ${style.border} bg-gray-900/60`}>
       <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-800/60">
         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`} />
-        <span className={`text-[10px] font-semibold uppercase tracking-wider ${style.text}`}>{style.label}</span>
+        <span className={`text-[10px] font-semibold uppercase tracking-wider ${style.text}`}>{label}</span>
         {block.focused_category_slug && (
           <span className="text-[10px] text-gray-600 ml-auto">
             {block.focused_category_slug.replace(/_/g, ' ')}
@@ -84,9 +86,6 @@ function BlockSection({ block }: { block: PlanBlock }) {
               <span className="text-[10px] font-mono text-gray-600 w-4 shrink-0 mt-0.5">{i + 1}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-gray-300 truncate">{ex.exercise_name}</p>
-                {ex.notes && (
-                  <p className="text-[10px] text-gray-600 mt-0.5 leading-snug">{ex.notes}</p>
-                )}
               </div>
               <div className="flex items-center gap-2 shrink-0 text-[10px] font-mono">
                 {ex.target_sets != null && (
