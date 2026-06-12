@@ -121,7 +121,7 @@ export type PlanSessionWithBlocks = {
   id: string
   name: string
   day_of_week: number
-  session_type: string
+  session_type: string | null
   estimated_duration_minutes: number | null
   order_index: number
   blocks: PlanBlock[]

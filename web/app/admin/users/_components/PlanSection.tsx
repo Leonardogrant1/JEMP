@@ -162,39 +162,47 @@ export function PlanSection({
                 {/* Accordion row (expanded) */}
                 {isOpen && (
                   <div className="pl-10 pr-2 pb-5 flex flex-col gap-5">
-                    {session.blocks.map(block => (
-                      <div key={block.id}>
-                        <p className="text-[10px] text-gray-600 uppercase tracking-widest font-semibold mb-2">
-                          {blockTypeLabel(block.block_type_slug)}
-                        </p>
-                        <table className="w-full">
-                          <tbody>
-                            {block.exercises.map(ex => {
-                              const repsStr = formatReps(ex.target_reps_min, ex.target_reps_max)
-                              const loadStr = formatLoad(ex.target_load_value, ex.target_load_type)
-                              return (
-                                <tr key={ex.id} className="border-b border-gray-900 last:border-0">
-                                  <td className="py-1.5 pr-4 text-xs">{ex.exercise_name}</td>
-                                  <td className="py-1.5 pr-4 text-xs text-gray-400">
-                                    {ex.target_sets != null
-                                      ? `${ex.target_sets} × ${repsStr}`
-                                      : '—'}
-                                  </td>
-                                  <td className="py-1.5 pr-4 text-xs text-gray-400">
-                                    {loadStr ?? ''}
-                                  </td>
-                                  <td className="py-1.5 text-xs text-gray-400">
-                                    {ex.target_duration_seconds != null
-                                      ? `${ex.target_duration_seconds}s`
-                                      : ''}
-                                  </td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    ))}
+                    {session.blocks.length === 0 ? (
+                      <p className="text-xs text-gray-500">Keine Blöcke vorhanden.</p>
+                    ) : (
+                      session.blocks.map(block => (
+                        <div key={block.id}>
+                          <p className="text-[10px] text-gray-600 uppercase tracking-widest font-semibold mb-2">
+                            {blockTypeLabel(block.block_type_slug)}
+                          </p>
+                          {block.exercises.length === 0 ? (
+                            <p className="text-xs text-gray-500">Keine Übungen.</p>
+                          ) : (
+                            <table className="w-full">
+                              <tbody>
+                                {block.exercises.map(ex => {
+                                  const repsStr = formatReps(ex.target_reps_min, ex.target_reps_max)
+                                  const loadStr = formatLoad(ex.target_load_value, ex.target_load_type)
+                                  return (
+                                    <tr key={ex.id} className="border-b border-gray-900 last:border-0">
+                                      <td className="py-1.5 pr-4 text-xs">{ex.exercise_name}</td>
+                                      <td className="py-1.5 pr-4 text-xs text-gray-400">
+                                        {ex.target_sets != null
+                                          ? `${ex.target_sets} × ${repsStr}`
+                                          : '—'}
+                                      </td>
+                                      <td className="py-1.5 pr-4 text-xs text-gray-400">
+                                        {loadStr ?? ''}
+                                      </td>
+                                      <td className="py-1.5 text-xs text-gray-400">
+                                        {ex.target_duration_seconds != null
+                                          ? `${ex.target_duration_seconds}s`
+                                          : ''}
+                                      </td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      ))
+                    )}
 
                     {execSession?.status === 'completed' && (
                       <div>
