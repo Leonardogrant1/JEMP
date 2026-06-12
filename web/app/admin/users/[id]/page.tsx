@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { fetchUserProfile, fetchUserActivePlan } from '@/app/actions/users'
+import { fetchUserProfile, fetchUserActivePlan, fetchUserPlanStructure } from '@/app/actions/users'
 import { ProfileSection } from '../_components/ProfileSection'
 import { PlanSection } from '../_components/PlanSection'
 import { SubscriptionSection, SubscriptionSkeleton } from '../_components/SubscriptionSection'
@@ -17,6 +17,8 @@ export default async function UserDetailPage({
     fetchUserProfile(id),
     fetchUserActivePlan(id),
   ])
+
+  const planStructure = plan ? await fetchUserPlanStructure(plan.id) : null
 
   if (!profile) notFound()
 
@@ -37,7 +39,7 @@ export default async function UserDetailPage({
       <ProfileSection profile={profile} />
 
       {/* Plan */}
-      <PlanSection plan={plan} />
+      <PlanSection plan={plan} planStructure={planStructure} userId={id} />
 
       {/* Subscription (independent Suspense) */}
       <Suspense fallback={<SubscriptionSkeleton />}>
