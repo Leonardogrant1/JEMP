@@ -35,7 +35,7 @@ function formatLoadValue(value: number | null, loadType: string | null): string 
   if (value == null) return '—'
   if (loadType === 'percentage_1rm') return `${value} %`
   if (loadType === 'kg') return `${value} kg`
-  if (loadType === 'rpe') return `${value}`
+  if (loadType === 'rpe') return `RPE ${value}`
   return String(value)
 }
 
@@ -52,7 +52,7 @@ function statusLabel(status: string): string {
 
 // ─── Dynamic column detection ─────────────────────────────────
 
-type ColumnKey = 'reps' | 'load' | 'rpe' | 'duration' | 'distance'
+type ColumnKey = 'reps' | 'load' | 'rpe' | 'duration' | 'distance' | 'side'
 
 function detectColumns(sets: PerformedSet[]): Set<ColumnKey> {
   const active = new Set<ColumnKey>()
@@ -62,6 +62,7 @@ function detectColumns(sets: PerformedSet[]): Set<ColumnKey> {
     if (s.performed_rpe != null)              active.add('rpe')
     if (s.performed_duration_seconds != null) active.add('duration')
     if (s.performed_distance_meters != null)  active.add('distance')
+    if (s.side != null)                        active.add('side')
   }
   return active
 }
@@ -90,6 +91,7 @@ function BlockTable({ block }: { block: SessionDetailBlock }) {
             <tr className="border-b border-gray-800">
               <th className={thClass}>Übung</th>
               <th className={thClass}>Set</th>
+              {cols.has('side')     && <th className={thClass}>Seite</th>}
               {cols.has('reps')     && <th className={thClass}>Wdh</th>}
               {cols.has('load')     && <th className={thClass}>Last</th>}
               {cols.has('rpe')      && <th className={thClass}>RPE</th>}
@@ -100,11 +102,14 @@ function BlockTable({ block }: { block: SessionDetailBlock }) {
           <tbody>
             {block.exercises.map(ex =>
               ex.performed_sets.length === 0 ? null : ex.performed_sets.map((set, i) => (
-                <tr key={`${ex.id}-${set.set_number}`} className="border-b border-gray-900 last:border-0">
+                <tr key={`${ex.id}-${set.set_number}-${set.side ?? 'n'}`} className="border-b border-gray-900 last:border-0">
                   <td className={tdClass}>
                     {i === 0 ? ex.exercise_name : ''}
                   </td>
                   <td className={`${tdClass} text-gray-400`}>{set.set_number}</td>
+                  {cols.has('side')     && (
+                    <td className={`${tdClass} text-gray-400`}>{set.side ?? '—'}</td>
+                  )}
                   {cols.has('reps')     && (
                     <td className={`${tdClass} text-gray-300`}>{set.performed_reps ?? '—'}</td>
                   )}
