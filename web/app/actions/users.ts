@@ -305,7 +305,9 @@ export async function fetchUserActivePlan(userId: string): Promise<UserActivePla
 
   if (sessionsError) throw new Error(sessionsError.message)
 
-  const allSessions: WorkoutSessionRow[] = (sessions ?? []).map((s: any) => ({
+  const rawSessions = (sessions ?? []) as any[]
+
+  const allSessions: WorkoutSessionRow[] = rawSessions.map(s => ({
     id: s.id,
     name: s.name,
     session_type: s.session_type,
@@ -314,10 +316,10 @@ export async function fetchUserActivePlan(userId: string): Promise<UserActivePla
     completed_at: s.completed_at,
   }))
 
-  const executedSessions = (sessions ?? []).map((s: any) => ({
-    id: s.id,
-    workout_plan_session_id: s.workout_plan_session_id,
-    status: s.status,
+  const executedSessions = rawSessions.map(s => ({
+    id: s.id as string,
+    workout_plan_session_id: s.workout_plan_session_id as string | null,
+    status: s.status as string,
   }))
 
   return {

@@ -102,7 +102,7 @@ function BlockTable({ block }: { block: SessionDetailBlock }) {
           <tbody>
             {block.exercises.map(ex =>
               ex.performed_sets.length === 0 ? null : ex.performed_sets.map((set, i) => (
-                <tr key={`${ex.id}-${set.set_number}-${set.side ?? 'n'}`} className="border-b border-gray-900 last:border-0">
+                <tr key={`${ex.id}-${i}`} className="border-b border-gray-900 last:border-0">
                   <td className={tdClass}>
                     {i === 0 ? ex.exercise_name : ''}
                   </td>
