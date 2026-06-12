@@ -49,3 +49,89 @@ export async function getSimulatorRefData(): Promise<SimulatorRefData> {
     categories: (categories ?? []).map(c => ({ id: c.id, slug: c.slug, name: label(c.name_i18n, c.slug) })),
   }
 }
+
+// ─── User Load ────────────────────────────────────────────────
+
+function parseSessionDuration(value: string | null | undefined): number {
+  if (!value) return 60
+  const n = parseInt(value.replace('min', ''), 10)
+  return isNaN(n) ? 60 : n
+}
+
+function calculateAge(birthDate: string): number {
+  return new Date().getFullYear() - new Date(birthDate).getFullYear()
+}
+
+export type LoadedUserData = {
+  userData: import('./store').UserData
+  displayName: string
+}
+
+export async function fetchUserDataForSimulator(
+  userId: string,
+): Promise<LoadedUserData | null> {
+  const [
+    { data: profile },
+    { data: environments },
+    { data: equipments },
+    { data: targetedCategories },
+    { data: categoryLevels },
+  ] = await Promise.all([
+    supabase
+      .from('user_profiles')
+      .select('first_name, last_name, gender, birth_date, height_in_cm, weight_in_kg, preferred_workout_days, preferred_session_duration, weekly_schedule, sport:sports(slug)')
+      .eq('id', userId)
+      .single(),
+    supabase
+      .from('user_environments')
+      .select('environment_id')
+      .eq('user_id', userId),
+    supabase
+      .from('user_equipments')
+      .select('equipment_id')
+      .eq('user_id', userId),
+    supabase
+      .from('user_targeted_categories')
+      .select('priority, category:categories(id, slug)')
+      .eq('user_id', userId),
+    supabase
+      .from('user_category_levels')
+      .select('category_id, level_score')
+      .eq('user_id', userId),
+  ])
+
+  if (!profile) return null
+
+  const sessionDuration = parseSessionDuration(
+    profile.preferred_session_duration as string | null,
+  )
+
+  const userData: import('./store').UserData = {
+    gender: (profile.gender as 'male' | 'female') ?? 'male',
+    age: profile.birth_date ? calculateAge(profile.birth_date) : 25,
+    height_cm: profile.height_in_cm ?? 175,
+    weight_kg: profile.weight_in_kg ?? 75,
+    sport: (profile.sport as any)?.slug ?? '',
+    preferred_workout_days: (profile.preferred_workout_days as number[]) ?? [],
+    min_session_duration: sessionDuration,
+    max_session_duration: sessionDuration,
+    weekly_schedule: (profile.weekly_schedule as any) ?? { sessions: [], notes: null },
+    environment_ids: (environments ?? []).map(e => e.environment_id),
+    equipment_ids: (equipments ?? []).map(e => e.equipment_id),
+    focus_categories: (targetedCategories ?? [])
+      .filter(tc => (tc.category as any)?.slug)
+      .map(tc => ({
+        category_slug: (tc.category as any).slug as string,
+        priority: tc.priority,
+      })),
+    category_levels: (categoryLevels ?? []).map(cl => ({
+      category_id: cl.category_id,
+      level_score: cl.level_score,
+    })),
+  }
+
+  const lastName = profile.last_name ? `${profile.last_name[0]}.` : ''
+  const displayName = `${profile.first_name ?? ''} ${lastName}`.trim() || userId.slice(0, 8)
+
+  return { userData, displayName }
+}
