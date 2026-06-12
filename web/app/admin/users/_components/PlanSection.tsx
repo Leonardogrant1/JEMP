@@ -1,19 +1,30 @@
-'use client'
-
-import { useState } from 'react'
 import Link from 'next/link'
-import type { UserActivePlan, PlanStructure } from '@/app/actions/users'
+import type { UserActivePlan, PlanStructure, PlanBlock, PlanExercise } from '@/app/actions/users'
 
 // ─── Constants ────────────────────────────────────────────────
 
-const BLOCK_TYPE_LABELS: Record<string, string> = {
-  warm_up:   'Warm-Up',
-  main:      'Hauptteil',
-  cool_down: 'Cool-Down',
+const BLOCK_STYLES: Record<string, { label: string; dot: string; border: string; text: string }> = {
+  warm_up:   { label: 'Aufwärmen', dot: 'bg-amber-400', border: 'border-amber-900/40',  text: 'text-amber-400' },
+  main:      { label: 'Hauptteil', dot: 'bg-blue-400',  border: 'border-blue-900/40',   text: 'text-blue-400'  },
+  cool_down: { label: 'Abkühlen', dot: 'bg-teal-400',  border: 'border-teal-900/40',   text: 'text-teal-400'  },
+}
+const BLOCK_STYLE_FALLBACK = { label: 'Block', dot: 'bg-gray-500', border: 'border-gray-700/60', text: 'text-gray-400' }
+
+const SESSION_TYPE_BADGE: Record<string, string> = {
+  training: 'text-blue-400 bg-blue-950/40 border-blue-900/50',
+  recovery: 'text-teal-400 bg-teal-950/40 border-teal-900/50',
 }
 
 const DAY_LABELS: Record<number, string> = {
   1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa', 7: 'So',
+}
+
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  completed:   { label: '✅ Abgeschlossen', className: 'text-green-400' },
+  in_progress: { label: '🔄 In Bearbeitung', className: 'text-yellow-400' },
+  scheduled:   { label: '⏳ Geplant',        className: 'text-gray-400'  },
+  skipped:     { label: '❌ Übersprungen',   className: 'text-red-400'   },
+  cancelled:   { label: '❌ Abgebrochen',    className: 'text-red-400'   },
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -23,45 +34,120 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function blockTypeLabel(slug: string | null): string {
-  if (!slug) return 'Block'
-  return BLOCK_TYPE_LABELS[slug] ?? slug.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+function formatReps(ex: PlanExercise): string {
+  if (ex.target_duration_seconds != null) return `${ex.target_duration_seconds}s`
+  if (ex.target_reps_min == null && ex.target_reps_max == null) return '—'
+  if (ex.target_reps_min === ex.target_reps_max || ex.target_reps_max == null) return `${ex.target_reps_min ?? ex.target_reps_max} Wdh`
+  if (ex.target_reps_min == null) return `${ex.target_reps_max} Wdh`
+  return `${ex.target_reps_min}–${ex.target_reps_max} Wdh`
 }
 
-function formatReps(min: number | null, max: number | null): string {
-  if (min == null && max == null) return '—'
-  if (min === max || max == null) return String(min ?? max)
-  if (min == null) return String(max)
-  return `${min}–${max}`
-}
-
-function formatLoad(value: number | null, type: string | null): string | null {
-  if (value == null || type == null) return null
-  switch (type) {
-    case 'percentage_1rm': return `${value} % 1RM`
-    case 'kg':             return `${value} kg`
-    case 'rpe':            return `RPE ${value}`
-    default:               return `${value} ${type}`
+function formatLoad(ex: PlanExercise): string {
+  if (ex.target_load_value == null || ex.target_load_type == null) return ''
+  switch (ex.target_load_type) {
+    case 'percentage_1rm': return `${ex.target_load_value} % 1RM`
+    case 'kg':             return `${ex.target_load_value} kg`
+    case 'rpe':            return `RPE ${ex.target_load_value}`
+    default:               return `${ex.target_load_value} ${ex.target_load_type}`
   }
 }
 
 // ─── Sub-components ──────────────────────────────────────────
 
-function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, { label: string; className: string }> = {
-    completed:   { label: '✅ Abgeschlossen', className: 'text-green-400' },
-    in_progress: { label: '🔄 In Bearbeitung', className: 'text-yellow-400' },
-    scheduled:   { label: '⏳ Geplant',        className: 'text-gray-400' },
-    skipped:     { label: '❌ Übersprungen',   className: 'text-red-400' },
-    cancelled:   { label: '❌ Abgebrochen',    className: 'text-red-400' },
-  }
-  const c = config[status] ?? { label: status, className: 'text-gray-400' }
-  return <span className={`text-xs ${c.className}`}>{c.label}</span>
+function BlockSection({ block }: { block: PlanBlock }) {
+  const style = BLOCK_STYLES[block.block_type_slug ?? ''] ?? BLOCK_STYLE_FALLBACK
+  return (
+    <div className={`rounded-lg border ${style.border} bg-gray-900/60`}>
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-800/60">
+        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`} />
+        <span className={`text-[10px] font-semibold uppercase tracking-wider ${style.text}`}>{style.label}</span>
+      </div>
+      <div className="px-3">
+        {block.exercises.length === 0 ? (
+          <p className="text-[11px] text-gray-600 py-2">Keine Übungen.</p>
+        ) : (
+          block.exercises.map((ex, i) => (
+            <div key={ex.id} className="flex items-start gap-2 py-1.5 border-b border-gray-800/60 last:border-0">
+              <span className="text-[10px] font-mono text-gray-600 w-4 shrink-0 mt-0.5">{i + 1}</span>
+              <p className="text-xs text-gray-300 flex-1 min-w-0 truncate">{ex.exercise_name}</p>
+              <div className="flex items-center gap-2 shrink-0 text-[10px] font-mono">
+                {ex.target_sets != null && (
+                  <span className="text-gray-400">{ex.target_sets}×{formatReps(ex)}</span>
+                )}
+                <span className="text-gray-600">{formatLoad(ex)}</span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+type ExecutedSession = { id: string; workout_plan_session_id: string | null; status: string }
+
+function SessionCard({
+  session,
+  execSession,
+  userId,
+}: {
+  session: PlanStructure['planSessions'][number]
+  execSession: ExecutedSession | undefined
+  userId: string
+}) {
+  const typeBadge = SESSION_TYPE_BADGE[session.session_type ?? '']
+  const statusCfg = execSession ? (STATUS_CONFIG[execSession.status] ?? { label: execSession.status, className: 'text-gray-400' }) : null
+
+  return (
+    <div className="rounded-xl border border-gray-800 bg-gray-900/30 flex flex-col min-w-0">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-gray-800/60 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">
+              {DAY_LABELS[session.day_of_week] ?? '—'}
+            </span>
+            {session.session_type && (
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${typeBadge ?? 'text-gray-400 bg-gray-900 border-gray-700'}`}>
+                {session.session_type}
+              </span>
+            )}
+            {statusCfg && (
+              <span className={`text-[10px] ${statusCfg.className}`}>{statusCfg.label}</span>
+            )}
+          </div>
+          <p className="text-sm font-medium text-white truncate">{session.name}</p>
+        </div>
+        <div className="shrink-0 text-right flex flex-col items-end gap-1">
+          {session.estimated_duration_minutes != null && (
+            <p className="text-xs font-mono text-gray-400">{session.estimated_duration_minutes} min</p>
+          )}
+          {execSession?.status === 'completed' && (
+            <Link
+              href={`/admin/users/${userId}/sessions/${execSession.id}`}
+              className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              Details →
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {/* Blocks */}
+      <div className="p-3 flex flex-col gap-2 flex-1">
+        {session.blocks.length === 0 ? (
+          <p className="text-[11px] text-gray-600">Keine Blöcke vorhanden.</p>
+        ) : (
+          session.blocks.map(block => (
+            <BlockSection key={block.id} block={block} />
+          ))
+        )}
+      </div>
+    </div>
+  )
 }
 
 // ─── PlanSection ─────────────────────────────────────────────
-
-type ExecutedSession = { id: string; workout_plan_session_id: string | null; status: string }
 
 export function PlanSection({
   plan,
@@ -72,8 +158,6 @@ export function PlanSection({
   planStructure: PlanStructure | null
   userId: string
 }) {
-  const [openId, setOpenId] = useState<string | null>(null)
-
   if (!plan) {
     return (
       <div className="bg-gray-950 border border-gray-800 rounded-lg p-5">
@@ -83,7 +167,6 @@ export function PlanSection({
     )
   }
 
-  // Build lookup: plan_session_id → executed session stub
   const execByPlanSessionId = new Map<string, ExecutedSession>()
   for (const es of plan.executedSessions) {
     if (es.workout_plan_session_id) {
@@ -92,133 +175,57 @@ export function PlanSection({
   }
 
   const planSessions = planStructure?.planSessions ?? []
+  const totalExercises = planSessions.flatMap(s => s.blocks.flatMap(b => b.exercises)).length
+  const avgDuration = planSessions.length > 0
+    ? Math.round(planSessions.reduce((sum, s) => sum + (s.estimated_duration_minutes ?? 0), 0) / planSessions.length)
+    : null
 
   return (
     <div className="bg-gray-950 border border-gray-800 rounded-lg p-5">
-      <h2 className="text-sm font-semibold mb-5">Trainingsplan</h2>
-
       {/* Plan header */}
-      <div className="flex flex-wrap items-start gap-6 mb-5 pb-5 border-b border-gray-800">
+      <div className="flex items-start justify-between gap-4 mb-5 pb-5 border-b border-gray-800">
         <div>
-          <p className="text-xs text-gray-500 mb-0.5">Name</p>
-          <p className="text-sm font-medium">{plan.name}</p>
+          <p className="text-[10px] text-gray-600 uppercase tracking-widest font-semibold mb-1">Trainingsplan</p>
+          <h2 className="text-base font-semibold text-white">{plan.name}</h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {formatDate(plan.start_date)} – {formatDate(plan.end_date)} · {plan.duration_weeks} Wochen
+          </p>
         </div>
-        <div>
-          <p className="text-xs text-gray-500 mb-0.5">Status</p>
-          <p className="text-xs text-green-400">{plan.status}</p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500 mb-0.5">Zeitraum</p>
-          <p className="text-xs">{formatDate(plan.start_date)} – {formatDate(plan.end_date)}</p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500 mb-0.5">Dauer</p>
-          <p className="text-xs">{plan.duration_weeks} Wochen</p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500 mb-0.5">Fortschritt</p>
-          <p className="text-xs">{plan.completedCount} / {plan.totalCount} Sessions</p>
+        <div className="flex items-center gap-4 shrink-0">
+          <div className="text-right">
+            <p className="text-lg font-mono font-semibold text-white">{planSessions.length}</p>
+            <p className="text-[10px] text-gray-600">Sessions</p>
+          </div>
+          <div className="text-right">
+            <p className="text-lg font-mono font-semibold text-white">{totalExercises}</p>
+            <p className="text-[10px] text-gray-600">Übungen</p>
+          </div>
+          {avgDuration != null && (
+            <div className="text-right">
+              <p className="text-lg font-mono font-semibold text-white">{avgDuration}</p>
+              <p className="text-[10px] text-gray-600">Ø min</p>
+            </div>
+          )}
+          <div className="text-right">
+            <p className="text-lg font-mono font-semibold text-white">{plan.completedCount}/{plan.totalCount}</p>
+            <p className="text-[10px] text-gray-600">Abgeschl.</p>
+          </div>
         </div>
       </div>
 
-      {/* Accordion */}
+      {/* Session cards */}
       {planSessions.length === 0 ? (
         <p className="text-xs text-gray-500">Keine Planstruktur verfügbar.</p>
       ) : (
-        <div className="flex flex-col divide-y divide-gray-900">
-          {planSessions.map(session => {
-            const execSession = execByPlanSessionId.get(session.id)
-            const isOpen = openId === session.id
-
-            return (
-              <div key={session.id}>
-                {/* Accordion row (closed) */}
-                <button
-                  onClick={() => setOpenId(isOpen ? null : session.id)}
-                  className="w-full flex items-center gap-4 py-3 text-left hover:bg-gray-900/40 transition-colors px-2 rounded"
-                >
-                  <span className="text-[11px] text-gray-500 w-6 shrink-0">
-                    {DAY_LABELS[session.day_of_week] ?? '—'}
-                  </span>
-                  <span className="text-xs flex-1 font-medium">{session.name}</span>
-                  <span className="text-xs text-gray-500 hidden sm:block">
-                    {session.session_type ?? '—'}
-                  </span>
-                  {session.estimated_duration_minutes != null && (
-                    <span className="text-xs text-gray-500 hidden sm:block">
-                      {session.estimated_duration_minutes} min
-                    </span>
-                  )}
-                  {execSession ? (
-                    <StatusBadge status={execSession.status} />
-                  ) : (
-                    <span className="text-xs text-gray-600">—</span>
-                  )}
-                  <span className="text-gray-500 text-[10px] ml-1 shrink-0">
-                    {isOpen ? '▼' : '▶'}
-                  </span>
-                </button>
-
-                {/* Accordion row (expanded) */}
-                {isOpen && (
-                  <div className="pl-10 pr-2 pb-5 flex flex-col gap-5">
-                    {session.blocks.length === 0 ? (
-                      <p className="text-xs text-gray-500">Keine Blöcke vorhanden.</p>
-                    ) : (
-                      session.blocks.map(block => (
-                        <div key={block.id}>
-                          <p className="text-[10px] text-gray-600 uppercase tracking-widest font-semibold mb-2">
-                            {blockTypeLabel(block.block_type_slug)}
-                          </p>
-                          {block.exercises.length === 0 ? (
-                            <p className="text-xs text-gray-500">Keine Übungen.</p>
-                          ) : (
-                            <table className="w-full">
-                              <tbody>
-                                {block.exercises.map(ex => {
-                                  const repsStr = formatReps(ex.target_reps_min, ex.target_reps_max)
-                                  const loadStr = formatLoad(ex.target_load_value, ex.target_load_type)
-                                  return (
-                                    <tr key={ex.id} className="border-b border-gray-900 last:border-0">
-                                      <td className="py-1.5 pr-4 text-xs">{ex.exercise_name}</td>
-                                      <td className="py-1.5 pr-4 text-xs text-gray-400">
-                                        {ex.target_sets != null
-                                          ? `${ex.target_sets} × ${repsStr}`
-                                          : '—'}
-                                      </td>
-                                      <td className="py-1.5 pr-4 text-xs text-gray-400">
-                                        {loadStr ?? ''}
-                                      </td>
-                                      <td className="py-1.5 text-xs text-gray-400">
-                                        {ex.target_duration_seconds != null
-                                          ? `${ex.target_duration_seconds}s`
-                                          : ''}
-                                      </td>
-                                    </tr>
-                                  )
-                                })}
-                              </tbody>
-                            </table>
-                          )}
-                        </div>
-                      ))
-                    )}
-
-                    {execSession?.status === 'completed' && (
-                      <div>
-                        <Link
-                          href={`/admin/users/${userId}/sessions/${execSession.id}`}
-                          className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                        >
-                          Details →
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+          {planSessions.map(session => (
+            <SessionCard
+              key={session.id}
+              session={session}
+              execSession={execByPlanSessionId.get(session.id)}
+              userId={userId}
+            />
+          ))}
         </div>
       )}
     </div>
