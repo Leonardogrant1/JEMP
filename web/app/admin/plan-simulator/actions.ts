@@ -59,7 +59,13 @@ function parseSessionDuration(value: string | null | undefined): number {
 }
 
 function calculateAge(birthDate: string): number {
-  return new Date().getFullYear() - new Date(birthDate).getFullYear()
+  const today = new Date()
+  const birth = new Date(birthDate)
+  const age = today.getFullYear() - birth.getFullYear()
+  const hasHadBirthday =
+    today.getMonth() > birth.getMonth() ||
+    (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate())
+  return hasHadBirthday ? age : age - 1
 }
 
 export type LoadedUserData = {
@@ -71,7 +77,7 @@ export async function fetchUserDataForSimulator(
   userId: string,
 ): Promise<LoadedUserData | null> {
   const [
-    { data: profile },
+    { data: profile, error: profileError },
     { data: environments },
     { data: equipments },
     { data: targetedCategories },
@@ -100,6 +106,7 @@ export async function fetchUserDataForSimulator(
       .eq('user_id', userId),
   ])
 
+  if (profileError && profileError.code !== 'PGRST116') throw profileError
   if (!profile) return null
 
   const sessionDuration = parseSessionDuration(
@@ -107,7 +114,7 @@ export async function fetchUserDataForSimulator(
   )
 
   const userData: import('./store').UserData = {
-    gender: (profile.gender as 'male' | 'female') ?? 'male',
+    gender: profile.gender === 'female' ? 'female' : 'male',
     age: profile.birth_date ? calculateAge(profile.birth_date) : 25,
     height_cm: profile.height_in_cm ?? 175,
     weight_kg: profile.weight_in_kg ?? 75,
