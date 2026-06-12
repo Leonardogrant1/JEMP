@@ -297,22 +297,15 @@ export async function fetchUserActivePlan(userId: string): Promise<UserActivePla
   if (planError) throw new Error(planError.message)
   if (!plan) return null
 
-  const [{ data: sessions, error: sessionsError }, { data: execSessions, error: execError }] = await Promise.all([
-    supabase
-      .from('workout_sessions')
-      .select('id, name, session_type, status, scheduled_at, completed_at')
-      .eq('workout_plan_id', plan.id)
-      .order('scheduled_at', { ascending: true }),
-    supabase
-      .from('workout_sessions')
-      .select('id, workout_plan_session_id, status')
-      .eq('workout_plan_id', plan.id),
-  ])
+  const { data: sessions, error: sessionsError } = await supabase
+    .from('workout_sessions')
+    .select('id, name, session_type, status, scheduled_at, completed_at, workout_plan_session_id')
+    .eq('workout_plan_id', plan.id)
+    .order('scheduled_at', { ascending: true })
 
   if (sessionsError) throw new Error(sessionsError.message)
-  if (execError) throw new Error(execError.message)
 
-  const allSessions: WorkoutSessionRow[] = (sessions ?? []).map(s => ({
+  const allSessions: WorkoutSessionRow[] = (sessions ?? []).map((s: any) => ({
     id: s.id,
     name: s.name,
     session_type: s.session_type,
@@ -321,7 +314,7 @@ export async function fetchUserActivePlan(userId: string): Promise<UserActivePla
     completed_at: s.completed_at,
   }))
 
-  const executedSessions = (execSessions ?? []).map((s: any) => ({
+  const executedSessions = (sessions ?? []).map((s: any) => ({
     id: s.id,
     workout_plan_session_id: s.workout_plan_session_id,
     status: s.status,
