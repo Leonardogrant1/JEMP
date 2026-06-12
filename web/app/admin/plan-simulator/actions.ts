@@ -73,9 +73,13 @@ export type LoadedUserData = {
   displayName: string
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function fetchUserDataForSimulator(
   userId: string,
 ): Promise<LoadedUserData | null> {
+  if (!UUID_RE.test(userId)) return null
+
   const [
     { data: profile, error: profileError },
     { data: environments },
