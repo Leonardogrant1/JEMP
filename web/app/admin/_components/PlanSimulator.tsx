@@ -92,14 +92,19 @@ function ConfigPanel({
     if (!trimmed) return
     setIsLoadingUser(true)
     setLoadUserError(null)
-    const result = await fetchUserDataForSimulator(trimmed)
-    if (!result) {
-      setLoadUserError('User nicht gefunden')
-    } else {
-      updateUserData(result.userData)
-      setLoadedUser({ id: trimmed, name: result.displayName })
+    try {
+      const result = await fetchUserDataForSimulator(trimmed)
+      if (!result) {
+        setLoadUserError('User nicht gefunden')
+      } else {
+        updateUserData(result.userData)
+        setLoadedUser({ id: trimmed, name: result.displayName })
+      }
+    } catch {
+      setLoadUserError('Fehler beim Laden des Users')
+    } finally {
+      setIsLoadingUser(false)
     }
-    setIsLoadingUser(false)
   }
 
   function handleClearUser() {
@@ -222,7 +227,11 @@ function ConfigPanel({
               type="text"
               value={userIdInput}
               onChange={e => setUserIdInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleLoadUser()}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !isLoadingUser && userIdInput.trim()) {
+                  handleLoadUser()
+                }
+              }}
               placeholder="User UUID…"
               className="flex-1 bg-gray-900 border border-gray-800 rounded px-2 py-1 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-gray-600"
             />
