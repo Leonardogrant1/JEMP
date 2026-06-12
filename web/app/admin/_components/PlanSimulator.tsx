@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import type { SimulatorRefData } from '../plan-simulator/actions'
+import { fetchUserDataForSimulator } from '../plan-simulator/actions'
 import {
   type Gender,
   type UserData,
@@ -81,6 +82,32 @@ function ConfigPanel({
   updateUserData: (patch: Partial<UserData>) => void
   refData: SimulatorRefData
 }) {
+  const [userIdInput, setUserIdInput] = useState('')
+  const [isLoadingUser, setIsLoadingUser] = useState(false)
+  const [loadedUser, setLoadedUser] = useState<{ id: string; name: string } | null>(null)
+  const [loadUserError, setLoadUserError] = useState<string | null>(null)
+
+  async function handleLoadUser() {
+    const trimmed = userIdInput.trim()
+    if (!trimmed) return
+    setIsLoadingUser(true)
+    setLoadUserError(null)
+    const result = await fetchUserDataForSimulator(trimmed)
+    if (!result) {
+      setLoadUserError('User nicht gefunden')
+    } else {
+      updateUserData(result.userData)
+      setLoadedUser({ id: trimmed, name: result.displayName })
+    }
+    setIsLoadingUser(false)
+  }
+
+  function handleClearUser() {
+    setUserIdInput('')
+    setLoadedUser(null)
+    setLoadUserError(null)
+  }
+
   function toggleWorkoutDay(day: number) {
     const days = userData.preferred_workout_days.includes(day)
       ? userData.preferred_workout_days.filter(d => d !== day)
@@ -175,6 +202,48 @@ function ConfigPanel({
 
   return (
     <div className="flex flex-col gap-5 text-sm">
+
+      {/* User laden */}
+      <div className="flex flex-col gap-2">
+        <SectionTitle>User laden</SectionTitle>
+        {loadedUser ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-green-400">Geladen: {loadedUser.name}</span>
+            <button
+              onClick={handleClearUser}
+              className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+            >
+              ×
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={userIdInput}
+              onChange={e => setUserIdInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLoadUser()}
+              placeholder="User UUID…"
+              className="flex-1 bg-gray-900 border border-gray-800 rounded px-2 py-1 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-gray-600"
+            />
+            <button
+              onClick={handleLoadUser}
+              disabled={isLoadingUser || !userIdInput.trim()}
+              className="px-3 py-1 text-xs text-gray-300 border border-gray-700 rounded hover:border-gray-500 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isLoadingUser ? (
+                <svg className="w-3 h-3 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : 'Laden'}
+            </button>
+          </div>
+        )}
+        {loadUserError && (
+          <p className="text-xs text-red-400">{loadUserError}</p>
+        )}
+      </div>
 
       {/* Profil */}
       <div className="flex flex-col gap-2">
