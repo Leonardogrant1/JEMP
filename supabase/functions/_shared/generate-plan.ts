@@ -3,7 +3,7 @@ import { OpenAI } from "openai"
 import { zodResponseFormat } from "openai/helpers/zod"
 import { z } from "zod"
 import { GENERATE_MAIN_BLOCKS_PROMPT, GENERATE_WARMUP_COOLDOWN_PROMPT, GENERATE_WEEK_PLAN_PROMPT } from "./prompts.ts"
-import { mainSessionSchema, sessionSchema, warmupCooldownSchema, weekPlanSchema } from "./schemas.ts"
+import { buildMainSessionSchema, buildWarmupCooldownSchema, buildWeekPlanSchema, mainSessionSchema, sessionSchema, warmupCooldownSchema, weekPlanSchema } from "./schemas.ts"
 import { PlanGenerationInput, SessionModeSlug, WeeklySchedule } from "./types.ts"
 
 
@@ -285,6 +285,8 @@ export async function generatePlan(
   const tPhaseA = Date.now()
   console.log(`[t=${elapsed(t0)}] Phase A — calling week planner: ${sessionSpecs.length} sessions, categorySlugs=[${categorySlugs.join(", ")}]`)
 
+  const dynamicWeekPlanSchema = buildWeekPlanSchema(categorySlugs)
+
   const weekPlanCompletion = await openai.chat.completions.create({
     model: "gpt-5-mini",
     messages: [{
@@ -299,7 +301,7 @@ export async function generatePlan(
       }),
     }],
     reasoning_effort: "low",
-    response_format: zodResponseFormat(weekPlanSchema, "data"),
+    response_format: zodResponseFormat(dynamicWeekPlanSchema, "data"),
     max_completion_tokens: 4000,
   })
 
@@ -412,6 +414,11 @@ export async function generatePlan(
 
       // ── Phase C: main blocks ──────────────────────────────────
       const tC = Date.now()
+      const sessionExerciseSlugs = [...new Set(
+        si.blockPools.flatMap(p => p.slugs.split(",").map(s => s.trim()).filter(Boolean))
+      )]
+      const sessionCategorySlugs = [...new Set(si.blockPools.map(p => p.category_slug))]
+      const dynamicMainSchema = buildMainSessionSchema(sessionExerciseSlugs, sessionCategorySlugs)
       const mainCompletion = await openai.chat.completions.create({
         model: "gpt-5-mini",
         messages: [{
@@ -428,7 +435,7 @@ export async function generatePlan(
             planDescription: weekPlan.description,
           }),
         }],
-        response_format: zodResponseFormat(mainSessionSchema, "data"),
+        response_format: zodResponseFormat(dynamicMainSchema, "data"),
         max_completion_tokens: 5000,
       })
 
@@ -445,6 +452,10 @@ export async function generatePlan(
 
       // ── Phase D: warmup + cooldown (pools already ready from Phase B) ─────
       const tD = Date.now()
+      const warmupSlugsList = si.warmupSlugs.split(",").map(s => s.trim()).filter(Boolean)
+      const cooldownSlugsList = si.cooldownSlugs.split(",").map(s => s.trim()).filter(Boolean)
+      const wcCategorySlugs = [...new Set([...si.warmupCategorySlugs, ...si.cooldownCategorySlugs])]
+      const dynamicWcSchema = buildWarmupCooldownSchema(warmupSlugsList, cooldownSlugsList, wcCategorySlugs)
       const mainBlocksSummary = mainSession.blocks.map((b) =>
         `${b.block_type} (${b.focused_category_slug}): ${b.exercises.map((e) => e.exercise_slug).join(", ")}`
       ).join("\n")
@@ -469,7 +480,7 @@ export async function generatePlan(
             cooldownCategorySlugs: si.cooldownCategorySlugs,
           }),
         }],
-        response_format: zodResponseFormat(warmupCooldownSchema, "data"),
+        response_format: zodResponseFormat(dynamicWcSchema, "data"),
         max_completion_tokens: 3000,
       })
 

@@ -91,6 +91,103 @@ const warmupCooldownSchema = z.object({
   blocks: z.array(warmupCooldownBlockSchema),
 })
 
+// ── Dynamic schema builders (per-call slug enums) ────────────
+
+function toEnum(slugs: string[]): z.ZodTypeAny {
+  const unique = [...new Set(slugs)].filter(Boolean)
+  if (unique.length === 0) {
+    console.warn("[schema] toEnum called with empty slug list — falling back to z.string()")
+    return z.string()
+  }
+  return z.enum(unique as [string, ...string[]])
+}
+
+export function buildWeekPlanSchema(categorySlugs: string[]) {
+  const categoryEnum = toEnum(categorySlugs)
+  return z.object({
+    name: z.string(),
+    description: z.string(),
+    sessions: z.array(z.object({
+      day_of_week: z.number(),
+      body_regions: z.array(bodyRegionEnum),
+      blocks: z.array(z.object({
+        block_type: z.enum(["primary", "secondary", "accessory"]),
+        category_slug: categoryEnum,
+      })),
+    })),
+  })
+}
+
+export function buildMainSessionSchema(exerciseSlugs: string[], categorySlugs: string[]) {
+  const slugEnum = toEnum(exerciseSlugs)
+  const categoryEnum = toEnum(categorySlugs)
+
+  const dynExercise = z.object({
+    exercise_slug: slugEnum,
+    order_index: z.number(),
+    notes: z.string(),
+    target_sets: z.number(),
+    target_reps_min: z.number(),
+    target_reps_max: z.number(),
+    target_duration_seconds: z.number(),
+    target_distance_meters: z.number(),
+    target_rest_seconds: z.number(),
+    target_load_type: z.enum(["bodyweight", "kg", "rpe", "pace"]),
+    target_load_value: z.number(),
+  })
+
+  const dynBlock = z.object({
+    block_type: z.enum(["primary", "secondary", "accessory"]),
+    order_index: z.number(),
+    focused_category_slug: categoryEnum,
+    exercises: z.array(dynExercise),
+  })
+
+  return z.object({
+    name: z.string(),
+    mode_slug: z.enum(["full", "reduced", "activation", "recovery"]),
+    estimated_duration_minutes: z.number(),
+    day_of_week: z.number(),
+    order_index: z.number(),
+    session_type: z.enum(["training", "recovery"]),
+    description: z.string(),
+    pause_between_sets: z.number(),
+    blocks: z.array(dynBlock),
+  })
+}
+
+export function buildWarmupCooldownSchema(
+  warmupSlugs: string[],
+  cooldownSlugs: string[],
+  categorySlugs: string[],
+) {
+  const slugEnum = toEnum([...warmupSlugs, ...cooldownSlugs])
+  const categoryEnum = toEnum(categorySlugs)
+
+  const dynExercise = z.object({
+    exercise_slug: slugEnum,
+    order_index: z.number(),
+    notes: z.string(),
+    target_sets: z.number(),
+    target_reps_min: z.number(),
+    target_reps_max: z.number(),
+    target_duration_seconds: z.number(),
+    target_distance_meters: z.number(),
+    target_rest_seconds: z.number(),
+    target_load_type: z.enum(["bodyweight", "kg", "rpe", "pace"]),
+    target_load_value: z.number(),
+  })
+
+  return z.object({
+    blocks: z.array(z.object({
+      block_type: z.enum(["warmup", "cooldown"]),
+      order_index: z.number(),
+      focused_category_slug: categoryEnum,
+      exercises: z.array(dynExercise),
+    })),
+  })
+}
+
 export {
   blockSchema,
   exerciseSchema,
