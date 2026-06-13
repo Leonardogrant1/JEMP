@@ -3,13 +3,15 @@ import { SelectableChip } from '@/components/ui/selectable-chip';
 import { getCategoryLabel, type CategoryI18n } from '@/constants/category-labels';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useCurrentUser } from '@/providers/current-user-provider';
 import { supabase } from '@/services/supabase/client';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    ActivityIndicator, Modal, Pressable, ScrollView,
+    ActivityIndicator, Pressable, ScrollView,
     StyleSheet, TouchableOpacity, View,
 } from 'react-native';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
@@ -34,12 +36,6 @@ const LEVEL_PRESET_KEYS = [
 type Phase = 'select' | 'rank' | 'level';
 type CategoryItem = { id: string; slug: string; label: string; name_i18n: CategoryI18n };
 
-interface Props {
-    visible: boolean;
-    userId: string;
-    onClose: () => void;
-}
-
 // ─── StepBars ─────────────────────────────────────────────────────────────────
 
 function StepBars({ phase, phases }: { phase: Phase; phases: Phase[] }) {
@@ -60,11 +56,14 @@ function StepBars({ phase, phases }: { phase: Phase; phases: Phase[] }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function GoalsSheet({ visible, userId, onClose }: Props) {
+export default function GoalsScreen() {
     const { t } = useTranslation();
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+    const router = useRouter();
+    const { profile } = useCurrentUser();
+    const userId = profile!.id;
 
     const [categories, setCategories] = useState<CategoryItem[]>([]);
     const [existingScores, setExistingScores] = useState<Record<string, number>>({});
@@ -75,8 +74,7 @@ export function GoalsSheet({ visible, userId, onClose }: Props) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    useEffect(() => {
-        if (!visible) return;
+    useFocusEffect(useCallback(() => {
         setPhase('select');
         setNewScores({});
         setLoading(true);
@@ -112,7 +110,7 @@ export function GoalsSheet({ visible, userId, onClose }: Props) {
             }
             setLoading(false);
         });
-    }, [visible, userId]);
+    }, [userId]));
 
     function categoriesNeedingLevel(list: CategoryItem[]) {
         return list.filter(c => existingScores[c.id] === undefined);
@@ -193,13 +191,13 @@ export function GoalsSheet({ visible, userId, onClose }: Props) {
             );
         }
         setSaving(false);
-        onClose();
+        router.back();
     }
 
     function handleBack() {
         if (phase === 'level') setPhase(ranked.length > 1 ? 'rank' : 'select');
         else if (phase === 'rank') setPhase('select');
-        else onClose();
+        else router.back();
     }
 
     const levelCategories = ranked.filter(c => existingScores[c.id] === undefined);
@@ -212,134 +210,132 @@ export function GoalsSheet({ visible, userId, onClose }: Props) {
             : t('goals.select_subtitle');
 
     return (
-        <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
-            <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+        <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
 
-                {/* ── Header ── */}
-                <View style={styles.header}>
-                    <Pressable onPress={handleBack} hitSlop={12} style={styles.headerSide}>
-                        <Ionicons
-                            name={phase === 'select' ? 'close' : 'chevron-back'}
-                            size={24}
-                            color={theme.text}
-                        />
-                    </Pressable>
-                    <View style={styles.headerCenter}>
-                        <JempText type="body-l" color={theme.textMuted}>
-                            {t('goals.select_title')}
-                        </JempText>
-                        <StepBars phase={phase} phases={activePhases} />
-                    </View>
-                    <View style={styles.headerSide} />
+            {/* ── Header ── */}
+            <View style={styles.header}>
+                <Pressable onPress={handleBack} hitSlop={12} style={styles.headerSide}>
+                    <Ionicons
+                        name={phase === 'select' ? 'close' : 'chevron-back'}
+                        size={24}
+                        color={theme.text}
+                    />
+                </Pressable>
+                <View style={styles.headerCenter}>
+                    <JempText type="body-l" color={theme.textMuted}>
+                        {t('goals.select_title')}
+                    </JempText>
+                    <StepBars phase={phase} phases={activePhases} />
                 </View>
-
-                {/* ── Content ── */}
-                {loading ? (
-                    <View style={styles.centered}>
-                        <ActivityIndicator color={GradientMid} />
-                    </View>
-                ) : phase === 'rank' ? (
-                    /* Rank phase: DraggableFlatList owns scrolling */
-                    <DraggableFlatList
-                            data={ranked}
-                            keyExtractor={item => item.id}
-                            onDragEnd={({ data }) => setRanked(data)}
-                            renderItem={renderRankItem}
-                            contentContainerStyle={styles.content}
-                            showsVerticalScrollIndicator={false}
-                            ListHeaderComponent={
-                                <View style={styles.listHeader}>
-                                    <JempText type="h1" color={theme.text} style={styles.title}>{phaseTitle}</JempText>
-                                    <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
-                                        {phaseSubtitle}
-                                    </JempText>
-                                </View>
-                            }
-                        />
-                ) : (
-                    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                        <JempText type="h1" color={theme.text} style={styles.title}>{phaseTitle}</JempText>
-                        <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
-                            {phaseSubtitle}
-                        </JempText>
-
-                        {/* ── Select ── */}
-                        {phase === 'select' && (
-                            <View style={styles.chipGrid}>
-                                {categories.map(cat => (
-                                    <SelectableChip
-                                        key={cat.id}
-                                        label={cat.label}
-                                        selected={selected.has(cat.id)}
-                                        onPress={() => toggleCategory(cat)}
-                                    />
-                                ))}
-                            </View>
-                        )}
-
-                        {/* ── Level ── */}
-                        {phase === 'level' && levelCategories.map(cat => (
-                            <View key={cat.id} style={styles.levelCard}>
-                                <JempText type="h2" color={theme.text} style={styles.levelCardTitle}>
-                                    {cat.label}
-                                </JempText>
-                                <View style={styles.presets}>
-                                    {LEVEL_PRESET_KEYS.map((keys, i) => {
-                                        const score = LEVEL_PRESET_SCORES[i];
-                                        const isSelected = (newScores[cat.id] ?? 35) === score;
-                                        return (
-                                            <TouchableOpacity
-                                                key={score}
-                                                onPress={() => setNewScores(p => ({ ...p, [cat.id]: score }))}
-                                                activeOpacity={0.7}
-                                                style={[
-                                                    styles.preset,
-                                                    { backgroundColor: theme.surface },
-                                                    isSelected
-                                                        ? { borderWidth: 1, borderColor: GradientMid }
-                                                        : { borderWidth: 1, borderColor: 'transparent' },
-                                                ]}
-                                            >
-                                                <JempText type="body-l" color={isSelected ? '#fff' : theme.text}>
-                                                    {t(keys.labelKey)}
-                                                </JempText>
-                                                <JempText type="caption" color={theme.textMuted}>
-                                                    {t(keys.descKey)}
-                                                </JempText>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                </View>
-                            </View>
-                        ))}
-                    </ScrollView>
-                )}
-
-                {/* ── Fixed bottom button ── */}
-                <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 20), backgroundColor: theme.background }]}>
-                    <Pressable
-                        onPress={handlePrimaryAction}
-                        disabled={primaryDisabled || saving}
-                        style={styles.bottomBtn}
-                    >
-                        <LinearGradient
-                            colors={!primaryDisabled ? GRADIENT : [theme.surface, theme.surface]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.bottomBtnGradient}
-                        >
-                            {saving
-                                ? <ActivityIndicator color="#fff" size="small" />
-                                : <JempText type="button" color={!primaryDisabled ? '#fff' : theme.textMuted}>
-                                    {primaryLabel}
-                                </JempText>
-                            }
-                        </LinearGradient>
-                    </Pressable>
-                </View>
-
+                <View style={styles.headerSide} />
             </View>
-        </Modal>
+
+            {/* ── Content ── */}
+            {loading ? (
+                <View style={styles.centered}>
+                    <ActivityIndicator color={GradientMid} />
+                </View>
+            ) : phase === 'rank' ? (
+                /* Rank phase: DraggableFlatList owns scrolling */
+                <DraggableFlatList
+                        data={ranked}
+                        keyExtractor={item => item.id}
+                        onDragEnd={({ data }) => setRanked(data)}
+                        renderItem={renderRankItem}
+                        contentContainerStyle={styles.content}
+                        showsVerticalScrollIndicator={false}
+                        ListHeaderComponent={
+                            <View style={styles.listHeader}>
+                                <JempText type="h1" color={theme.text} style={styles.title}>{phaseTitle}</JempText>
+                                <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
+                                    {phaseSubtitle}
+                                </JempText>
+                            </View>
+                        }
+                    />
+            ) : (
+                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    <JempText type="h1" color={theme.text} style={styles.title}>{phaseTitle}</JempText>
+                    <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
+                        {phaseSubtitle}
+                    </JempText>
+
+                    {/* ── Select ── */}
+                    {phase === 'select' && (
+                        <View style={styles.chipGrid}>
+                            {categories.map(cat => (
+                                <SelectableChip
+                                    key={cat.id}
+                                    label={cat.label}
+                                    selected={selected.has(cat.id)}
+                                    onPress={() => toggleCategory(cat)}
+                                />
+                            ))}
+                        </View>
+                    )}
+
+                    {/* ── Level ── */}
+                    {phase === 'level' && levelCategories.map(cat => (
+                        <View key={cat.id} style={styles.levelCard}>
+                            <JempText type="h2" color={theme.text} style={styles.levelCardTitle}>
+                                {cat.label}
+                            </JempText>
+                            <View style={styles.presets}>
+                                {LEVEL_PRESET_KEYS.map((keys, i) => {
+                                    const score = LEVEL_PRESET_SCORES[i];
+                                    const isSelected = (newScores[cat.id] ?? 35) === score;
+                                    return (
+                                        <TouchableOpacity
+                                            key={score}
+                                            onPress={() => setNewScores(p => ({ ...p, [cat.id]: score }))}
+                                            activeOpacity={0.7}
+                                            style={[
+                                                styles.preset,
+                                                { backgroundColor: theme.surface },
+                                                isSelected
+                                                    ? { borderWidth: 1, borderColor: GradientMid }
+                                                    : { borderWidth: 1, borderColor: 'transparent' },
+                                            ]}
+                                        >
+                                            <JempText type="body-l" color={isSelected ? '#fff' : theme.text}>
+                                                {t(keys.labelKey)}
+                                            </JempText>
+                                            <JempText type="caption" color={theme.textMuted}>
+                                                {t(keys.descKey)}
+                                            </JempText>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        </View>
+                    ))}
+                </ScrollView>
+            )}
+
+            {/* ── Fixed bottom button ── */}
+            <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 20), backgroundColor: theme.background }]}>
+                <Pressable
+                    onPress={handlePrimaryAction}
+                    disabled={primaryDisabled || saving}
+                    style={styles.bottomBtn}
+                >
+                    <LinearGradient
+                        colors={!primaryDisabled ? GRADIENT : [theme.surface, theme.surface]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.bottomBtnGradient}
+                    >
+                        {saving
+                            ? <ActivityIndicator color="#fff" size="small" />
+                            : <JempText type="button" color={!primaryDisabled ? '#fff' : theme.textMuted}>
+                                {primaryLabel}
+                            </JempText>
+                        }
+                    </LinearGradient>
+                </Pressable>
+            </View>
+
+        </View>
     );
 }
 
@@ -358,7 +354,6 @@ const styles = StyleSheet.create({
     },
     headerSide: { width: 24 },
     headerCenter: { flex: 1, alignItems: 'center', gap: 15, paddingHorizontal: 12 },
-    headerCaption: { fontSize: 11, letterSpacing: 1 },
     stepBars: { flexDirection: 'row', gap: 5 },
     stepBar: { width: 24, height: 3, borderRadius: 2 },
 

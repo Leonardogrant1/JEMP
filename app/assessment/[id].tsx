@@ -1,6 +1,6 @@
 import InfoIcon from '@/assets/icons/info.svg';
 import { JempText } from '@/components/jemp-text';
-import { AssessmentConfirmModal } from '@/components/modals/assessment-confirm-modal';
+import { useModalResultStore } from '@/stores/modal-result-store';
 import { UNIT_LABELS } from '@/constants/assessment-constants';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { estimateOneRepMax } from '@/helpers/units';
@@ -14,8 +14,8 @@ import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwa
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator, Pressable, ScrollView,
@@ -57,7 +57,14 @@ export default function AssessmentScreen() {
     const [rating, setRating] = useState(5);
     const [mode, setMode] = useState<'manual' | 'timer'>('manual');
     const [repMode, setRepMode] = useState<'1rm' | '5rm'>('5rm');
-    const [confirmVisible, setConfirmVisible] = useState(false);
+    const { assessmentConfirmed, setAssessmentConfirmed } = useModalResultStore();
+
+    useFocusEffect(useCallback(() => {
+        if (assessmentConfirmed) {
+            setAssessmentConfirmed(false);
+            openWithPlacement('log_assessment', handleSubmit);
+        }
+    }, [assessmentConfirmed]));
     const stopwatch = useStopwatch();
 
     if (isLoading) {
@@ -426,20 +433,11 @@ export default function AssessmentScreen() {
                 ) : null}
             </ScrollView>
 
-            <AssessmentConfirmModal
-                visible={confirmVisible}
-                onClose={() => setConfirmVisible(false)}
-                onConfirm={() => {
-                    setConfirmVisible(false);
-                    openWithPlacement('log_assessment', handleSubmit);
-                }}
-            />
-
             {/* CTA */}
             <View style={[styles.bottomBar, { backgroundColor: theme.background }]}>
                 <Pressable
                     style={styles.submitBtn}
-                    onPress={() => setConfirmVisible(true)}
+                    onPress={() => router.push('/assessment-confirm')}
                     disabled={(!isRatingBased && !submitValue) || completeAssessment.isPending}
                 >
                     <LinearGradient

@@ -249,6 +249,7 @@ const en = {
 
     'ui.sign_out': 'Sign Out',
     'ui.sign_out_subtitle': 'Sign out of your account',
+    'ui.sign_out_confirm': 'Are you sure you want to sign out of your account?',
     'ui.delete_account': 'Delete Account',
     'ui.delete_account_subtitle': 'Permanently remove all your data',
     'ui.delete_account_title': 'Delete Account?',

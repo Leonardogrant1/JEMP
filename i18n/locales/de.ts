@@ -249,6 +249,7 @@ const de: Record<TranslationKeys, string> = {
 
     'ui.sign_out': 'Abmelden',
     'ui.sign_out_subtitle': 'Von deinem Konto abmelden',
+    'ui.sign_out_confirm': 'Bist du sicher, dass du dich abmelden möchtest?',
     'ui.delete_account': 'Konto löschen',
     'ui.delete_account_subtitle': 'Alle deine Daten dauerhaft entfernen',
     'ui.delete_account_title': 'Konto löschen?',

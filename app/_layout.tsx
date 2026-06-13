@@ -12,12 +12,11 @@ import { PurchaseWrapper } from '@/services/purchases/PurchasesWrapper';
 import { RevenueCatProvider } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
 import { useTutorialStore } from '@/stores/tutorial-store';
 import { devLog } from '@/utils/dev-log';
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PostHogProvider, PostHogSurveyProvider } from 'posthog-react-native';
 import { useEffect, useState } from 'react';
@@ -132,6 +131,7 @@ function MainStack({ languageReady }: { languageReady: boolean }) {
       <Stack.Protected guard={!profile}>
         <Stack.Screen name="start" options={{ animation: 'fade', headerShown: false }} />
         <Stack.Screen name="magic-link" options={{ headerShown: false }} />
+        <Stack.Screen name="auth" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
       </Stack.Protected>
 
       <Stack.Protected guard={!!profile && !profile.has_onboarded}>
@@ -148,7 +148,20 @@ function MainStack({ languageReady }: { languageReady: boolean }) {
         <Stack.Screen name="active-session/[id]" options={{ animation: 'slide_from_bottom', headerShown: false }} />
         <Stack.Screen name="session-summary/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="assessment/[id]" options={{ animation: 'slide_from_right', headerShown: false }} />
+        <Stack.Screen name="support-ticket" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+        <Stack.Screen name="delete-account" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+        <Stack.Screen name="sign-out-confirm" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+        <Stack.Screen name="assessment-confirm" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+        <Stack.Screen name="session-manage" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+        <Stack.Screen name="session-reschedule" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+        <Stack.Screen name="equipment" options={{ animation: 'slide_from_bottom', headerShown: false }} />
+        <Stack.Screen name="goals" options={{ animation: 'slide_from_bottom', headerShown: false }} />
+        <Stack.Screen name="sport" options={{ animation: 'slide_from_bottom', headerShown: false }} />
+        <Stack.Screen name="generate-plan" options={{ animation: 'slide_from_bottom', headerShown: false }} />
       </Stack.Protected>
+
+
+      <Stack.Screen name="language" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
     </Stack>
   )
 }

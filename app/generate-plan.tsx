@@ -1,0 +1,986 @@
+import { JempText } from '@/components/jemp-text';
+import { GeneratingView } from '@/components/ui/generating-view';
+import { JempInput } from '@/components/ui/jemp-input';
+import { HeightSlider, WeightSlider } from '@/components/ui/measurement-slider';
+import { SelectableChip } from '@/components/ui/selectable-chip';
+import { SelectableRow } from '@/components/ui/selectable-row';
+import { getCategoryLabel, type CategoryI18n } from '@/constants/category-labels';
+import { getSportLabelI18n, SPORT_GROUPS } from '@/constants/sports';
+import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { computeLoadProfile } from '@/lib/load-profile';
+import { useCurrentUser } from '@/providers/current-user-provider';
+import { supabase } from '@/services/supabase/client';
+import { useModalResultStore } from '@/stores/modal-result-store';
+import { SessionDuration } from '@/types/database';
+import { WeeklyScheduleSession } from '@/types/user-data';
+import { Ionicons } from '@expo/vector-icons';
+import Slider from '@react-native-community/slider';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import {
+    Pressable, ScrollView, StyleSheet,
+    TouchableOpacity, View,
+} from 'react-native';
+import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Phase = 'sport' | 'environment' | 'equipment' | 'goals' | 'body' | 'schedule' | 'weekly' | 'generating';
+type GoalsSubPhase = 'select' | 'rank';
+
+interface EnvItem { id: string; slug: string; icon: keyof typeof Ionicons.glyphMap; name_i18n: Record<string, string> | null; description_i18n: Record<string, string> | null }
+interface EquipmentItem { id: string; slug: string; name_i18n: Record<string, string> | null }
+interface CategoryItem { id: string; slug: string; label: string; name_i18n: CategoryI18n }
+
+const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
+const PHASES: Phase[] = ['sport', 'environment', 'equipment', 'goals', 'body', 'schedule', 'weekly'];
+
+const COMBAT_SPORTS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
+
+function getSessionTypes(sportSlug: string | null | undefined): { key: WeeklyScheduleSession['type']; labelKey: string }[] {
+    const isCombat = COMBAT_SPORTS.has(sportSlug ?? '');
+    return [
+        { key: 'team_training', labelKey: 'onboarding.weekly_schedule_type_training' },
+        { key: 'game', labelKey: isCombat ? 'onboarding.weekly_schedule_type_fight' : 'onboarding.weekly_schedule_type_game' },
+        { key: 'tournament', labelKey: 'onboarding.weekly_schedule_type_tournament' },
+    ];
+}
+
+const DURATIONS: { value: SessionDuration; label: string }[] = [
+    { value: '30min', label: '30 min' },
+    { value: '45min', label: '45 min' },
+    { value: '60min', label: '60 min' },
+    { value: '90min', label: '90 min' },
+];
+
+const WEEK_DAYS: { dow: number; key: string }[] = [
+    { dow: 1, key: 'onboarding.workout_prefs_day_mon' },
+    { dow: 2, key: 'onboarding.workout_prefs_day_tue' },
+    { dow: 3, key: 'onboarding.workout_prefs_day_wed' },
+    { dow: 4, key: 'onboarding.workout_prefs_day_thu' },
+    { dow: 5, key: 'onboarding.workout_prefs_day_fri' },
+    { dow: 6, key: 'onboarding.workout_prefs_day_sat' },
+    { dow: 7, key: 'onboarding.workout_prefs_day_sun' },
+];
+
+const ENV_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+    gym: 'barbell-outline',
+    outdoor: 'leaf-outline',
+    home: 'home-outline',
+};
+
+// ─── Step indicator ───────────────────────────────────────────────────────────
+
+function StepBars({ phase }: { phase: Phase }) {
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+    const idx = PHASES.indexOf(phase);
+
+    return (
+        <View style={styles.stepBars}>
+            {PHASES.map((_, i) =>
+                i <= idx ? (
+                    <View key={i} style={[styles.stepBar, { backgroundColor: GradientMid }]} />
+                ) : (
+                    <View key={i} style={[styles.stepBar, { backgroundColor: theme.borderStrong }]} />
+                )
+            )}
+        </View>
+    );
+}
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
+
+export default function GeneratePlanScreen() {
+    const insets = useSafeAreaInsets();
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+    const { t, i18n } = useTranslation();
+    const locale = i18n.language;
+    const router = useRouter();
+    const { profile } = useCurrentUser();
+
+    const [phase, setPhase] = useState<Phase>('sport');
+    const [loading, setLoading] = useState(true);
+    const [generateError, setGenerateError] = useState<string | null>(null);
+    const [planReady, setPlanReady] = useState(false);
+    const [success, setSuccess] = useState(false);
+
+    // Sport
+    const [selectedSportSlug, setSelectedSportSlug] = useState<string | null>(null);
+
+    // Environment
+    const [allEnvs, setAllEnvs] = useState<EnvItem[]>([]);
+    const [selectedEnvIds, setSelectedEnvIds] = useState<Set<string>>(new Set());
+    const [equipmentByEnv, setEquipmentByEnv] = useState<Map<string, EquipmentItem[]>>(new Map());
+
+    // Equipment
+    const [allEquipment, setAllEquipment] = useState<EquipmentItem[]>([]);
+    const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<Set<string>>(new Set());
+
+    // Goals
+    const [allCategories, setAllCategories] = useState<CategoryItem[]>([]);
+    const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<string>>(new Set());
+    const [rankedCategories, setRankedCategories] = useState<CategoryItem[]>([]);
+    const [goalsSubPhase, setGoalsSubPhase] = useState<GoalsSubPhase>('select');
+
+    // Body
+    const [weightKg, setWeightKg] = useState(75);
+    const [heightCm, setHeightCm] = useState(175);
+    const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg');
+    const [heightUnit, setHeightUnit] = useState<'cm' | 'ft'>('cm');
+
+    // Schedule
+    const [preferredDays, setPreferredDays] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6, 7]));
+    const [preferredDuration, setPreferredDuration] = useState<SessionDuration | null>(null);
+    const [scheduleNotes, setScheduleNotes] = useState('');
+
+    // Weekly sport schedule
+    const [sportSessions, setSportSessions] = useState<WeeklyScheduleSession[]>([]);
+
+    // Pre-fill on mount
+    useEffect(() => {
+        if (!profile) return;
+
+        setPhase('sport');
+        setGenerateError(null);
+        setPlanReady(false);
+        setSuccess(false);
+        setLoading(true);
+
+        // Pre-fill body data
+        if (profile.weight_in_kg) setWeightKg(profile.weight_in_kg);
+        if (profile.height_in_cm) setHeightCm(profile.height_in_cm);
+        // Pre-fill sport
+        setSelectedSportSlug(profile.sport?.slug ?? null);
+        // Pre-fill preferred days
+        if (profile.preferred_workout_days?.length) {
+            setPreferredDays(new Set(profile.preferred_workout_days));
+        }
+        setPreferredDuration(profile.preferred_session_duration ?? null);
+        setScheduleNotes(profile.schedule_notes ?? '');
+        setSportSessions((profile as any).weekly_schedule?.sessions ?? []);
+
+        Promise.all([
+            supabase.from('environments').select('id, slug, name_i18n, description_i18n'),
+            supabase.from('user_equipments').select('equipment_id').eq('user_id', profile.id),
+            supabase.from('environment_equipments').select('environment_id, equipment:equipments(id, slug, name_i18n)'),
+            supabase.from('categories').select('id, slug, name_i18n'),
+            supabase.from('user_targeted_categories').select('category_id, priority').eq('user_id', profile.id).order('priority'),
+            supabase.from('user_environments').select('environment_id').eq('user_id', profile.id),
+        ]).then(async ([envsRes, userEquipRes, envEqRes, catsRes, targetedRes, userEnvsRes]) => {
+            // Categories
+            const catItems: CategoryItem[] = (catsRes.data ?? []).map(c => ({
+                id: c.id,
+                slug: c.slug,
+                name_i18n: c.name_i18n as CategoryI18n,
+                label: getCategoryLabel(c.slug, t, c.name_i18n as CategoryI18n),
+            }));
+            setAllCategories(catItems);
+            if (targetedRes.data?.length) {
+                const ids = new Set(targetedRes.data.map(r => r.category_id));
+                setSelectedCategoryIds(ids);
+                const ordered = targetedRes.data
+                    .sort((a, b) => a.priority - b.priority)
+                    .map(r => catItems.find(c => c.id === r.category_id)!)
+                    .filter(Boolean);
+                setRankedCategories(ordered);
+            } else {
+                setSelectedCategoryIds(new Set());
+                setRankedCategories([]);
+            }
+            setGoalsSubPhase('select');
+            const currentIds = new Set((userEquipRes.data ?? []).map(r => r.equipment_id));
+            setSelectedEquipmentIds(currentIds);
+
+            // Build envId → EquipmentItem[] map
+            const byEnv = new Map<string, EquipmentItem[]>();
+            for (const row of envEqRes.data ?? []) {
+                const eq = (row.equipment as any);
+                if (!eq) continue;
+                if (!byEnv.has(row.environment_id)) byEnv.set(row.environment_id, []);
+                byEnv.get(row.environment_id)!.push({ id: eq.id, slug: eq.slug, name_i18n: eq.name_i18n as Record<string, string> | null });
+            }
+            setEquipmentByEnv(byEnv);
+
+            if (envsRes.data) {
+                const envItems: EnvItem[] = envsRes.data.map(e => ({
+                    id: e.id,
+                    slug: e.slug,
+                    icon: ENV_ICONS[e.slug] ?? 'location-outline',
+                    name_i18n: e.name_i18n as Record<string, string> | null,
+                    description_i18n: e.description_i18n as Record<string, string> | null,
+                }));
+                setAllEnvs(envItems);
+
+                // Pre-select saved user environments; fall back to inferring from equipment
+                const savedEnvIds = (userEnvsRes.data ?? []).map(r => r.environment_id);
+                if (savedEnvIds.length > 0) {
+                    setSelectedEnvIds(new Set(savedEnvIds));
+                } else if (currentIds.size > 0) {
+                    const { data: envEqRows } = await supabase
+                        .from('environment_equipments')
+                        .select('environment_id')
+                        .in('equipment_id', [...currentIds]);
+                    if (envEqRows) {
+                        setSelectedEnvIds(new Set(envEqRows.map(r => r.environment_id)));
+                    }
+                } else {
+                    setSelectedEnvIds(new Set());
+                }
+            }
+            setLoading(false);
+        });
+    }, [profile]);
+
+    function toggleEnv(id: string) {
+        setSelectedEnvIds(prev => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    }
+
+    function goToEquipment() {
+        const map = new Map<string, EquipmentItem>();
+        for (const envId of selectedEnvIds) {
+            for (const eq of equipmentByEnv.get(envId) ?? []) {
+                if (!map.has(eq.id)) map.set(eq.id, eq);
+            }
+        }
+        setAllEquipment([...map.values()].sort((a, b) => a.slug.localeCompare(b.slug)));
+        setPhase('equipment');
+    }
+
+    function toggleEquipment(id: string) {
+        setSelectedEquipmentIds(prev => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    }
+
+    function toggleSportDay(day: number) {
+        const exists = sportSessions.find(s => s.day_of_week === day);
+        if (exists) {
+            setSportSessions(prev => prev.filter(s => s.day_of_week !== day));
+        } else {
+            setSportSessions(prev => [...prev, { day_of_week: day, type: 'team_training', intensity: 6 }]);
+        }
+    }
+
+    function setSportType(day: number, type: WeeklyScheduleSession['type']) {
+        setSportSessions(prev => prev.map(s => s.day_of_week === day ? { ...s, type } : s));
+    }
+
+    function setSportIntensity(day: number, intensity: number) {
+        setSportSessions(prev => prev.map(s => s.day_of_week === day ? { ...s, intensity } : s));
+    }
+
+    function goBack() {
+        if (phase === 'environment') setPhase('sport');
+        else if (phase === 'equipment') setPhase('environment');
+        else if (phase === 'goals') {
+            if (goalsSubPhase === 'rank') setGoalsSubPhase('select');
+            else setPhase('equipment');
+        }
+        else if (phase === 'body') {
+            if (selectedCategoryIds.size <= 1) {
+                setGoalsSubPhase('select');
+            }
+            setPhase('goals');
+        }
+        else if (phase === 'schedule') setPhase('body');
+        else if (phase === 'weekly') setPhase('schedule');
+        else router.back();
+    }
+
+    async function generate() {
+        if (!profile) return;
+        setPhase('generating');
+        setGenerateError(null);
+        try {
+            // 1. Update sport if changed
+            if (selectedSportSlug && selectedSportSlug !== profile.sport?.slug) {
+                const { data: sportRow } = await supabase
+                    .from('sports').select('id').eq('slug', selectedSportSlug).single();
+                if (sportRow) {
+                    await supabase.from('user_profiles')
+                        .update({ sport_id: sportRow.id })
+                        .eq('id', profile.id);
+                }
+            }
+
+            // 2. Update weight / height (always in kg/cm)
+            await supabase.from('user_profiles').update({
+                ...(weightKg > 0 && { weight_in_kg: weightKg }),
+                ...(heightCm > 0 && { height_in_cm: heightCm }),
+            }).eq('id', profile.id);
+
+            // 3. Update environments
+            await supabase.from('user_environments').delete().eq('user_id', profile.id);
+            if (selectedEnvIds.size > 0) {
+                await supabase.from('user_environments').insert(
+                    [...selectedEnvIds].map(environment_id => ({ user_id: profile.id, environment_id }))
+                );
+            }
+
+            // 4. Update equipment
+            await supabase.from('user_equipments').delete().eq('user_id', profile.id);
+            if (selectedEquipmentIds.size > 0) {
+                await supabase.from('user_equipments').insert(
+                    [...selectedEquipmentIds].map(equipment_id => ({ user_id: profile.id, equipment_id }))
+                );
+            }
+
+            // 5. Update goals (targeted categories with priority)
+            await supabase.from('user_targeted_categories').delete().eq('user_id', profile.id);
+            if (rankedCategories.length > 0) {
+                await supabase.from('user_targeted_categories').insert(
+                    rankedCategories.map((cat, i) => ({ user_id: profile.id, category_id: cat.id, priority: i + 1 }))
+                );
+            }
+
+            // 6. Update preferred workout days, duration, notes + weekly sport schedule
+            const { load_score, load_profile } = computeLoadProfile(sportSessions);
+            await supabase.from('user_profiles')
+                .update({
+                    preferred_workout_days: [...preferredDays].sort((a, b) => a - b),
+                    preferred_session_duration: preferredDuration,
+                    schedule_notes: scheduleNotes.trim() || null,
+                    weekly_schedule: { sessions: sportSessions, notes: null } as any,
+                    load_score,
+                    load_profile,
+                })
+                .eq('id', profile.id);
+
+            // 7. Generate plan
+            const { error } = await supabase.functions.invoke('generate-trainings-plan');
+            if (error) throw error;
+
+            setPlanReady(true);
+        } catch (err: any) {
+            setGenerateError(err?.message ?? t('plan.error_generate'));
+        }
+    }
+
+    function handleAnimationComplete() {
+        useModalResultStore.getState().setPlanJustGenerated(true);
+        setSuccess(true);
+    }
+
+    const canProceedSport = !!selectedSportSlug;
+    const canProceedEnv = selectedEnvIds.size > 0;
+
+    function handleNext() {
+        if (phase === 'sport') setPhase('environment');
+        else if (phase === 'environment') goToEquipment();
+        else if (phase === 'equipment') { setGoalsSubPhase('select'); setPhase('goals'); }
+        else if (phase === 'goals') {
+            if (goalsSubPhase === 'select') {
+                const selected = allCategories.filter(c => selectedCategoryIds.has(c.id));
+                if (selected.length > 1) {
+                    setRankedCategories(selected);
+                    setGoalsSubPhase('rank');
+                } else {
+                    setRankedCategories(selected);
+                    setPhase('body');
+                }
+            } else {
+                setPhase('body');
+            }
+        }
+        else if (phase === 'body') setPhase('schedule');
+        else if (phase === 'schedule') setPhase('weekly');
+    }
+
+    const canProceedNext =
+        phase === 'sport' ? canProceedSport :
+            phase === 'environment' ? canProceedEnv :
+                phase === 'goals' ? selectedCategoryIds.size > 0 :
+                    phase === 'schedule' ? preferredDays.size >= 2 && preferredDuration !== null :
+                        true;
+
+    // ── Success state ─────────────────────────────────────────────────────────
+    if (success) {
+        return (
+            <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+                <View style={[styles.successContainer, { paddingBottom: Math.max(insets.bottom, 24) }]}>
+                    <View style={styles.successIconCircle}>
+                        <Ionicons name="checkmark-circle" size={64} color={Cyan[500]} />
+                    </View>
+                    <JempText type="h1" color={theme.text} style={styles.successTitle}>
+                        {t('plan.success_title')}
+                    </JempText>
+                    <JempText type="body-l" color={theme.textMuted} style={styles.successSubtitle}>
+                        {t('plan.success_body')}
+                    </JempText>
+                    <View style={styles.successButtons}>
+                        <Pressable
+                            style={styles.viewPlanBtn}
+                            onPress={() => router.replace('/(tabs)/plan')}
+                        >
+                            <LinearGradient
+                                colors={GRADIENT}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={styles.viewPlanBtnGradient}
+                            >
+                                <JempText type="button" color="#fff">
+                                    {t('plan.success_view_plan')}
+                                </JempText>
+                            </LinearGradient>
+                        </Pressable>
+                        <Pressable
+                            style={[styles.closePlanBtn, { backgroundColor: theme.surface }]}
+                            onPress={() => router.back()}
+                        >
+                            <JempText type="body-l" color={theme.textMuted}>
+                                {t('ui.close')}
+                            </JempText>
+                        </Pressable>
+                    </View>
+                </View>
+            </View>
+        );
+    }
+
+    return (
+        <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+
+            {/* Header */}
+            {phase !== 'generating' && (
+                <View style={[styles.header]}>
+                    <Pressable onPress={goBack} hitSlop={12}>
+                        <Ionicons
+                            name={phase === 'sport' ? 'close' : 'arrow-back'}
+                            size={24}
+                            color={theme.text}
+                        />
+                    </Pressable>
+                    <View style={styles.headerCenter}>
+                        <JempText type="body-l" color={theme.textMuted}>{t('ui.new_plan')}</JempText>
+                        <StepBars phase={phase} />
+                    </View>
+                    <View style={{ width: 24 }} />
+                </View>
+            )}
+
+            {/* ── Sport ── */}
+            {phase === 'sport' && (
+                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('ui.sport')}</JempText>
+                    <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
+                        {t('plan.sport_subtitle')}
+                    </JempText>
+                    {SPORT_GROUPS.map(group => (
+                        <View key={group.titleKey} style={styles.group}>
+                            <JempText type="caption" color={theme.textSubtle} style={styles.groupTitle}>
+                                {t(group.titleKey as any).toUpperCase()}
+                            </JempText>
+                            <View style={styles.chipGrid}>
+                                {group.sports.map(sport => (
+                                    <SelectableChip
+                                        key={sport.slug}
+                                        label={getSportLabelI18n(sport.slug, t) ?? sport.slug}
+                                        selected={selectedSportSlug === sport.slug}
+                                        onPress={() => setSelectedSportSlug(sport.slug)}
+                                    />
+                                ))}
+                            </View>
+                        </View>
+                    ))}
+                </ScrollView>
+            )}
+
+            {/* ── Environment ── */}
+            {phase === 'environment' && (
+                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('plan.environment_title')}</JempText>
+                    <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
+                        {t('plan.environment_subtitle')}
+                    </JempText>
+                    <View style={styles.envList}>
+                        {allEnvs.map(env => (
+                            <SelectableRow
+                                key={env.id}
+                                label={env.name_i18n?.[locale] ?? env.slug}
+                                description={env.description_i18n?.[locale]}
+                                icon={env.icon}
+                                selected={selectedEnvIds.has(env.id)}
+                                onPress={() => toggleEnv(env.id)}
+                            />
+                        ))}
+                    </View>
+                </ScrollView>
+            )}
+
+            {/* ── Equipment ── */}
+            {phase === 'equipment' && (
+                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('plan.equipment_title')}</JempText>
+                    <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
+                        {t('plan.equipment_subtitle')}
+                    </JempText>
+                    <View style={styles.chipGrid}>
+                        {allEquipment.map(eq => (
+                            <SelectableChip
+                                key={eq.id}
+                                label={eq.name_i18n?.[locale] ?? eq.slug}
+                                selected={selectedEquipmentIds.has(eq.id)}
+                                onPress={() => toggleEquipment(eq.id)}
+                            />
+                        ))}
+                    </View>
+                </ScrollView>
+            )}
+
+            {/* ── Goals ── */}
+            {phase === 'goals' && goalsSubPhase === 'select' && (
+                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('goals.select_title')}</JempText>
+                    <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
+                        {t('goals.select_subtitle')}
+                    </JempText>
+                    <View style={styles.chipGrid}>
+                        {allCategories.map(cat => (
+                            <SelectableChip
+                                key={cat.id}
+                                label={cat.label}
+                                selected={selectedCategoryIds.has(cat.id)}
+                                onPress={() => setSelectedCategoryIds(prev => {
+                                    const next = new Set(prev);
+                                    next.has(cat.id) ? next.delete(cat.id) : next.add(cat.id);
+                                    return next;
+                                })}
+                            />
+                        ))}
+                    </View>
+                </ScrollView>
+            )}
+
+            {phase === 'goals' && goalsSubPhase === 'rank' && (
+                <DraggableFlatList
+                    data={rankedCategories}
+                    keyExtractor={item => item.id}
+                    onDragEnd={({ data }) => setRankedCategories(data)}
+                    contentContainerStyle={styles.content}
+                    showsVerticalScrollIndicator={false}
+                    renderItem={({ item, drag }: RenderItemParams<CategoryItem>) => {
+                        const index = rankedCategories.indexOf(item);
+                        return (
+                            <ScaleDecorator activeScale={1.03}>
+                                <TouchableOpacity
+                                    onLongPress={drag}
+                                    activeOpacity={1}
+                                    style={[styles.rankRow, { backgroundColor: theme.surface }]}
+                                >
+                                    <JempText type="caption" color={theme.textMuted} style={styles.rankNumber}>
+                                        {index + 1}
+                                    </JempText>
+                                    <JempText type="body-l" color={theme.text} style={{ flex: 1 }}>
+                                        {item.label}
+                                    </JempText>
+                                    <Ionicons name="reorder-three-outline" size={22} color={theme.textMuted} />
+                                </TouchableOpacity>
+                            </ScaleDecorator>
+                        );
+                    }}
+                    ListHeaderComponent={
+                        <View>
+                            <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('goals.rank_title')}</JempText>
+                            <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
+                                {t('goals.rank_subtitle')}
+                            </JempText>
+                        </View>
+                    }
+                />
+            )}
+
+            {/* ── Body data ── */}
+            {phase === 'body' && (
+                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('plan.body_title')}</JempText>
+                    <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
+                        {t('plan.body_subtitle')}
+                    </JempText>
+                    <WeightSlider
+                        valueKg={weightKg}
+                        onChange={setWeightKg}
+                        unit={weightUnit}
+                        onToggleUnit={() => setWeightUnit(u => u === 'kg' ? 'lbs' : 'kg')}
+                    />
+                    <HeightSlider
+                        valueCm={heightCm}
+                        onChange={setHeightCm}
+                        unit={heightUnit}
+                        onToggleUnit={() => setHeightUnit(u => u === 'cm' ? 'ft' : 'cm')}
+                    />
+                </ScrollView>
+            )}
+
+            {/* ── Schedule ── */}
+            {phase === 'schedule' && (
+                <KeyboardAwareScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('plan.schedule_title')}</JempText>
+                    <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
+                        {t('plan.schedule_subtitle')}
+                    </JempText>
+
+                    <View style={styles.section}>
+                        <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                            {t('onboarding.workout_prefs_days_label')}
+                        </JempText>
+                        <View style={styles.dayChipRow}>
+                            {WEEK_DAYS.map(({ dow, key }) => (
+                                <SelectableChip
+                                    key={dow}
+                                    label={t(key as any)}
+                                    selected={preferredDays.has(dow)}
+                                    onPress={() => setPreferredDays(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(dow) && next.size <= 2) return prev;
+                                        next.has(dow) ? next.delete(dow) : next.add(dow);
+                                        return next;
+                                    })}
+                                    style={styles.dayChip}
+                                />
+                            ))}
+                        </View>
+                    </View>
+
+                    <View style={styles.section}>
+                        <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                            {t('plan.schedule_duration_label')}
+                        </JempText>
+                        <View style={styles.durationRow}>
+                            {DURATIONS.map(d => (
+                                <SelectableChip
+                                    key={d.value}
+                                    label={d.label}
+                                    selected={preferredDuration === d.value}
+                                    onPress={() => setPreferredDuration(d.value)}
+                                    style={styles.durationChip}
+                                />
+                            ))}
+                        </View>
+                    </View>
+
+                    <View style={styles.section}>
+                        <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                            {t('plan.schedule_notes_label')}
+                        </JempText>
+                        <JempText type="body-sm" color={theme.textMuted} style={styles.notesHint}>
+                            {t('plan.schedule_notes_hint')}
+                        </JempText>
+                        <JempInput
+                            value={scheduleNotes}
+                            onChangeText={setScheduleNotes}
+                            placeholder={t('plan.schedule_notes_placeholder')}
+                            multiline
+                            numberOfLines={4}
+                            textAlignVertical="top"
+                            style={styles.notesInput}
+                        />
+                    </View>
+                </KeyboardAwareScrollView>
+            )}
+
+            {/* ── Weekly sport schedule ── */}
+            {phase === 'weekly' && (() => {
+                const selectedSportDays = new Set(sportSessions.map(s => s.day_of_week));
+                const sortedSportSessions = [...sportSessions].sort((a, b) => a.day_of_week - b.day_of_week);
+                return (
+                    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                        <JempText type="h1" color={theme.text} style={styles.bodyTitle}>
+                            {t('onboarding.weekly_schedule_title')}
+                        </JempText>
+                        <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
+                            {t('onboarding.weekly_schedule_subtitle')}
+                        </JempText>
+
+                        <View style={styles.section}>
+                            <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                                {t('onboarding.weekly_schedule_days_label')}
+                            </JempText>
+                            <View style={styles.dayChipRow}>
+                                {WEEK_DAYS.map(({ dow, key }) => (
+                                    <SelectableChip
+                                        key={dow}
+                                        label={t(key as any)}
+                                        selected={selectedSportDays.has(dow)}
+                                        onPress={() => toggleSportDay(dow)}
+                                        style={styles.dayChip}
+                                    />
+                                ))}
+                            </View>
+                        </View>
+
+                        {sortedSportSessions.map(session => {
+                            const dayLabel = WEEK_DAYS.find(d => d.dow === session.day_of_week);
+                            const preferredDaysArray = [...preferredDays];
+
+                            function getAffectedJempDays(sportDay: number, mode: 'adjacent' | 'same'): number[] {
+                                if (mode === 'same') return preferredDaysArray.includes(sportDay) ? [sportDay] : [];
+                                const prev = sportDay === 1 ? 7 : sportDay - 1;
+                                const next = sportDay === 7 ? 1 : sportDay + 1;
+                                return preferredDaysArray.filter(d => d === prev || d === next);
+                            }
+
+                            function formatDays(days: number[]): string {
+                                return days.map(d => t(WEEK_DAYS.find(x => x.dow === d)?.key as any ?? '')).join(', ');
+                            }
+
+                            return (
+                                <View key={session.day_of_week} style={[styles.sportCard, { backgroundColor: theme.surface }]}>
+                                    <View style={styles.sportCardHeader}>
+                                        <JempText type="body-sm" style={{ fontWeight: '600' }}>
+                                            {t(dayLabel?.key as any)}
+                                        </JempText>
+                                        <TouchableOpacity onPress={() => toggleSportDay(session.day_of_week)} hitSlop={12}>
+                                            <JempText type="body-sm" color={theme.textMuted}>✕</JempText>
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    <View style={styles.chipGrid}>
+                                        {getSessionTypes(selectedSportSlug).map(st => (
+                                            <SelectableChip
+                                                key={st.key}
+                                                label={t(st.labelKey as any)}
+                                                selected={session.type === st.key}
+                                                onPress={() => setSportType(session.day_of_week, st.key)}
+                                                size="sm"
+                                            />
+                                        ))}
+                                    </View>
+
+                                    {(session.type === 'game' || session.type === 'tournament') && (() => {
+                                        const prev = session.day_of_week === 1 ? 7 : session.day_of_week - 1;
+                                        const next = session.day_of_week === 7 ? 1 : session.day_of_week + 1;
+                                        const affected = preferredDaysArray.filter(d => d === prev || d === next);
+                                        if (affected.length === 0) return null;
+                                        return (
+                                            <View style={styles.hintBox}>
+                                                <JempText type="body-sm" color={GradientMid}>
+                                                    {t('onboarding.weekly_schedule_hint_game', { days: formatDays(affected) })}
+                                                </JempText>
+                                            </View>
+                                        );
+                                    })()}
+
+                                    {session.type !== 'game' && session.type !== 'tournament' && (
+                                        <View style={styles.intensityRow}>
+                                            <View style={styles.intensityHeader}>
+                                                <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                                                    {t('onboarding.weekly_schedule_intensity_label')}
+                                                </JempText>
+                                                <JempText type="h2">{session.intensity}</JempText>
+                                            </View>
+                                            <Slider
+                                                style={styles.slider}
+                                                minimumValue={1}
+                                                maximumValue={10}
+                                                step={1}
+                                                value={session.intensity}
+                                                onValueChange={v => setSportIntensity(session.day_of_week, v)}
+                                                minimumTrackTintColor={GradientMid}
+                                                maximumTrackTintColor={theme.borderStrong}
+                                                thumbTintColor={theme.text}
+                                            />
+                                            {session.intensity === 7 && (() => {
+                                                const sameDay = getAffectedJempDays(session.day_of_week, 'same');
+                                                if (sameDay.length === 0) return null;
+                                                return (
+                                                    <View style={styles.hintBox}>
+                                                        <JempText type="body-sm" color={GradientMid}>
+                                                            {t('onboarding.weekly_schedule_hint_intensity_7', { days: formatDays(sameDay) })}
+                                                        </JempText>
+                                                    </View>
+                                                );
+                                            })()}
+                                            {session.intensity >= 8 && (() => {
+                                                const sameDay = getAffectedJempDays(session.day_of_week, 'same');
+                                                const adjacent = getAffectedJempDays(session.day_of_week, 'adjacent');
+                                                if (sameDay.length === 0 && adjacent.length === 0) return null;
+                                                const key = sameDay.length > 0 && adjacent.length > 0
+                                                    ? 'onboarding.weekly_schedule_hint_intensity_8plus_both'
+                                                    : sameDay.length > 0
+                                                        ? 'onboarding.weekly_schedule_hint_intensity_8plus_same'
+                                                        : 'onboarding.weekly_schedule_hint_intensity_8plus_adjacent';
+                                                return (
+                                                    <View style={styles.hintBox}>
+                                                        <JempText type="body-sm" color={GradientMid}>
+                                                            {t(key, { sameDays: formatDays(sameDay), adjacentDays: formatDays(adjacent) })}
+                                                        </JempText>
+                                                    </View>
+                                                );
+                                            })()}
+                                        </View>
+                                    )}
+                                </View>
+                            );
+                        })}
+                    </ScrollView>
+                );
+            })()}
+
+            {/* ── Generating ── */}
+            {phase === 'generating' && (
+                <GeneratingView
+                    error={generateError}
+                    isComplete={planReady}
+                    onRetry={generate}
+                    onClose={() => router.back()}
+                    onAnimationComplete={handleAnimationComplete}
+                />
+            )}
+
+            {/* Fixed bottom button */}
+            {phase !== 'generating' && (
+                <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 20), backgroundColor: theme.background }]}>
+                    <Pressable
+                        onPress={phase === 'weekly' ? generate : handleNext}
+                        disabled={!canProceedNext}
+                        style={styles.bottomBtn}
+                    >
+                        <LinearGradient
+                            colors={canProceedNext ? GRADIENT : [theme.surface, theme.surface]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.bottomBtnGradient}
+                        >
+                            <JempText type="button" color={canProceedNext ? '#fff' : theme.textMuted}>
+                                {phase === 'weekly' ? t('plan.create') : t('ui.continue')}
+                            </JempText>
+                        </LinearGradient>
+                    </Pressable>
+                </View>
+            )}
+        </View>
+    );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+    root: { flex: 1 },
+
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingVertical: 14,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    headerCenter: { flex: 1, alignItems: 'center', gap: 15, paddingHorizontal: 12 },
+    stepBars: { flexDirection: 'row', gap: 5 },
+    stepBar: { width: 24, height: 3, borderRadius: 2 },
+
+    content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 120 },
+
+    bottomBar: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingHorizontal: 20,
+        paddingTop: 16,
+    },
+    bottomBtn: { borderRadius: 100, overflow: 'hidden' },
+    bottomBtnGradient: { height: 52, alignItems: 'center', justifyContent: 'center' },
+    bodyTitle: { marginBottom: 6 },
+    subtitle: { lineHeight: 20, marginBottom: 24 },
+
+    // Sport / Equipment chips
+    group: { marginBottom: 24 },
+    groupTitle: { letterSpacing: 1, fontSize: 11, marginBottom: 10 },
+    chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+
+    // Goals rank
+    rankRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 14,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        gap: 12,
+        marginBottom: 10,
+    },
+    rankNumber: { width: 20, textAlign: 'center' },
+
+    // Environment cards
+    envList: { gap: 12 },
+
+    // Schedule
+    section: { marginBottom: 32 },
+    sectionLabel: {
+        textTransform: 'uppercase',
+        letterSpacing: 0.8,
+        marginBottom: 14,
+    },
+    dayChipRow: { flexDirection: 'row', gap: 6 },
+    dayChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
+    durationRow: { flexDirection: 'row', gap: 8 },
+    durationChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
+    notesHint: { marginBottom: 12 },
+    notesInput: { minHeight: 100 },
+
+    // Weekly sport schedule
+    sportCard: { borderRadius: 14, padding: 16, marginBottom: 12 },
+    sportCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    intensityRow: { marginTop: 12 },
+    intensityHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+    slider: { width: '100%', height: 40, marginHorizontal: -8 },
+    hintBox: {
+        marginTop: 10,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        backgroundColor: 'rgba(61, 158, 203, 0.15)',
+    },
+
+    // Success state
+    successContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 32,
+        gap: 16,
+    },
+    successIconCircle: {
+        marginBottom: 8,
+    },
+    successTitle: {
+        textAlign: 'center',
+    },
+    successSubtitle: {
+        textAlign: 'center',
+        lineHeight: 22,
+    },
+    successButtons: {
+        width: '100%',
+        gap: 10,
+        marginTop: 8,
+    },
+    viewPlanBtn: {
+        borderRadius: 100,
+        overflow: 'hidden',
+    },
+    viewPlanBtnGradient: {
+        height: 52,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    closePlanBtn: {
+        borderRadius: 100,
+        height: 52,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+});

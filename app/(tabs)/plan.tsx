@@ -1,6 +1,4 @@
 import { JempText } from '@/components/jemp-text';
-import { SessionManageSheet } from '@/components/modals/session-manage-sheet';
-import { SessionRescheduleModal } from '@/components/modals/session-reschedule-modal';
 import { type DayVariant, RestDayCard } from '@/components/rest-day-card';
 import { getSessionImage } from '@/constants/session-images';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
@@ -239,10 +237,7 @@ export default function PlanScreen() {
     const { mutate: updateSessionStatus } = useUpdateSessionStatus();
     const { mutate: rescheduleSession } = useRescheduleSession();
 
-    // managedSession persists across both the manage sheet and the reschedule modal
     const [managedSession, setManagedSession] = useState<WorkoutSession | null>(null);
-    const [showManageSheet, setShowManageSheet] = useState(false);
-    const [showRescheduleModal, setShowRescheduleModal] = useState(false);
 
     const { date } = useLocalSearchParams<{ date?: string }>();
     const [selectedDay, setSelectedDay] = useState<Date>(new Date());
@@ -471,7 +466,7 @@ export default function PlanScreen() {
                                     <View style={styles.sessionActionRow}>
                                         <TouchableOpacity
                                             style={[styles.actionBtn, { backgroundColor: theme.surface }]}
-                                            onPress={() => { setManagedSession(selectedDaySessions[0]); setShowManageSheet(true); }}
+                                            onPress={() => { setManagedSession(selectedDaySessions[0]); router.push({ pathname: '/session-manage', params: { sessionId: selectedDaySessions[0].id } }); }}
                                         >
                                             <JempText type="button" color={theme.text}>{t('ui.session_manage_title')}</JempText>
                                         </TouchableOpacity>
@@ -500,40 +495,6 @@ export default function PlanScreen() {
                 )}
             </View>
 
-            <SessionManageSheet
-                visible={showManageSheet}
-                onClose={() => {
-                    setShowManageSheet(false);
-                    if (!showRescheduleModal) setManagedSession(null);
-                }}
-                onCancel={() => {
-                    if (!managedSession) return;
-                    updateSessionStatus({ sessionId: managedSession.id, status: 'cancelled' });
-                }}
-                onReschedule={() => {
-                    setShowManageSheet(false);
-                    setShowRescheduleModal(true);
-                }}
-            />
-
-            <SessionRescheduleModal
-                visible={showRescheduleModal}
-                onClose={() => {
-                    setShowRescheduleModal(false);
-                    setManagedSession(null);
-                }}
-                onConfirm={(newDate) => {
-                    if (!managedSession) return;
-                    rescheduleSession({
-                        sessionId: managedSession.id,
-                        newDate,
-                        originalScheduledAt: managedSession.scheduled_at!,
-                    });
-                }}
-                sessions={sessions}
-                currentSessionId={managedSession?.id ?? ''}
-                weekDays={weekDays}
-            />
         </SafeAreaView>
     );
 }

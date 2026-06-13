@@ -13,31 +13,20 @@ import TargetIcon from '@/assets/icons/target.svg';
 import UserIcon from '@/assets/icons/user.svg';
 import WeightIcon from '@/assets/icons/weight.svg';
 import { JempText } from '@/components/jemp-text';
-import { DeleteAccountModal } from '@/components/modals/delete-account-modal';
-import { LanguageModal } from '@/components/modals/language-modal';
-import { SupportTicketModal } from '@/components/modals/support-ticket-modal';
-import { EquipmentSheet } from '@/components/profile/equipment-sheet';
-import { GeneratePlanSheet } from '@/components/profile/generate-plan-sheet';
-import { GoalsSheet } from '@/components/profile/goals-sheet';
-import { SportSheet } from '@/components/profile/sport-sheet';
 import { StatCard } from '@/components/profile/stat-card';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
-import { useAuth } from '@/providers/auth-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
-import { queryKeys } from '@/queries/query-keys';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
-import { supabase } from '@/services/supabase/client';
 import { calculateAge } from '@/types/user-data';
 import { Ionicons } from '@expo/vector-icons';
-import { useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
@@ -99,48 +88,21 @@ export default function ProfileScreen() {
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const { profile, refreshProfile } = useCurrentUser();
-    const { signOut } = useAuth();
     const { openWithPlacement } = useSuperwallFunctions();
-    const queryClient = useQueryClient();
 
     const router = useRouter();
-    const [generatePlanOpen, setGeneratePlanOpen] = useState(false);
-    const [planSuccessOpen, setPlanSuccessOpen] = useState(false);
-    const [signOutLoading, setSignOutLoading] = useState(false);
-    const [deleteLoading, setDeleteLoading] = useState(false);
-    const [equipmentOpen, setEquipmentOpen] = useState(false);
-    const [goalsOpen, setGoalsOpen] = useState(false);
-    const [sportOpen, setSportOpen] = useState(false);
-    const [supportOpen, setSupportOpen] = useState(false);
-    const [deleteOpen, setDeleteOpen] = useState(false);
-    const [langOpen, setLangOpen] = useState(false);
+
+    useFocusEffect(useCallback(() => {
+        refreshProfile();
+    }, []));
 
     const LANG_FLAGS: Record<string, string> = { de: '🇩🇪', en: '🇬🇧' };
     const currentLangFlag = LANG_FLAGS[i18n.language] ?? '🌐';
 
-    async function handleSignOut() {
-        setSignOutLoading(true);
-        try {
-            await signOut();
-            trackerManager.track('user_logged_out');
-        } catch (err: any) {
-            Alert.alert(t('ui.error'), err?.message ?? t('ui.sign_out_error'));
-            setSignOutLoading(false);
-        }
+    function handleSignOut() {
+        router.push('/sign-out-confirm');
     }
 
-    async function handleDeleteConfirm() {
-        setDeleteLoading(true);
-        try {
-            const { error } = await supabase.functions.invoke('delete-account');
-            if (error) throw error;
-            trackerManager.track('user_deleted');
-            await signOut();
-        } catch (err: any) {
-            Alert.alert(t('ui.error'), err?.message ?? t('ui.delete_account_error'));
-            setDeleteLoading(false);
-        }
-    }
 
     const sportLabel = useMemo(() => (profile?.sport as any)?.name_i18n?.[i18n.language] ?? null, [profile, i18n.language]);
     const age = useMemo(() => profile?.birth_date ? calculateAge(profile.birth_date) : null, [profile]);
@@ -204,22 +166,22 @@ export default function ProfileScreen() {
                         <SettingsRow
                             icon={<BallIcon width={20} height={20} color="#fff" />}
                             label={t('ui.sport')}
-                            onPress={() => setSportOpen(true)}
+                            onPress={() => router.push('/sport')}
                         />
                         <SettingsRow
                             icon={<CalendarIcon width={20} height={20} color="#fff" />}
                             label={t('ui.new_plan')}
-                            onPress={() => openWithPlacement('generate_plan', () => setGeneratePlanOpen(true))}
+                            onPress={() => openWithPlacement('generate_plan', () => router.push('/generate-plan'))}
                         />
                         <SettingsRow
                             icon={<DumbellIcon width={20} height={20} color="#fff" />}
                             label={t('ui.available_equipment')}
-                            onPress={() => setEquipmentOpen(true)}
+                            onPress={() => router.push('/equipment')}
                         />
                         <SettingsRow
                             icon={<TargetIcon width={20} height={20} color="#fff" />}
                             label={t('ui.focused_goals')}
-                            onPress={() => setGoalsOpen(true)}
+                            onPress={() => router.push('/goals')}
                         />
                     </View>
                 </View>
@@ -247,7 +209,7 @@ export default function ProfileScreen() {
                         <SettingsRow
                             icon={<HeadsetIcon width={20} height={20} color="#fff" />}
                             label={t('ui.support_ticket')}
-                            onPress={() => setSupportOpen(true)}
+                            onPress={() => router.push('/support-ticket')}
                         />
                         <SettingsRow
                             icon={<ShieldIcon width={20} height={20} color="#fff" />}
@@ -264,19 +226,17 @@ export default function ProfileScreen() {
                         <SettingsRow
                             icon={<JempText type="body-l">{currentLangFlag}</JempText>}
                             label={t('ui.language_name')}
-                            onPress={() => setLangOpen(true)}
+                            onPress={() => router.push('/language')}
                         />
                         <SettingsRow
                             icon={<LogoutIcon width={20} height={20} />}
                             label={t('ui.sign_out')}
                             onPress={handleSignOut}
-                            loading={signOutLoading}
                         />
                         <SettingsRow
                             icon={<Ionicons name="trash-outline" size={20} color="#ef4444" />}
                             label={t('ui.delete_account')}
-                            onPress={() => setDeleteOpen(true)}
-                            loading={deleteLoading}
+                            onPress={() => router.push('/delete-account')}
                             destructive
                         />
                     </View>
@@ -284,104 +244,6 @@ export default function ProfileScreen() {
 
             </ScrollView>
 
-            {profile?.id && (
-                <>
-                    <GeneratePlanSheet
-                        visible={generatePlanOpen}
-                        profile={profile}
-                        onClose={() => setGeneratePlanOpen(false)}
-                        onComplete={() => {
-                            setGeneratePlanOpen(false);
-                            refreshProfile();
-                            queryClient.invalidateQueries({ queryKey: queryKeys.plan(profile.id) });
-                            setPlanSuccessOpen(true);
-                        }}
-                    />
-                    <SportSheet
-                        visible={sportOpen}
-                        userId={profile.id}
-                        currentSportId={profile.sport_id}
-                        onClose={() => setSportOpen(false)}
-                        onSaved={refreshProfile}
-                    />
-                    <EquipmentSheet
-                        visible={equipmentOpen}
-                        userId={profile.id}
-                        onClose={() => setEquipmentOpen(false)}
-                    />
-                    <GoalsSheet
-                        visible={goalsOpen}
-                        userId={profile.id}
-                        onClose={() => setGoalsOpen(false)}
-                    />
-                    <Modal
-                        visible={planSuccessOpen}
-                        transparent
-                        animationType="fade"
-                        onRequestClose={() => setPlanSuccessOpen(false)}
-                    >
-                        <Pressable
-                            style={styles.successOverlay}
-                            onPress={() => setPlanSuccessOpen(false)}
-                        >
-                            <Pressable style={[styles.successCard, { backgroundColor: theme.surface }]} onPress={() => { }}>
-                                {/* Icon */}
-                                <LinearGradient
-                                    colors={[Cyan[500], Electric[500]]}
-                                    start={{ x: 0, y: 1 }}
-                                    end={{ x: 1, y: 0 }}
-                                    style={styles.successIconRing}
-                                >
-                                    <Ionicons name="checkmark" size={28} color="#fff" />
-                                </LinearGradient>
-
-                                <JempText type="h2" color={theme.text} style={styles.successTitle}>
-                                    {t('plan.success_title')}
-                                </JempText>
-                                <JempText type="body-sm" color={theme.textMuted} style={styles.successSubtitle}>
-                                    {t('plan.success_subtitle')}
-                                </JempText>
-
-                                {/* CTA */}
-                                <Pressable
-                                    style={styles.successBtn}
-                                    onPress={() => {
-                                        setPlanSuccessOpen(false);
-                                        router.push('/(tabs)/plan');
-                                    }}
-                                >
-                                    <LinearGradient
-                                        colors={[Cyan[500], Electric[500]]}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 0 }}
-                                        style={styles.successBtnGradient}
-                                    >
-                                        <JempText type="button" color="#fff">{t('plan.success_view')}</JempText>
-                                    </LinearGradient>
-                                </Pressable>
-
-                                <Pressable onPress={() => setPlanSuccessOpen(false)} hitSlop={12}>
-                                    <JempText type="caption" color={theme.textMuted}>{t('ui.close')}</JempText>
-                                </Pressable>
-                            </Pressable>
-                        </Pressable>
-                    </Modal>
-                </>
-            )}
-            <SupportTicketModal
-                visible={supportOpen}
-                onClose={() => setSupportOpen(false)}
-            />
-            <LanguageModal
-                visible={langOpen}
-                onClose={() => setLangOpen(false)}
-            />
-            <DeleteAccountModal
-                visible={deleteOpen}
-                loading={deleteLoading}
-                onClose={() => setDeleteOpen(false)}
-                onConfirm={handleDeleteConfirm}
-            />
         </SafeAreaView>
     );
 }

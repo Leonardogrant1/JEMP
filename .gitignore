@@ -50,3 +50,6 @@ test-scripts
 
 # git worktrees
 .worktrees/
+
+jemp-493808-firebase-adminsdk-fbsvc-373c6eb63f.json
+google-services.json

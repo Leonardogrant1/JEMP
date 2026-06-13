@@ -31,13 +31,21 @@ export async function registerPushNotifications() {
 
     const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
 
-    const token = (await Notifications.getExpoPushTokenAsync({
-        projectId: projectId,
-    })).data;
+    try {
+        const token = (await Notifications.getExpoPushTokenAsync({
+            projectId: projectId,
+        })).data;
 
-    devLog("Expo push token:", token);
-    return {
-        status: finalStatus,
-        pushTokenString: token
+        devLog("Expo push token:", token);
+        return {
+            status: finalStatus,
+            pushTokenString: token
+        }
+    } catch (err) {
+        devLog("Failed to get push token:", err);
+        return {
+            status: finalStatus,
+            pushTokenString: null
+        }
     }
 }

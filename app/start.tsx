@@ -1,12 +1,10 @@
 import { JempText } from '@/components/jemp-text';
-import { AuthModal } from '@/components/modals/auth-modal';
-import { LanguageModal } from '@/components/modals/language-modal';
 import { SlideToStart } from '@/components/slide-to-start';
 import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -31,15 +29,14 @@ export default function StartScreen() {
         p.play();
     });
 
-    const [authVisible, setAuthVisible] = useState(false);
-    const [langVisible, setLangVisible] = useState(false);
+    const router = useRouter();
 
     function handleComplete() {
-        setAuthVisible(true);
+        router.push('/auth');
     }
 
     function handleSignIn() {
-        setAuthVisible(true);
+        router.push('/auth');
     }
 
     return (
@@ -64,7 +61,7 @@ export default function StartScreen() {
             {/* ── Language badge (top-right) ── */}
             <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
                 <View style={styles.topBar}>
-                    <Pressable style={styles.langBadge} onPress={() => setLangVisible(true)}>
+                    <Pressable style={styles.langBadge} onPress={() => router.push('/language')}>
                         <JempText type="caption" style={styles.langFlag}>{FLAG[lang] ?? '🌐'}</JempText>
                         <JempText type="caption" color={theme.text}>
                             {lang.toUpperCase()}
@@ -96,8 +93,6 @@ export default function StartScreen() {
                     </Pressable>
                 </View>
             </SafeAreaView>
-            <AuthModal visible={authVisible} onClose={() => setAuthVisible(false)} />
-            <LanguageModal visible={langVisible} onClose={() => setLangVisible(false)} />
         </GestureHandlerRootView>
     );
 }
