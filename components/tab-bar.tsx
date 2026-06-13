@@ -2,7 +2,7 @@ import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePendingAssessmentsCountQuery } from '@/queries/use-pending-assessments-count-query';
-import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { BottomTabBarProps } from 'expo-router/tabs';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';

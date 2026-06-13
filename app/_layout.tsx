@@ -12,7 +12,7 @@ import { PurchaseWrapper } from '@/services/purchases/PurchasesWrapper';
 import { RevenueCatProvider } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
 import { useTutorialStore } from '@/stores/tutorial-store';
 import { devLog } from '@/utils/dev-log';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';

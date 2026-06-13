@@ -6,8 +6,8 @@ import { useAuth } from '@/providers/auth-provider';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
     runOnJS,
     useAnimatedStyle,
@@ -79,10 +79,13 @@ export function AuthModal({ visible, onClose }: Props) {
 
                     {/* Buttons */}
                     <View style={styles.body}>
-                        <Pressable style={styles.appleBtn} onPress={signInWithApple}>
-                            <Ionicons name="logo-apple" size={20} color={theme.background} />
-                            <Text style={styles.appleBtnText}>{t('auth.apple')}</Text>
-                        </Pressable>
+
+                        {Platform.OS === 'ios' && (
+                            <Pressable style={styles.appleBtn} onPress={signInWithApple}>
+                                <Ionicons name="logo-apple" size={20} color={theme.background} />
+                                <Text style={styles.appleBtnText}>{t('auth.apple')}</Text>
+                            </Pressable>
+                        )}
 
                         <Pressable style={styles.socialBtn} onPress={signInWithGoogle}>
                             <Google width={20} height={20} />

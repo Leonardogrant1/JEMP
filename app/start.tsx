@@ -6,8 +6,8 @@ import { Colors, Fonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     hero: {
-        ...StyleSheet.absoluteFillObject,
+        ...StyleSheet.absoluteFill,
     },
     safeArea: {
         flex: 1,

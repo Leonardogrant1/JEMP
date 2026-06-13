@@ -7,10 +7,9 @@
     "icon": "./assets/images/icon.png",
     "scheme": "jemp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/splash-icon-contain.png",
-      "resizeMode": "contain"
+    "locales": {
+      "en": "./languages/en.json",
+      "de": "./languages/de.json"
     },
     "ios": {
       "supportsTablet": true,
@@ -19,35 +18,26 @@
         "NSUserTrackingUsageDescription": "We use tracking to measure marketing performance and improve the app experience.",
         "NSPhotoLibraryUsageDescription": "JEMP needs access to your photo library to let you select and attach photos or videos to support tickets and other features.",
         "NSCameraUsageDescription": "JEMP needs access to your camera to let you take photos or videos to attach to support tickets and other features.",
-        "ITSAppUsesNonExemptEncryption": false
-      },
-      "locales": {
-        "en": "./languages/en.json",
-        "de": "./languages/de.json"
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleAllowMixedLocalizations": true
       }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#000000",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "studio.northbyte.jemp",
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
-      ]
+      "permissions": []
     },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./plugins/withAndroidManifestFixes",
       "expo-router",
       "expo-font",
       "expo-apple-authentication",
@@ -72,7 +62,42 @@
           "enableBackgroundPlayback": false,
           "enableBackgroundRecording": false
         }
-      ]
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false,
+          "style": "light"
+        }
+      ],
+      "expo-image",
+      "expo-localization",
+      "expo-secure-store",
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#0a0a0a",
+          "dark": {
+            "image": "./assets/images/splash-icon.png",
+            "backgroundColor": "#0a0a0a"
+          }
+        }
+      ],
+      [
+        "expo-status-bar",
+        {
+          "hidden": false,
+          "style": "light"
+        }
+      ],
+      "expo-tracking-transparency",
+      "expo-video",
+      "expo-web-browser",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

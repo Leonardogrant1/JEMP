@@ -56,12 +56,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             await GoogleSignin.hasPlayServices();
             const { data } = await GoogleSignin.signIn();
+            devLog('[Google Auth] signIn data:', JSON.stringify(data));
             const idToken = data?.idToken;
             if (!idToken) throw new Error("No ID token from Google");
-            const { error } = await supabase.auth.signInWithIdToken({
+            const { data: supabaseData, error } = await supabase.auth.signInWithIdToken({
                 provider: "google",
                 token: idToken
             });
+            devLog('[Google Auth] supabase signInWithIdToken data:', JSON.stringify(supabaseData), 'error:', JSON.stringify(error));
             if (error) throw error;
 
             const givenName = data?.user?.givenName;
@@ -74,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 });
             }
         } catch (error: any) {
-            devLog('signInWithGoogle error:', error?.message);
+            devLog('[Google Auth] error:', error?.message, error?.code);
         }
     };
 
