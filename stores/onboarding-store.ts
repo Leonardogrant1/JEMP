@@ -28,12 +28,18 @@ export type CategoryLevel = {
     score: number;
 };
 
+export type DayEnvironment = {
+    day_of_week: number;
+    environment_id: string;
+};
+
 type OnboardingStore = ProfileData & {
     sport_slug: string | null;
     targetedCategories: TargetedCategory[];
     categoryLevels: CategoryLevel[];
     equipmentIds: string[];
     environmentIds: string[];
+    dayEnvironments: DayEnvironment[];
     weekly_schedule: WeeklySchedule;
     referral_code: string | null;
     name_source: 'apple' | 'google' | null;
@@ -43,6 +49,7 @@ type OnboardingStore = ProfileData & {
         categoryLevels: CategoryLevel[];
         equipmentIds: string[];
         environmentIds: string[];
+        dayEnvironments: DayEnvironment[];
         weekly_schedule: WeeklySchedule;
         referral_code: string | null;
         name_source: 'apple' | 'google' | null;
@@ -67,6 +74,7 @@ const initialState: Omit<OnboardingStore, 'set' | 'reset'> = {
     categoryLevels: [],
     equipmentIds: [],
     environmentIds: [],
+    dayEnvironments: [],
     weekly_schedule: { sessions: [], notes: null },
     referral_code: null,
     name_source: null,

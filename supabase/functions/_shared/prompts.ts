@@ -5,6 +5,9 @@ type WeekPlanPromptInput = {
   sessions: Array<{ day_of_week: number; mode_slug: string; min: number; max: number }>
   userContext: string
   categorySlugs: string[]
+  environmentSlugs: string[]
+  dayPresetEnvironments: Array<{ day_of_week: number; environment_slug: string }>
+  userFocusCategories: Array<{ category: string; priority: number }>
 }
 
 const DAY_NAMES: Record<number, string> = {
@@ -13,11 +16,18 @@ const DAY_NAMES: Record<number, string> = {
 }
 
 export const GENERATE_WEEK_PLAN_PROMPT = (input: WeekPlanPromptInput) => {
-  const { sessions, userContext, categorySlugs } = input
+  const { sessions, userContext, categorySlugs, environmentSlugs, dayPresetEnvironments, userFocusCategories } = input
 
   const sessionsText = sessions
     .map((s) => `- Tag ${s.day_of_week} (${DAY_NAMES[s.day_of_week]}): mode=${s.mode_slug}, Dauer ${s.min}–${s.max} min`)
     .join("\n")
+
+  const focusSection = userFocusCategories.length > 0
+    ? `\n## Focus-Categories (User-Priorisierung)\n` +
+      [...userFocusCategories].sort((a, b) => a.priority - b.priority)
+        .map((f) => `- \`${f.category}\` (Priorität ${f.priority} = ${f.priority === 1 ? "höchste" : f.priority === 2 ? "mittlere" : "niedrigste"} Priorität)`).join("\n") +
+      `\nPriorität 1 = wichtigste Category. Regeln:\n- Vergib primary-Slots bevorzugt an Focus-Categories (Priorität 1 zuerst) — NUR wenn mode_slug primary erlaubt und die no-repeat-Regel nicht verletzt wird\n- Wenn primary schon vergeben ist: Focus-Category als secondary bevorzugen — aber nur wenn es inhaltlich sinnvoll ist (kein Strength als accessory, kein Mobility als primary)\n- Accessory-Slots sind IMMER für Core, Stability oder Mobility reserviert — keine Focus-Categories dort erzwingen\n- Sport-Pflicht-Categories mit hoher Relevanz (≥2) müssen weiterhin regelmäßig als primary erscheinen\n`
+    : ""
 
   return `Du bist ein professioneller Trainer. Plane die Kategorien für den Wochentrainingsplan.
 Entscheide für jede Session welche Categories in die Hauptblöcke kommen. Konkrete Übungen werden später gewählt.
@@ -27,7 +37,7 @@ ${userContext}
 
 ## Sessions diese Woche
 ${sessionsText}
-
+${focusSection}
 ## Erlaubte Blöcke pro mode_slug
 
 | mode_slug  | primary | secondary | accessory       |
@@ -48,13 +58,20 @@ Erlaubte Category-Slugs: ${categorySlugs.map((s) => `\`${s}\``).join(", ")}
 - \`secondary\` muss eine andere Category als primary derselben Session sein
 - \`accessory\` optional — nur wenn ein klarer Ergänzungsfokus sinnvoll ist (z.B. mobility, core)
 
+### Kraft ist ganzheitlich
+
+Wenn \`strength\` eine erlaubte Category ist, bedeutet das **Ganzkörperkraft** — nicht nur Unterkörper.
+Plane über die Woche hinweg mindestens eine Strength-Session mit klarem Oberkörper-Fokus (Push/Pull/Hinge) und mindestens eine mit Unterkörper-Fokus (Squat/Hinge/Single-leg).
+Bei sportartspezifischer Gewichtung (z.B. Fußball): Unterkörper und hintere Kette erhalten mehr Sessions, aber Oberkörper darf **nie komplett fehlen** — Zweikampf, Abschirmen und allgemeine Robustheit hängen davon ab.
+Nutze \`body_regions\` (chest, upper_back, shoulder, tricep, bicep für Oberkörper; quad, hamstring, glute für Unterkörper) um den Fokus je Session zu dokumentieren und sicherzustellen dass der Wochenplan ausgeglichen ist.
+
 ### Erlaubte Block-Types pro Category-Typ
 
 **NIEMALS als primary erlaubt** (nur secondary/accessory):
 - \`core\` — ist immer Ergänzung, nie Hauptreiz
 
 **Für primary geeignet** (klarer Trainingsreiz):
-- Plyometrics, Jumps, Sprints, Strength, Power (z.B. \`jumps\`, \`lower_body_plyometrics\`, \`upper_body_plyometrics\`, \`lower_body_strength\`, \`upper_body_strength\`, \`power\`)
+- Plyometrics, Jumps, Sprints, Strength, Power
 - \`mobility\` — wenn die Session explizit auf aktive Beweglichkeitsentwicklung ausgerichtet ist (z.B. Mobility-Fokus-Tag)
 
 ## body_regions
@@ -62,6 +79,14 @@ Erlaubte Category-Slugs: ${categorySlugs.map((s) => `\`${s}\``).join(", ")}
 Gib für jede Session die Körperregionen an, die durch die Hauptblöcke hauptsächlich belastet werden.
 Erlaubte Werte: quad, hamstring, glute, calf, hip, lower_back, core, chest, upper_back, shoulder, tricep, bicep, full_body
 Sessions mit \`recovery\` oder keinen Blöcken → \`body_regions: []\`
+
+## Environment pro Session
+
+Wähle für jede Session genau ein Environment aus den verfügbaren: ${environmentSlugs.length > 0 ? environmentSlugs.map((s) => `\`${s}\``).join(", ") : "`gym`"}
+
+${dayPresetEnvironments.length > 0
+  ? `Vom User bereits festgelegt:\n${dayPresetEnvironments.map((d) => `- Tag ${d.day_of_week} (${DAY_NAMES[d.day_of_week]}): \`${d.environment_slug}\``).join("\n")}\nFür alle anderen Tage: Wähle das am besten passende Environment basierend auf dem Trainingsinhalt.`
+  : "Wähle pro Session das am besten passende Environment basierend auf dem Trainingsinhalt (z.B. `gym` für Kraft/Heben, `outdoor` für Sprints/Plyometrics)."}
 
 ## name & description
 
@@ -100,8 +125,8 @@ function getMainBlockStructure(mode: string): string {
     case "full":
       return `\
 - warmup — 4 Übungen (Dynamische Mobility, Activation, Movement Prep)
-- primary — 1–2 Übungen (Hauptreiz, höchste Intensität)
-- secondary — 1–2 Übungen (komplementäre Category)
+- primary — 2–3 Übungen (Hauptreiz, höchste Intensität)
+- secondary — 2–3 Übungen (komplementäre Category)
 - accessory — 2–4 Übungen (Core, Stabilität)
 - cooldown — 3 Übungen (Foam Roll, Static Stretch, Breathing)`
 
@@ -130,10 +155,10 @@ function getMainBlockStructure(mode: string): string {
 }
 
 const MODE_DESCRIPTIONS: Record<string, string> = {
-  full:       "Full Session (60–90 min) — vollständige Trainingseinheit",
-  reduced:    "Reduced Session (45–60 min) — reduziertes Volumen",
+  full: "Full Session (60–90 min) — vollständige Trainingseinheit",
+  reduced: "Reduced Session (45–60 min) — reduziertes Volumen",
   activation: "Activation (20–30 min) — kurze Aktivierung, kein schweres Training",
-  recovery:   "Recovery (15–25 min) — Regeneration, Mobility",
+  recovery: "Recovery (15–25 min) — Regeneration, Mobility",
 }
 
 export const GENERATE_MAIN_BLOCKS_PROMPT = (input: Omit<SessionPromptInput, "warmupExercisesString" | "warmupSlugs" | "cooldownExercisesString" | "cooldownSlugs">) => {
@@ -255,6 +280,8 @@ Belastete Körperregionen: ${bodyRegions.join(", ") || "nicht spezifiziert"}
 ${getWarmupCooldownStructure(spec.mode_slug)}
 
 ## Regeln
+**PFLICHT: Jeder Block MUSS mindestens die in der Blockstruktur angegebene Anzahl Übungen enthalten. Leere "exercises: []" Arrays sind verboten.**
+
 **warmup** — Dynamische Mobility, Activation, Movement Prep. Körperregionen auf Hauptblöcke abstimmen.
 - KEINE statischen Stretches > 30s. focused_category_slug = passende Category.
 - KEINE Übungen aus den Hauptblöcken verwenden: ${mainBlocksSlugs.length > 0 ? mainBlocksSlugs.join(", ") : "—"}

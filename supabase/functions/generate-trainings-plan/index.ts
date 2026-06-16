@@ -24,6 +24,7 @@ type UserData = {
     sportData: any,
     loadScore: number,
     loadProfile: "low" | "medium" | "high" | undefined,
+    dayEnvironments: Array<{ day_of_week: number; environment_id: string }>,
   } | null
 }
 
@@ -84,6 +85,7 @@ const getUserData = async (supabase: SupabaseClient, userId: string): Promise<Us
     const weeklySchedule = (userProfile.weekly_schedule as any) ?? { sessions: [], notes: null }
     const loadScore = weeklySchedule.sessions.reduce((sum: number, s: any) => sum + intensityToPoints(s.intensity), 0)
     const loadProfile = pointsToLoadProfile(loadScore)
+    const dayEnvironments = (userProfile.day_environments as Array<{ day_of_week: number; environment_id: string }> | null) ?? []
 
     return {
       success: true,
@@ -100,6 +102,7 @@ const getUserData = async (supabase: SupabaseClient, userId: string): Promise<Us
         weeklySchedule,
         loadScore,
         loadProfile,
+        dayEnvironments,
       }
     }
   }
@@ -154,7 +157,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: userData.error }), { status: 500 })
     }
 
-    const { userProfile, sportData, equipmentIds, categoryLevels, environmentIds, environmentSlugs, sportRequiredCategories, userFocusCategories, weeklySchedule, loadScore, loadProfile } = userData.data
+    const { userProfile, sportData, equipmentIds, categoryLevels, environmentIds, environmentSlugs, sportRequiredCategories, userFocusCategories, weeklySchedule, loadScore, loadProfile, dayEnvironments } = userData.data
 
     // Derive min/max from preferred_session_duration until DB has dedicated columns
     const durationMap: Record<string, { min: number; max: number }> = {
@@ -180,6 +183,7 @@ Deno.serve(async (req) => {
         category_levels: categoryLevels,
         sport_required_categories: sportRequiredCategories,
         user_focus_categories: userFocusCategories,
+        day_environments: dayEnvironments,
       },
       supabase,
       openai,
@@ -279,6 +283,7 @@ Deno.serve(async (req) => {
           order_index: aiSession.order_index,
           estimated_duration_minutes: nz(aiSession.estimated_duration_minutes),
           pause_between_sets: aiSession.pause_between_sets > 0 ? aiSession.pause_between_sets : 90,
+          environment_id: (aiSession as any).environment_id ?? environmentIds[0] ?? null,
         })
         .select("id")
         .single()
@@ -387,7 +392,7 @@ Deno.serve(async (req) => {
 
     const { data: allPlanSessions } = await supabase
       .from("workout_plan_sessions")
-      .select("id, day_of_week, name, description, session_type, estimated_duration_minutes, pause_between_sets")
+      .select("id, day_of_week, name, description, session_type, estimated_duration_minutes, pause_between_sets, environment_id")
       .eq("plan_id", planId)
 
     if (!allPlanSessions || allPlanSessions.length === 0) {
@@ -412,6 +417,7 @@ Deno.serve(async (req) => {
           status: "scheduled",
           estimated_duration_minutes: planSession.estimated_duration_minutes,
           pause_between_sets: (planSession as any).pause_between_sets ?? 90,
+          environment_id: (planSession as any).environment_id,
         })
       }
     }

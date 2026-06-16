@@ -102,13 +102,15 @@ function toEnum(slugs: string[]): z.ZodTypeAny {
   return z.enum(unique as [string, ...string[]])
 }
 
-export function buildWeekPlanSchema(categorySlugs: string[]) {
+export function buildWeekPlanSchema(categorySlugs: string[], environmentSlugs: string[]) {
   const categoryEnum = toEnum(categorySlugs)
+  const environmentEnum = toEnum(environmentSlugs.length > 0 ? environmentSlugs : ["gym"])
   return z.object({
     name: z.string(),
     description: z.string(),
     sessions: z.array(z.object({
       day_of_week: z.number(),
+      environment_slug: environmentEnum,
       body_regions: z.array(bodyRegionEnum),
       blocks: z.array(z.object({
         block_type: z.enum(["primary", "secondary", "accessory"]),

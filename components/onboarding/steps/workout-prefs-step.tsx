@@ -4,7 +4,8 @@ import { JempInput } from '@/components/ui/jemp-input';
 import { SelectableChip } from '@/components/ui/selectable-chip';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useOnboardingStore } from '@/stores/onboarding-store';
+import { supabase } from '@/services/supabase/client';
+import { DayEnvironment, useOnboardingStore } from '@/stores/onboarding-store';
 import { SessionDuration } from '@/types/database';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -19,15 +20,21 @@ const DURATIONS: { value: SessionDuration; label: string }[] = [
     { value: '90min', label: '90 min' },
 ];
 
+type EnvItem = { id: string; slug: string; name_i18n: Record<string, string> | null };
+
 export function WorkoutPrefsStep() {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
+    const locale = i18n.language;
     const { setCanContinue } = useOnboardingControl();
     const storedDays = useOnboardingStore((s) => s.preferred_workout_days);
     const storedDuration = useOnboardingStore((s) => s.preferred_session_duration);
     const storedNotes = useOnboardingStore((s) => s.schedule_notes);
+    const storedDayEnvironments = useOnboardingStore((s) => s.dayEnvironments);
+    const environmentIds = useOnboardingStore((s) => s.environmentIds);
     const setStore = useOnboardingStore((s) => s.set);
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+
     const DAYS: { value: number; label: string }[] = [
         { value: 1, label: t('onboarding.workout_prefs_day_mon') },
         { value: 2, label: t('onboarding.workout_prefs_day_tue') },
@@ -41,11 +48,29 @@ export function WorkoutPrefsStep() {
     const [selectedDays, setSelectedDays] = useState<Set<number>>(() => new Set(storedDays ?? []));
     const [selectedDuration, setSelectedDuration] = useState<SessionDuration | null>(storedDuration ?? null);
     const [notes, setNotes] = useState(storedNotes ?? '');
+    const [environments, setEnvironments] = useState<EnvItem[]>([]);
+    const [dayEnvMap, setDayEnvMap] = useState<Record<number, string>>(() => {
+        const map: Record<number, string> = {};
+        storedDayEnvironments.forEach((de) => { map[de.day_of_week] = de.environment_id; });
+        return map;
+    });
 
     useEffect(() => {
         validate(selectedDays, selectedDuration);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    useEffect(() => {
+        if (environmentIds.length > 1) {
+            supabase
+                .from('environments')
+                .select('id, slug, name_i18n')
+                .in('id', environmentIds)
+                .then(({ data }) => {
+                    if (data) setEnvironments(data as EnvItem[]);
+                });
+        }
+    }, [environmentIds]);
 
     function validate(days: Set<number>, duration: SessionDuration | null) {
         setCanContinue(days.size > 0 && duration !== null);
@@ -57,6 +82,14 @@ export function WorkoutPrefsStep() {
             next.has(value) ? next.delete(value) : next.add(value);
             setStore({ preferred_workout_days: Array.from(next) });
             validate(next, selectedDuration);
+            // Clean up day environment if day is deselected
+            if (!next.has(value)) {
+                setDayEnvMap((prevMap) => {
+                    const { [value]: _, ...rest } = prevMap;
+                    saveDayEnvironments(rest);
+                    return rest;
+                });
+            }
             return next;
         });
     }
@@ -71,6 +104,30 @@ export function WorkoutPrefsStep() {
         setNotes(text);
         setStore({ schedule_notes: text.trim() || null });
     }
+
+    function toggleDayEnv(day: number, envId: string) {
+        setDayEnvMap((prev) => {
+            const next = { ...prev };
+            if (next[day] === envId) {
+                delete next[day];
+            } else {
+                next[day] = envId;
+            }
+            saveDayEnvironments(next);
+            return next;
+        });
+    }
+
+    function saveDayEnvironments(map: Record<number, string>) {
+        const dayEnvironments: DayEnvironment[] = Object.entries(map).map(([day, id]) => ({
+            day_of_week: Number(day),
+            environment_id: id,
+        }));
+        setStore({ dayEnvironments });
+    }
+
+    const sortedSelectedDays = [...selectedDays].sort((a, b) => a - b);
+    const showEnvPicker = environments.length > 1 && selectedDays.size > 0;
 
     return (
         <KeyboardAwareScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -101,6 +158,37 @@ export function WorkoutPrefsStep() {
                     </View>
                 </View>
             </Animated.View>
+
+            {showEnvPicker && (
+                <Animated.View entering={FadeInDown.delay(420).duration(500).springify()}>
+                    <View style={styles.section}>
+                        <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                            {t('onboarding.workout_prefs_env_label')}
+                        </JempText>
+                        <JempText type="body-sm" color={theme.textMuted} style={styles.envHint}>
+                            {t('onboarding.workout_prefs_env_hint')}
+                        </JempText>
+                        {sortedSelectedDays.map((day) => (
+                            <View key={day} style={styles.dayEnvRow}>
+                                <JempText type="body-m" style={styles.dayEnvLabel}>
+                                    {DAYS.find((d) => d.value === day)?.label}
+                                </JempText>
+                                <View style={styles.envChips}>
+                                    {environments.map((env) => (
+                                        <SelectableChip
+                                            key={env.id}
+                                            label={env.name_i18n?.[locale] ?? env.name_i18n?.['de'] ?? env.slug}
+                                            selected={dayEnvMap[day] === env.id}
+                                            onPress={() => toggleDayEnv(day, env.id)}
+                                            style={styles.envChip}
+                                        />
+                                    ))}
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+                </Animated.View>
+            )}
 
             <Animated.View entering={FadeInDown.delay(480).duration(500).springify()}>
                 <View style={styles.section}>
@@ -167,4 +255,25 @@ const styles = StyleSheet.create({
     durationChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
     notesHint: { marginBottom: 12 },
     notesInput: { minHeight: 100 },
+    envHint: { marginBottom: 16 },
+    dayEnvRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+        gap: 12,
+    },
+    dayEnvLabel: {
+        width: 28,
+    },
+    envChips: {
+        flexDirection: 'row',
+        gap: 8,
+        flex: 1,
+    },
+    envChip: {
+        flex: 1,
+        alignItems: 'center',
+        paddingHorizontal: 0,
+        borderRadius: 12,
+    },
 });

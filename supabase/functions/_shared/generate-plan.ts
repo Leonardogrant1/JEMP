@@ -97,7 +97,7 @@ export async function generatePlan(
   input: PlanGenerationInput,
   supabase: SupabaseClient,
   openai: OpenAI,
-): Promise<{ name: string; description: string; sessions: z.infer<typeof sessionSchema>[] }> {
+): Promise<{ name: string; description: string; sessions: (z.infer<typeof sessionSchema> & { environment_id: string | null })[] }> {
   const {
     sport_slug,
     preferred_workout_days,
@@ -112,12 +112,19 @@ export async function generatePlan(
     category_levels,
     sport_required_categories,
     user_focus_categories,
+    day_environments = [],
   } = input
 
   const userEnvironmentIds = new Set(environment_ids)
   const userEquipmentSet = new Set(equipment_ids)
   const levelMap = new Map(category_levels.map((cl) => [cl.category_id, cl.level_score]))
   const hasLevelData = category_levels.length > 0
+
+  // Environment lookup maps
+  const envIdToSlugMap = new Map(environment_ids.map((id, i) => [id, environment_slugs[i]]))
+  const envSlugToIdMap = new Map(environment_slugs.map((slug, i) => [slug, environment_ids[i]]))
+  // User pre-set environments per day
+  const dayEnvMap = new Map(day_environments.map((de) => [de.day_of_week, de.environment_id]))
 
   const t0 = Date.now()
   const elapsed = (since: number) => `${((Date.now() - since) / 1000).toFixed(1)}s`
@@ -169,7 +176,7 @@ export async function generatePlan(
 
   // ── 3. Exercise filter helpers ───────────────────────────────
 
-  function passesEquipmentAndEnv(exercise: any): boolean {
+  function passesEquipmentAndEnv(exercise: any, sessionEnvId?: string | null): boolean {
     const requiredEquipment = exerciseEquipmentMap.get(exercise.id)
     if (requiredEquipment && requiredEquipment.size > 0 && userEquipmentSet.size > 0) {
       let hasMatch = false
@@ -180,12 +187,18 @@ export async function generatePlan(
     }
 
     const allowedEnvs = exerciseEnvMap.get(exercise.id)
-    if (allowedEnvs && allowedEnvs.size > 0 && userEnvironmentIds.size > 0) {
-      let hasMatch = false
-      for (const envId of allowedEnvs) {
-        if (userEnvironmentIds.has(envId)) { hasMatch = true; break }
+    if (allowedEnvs && allowedEnvs.size > 0) {
+      if (sessionEnvId) {
+        // Per-session environment: exact match required
+        if (!allowedEnvs.has(sessionEnvId)) return false
+      } else if (userEnvironmentIds.size > 0) {
+        // Fallback: any of the user's environments
+        let hasMatch = false
+        for (const envId of allowedEnvs) {
+          if (userEnvironmentIds.has(envId)) { hasMatch = true; break }
+        }
+        if (!hasMatch) return false
       }
-      if (!hasMatch) return false
     }
 
     if (hasLevelData && exercise.category_id) {
@@ -197,19 +210,17 @@ export async function generatePlan(
     return true
   }
 
-  // Phase B: filter exercises by block_type relation + mode intensity/type constraints.
-  // category_slug is NOT a hard filter — it's passed as context to the KI in Phase C.
-  // This prevents empty pools when the DB has no exact category+block_type intersection.
-  function filterByBlockTypeForMode(
-    blockType: "primary" | "secondary" | "accessory",
+  // Phase B: filter exercises by category + mode intensity/type constraints.
+  // exercise_blocks tags are NOT used here — which role a block plays (primary/secondary/accessory)
+  // is decided by Phase A, not by a DB tag. Only warmup/cooldown use the explicit block_type tag.
+  function filterByCategoryForMode(
+    categorySlug: string,
     forMode: SessionModeSlug,
+    sessionEnvId?: string | null,
   ): any[] {
     return (allExercises ?? []).filter((exercise) => {
-      // Must have exercise_blocks relation to this block_type
-      const blockSlugs = (exercise.exercise_blocks as any[])?.map((b: any) => b.block_types?.slug) ?? []
-      if (!blockSlugs.includes(blockType)) return false
+      if (exercise.categories?.slug !== categorySlug) return false
 
-      // Apply mode intensity/type constraints
       const exerciseType = exercise.exercise_type
       const intensityScore = exercise.intensity_score
 
@@ -230,17 +241,17 @@ export async function generatePlan(
           break
       }
 
-      return passesEquipmentAndEnv(exercise)
+      return passesEquipmentAndEnv(exercise, sessionEnvId)
     })
   }
 
   // Phase D: filter exercises by warmup/cooldown block_type relation (no intensity/type filter)
-  function filterByBlockType(blockType: "warmup" | "cooldown"): any[] {
+  function filterByBlockType(blockType: "warmup" | "cooldown", sessionEnvId?: string | null): any[] {
     return (allExercises ?? []).filter((exercise) => {
       const blockSlugs = (exercise.exercise_blocks as any[])?.map((b: any) => b.block_types?.slug) ?? []
       if (!blockSlugs.includes(blockType)) return false
 
-      return passesEquipmentAndEnv(exercise)
+      return passesEquipmentAndEnv(exercise, sessionEnvId)
     })
   }
 
@@ -285,7 +296,12 @@ export async function generatePlan(
   const tPhaseA = Date.now()
   console.log(`[t=${elapsed(t0)}] Phase A — calling week planner: ${sessionSpecs.length} sessions, categorySlugs=[${categorySlugs.join(", ")}]`)
 
-  const dynamicWeekPlanSchema = buildWeekPlanSchema(categorySlugs)
+  const dynamicWeekPlanSchema = buildWeekPlanSchema(categorySlugs, environment_slugs)
+
+  // Build per-day preset environments (slug form for the prompt)
+  const dayPresetEnvironments = day_environments
+    .map((de) => ({ day_of_week: de.day_of_week, environment_slug: envIdToSlugMap.get(de.environment_id) ?? "" }))
+    .filter((de) => de.environment_slug !== "")
 
   const weekPlanCompletion = await openai.chat.completions.create({
     model: "gpt-5-mini",
@@ -298,6 +314,9 @@ export async function generatePlan(
         })),
         userContext,
         categorySlugs,
+        environmentSlugs: environment_slugs,
+        dayPresetEnvironments,
+        userFocusCategories: user_focus_categories,
       }),
     }],
     reasoning_effort: "low",
@@ -339,6 +358,7 @@ export async function generatePlan(
   type SessionBuildInput = {
     spec: { day_of_week: number; mode_slug: SessionModeSlug }
     duration: { min: number; max: number }
+    environment_id: string | null
     blockPools: BlockPool[]
     bodyRegions: string[]
     warmupExercisesString: string
@@ -349,19 +369,39 @@ export async function generatePlan(
     cooldownCategorySlugs: string[]
   }
 
-  const allWarmupExercises = filterByBlockType("warmup")
-  const allCooldownExercises = filterByBlockType("cooldown")
-  console.log(`Warmup/cooldown pools: warmup=${allWarmupExercises.length}, cooldown=${allCooldownExercises.length}`)
-
   const sessionBuildInputs: SessionBuildInput[] = sessionSpecs.map((spec) => {
     const duration = targetDuration(spec.mode_slug, min_session_duration, max_session_duration)
     const weekPlanSession = weekPlan.sessions.find((s) => s.day_of_week === spec.day_of_week)
-    const plannedBlocks = weekPlanSession?.blocks ?? []
+    const allowedBlockTypes: Record<SessionModeSlug, Set<string>> = {
+      full: new Set(["primary", "secondary", "accessory"]),
+      reduced: new Set(["primary", "secondary", "accessory"]),
+      activation: new Set(["accessory"]),
+      recovery: new Set(),
+    }
+    const plannedBlocks = (weekPlanSession?.blocks ?? []).filter((b) => {
+      if (!allowedBlockTypes[spec.mode_slug].has(b.block_type)) {
+        console.warn(`Phase A violation: day ${spec.day_of_week} [${spec.mode_slug}] has disallowed block_type="${b.block_type}" — skipping`)
+        return false
+      }
+      return true
+    })
     const sessionBodyRegions = new Set(weekPlanSession?.body_regions ?? [])
 
+    // Resolve session environment: user preset → Phase A LLM choice → null
+    const sessionEnvSlug = weekPlanSession?.environment_slug
+    const sessionEnvId = dayEnvMap.get(spec.day_of_week)
+      ?? (sessionEnvSlug ? envSlugToIdMap.get(sessionEnvSlug) : undefined)
+      ?? null
+
+    console.log(`Phase B day ${spec.day_of_week}: environment=${sessionEnvSlug ?? "none"} (id=${sessionEnvId ?? "null"})`)
+
     const blockPools: BlockPool[] = plannedBlocks.map((block) => {
-      const pool = filterByBlockTypeForMode(block.block_type, spec.mode_slug)
-      console.log(`Phase B day ${spec.day_of_week} [${spec.mode_slug}] ${block.block_type}/${block.category_slug}: ${pool.length} exercises`)
+      const pool = filterByCategoryForMode(block.category_slug, spec.mode_slug, sessionEnvId)
+      if (pool.length === 0) {
+        console.warn(`Phase B day ${spec.day_of_week} [${spec.mode_slug}] ${block.block_type}/${block.category_slug}: EMPTY pool — no exercises for this category`)
+      } else {
+        console.log(`Phase B day ${spec.day_of_week} [${spec.mode_slug}] ${block.block_type}/${block.category_slug}: ${pool.length} exercises`)
+      }
       return {
         block_type: block.block_type,
         category_slug: block.category_slug,
@@ -369,6 +409,9 @@ export async function generatePlan(
         slugs: pool.map((e: any) => e.slug).join(", "),
       }
     })
+
+    const allWarmupExercises = filterByBlockType("warmup", sessionEnvId)
+    const allCooldownExercises = filterByBlockType("cooldown", sessionEnvId)
 
     const warmupPool = (() => {
       const filtered = filterByBodyRegion(allWarmupExercises, sessionBodyRegions)
@@ -386,6 +429,7 @@ export async function generatePlan(
     return {
       spec,
       duration,
+      environment_id: sessionEnvId,
       blockPools,
       bodyRegions: [...sessionBodyRegions],
       warmupExercisesString: exercisesToString(warmupPool),
@@ -502,7 +546,7 @@ export async function generatePlan(
       allBlocks.sort((a, b) => (BLOCK_ORDER[a.block_type] ?? 99) - (BLOCK_ORDER[b.block_type] ?? 99))
       allBlocks.forEach((b, idx) => { b.order_index = idx })
 
-      return { ...mainSession, blocks: allBlocks }
+      return { ...mainSession, blocks: allBlocks, environment_id: si.environment_id }
     })
   )
 

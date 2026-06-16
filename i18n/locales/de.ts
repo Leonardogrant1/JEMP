@@ -390,7 +390,7 @@ const de: Record<TranslationKeys, string> = {
     'onboarding.workout_prefs_duration_label': 'Einheitsdauer',
     'onboarding.workout_prefs_notes_label': 'Zusätzliche Hinweise',
     'onboarding.workout_prefs_notes_hint': 'Z.B. "Mittwochs habe ich Fußballtraining — lieber eine leichte Session."',
-    'onboarding.workout_prefs_notes_placeholder': 'Optionale Hinweise für den Trainer...',
+    'onboarding.workout_prefs_notes_placeholder': 'Optionale Hinweise für den Trainer...',\n    'onboarding.workout_prefs_env_label': 'Trainingsort pro Tag',\n    'onboarding.workout_prefs_env_hint': 'Optional — falls du an bestimmten Tagen woanders trainierst.',
     'onboarding.workout_prefs_day_mon': 'Mo',
     'onboarding.workout_prefs_day_tue': 'Di',
     'onboarding.workout_prefs_day_wed': 'Mi',

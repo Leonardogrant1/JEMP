@@ -20,6 +20,7 @@ type SimUserData = {
   equipment_ids?: string[]
   focus_categories?: { category_slug: string; priority: number }[]
   category_levels?: { category_id: string; level_score: number }[]
+  day_environments?: { day_of_week: number; environment_id: string }[]
 }
 
 Deno.serve(async (req) => {
@@ -98,6 +99,7 @@ Deno.serve(async (req) => {
         category: fc.category_slug,
         priority: fc.priority,
       })),
+      day_environments: userData.day_environments ?? [],
     }
 
     // ── Generate plan (no DB writes) ─────────────────────────────

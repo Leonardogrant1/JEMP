@@ -388,7 +388,7 @@ const en = {
     'onboarding.workout_prefs_duration_label': 'Session duration',
     'onboarding.workout_prefs_notes_label': 'Additional notes',
     'onboarding.workout_prefs_notes_hint': 'E.g. "On Wednesdays I have football practice — preferably a light session."',
-    'onboarding.workout_prefs_notes_placeholder': 'Optional notes for the trainer...',
+    'onboarding.workout_prefs_notes_placeholder': 'Optional notes for the trainer...',\n    'onboarding.workout_prefs_env_label': 'Training location per day',\n    'onboarding.workout_prefs_env_hint': 'Optional — if you train at different locations on certain days.',
     'onboarding.workout_prefs_day_mon': 'Mon',
     'onboarding.workout_prefs_day_tue': 'Tue',
     'onboarding.workout_prefs_day_wed': 'Wed',

@@ -41,6 +41,7 @@ export function PlanGenerationStep() {
                     categoryLevels,
                     equipmentIds,
                     environmentIds,
+                    dayEnvironments,
                     weekly_schedule,
                     name_source,
                     ...profileData
@@ -49,7 +50,13 @@ export function PlanGenerationStep() {
                 const { load_score, load_profile } = computeLoadProfile(weekly_schedule?.sessions ?? []);
                 const { error: profileError } = await supabase
                     .from('user_profiles')
-                    .update({ ...profileData, weekly_schedule: weekly_schedule as any, load_score, load_profile })
+                    .update({
+                        ...profileData,
+                        weekly_schedule: weekly_schedule as any,
+                        load_score,
+                        load_profile,
+                        day_environments: dayEnvironments.length > 0 ? dayEnvironments : null,
+                    })
                     .eq('id', session.user.id);
                 if (profileError) throw profileError;
 

@@ -25,6 +25,7 @@ export type PlanGenerationInput = {
   category_levels: { category_id: string; level_score: number }[]
   sport_required_categories: { category: string; relevance: number }[]
   user_focus_categories: { category: string; priority: number }[]
+  day_environments?: { day_of_week: number; environment_id: string }[]
 }
 
 export type PlannedBlockSummary = {
