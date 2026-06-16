@@ -25,7 +25,7 @@ export type AssessmentWithRelations = Assessment & {
   category_slug: string
   metric_slug: string
   metric_unit: string
-  equipmentIds: (string | null)[]
+  equipmentIds: (string | null)[]
 }
 
 async function requireUser() {
@@ -36,7 +36,7 @@ async function requireUser() {
     {
       cookies: {
         getAll() { return cookieStore.getAll() },
-        setAll() {},
+        setAll() { },
       },
     }
   )
@@ -102,7 +102,7 @@ export async function getAssessment(id: string): Promise<AssessmentWithRelations
     .eq('id', id)
     .single()
   if (error) throw new Error(error.message)
-  const r = data 
+  const r = data
   return {
     id: r.id,
     slug: r.slug,
