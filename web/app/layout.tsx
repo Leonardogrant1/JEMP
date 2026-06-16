@@ -4,7 +4,7 @@ import "./globals.css";
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html suppressHydrationWarning>
-      <body>{children}</body>
+      <body className="bg-brand-bg text-white font-sans antialiased">{children}</body>
     </html>
   );
 }

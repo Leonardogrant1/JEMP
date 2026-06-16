@@ -89,7 +89,7 @@ export async function fetchUserDataForSimulator(
   ] = await Promise.all([
     supabase
       .from('user_profiles')
-      .select('first_name, last_name, gender, birth_date, height_in_cm, weight_in_kg, preferred_workout_days, preferred_session_duration, weekly_schedule, sport:sports(slug)')
+      .select('first_name, last_name, gender, birth_date, height_in_cm, weight_in_kg, preferred_workout_days, preferred_session_duration, weekly_schedule, day_environments, sport:sports(slug)')
       .eq('id', userId)
       .single(),
     supabase
@@ -139,6 +139,9 @@ export async function fetchUserDataForSimulator(
       category_id: cl.category_id,
       level_score: cl.level_score,
     })),
+    day_environments: Array.isArray(profile.day_environments)
+      ? (profile.day_environments as { day_of_week: number; environment_id: string }[])
+      : [],
   }
 
   const lastName = profile.last_name ? `${profile.last_name[0]}.` : ''

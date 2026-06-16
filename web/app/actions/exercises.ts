@@ -17,6 +17,7 @@ export type ExerciseListItem = {
   thumbnail_storage_path: string | null
   video_storage_path: string | null
   image_group: ExerciseImageGroup | null
+  category: { id: string; slug: string; name_i18n: Json | null } | null
 }
 
 export type Exercise = ExerciseListItem & {
@@ -62,15 +63,21 @@ async function requireAdmin() {
   return user
 }
 
-export async function getExercises(): Promise<ExerciseListItem[]> {
+export async function getExercises(categorySlug?: string): Promise<ExerciseListItem[]> {
   await requireUser()
-  const { data, error } = await supabase
+  let query = supabase
     .from('exercises')
-    .select('id, name, slug, youtube_url, thumbnail_storage_path, video_storage_path, image_group')
+    .select('id, name, slug, youtube_url, thumbnail_storage_path, video_storage_path, image_group, category:categories(id, slug, name_i18n)')
     .order('name')
 
+  if (categorySlug) {
+    const { data: cat } = await supabase.from('categories').select('id').eq('slug', categorySlug).single()
+    if (cat) query = query.eq('category_id', cat.id)
+  }
+
+  const { data, error } = await query
   if (error) throw new Error(error.message)
-  return data
+  return data as ExerciseListItem[]
 }
 
 export async function getExercise(id: string): Promise<Exercise & { equipmentIds: string[]; environmentIds: string[] }> {

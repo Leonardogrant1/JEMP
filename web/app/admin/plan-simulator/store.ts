@@ -16,6 +16,11 @@ export type CategoryLevel = {
   level_score: number
 }
 
+export type DayEnvironment = {
+  day_of_week: number
+  environment_id: string
+}
+
 export type UserData = {
   gender: Gender
   age: number
@@ -30,6 +35,7 @@ export type UserData = {
   equipment_ids: string[]
   focus_categories: FocusCategory[]
   category_levels: CategoryLevel[]
+  day_environments: DayEnvironment[]
 }
 
 export type { WeeklySchedule, SportSessionType, LoadProfile }
@@ -59,6 +65,7 @@ const DEFAULT_USER_DATA: UserData = {
   equipment_ids: [],
   focus_categories: [],
   category_levels: [],
+  day_environments: [],
 }
 
 // ─── Store ────────────────────────────────────────────────────

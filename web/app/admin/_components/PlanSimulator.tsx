@@ -10,6 +10,7 @@ import {
   type SportSessionType,
   type WeeklySchedule,
   type CategoryLevel,
+  type DayEnvironment,
   usePlanSimulatorStore
 } from '../plan-simulator/store'
 
@@ -117,7 +118,24 @@ function ConfigPanel({
     const days = userData.preferred_workout_days.includes(day)
       ? userData.preferred_workout_days.filter(d => d !== day)
       : [...userData.preferred_workout_days, day].sort()
-    updateUserData({ preferred_workout_days: days })
+    // Clean up day_environments for deselected day
+    const day_environments = days.includes(day)
+      ? userData.day_environments
+      : userData.day_environments.filter(de => de.day_of_week !== day)
+    updateUserData({ preferred_workout_days: days, day_environments })
+  }
+
+  function toggleDayEnvironment(day: number, envId: string) {
+    const existing = userData.day_environments.find(de => de.day_of_week === day)
+    const day_environments = existing?.environment_id === envId
+      // Tap same env → deselect
+      ? userData.day_environments.filter(de => de.day_of_week !== day)
+      // Select new env for this day
+      : [
+          ...userData.day_environments.filter(de => de.day_of_week !== day),
+          { day_of_week: day, environment_id: envId },
+        ]
+    updateUserData({ day_environments })
   }
 
   function toggleScheduleSession(day: number) {
@@ -155,7 +173,9 @@ function ConfigPanel({
       const eq = refData.equipments.find(e => e.id === eqId)
       return eq?.environment_ids.some(envId => ids.includes(envId))
     })
-    updateUserData({ environment_ids: ids, equipment_ids: validEquipment })
+    // Remove day_environments that use the deselected environment
+    const day_environments = userData.day_environments.filter(de => ids.includes(de.environment_id))
+    updateUserData({ environment_ids: ids, equipment_ids: validEquipment, day_environments })
   }
 
   function toggleEquipment(id: string) {
@@ -437,6 +457,40 @@ function ConfigPanel({
           })}
         </div>
       </div>
+
+      {/* Environment pro Tag */}
+      {userData.environment_ids.length > 1 && userData.preferred_workout_days.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <SectionTitle>Environment pro Tag</SectionTitle>
+          <p className="text-[10px] text-gray-600 -mt-1">Optional — KI wählt sonst selbst.</p>
+          <div className="flex flex-col gap-1.5">
+            {[...userData.preferred_workout_days].sort((a, b) => a - b).map(day => {
+              const selectedEnvId = userData.day_environments.find(de => de.day_of_week === day)?.environment_id
+              const activeEnvs = refData.environments.filter(env => userData.environment_ids.includes(env.id))
+              return (
+                <div key={day} className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500 w-5 shrink-0">{DAY_LABELS[day]}</span>
+                  <div className="flex gap-1 flex-wrap">
+                    {activeEnvs.map(env => (
+                      <button
+                        key={env.id}
+                        onClick={() => toggleDayEnvironment(day, env.id)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors border
+                          ${selectedEnvId === env.id
+                            ? 'bg-white text-gray-950 border-white'
+                            : 'bg-transparent text-gray-700 border-gray-800 hover:border-gray-600 hover:text-gray-400'
+                          }`}
+                      >
+                        {env.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="border-t border-gray-800" />
 
@@ -935,6 +989,49 @@ function PlanPanel({ status, plan, error, userMinDuration, userMaxDuration }: {
   )
 }
 
+// ─── User Data JSON panel with copy button ────────────────────
+
+function UserDataJsonPanel({ userData }: { userData: UserData }) {
+  const [copied, setCopied] = useState(false)
+
+  const copyJson = useCallback(() => {
+    navigator.clipboard.writeText(JSON.stringify(userData, null, 2))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }, [userData])
+
+  return (
+    <details className="border-t border-gray-800 shrink-0">
+      <summary className="px-4 py-2 text-[10px] text-gray-700 cursor-pointer hover:text-gray-500 select-none flex items-center justify-between">
+        <span>Raw JSON</span>
+        <button
+          onClick={e => { e.preventDefault(); copyJson() }}
+          className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] hover:bg-gray-800 transition-colors"
+        >
+          {copied ? (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              <span className="text-green-400">Kopiert</span>
+            </>
+          ) : (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+              </svg>
+              <span>Kopieren</span>
+            </>
+          )}
+        </button>
+      </summary>
+      <pre className="px-4 pb-3 text-[10px] text-gray-600 overflow-auto max-h-36 whitespace-pre-wrap">
+        {JSON.stringify(userData, null, 2)}
+      </pre>
+    </details>
+  )
+}
+
 // ─── Main ─────────────────────────────────────────────────────
 
 export function PlanSimulator({ refData }: { refData: SimulatorRefData }) {
@@ -1033,14 +1130,7 @@ export function PlanSimulator({ refData }: { refData: SimulatorRefData }) {
           <div className="flex-1 overflow-y-auto p-4">
             <ConfigPanel userData={userData} updateUserData={updateUserData} refData={refData} />
           </div>
-          <details className="border-t border-gray-800 shrink-0">
-            <summary className="px-4 py-2 text-[10px] text-gray-700 cursor-pointer hover:text-gray-500 select-none">
-              Raw JSON
-            </summary>
-            <pre className="px-4 pb-3 text-[10px] text-gray-600 overflow-auto max-h-36 whitespace-pre-wrap">
-              {JSON.stringify(userData, null, 2)}
-            </pre>
-          </details>
+          <UserDataJsonPanel userData={userData} />
         </div>
 
         {/* Right: plan output */}

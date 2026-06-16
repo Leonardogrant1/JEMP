@@ -1,8 +1,13 @@
 import Link from 'next/link'
-import { getExercises } from '../actions/exercises'
+import { getExercises, getExerciseRelations } from '../actions/exercises'
+import { ExerciseCategoryFilter } from './_components/ExerciseCategoryFilter'
 
-export default async function AdminPage() {
-  const exercises = await getExercises()
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
+  const { category } = await searchParams
+  const [exercises, relations] = await Promise.all([
+    getExercises(category),
+    getExerciseRelations(),
+  ])
 
   const withYoutube = exercises.filter(e => e.youtube_url).length
   const withThumbnail = exercises.filter(e => e.thumbnail_storage_path).length
@@ -11,7 +16,7 @@ export default async function AdminPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-gray-400">
           {exercises.length} exercises — {withYoutube} with YouTube, {withThumbnail} with thumbnail, {withVideo} with video, {withImageGroup}/{exercises.length} with image group
         </p>
@@ -22,11 +27,15 @@ export default async function AdminPage() {
           + Neue Übung
         </Link>
       </div>
+      <div className="mb-4">
+        <ExerciseCategoryFilter categories={relations.categories as any} />
+      </div>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-800 text-left text-gray-400">
             <th className="pb-3 pr-6 font-medium">Name</th>
             <th className="pb-3 pr-6 font-medium">Slug</th>
+            <th className="pb-3 pr-6 font-medium">Category</th>
             <th className="pb-3 pr-4 font-medium">Image Group</th>
             <th className="pb-3 pr-4 font-medium">YouTube</th>
             <th className="pb-3 pr-4 font-medium">Thumbnail</th>
@@ -49,6 +58,9 @@ export default async function AdminPage() {
               </td>
               <td className="py-3 pr-6 text-gray-400 font-mono text-xs">
                 {exercise.slug}
+              </td>
+              <td className="py-3 pr-6 text-gray-400 text-xs">
+                {exercise.category?.slug ?? <span className="text-red-500">—</span>}
               </td>
               <td className="py-3 pr-4">
                 {exercise.image_group
