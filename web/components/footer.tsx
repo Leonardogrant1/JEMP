@@ -10,13 +10,13 @@ export async function Footer() {
           © {new Date().getFullYear()} {t("copyright")}
         </span>
         <nav className="flex items-center gap-6">
-          <a href="/impressum" className="text-white/30 text-sm hover:text-white/60 transition-colors">
+          <a href="/imprint" className="text-white/30 text-sm hover:text-white/60 transition-colors">
             {t("impressum")}
           </a>
-          <a href="/datenschutz" className="text-white/30 text-sm hover:text-white/60 transition-colors">
+          <a href="/privacy-policy" className="text-white/30 text-sm hover:text-white/60 transition-colors">
             {t("privacy")}
           </a>
-          <a href="/agb" className="text-white/30 text-sm hover:text-white/60 transition-colors">
+          <a href="/terms-of-service" className="text-white/30 text-sm hover:text-white/60 transition-colors">
             {t("terms")}
           </a>
         </nav>
