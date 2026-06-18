@@ -7,6 +7,7 @@ import { useRescheduleSession } from '@/mutations/use-reschedule-session';
 import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { type PlanSession, type SessionStatus, type WorkoutSession, usePlan } from '@/providers/plan-provider';
+import { usePlanGenerationStore } from '@/stores/plan-generation-store';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -224,6 +225,70 @@ function getPreviewSession(
     return planSessionByDow.get(dow) ?? null;
 }
 
+// ── Plan generation progress ──────────────────────────────────────────────
+
+const STEPS = [
+    { statusKey: 'planning_week', i18nKey: 'planGeneration.planning_week' },
+    { statusKey: 'generating_session', i18nKey: 'planGeneration.generating_session' },
+    { statusKey: 'saving', i18nKey: 'planGeneration.saving' },
+] as const;
+
+function PlanGenerationProgress() {
+    const { t } = useTranslation();
+    const { job, isGenerating, isError } = usePlanGenerationStore();
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+
+    if (!job || (!isGenerating && !isError && job.status !== 'completed')) return null;
+
+    const currentStepIndex = STEPS.findIndex(s => s.statusKey === job.status);
+
+    return (
+        <View style={[styles.progressContainer, { backgroundColor: theme.surface }]}>
+            <JempText type="subtitle" style={{ marginBottom: 16 }}>
+                {isError ? t('planGeneration.error_title') : t('planGeneration.title')}
+            </JempText>
+
+            {STEPS.map((step, index) => {
+                const isDone = currentStepIndex > index || job.status === 'completed';
+                const isActive = currentStepIndex === index && isGenerating;
+                const label = step.statusKey === 'generating_session' && job.phase_detail && isActive
+                    ? t('planGeneration.generating_session', {
+                        current: parseInt(job.phase_detail.split('/')[0] ?? '0'),
+                        total: parseInt(job.phase_detail.split('/')[1] ?? '0'),
+                    })
+                    : t(step.i18nKey as any);
+
+                return (
+                    <View key={step.statusKey} style={styles.progressStep}>
+                        <View style={[
+                            styles.progressDot,
+                            isDone && { backgroundColor: Cyan[500] },
+                            isActive && { backgroundColor: Electric[500] },
+                            !isDone && !isActive && { backgroundColor: theme.textMuted },
+                        ]}>
+                            {isDone && <Ionicons name="checkmark" size={12} color="#fff" />}
+                            {isActive && <ActivityIndicator size="small" color="#fff" />}
+                        </View>
+                        <JempText
+                            type="body"
+                            color={isActive ? theme.text : isDone ? Cyan[500] : theme.textMuted}
+                        >
+                            {label}
+                        </JempText>
+                    </View>
+                );
+            })}
+
+            {isError && (
+                <JempText type="caption" color="#ef4444" style={{ marginTop: 8 }}>
+                    {job.error ?? t('planGeneration.error_generic')}
+                </JempText>
+            )}
+        </View>
+    );
+}
+
 // ── Screen ────────────────────────────────────────────────────────────────
 
 export default function PlanScreen() {
@@ -233,6 +298,16 @@ export default function PlanScreen() {
 
     const { plan, sessions, planSessions, isLoading, streak } = usePlan();
     const { profile } = useCurrentUser();
+
+    const subscribe = usePlanGenerationStore(s => s.subscribe);
+    const unsubscribe = usePlanGenerationStore(s => s.unsubscribe);
+
+    useEffect(() => {
+        if (profile?.id) {
+            subscribe(profile.id);
+            return () => unsubscribe();
+        }
+    }, [profile?.id]);
 
     const { mutate: updateSessionStatus } = useUpdateSessionStatus();
     const { mutate: rescheduleSession } = useRescheduleSession();
@@ -341,6 +416,7 @@ export default function PlanScreen() {
 
     return (
         <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
+            <PlanGenerationProgress />
             <View style={styles.content} >
 
                 {/* Header */}
@@ -595,4 +671,9 @@ const styles = StyleSheet.create({
         borderRadius: 6,
         marginBottom: 2,
     },
+
+    // Plan generation progress
+    progressContainer: { padding: 20, borderRadius: 16, margin: 16, gap: 8 },
+    progressStep: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    progressDot: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 });
