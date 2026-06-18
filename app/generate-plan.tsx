@@ -145,9 +145,6 @@ export default function GeneratePlanScreen() {
         if (!profile) return;
 
         setPhase('sport');
-        setGenerateError(null);
-        setPlanReady(false);
-        setSuccess(false);
         setLoading(true);
 
         // Pre-fill body data
@@ -338,6 +335,20 @@ export default function GeneratePlanScreen() {
                 );
             }
 
+            // 4b. Update equipment-environment mapping (which equipment is in which environment)
+            await (supabase as any).from('user_equipment_environments').delete().eq('user_id', profile.id);
+            const equipEnvRows: { user_id: string; equipment_id: string; environment_id: string }[] = [];
+            for (const envId of selectedEnvIds) {
+                for (const eq of equipmentByEnv.get(envId) ?? []) {
+                    if (selectedEquipmentIds.has(eq.id)) {
+                        equipEnvRows.push({ user_id: profile.id, equipment_id: eq.id, environment_id: envId });
+                    }
+                }
+            }
+            if (equipEnvRows.length > 0) {
+                await (supabase as any).from('user_equipment_environments').insert(equipEnvRows);
+            }
+
             // 5. Update goals (targeted categories with priority)
             await supabase.from('user_targeted_categories').delete().eq('user_id', profile.id);
             if (rankedCategories.length > 0) {
@@ -415,18 +426,18 @@ export default function GeneratePlanScreen() {
 
             {/* Header */}
             <View style={[styles.header]}>
-                    <Pressable onPress={goBack} hitSlop={12}>
-                        <Ionicons
-                            name={phase === 'sport' ? 'close' : 'arrow-back'}
-                            size={24}
-                            color={theme.text}
-                        />
-                    </Pressable>
-                    <View style={styles.headerCenter}>
-                        <JempText type="body-l" color={theme.textMuted}>{t('ui.new_plan')}</JempText>
-                        <StepBars phase={phase} />
-                    </View>
-                    <View style={{ width: 24 }} />
+                <Pressable onPress={goBack} hitSlop={12}>
+                    <Ionicons
+                        name={phase === 'sport' ? 'close' : 'arrow-back'}
+                        size={24}
+                        color={theme.text}
+                    />
+                </Pressable>
+                <View style={styles.headerCenter}>
+                    <JempText type="body-l" color={theme.textMuted}>{t('ui.new_plan')}</JempText>
+                    <StepBars phase={phase} />
+                </View>
+                <View style={{ width: 24 }} />
             </View>
 
             {/* ── Sport ── */}
