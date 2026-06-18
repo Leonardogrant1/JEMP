@@ -310,7 +310,6 @@ export default function GeneratePlanScreen() {
         if (!profile) return;
         setPhase('generating');
         setGenerateError(null);
-        // Subscribe to Realtime job progress before invoking
         const { data: { session: authSession } } = await supabase.auth.getSession();
         if (authSession?.user?.id) {
             usePlanGenerationStore.getState().subscribe(authSession.user.id);
@@ -371,10 +370,15 @@ export default function GeneratePlanScreen() {
                 .eq('id', profile.id);
 
             // 7. Generate plan — fire-and-forget; job progress tracked via Realtime store
-            const { data: jobData, error } = await supabase.functions.invoke('generate-trainings-plan');
-            if (error) throw error;
-            // job_id is in jobData; the store's Realtime subscription handles status updates
-            void jobData;
+            const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+            const res = await fetch(`${backendUrl}/api/plan-generation/start`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${authSession?.access_token}` },
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body?.error ?? `HTTP ${res.status}`);
+            }
         } catch (err: any) {
             setGenerateError(err?.message ?? t('plan.error_generate'));
         }

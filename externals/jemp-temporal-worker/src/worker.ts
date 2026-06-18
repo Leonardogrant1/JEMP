@@ -33,12 +33,9 @@
  * Activities run in normal Node.js context.
  */
 
-import { Worker, NativeConnection } from '@temporalio/worker';
-import { Client } from '@temporalio/client';
-import * as allActivities from './activities';
-import { updateJobStatus, preparePlanGeneration, runSessionPhasesCD, savePlan } from './activities';
+import { NativeConnection, Worker } from '@temporalio/worker';
 import * as dotenv from 'dotenv';
-import { startJobPoller } from './job-poller';
+import { preparePlanGeneration, runSessionPhasesCD, savePlan, updateJobStatus } from './activities';
 
 dotenv.config();
 
@@ -58,31 +55,8 @@ async function main() {
         : { workflowsPath: require.resolve('./workflows/index.ts') };
 
     // Split activities: demo gets only its activity; main gets everything else
-    const { executeDemoHandler, ...mainActivities } = allActivities;
 
-    // Worker 1: Playlists, Quizzes, Flashcards
-    const mainWorker = await Worker.create({
-        connection,
-        namespace,
-        taskQueue: 'memolib-queue',
-        ...workflowBundleConfig,
-        activities: mainActivities,
-        // How many activities can run in parallel on this Worker.
-        // Keeps the DB pool from exhausting across all active Workflows.
-        maxConcurrentActivityTaskExecutions: 3,
-    });
-
-    // Worker 2: Demo (isolated queue, higher concurrency for fast parallel demo jobs)
-    const demoWorker = await Worker.create({
-        connection,
-        namespace,
-        taskQueue: 'memolib-demo-queue',
-        ...workflowBundleConfig,
-        activities: { executeDemoHandler },
-        maxConcurrentActivityTaskExecutions: 5,
-    });
-
-    // Worker 3: JEMP plan generation
+    //  JEMP plan generation
     const jempWorker = await Worker.create({
         connection,
         namespace,
@@ -96,14 +70,10 @@ async function main() {
     console.log('JEMP worker started: jemp-queue (plan generation)');
     console.log(`Connected to Temporal server: ${process.env.TEMPORAL_ADDRESS || 'localhost:7233'}`);
 
-    // Start job poller — reuse the NativeConnection for the Temporal client (avoids second TCP connection)
-    const temporalClient = new Client({ connection, namespace });
-    startJobPoller(temporalClient);
-
     // Promise.all blocks until all Workers are shut down.
     // Fly.io sends SIGTERM before shutting down — Temporal Workers handle this
     // gracefully by finishing in-progress activities before stopping.
-    await Promise.all([mainWorker.run(), demoWorker.run(), jempWorker.run()]);
+    await jempWorker.run();
 }
 
 main().catch(err => {
