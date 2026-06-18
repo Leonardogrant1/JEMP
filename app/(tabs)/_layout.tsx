@@ -37,6 +37,7 @@ export default function TabLayout() {
   useEffect(() => {
     if (session?.user?.id) {
       usePlanGenerationStore.getState().subscribe(session.user.id);
+      return () => usePlanGenerationStore.getState().unsubscribe();
     }
   }, [session?.user?.id]);
 
