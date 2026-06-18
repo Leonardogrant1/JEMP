@@ -10,10 +10,12 @@ import { CategoryPriorityStep } from '@/components/onboarding/steps/category-pri
 import { CompleteStep } from '@/components/onboarding/steps/complete-step';
 import { EnvironmentStep } from '@/components/onboarding/steps/environment-step';
 import { EquipmentStep } from '@/components/onboarding/steps/equipment-step';
+import { EquipmentEnvironmentStep } from '@/components/onboarding/steps/equipment-environment-step';
 import { GenderStep } from '@/components/onboarding/steps/gender-step';
 import { NameStep } from '@/components/onboarding/steps/name-step';
 import { NotificationSetupStep } from '@/components/onboarding/steps/notification-setup-step';
 import { PlanGenerationStep } from '@/components/onboarding/steps/plan-generation-step';
+import { PersonalizationStep } from '@/components/onboarding/steps/personalization-step';
 import { RatingStep } from '@/components/onboarding/steps/rating-step';
 import { ReferralCodeStep } from '@/components/onboarding/steps/referral-code-step';
 import { SportStep } from '@/components/onboarding/steps/sport-step';
@@ -55,10 +57,11 @@ export default function OnboardingScreen() {
         { component: CategoryPriorityStep, theme: 'dark', initialCanContinue: true, shouldSkip: () => targetedCategories.length <= 1 },
         { component: EnvironmentStep, theme: 'dark', initialCanContinue: false },
         { component: EquipmentStep, theme: 'dark', initialCanContinue: true },
+        { component: EquipmentEnvironmentStep, theme: 'dark', initialCanContinue: true },
         { component: WorkoutPrefsStep, theme: 'dark', initialCanContinue: false },
         { component: WeeklyScheduleStep, theme: 'dark', initialCanContinue: true },
         { component: CompleteStep, theme: 'dark', continueButtonText: t('onboarding.btn_create_plan') },
-        { component: PlanGenerationStep, theme: 'dark', showProgressIndicator: false, showContinueButton: false },
+        { component: PersonalizationStep, theme: 'dark', showProgressIndicator: false, showContinueButton: false },
         {
             component: NotificationSetupStep,
             theme: 'dark',

@@ -579,6 +579,18 @@ const en = {
     'mobility.rating_good': 'Good',
     'mobility.rating_full': 'Full range of motion',
 
+    // ── Personalization ──────────────────────────────────────────────────────────
+    'personalization.title': 'Setting up your profile',
+    'personalization.stage_saving': 'Saving your data...',
+    'personalization.stage_goals': 'Registering your goals...',
+    'personalization.stage_equipment': 'Noting your equipment...',
+    'personalization.stage_done': 'All set!',
+    'personalization.feature_0': 'Your profile is ready',
+    'personalization.feature_1': 'Goals saved',
+    'personalization.feature_2': 'Equipment noted',
+    'personalization.feature_3': 'Training days set',
+    'personalization.error': 'Something went wrong. Please try again.',
+
     // ── Plan generation ──────────────────────────────────────────────────────────
     'planGeneration.title': 'Creating your plan...',
     'planGeneration.fetching_data': 'Loading profile & equipment',

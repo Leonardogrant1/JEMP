@@ -581,6 +581,18 @@ const de: Record<TranslationKeys, string> = {
     'mobility.rating_good': 'Gut',
     'mobility.rating_full': 'Volle Beweglichkeit',
 
+    // ── Personalization ──────────────────────────────────────────────────────────
+    'personalization.title': 'Dein Profil wird eingerichtet',
+    'personalization.stage_saving': 'Daten werden gespeichert...',
+    'personalization.stage_goals': 'Deine Ziele werden registriert...',
+    'personalization.stage_equipment': 'Equipment wird notiert...',
+    'personalization.stage_done': 'Alles bereit!',
+    'personalization.feature_0': 'Dein Profil ist bereit',
+    'personalization.feature_1': 'Ziele gespeichert',
+    'personalization.feature_2': 'Equipment notiert',
+    'personalization.feature_3': 'Trainingstage festgelegt',
+    'personalization.error': 'Etwas ist schiefgelaufen. Bitte erneut versuchen.',
+
     // ── Plan generation ──────────────────────────────────────────────────────────
     'planGeneration.title': 'Plan wird erstellt...',
     'planGeneration.fetching_data': 'Profil & Equipment wird geladen',
