@@ -51,5 +51,8 @@ test-scripts
 # git worktrees
 .worktrees/
 
-jemp-493808-firebase-adminsdk-fbsvc-373c6eb63f.json
-google-services.json
+jemp-493808-firebase-adminsdk-fbsvc-373c6eb63f.json 
+# Expo
+.expo
+dist/
+web-build/externals/jemp-temporal-worker/env.dev.yaml
