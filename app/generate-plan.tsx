@@ -12,6 +12,7 @@ import { computeLoadProfile } from '@/lib/load-profile';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { supabase } from '@/services/supabase/client';
 import { useModalResultStore } from '@/stores/modal-result-store';
+import { usePlanGenerationStore } from '@/stores/plan-generation-store';
 import { SessionDuration } from '@/types/database';
 import { WeeklyScheduleSession } from '@/types/user-data';
 import { Ionicons } from '@expo/vector-icons';
@@ -110,6 +111,11 @@ export default function GeneratePlanScreen() {
     const [generateError, setGenerateError] = useState<string | null>(null);
     const [planReady, setPlanReady] = useState(false);
     const [success, setSuccess] = useState(false);
+
+    // Plan generation store (Realtime job tracking)
+    const { job, isError: isJobError } = usePlanGenerationStore();
+    const isComplete = job?.status === 'completed';
+    const jobError = isJobError ? (job?.error ?? t('plan.error_generate')) : null;
 
     // Sport
     const [selectedSportSlug, setSelectedSportSlug] = useState<string | null>(null);
@@ -304,6 +310,11 @@ export default function GeneratePlanScreen() {
         if (!profile) return;
         setPhase('generating');
         setGenerateError(null);
+        // Subscribe to Realtime job progress before invoking
+        const { data: { session: authSession } } = await supabase.auth.getSession();
+        if (authSession?.user?.id) {
+            usePlanGenerationStore.getState().subscribe(authSession.user.id);
+        }
         try {
             // 1. Update sport if changed
             if (selectedSportSlug && selectedSportSlug !== profile.sport?.slug) {
@@ -359,11 +370,11 @@ export default function GeneratePlanScreen() {
                 })
                 .eq('id', profile.id);
 
-            // 7. Generate plan
-            const { error } = await supabase.functions.invoke('generate-trainings-plan');
+            // 7. Generate plan — fire-and-forget; job progress tracked via Realtime store
+            const { data: jobData, error } = await supabase.functions.invoke('generate-trainings-plan');
             if (error) throw error;
-
-            setPlanReady(true);
+            // job_id is in jobData; the store's Realtime subscription handles status updates
+            void jobData;
         } catch (err: any) {
             setGenerateError(err?.message ?? t('plan.error_generate'));
         }
@@ -832,8 +843,8 @@ export default function GeneratePlanScreen() {
             {/* ── Generating ── */}
             {phase === 'generating' && (
                 <GeneratingView
-                    error={generateError}
-                    isComplete={planReady}
+                    error={generateError ?? jobError}
+                    isComplete={isComplete}
                     onRetry={generate}
                     onClose={() => router.back()}
                     onAnimationComplete={handleAnimationComplete}
