@@ -2,6 +2,7 @@ import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePendingAssessmentsCountQuery } from '@/queries/use-pending-assessments-count-query';
+import { usePlanGenerationStore } from '@/stores/plan-generation-store';
 import { BottomTabBarProps } from 'expo-router/tabs';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -57,6 +58,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
     const { profile } = useCurrentUser();
     const { data: pendingCount } = usePendingAssessmentsCountQuery(profile?.id);
     const hasPendingAssessments = (pendingCount ?? 0) > 0;
+    const isGeneratingPlan = usePlanGenerationStore(s => s.isGenerating);
 
     return (
         <View style={[styles.container, { paddingBottom: insets.bottom + 8 }]}>
@@ -88,7 +90,10 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
                             label={label}
                             isFocused={isFocused}
                             onPress={onPress}
-                            hasBadge={route.name === 'assessments' && hasPendingAssessments}
+                            hasBadge={
+                                (route.name === 'assessments' && hasPendingAssessments) ||
+                                (route.name === 'plan' && isGeneratingPlan)
+                            }
                         />
                     );
                 })}

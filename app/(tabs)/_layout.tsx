@@ -9,12 +9,13 @@ import { useRevenueCat } from '@/services/purchases/revenuecat/providers/Revenue
 import { PREMIUM_IDENTIFIER } from '@/services/purchases/revenuecat/constants';
 import { supabase } from '@/services/supabase/client';
 import { useOnboardingStore } from '@/stores/onboarding-store';
+import { usePlanGenerationStore } from '@/stores/plan-generation-store';
 import { useTutorialStore } from '@/stores/tutorial-store';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, Tabs } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -32,6 +33,12 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
   const isSubscribed = hasEntitlement(PREMIUM_IDENTIFIER);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      usePlanGenerationStore.getState().subscribe(session.user.id);
+    }
+  }, [session?.user?.id]);
 
   return (
     <View style={{ flex: 1 }}>

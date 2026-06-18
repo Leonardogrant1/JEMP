@@ -169,7 +169,7 @@ const en = {
     'ui.finish': 'Finish',
     'ui.cancel': 'Cancel',
     'ui.congrats_title': 'Workout complete!',
-    'ui.view_summary': 'View summary',
+    'ui.view_summary': 'View Summary',
     'ui.set': 'Set',
     'ui.target': 'Target',
     'ui.exercise_of': 'Exercise {{current}} of {{total}}',
@@ -192,7 +192,6 @@ const en = {
     'ui.session_completed': 'Session Completed',
     'ui.well_done': 'Well done!',
     'ui.summary': 'Summary',
-    'ui.view_summary': 'View Summary',
     'ui.total_volume': 'Total Volume',
     'ui.assessments_subtitle': 'Track your performance with regular tests',
     'ui.last_tested': 'Last tested',
@@ -381,6 +380,10 @@ const en = {
     'onboarding.equipment_title': 'Your equipment',
     'onboarding.equipment_subtitle': 'Everything pre-selected — deselect what you do not have.',
 
+    // equipment-environment-step
+    'onboarding.equipment_location_title': 'Where do you have your equipment?',
+    'onboarding.equipment_location_subtitle': 'Some gear is not available everywhere. Tell us where you can use it.',
+
     // workout-prefs-step
     'onboarding.workout_prefs_title': 'Plan your training',
     'onboarding.workout_prefs_subtitle': 'When and how long do you want to train?',
@@ -388,7 +391,9 @@ const en = {
     'onboarding.workout_prefs_duration_label': 'Session duration',
     'onboarding.workout_prefs_notes_label': 'Additional notes',
     'onboarding.workout_prefs_notes_hint': 'E.g. "On Wednesdays I have football practice — preferably a light session."',
-    'onboarding.workout_prefs_notes_placeholder': 'Optional notes for the trainer...',\n    'onboarding.workout_prefs_env_label': 'Training location per day',\n    'onboarding.workout_prefs_env_hint': 'Optional — if you train at different locations on certain days.',
+    'onboarding.workout_prefs_notes_placeholder': 'Optional notes for the trainer...',
+    'onboarding.workout_prefs_env_label': 'Training location per day',
+    'onboarding.workout_prefs_env_hint': 'Optional — if you train at different locations on certain days.',
     'onboarding.workout_prefs_day_mon': 'Mon',
     'onboarding.workout_prefs_day_tue': 'Tue',
     'onboarding.workout_prefs_day_wed': 'Wed',
@@ -573,6 +578,16 @@ const en = {
     'mobility.rating_restricted': 'Restricted',
     'mobility.rating_good': 'Good',
     'mobility.rating_full': 'Full range of motion',
+
+    // ── Plan generation ──────────────────────────────────────────────────────────
+    'planGeneration.title': 'Creating your plan...',
+    'planGeneration.planning_week': 'Building weekly structure',
+    'planGeneration.generating_session': 'Generating session {{current}}/{{total}}',
+    'planGeneration.saving': 'Saving plan',
+    'planGeneration.error_title': 'Plan generation failed',
+    'planGeneration.error_generic': 'Something went wrong. Please try again.',
+    'planGeneration.hint': 'Your plan is being created',
+    'planGeneration.hint_tap': 'Tap for details',
 
 } as const;
 

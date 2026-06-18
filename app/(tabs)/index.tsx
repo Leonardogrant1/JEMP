@@ -8,13 +8,14 @@ import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlan, WorkoutSession } from '@/providers/plan-provider';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
+import { usePlanGenerationStore } from '@/stores/plan-generation-store';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function getNextScheduledSession(sessions: WorkoutSession[]): WorkoutSession | null {
@@ -107,6 +108,7 @@ export default function HomeScreen() {
     }, [profile]);
 
     const { openWithPlacement } = useSuperwallFunctions();
+    const { isGenerating } = usePlanGenerationStore();
 
     const handleStartSession = useCallback(() => {
         if (!nextSession) return;
@@ -131,6 +133,20 @@ export default function HomeScreen() {
 
     return (
         <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
+            {isGenerating && (
+                <Pressable
+                    onPress={() => router.push('/(tabs)/plan')}
+                    style={[styles.generationBanner, { backgroundColor: Electric[500] + '22' }]}
+                >
+                    <ActivityIndicator size="small" color={Electric[500]} />
+                    <JempText type="caption" color={Electric[500]}>
+                        {t('planGeneration.hint')}
+                    </JempText>
+                    <JempText type="caption" color={Electric[500]}>
+                        {t('planGeneration.hint_tap')} →
+                    </JempText>
+                </Pressable>
+            )}
             <View style={styles.content}>
 
                 {/* ── Header ── */}
@@ -295,5 +311,15 @@ const styles = StyleSheet.create({
         height: 56,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    generationBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        marginHorizontal: 16,
+        marginBottom: 8,
+        borderRadius: 10,
     },
 });

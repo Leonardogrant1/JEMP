@@ -194,7 +194,6 @@ const de: Record<TranslationKeys, string> = {
     'ui.session_completed': 'Session abgeschlossen',
     'ui.well_done': 'Gut gemacht!',
     'ui.summary': 'Zusammenfassung',
-    'ui.view_summary': 'Zusammenfassung',
     'ui.total_volume': 'Gesamtvolumen',
     'ui.assessments_subtitle': 'Miss regelmäßig deine Leistung',
     'ui.age': 'Alter',
@@ -383,6 +382,10 @@ const de: Record<TranslationKeys, string> = {
     'onboarding.equipment_title': 'Dein Equipment',
     'onboarding.equipment_subtitle': 'Alles vorausgewählt — deaktiviere was du nicht hast.',
 
+    // equipment-environment-step
+    'onboarding.equipment_location_title': 'Wo hast du dein Equipment?',
+    'onboarding.equipment_location_subtitle': 'Manche Geräte sind nicht überall verfügbar. Gib an, wo du sie nutzen kannst.',
+
     // workout-prefs-step
     'onboarding.workout_prefs_title': 'Training planen',
     'onboarding.workout_prefs_subtitle': 'Wann und wie lange möchtest du trainieren?',
@@ -390,7 +393,9 @@ const de: Record<TranslationKeys, string> = {
     'onboarding.workout_prefs_duration_label': 'Einheitsdauer',
     'onboarding.workout_prefs_notes_label': 'Zusätzliche Hinweise',
     'onboarding.workout_prefs_notes_hint': 'Z.B. "Mittwochs habe ich Fußballtraining — lieber eine leichte Session."',
-    'onboarding.workout_prefs_notes_placeholder': 'Optionale Hinweise für den Trainer...',\n    'onboarding.workout_prefs_env_label': 'Trainingsort pro Tag',\n    'onboarding.workout_prefs_env_hint': 'Optional — falls du an bestimmten Tagen woanders trainierst.',
+    'onboarding.workout_prefs_notes_placeholder': 'Optionale Hinweise für den Trainer...',
+    'onboarding.workout_prefs_env_label': 'Trainingsort pro Tag',
+    'onboarding.workout_prefs_env_hint': 'Optional — falls du an bestimmten Tagen woanders trainierst.',
     'onboarding.workout_prefs_day_mon': 'Mo',
     'onboarding.workout_prefs_day_tue': 'Di',
     'onboarding.workout_prefs_day_wed': 'Mi',
@@ -575,6 +580,16 @@ const de: Record<TranslationKeys, string> = {
     'mobility.rating_restricted': 'Eingeschränkt',
     'mobility.rating_good': 'Gut',
     'mobility.rating_full': 'Volle Beweglichkeit',
+
+    // ── Plan generation ──────────────────────────────────────────────────────────
+    'planGeneration.title': 'Plan wird erstellt...',
+    'planGeneration.planning_week': 'Wochenstruktur wird geplant',
+    'planGeneration.generating_session': 'Session {{current}}/{{total}} wird generiert',
+    'planGeneration.saving': 'Plan wird gespeichert',
+    'planGeneration.error_title': 'Plangenerierung fehlgeschlagen',
+    'planGeneration.error_generic': 'Etwas ist schiefgelaufen. Bitte erneut versuchen.',
+    'planGeneration.hint': 'Dein Plan wird erstellt',
+    'planGeneration.hint_tap': 'Tippe für Details',
 
 };
 
