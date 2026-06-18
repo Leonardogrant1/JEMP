@@ -12,13 +12,20 @@ export async function preparePlanGeneration(input: { userId: string }): Promise<
   // ── Fetch user profile ───────────────────────────────────────────────────
   const { data: userProfile, error: profileError } = await supabase
     .from('user_profiles')
-    .select('*, user_category_levels(category_id, level_score), user_equipments(equipments(id, slug))')
+    .select('*, user_category_levels(category_id, level_score)')
     .eq('id', userId)
     .single()
   if (profileError || !userProfile) throw new Error(`User profile not found: ${profileError?.message}`)
 
-  const equipmentIds = (userProfile.user_equipments as any[]).map((e: any) => e.equipments.id) as string[]
   const categoryLevels = userProfile.user_category_levels as Array<{ category_id: string; level_score: number }>
+
+  // ── Fetch equipment ───────────────────────────────────────────────────────
+  const { data: userEquipRows } = await supabase
+    .from('user_equipments')
+    .select('equipment_id')
+    .eq('user_id', userId)
+
+  const equipmentIds = (userEquipRows ?? []).map((e: any) => e.equipment_id) as string[]
 
   // ── Fetch environments ───────────────────────────────────────────────────
   const { data: userEnvRows } = await supabase
