@@ -31,6 +31,9 @@ export const usePlanGenerationStore = create<PlanGenerationState>((set) => {
         isError: false,
 
         subscribe: async (userId: string) => {
+            // Already subscribed — do nothing
+            if (channel !== null) return;
+
             // Fetch current active job first
             const { data } = await supabase
                 .from('plan_generation_jobs')

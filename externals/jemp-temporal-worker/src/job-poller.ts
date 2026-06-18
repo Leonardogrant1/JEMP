@@ -23,11 +23,17 @@ export function startJobPoller(temporalClient: Client): void {
     for (const job of pendingJobs) {
       try {
         // Mark as picked up immediately to avoid double-processing
-        await supabase
+        const { count, error: updateError } = await supabase
           .from('plan_generation_jobs')
-          .update({ status: 'planning_week' })
+          .update({ status: 'planning_week', updated_at: new Date().toISOString() })
           .eq('id', job.id)
           .eq('status', 'pending')  // optimistic lock: only update if still pending
+          .select()
+
+        if (updateError || !count || count === 0) {
+          console.log(`[job-poller] Job ${job.id} already claimed, skipping`)
+          continue
+        }
 
         const handle = await temporalClient.workflow.start('generatePlanWorkflow', {
           taskQueue: 'jemp-queue',

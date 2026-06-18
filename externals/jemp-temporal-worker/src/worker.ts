@@ -36,6 +36,7 @@
 import { Worker, NativeConnection } from '@temporalio/worker';
 import { Client } from '@temporalio/client';
 import * as allActivities from './activities';
+import { updateJobStatus, preparePlanGeneration, runSessionPhasesCD, savePlan } from './activities';
 import * as dotenv from 'dotenv';
 import { startJobPoller } from './job-poller';
 
@@ -87,7 +88,7 @@ async function main() {
         namespace,
         taskQueue: 'jemp-queue',
         ...workflowBundleConfig,
-        activities: allActivities,  // includes all activities including new JEMP ones
+        activities: { updateJobStatus, preparePlanGeneration, runSessionPhasesCD, savePlan },
         maxConcurrentActivityTaskExecutions: 2,  // plan gen is I/O heavy
     });
 
