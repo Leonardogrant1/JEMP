@@ -47,7 +47,9 @@ export function PersonalizationStep() {
     const [featureAnimsDone, setFeatureAnimsDone] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const hasStarted = useRef(false);
+    const startedAt = useRef(Date.now());
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const MIN_DURATION_MS = 9000;
 
     const itemAnims = useRef(
         FEATURE_KEYS.map(() => ({
@@ -56,29 +58,35 @@ export function PersonalizationStep() {
         }))
     ).current;
 
-    // Progress tick — fast since this is just DB writes (~1-2s)
+    // Progress tick — crawls to 85% over ~8s so the screen stays up
     useEffect(() => {
         if (error) {
             if (intervalRef.current) clearInterval(intervalRef.current);
             return;
         }
+        // 85% over 8s = ~1.06 per 100ms
         intervalRef.current = setInterval(() => {
             setProgress(prev => {
                 if (prev >= 85) return prev;
-                return Math.min(85, prev + 3);
+                return Math.min(85, prev + 1.1);
             });
         }, 100);
         return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
     }, [error]);
 
-    // Sprint to 100% when done
+    // Sprint to 100% when done — but only after MIN_DURATION_MS from mount
     useEffect(() => {
         if (!isComplete) return;
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        const sprint = setInterval(() => {
-            setProgress(prev => Math.min(100, prev + 5));
-        }, 16);
-        return () => clearInterval(sprint);
+        const elapsed = Date.now() - startedAt.current;
+        const delay = Math.max(0, MIN_DURATION_MS - elapsed);
+        const timeout = setTimeout(() => {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+            const sprint = setInterval(() => {
+                setProgress(prev => Math.min(100, prev + 5));
+            }, 16);
+            intervalRef.current = sprint;
+        }, delay);
+        return () => clearTimeout(timeout);
     }, [isComplete]);
 
     // Navigate when animation done
