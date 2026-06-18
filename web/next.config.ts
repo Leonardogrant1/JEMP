@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  serverExternalPackages: ['@temporalio/client', '@temporalio/core-bridge'],
 };
 
 export default withNextIntl(nextConfig);
