@@ -1,5 +1,4 @@
 import { JempText } from '@/components/jemp-text';
-import { GeneratingView } from '@/components/ui/generating-view';
 import { JempInput } from '@/components/ui/jemp-input';
 import { HeightSlider, WeightSlider } from '@/components/ui/measurement-slider';
 import { SelectableChip } from '@/components/ui/selectable-chip';
@@ -11,7 +10,6 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { computeLoadProfile } from '@/lib/load-profile';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { supabase } from '@/services/supabase/client';
-import { useModalResultStore } from '@/stores/modal-result-store';
 import { usePlanGenerationStore } from '@/stores/plan-generation-store';
 import { SessionDuration } from '@/types/database';
 import { WeeklyScheduleSession } from '@/types/user-data';
@@ -22,7 +20,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    Pressable, ScrollView, StyleSheet,
+    ActivityIndicator, Pressable, ScrollView, StyleSheet,
     TouchableOpacity, View,
 } from 'react-native';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
@@ -31,7 +29,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Phase = 'sport' | 'environment' | 'equipment' | 'goals' | 'body' | 'schedule' | 'weekly' | 'generating';
+type Phase = 'sport' | 'environment' | 'equipment' | 'goals' | 'body' | 'schedule' | 'weekly';
 type GoalsSubPhase = 'select' | 'rank';
 
 interface EnvItem { id: string; slug: string; icon: keyof typeof Ionicons.glyphMap; name_i18n: Record<string, string> | null; description_i18n: Record<string, string> | null }
@@ -108,14 +106,7 @@ export default function GeneratePlanScreen() {
 
     const [phase, setPhase] = useState<Phase>('sport');
     const [loading, setLoading] = useState(true);
-    const [generateError, setGenerateError] = useState<string | null>(null);
-    const [planReady, setPlanReady] = useState(false);
-    const [success, setSuccess] = useState(false);
-
-    // Plan generation store (Realtime job tracking)
-    const { job, isError: isJobError } = usePlanGenerationStore();
-    const isComplete = job?.status === 'completed';
-    const jobError = isJobError ? (job?.error ?? t('plan.error_generate')) : null;
+    const [isSaving, setIsSaving] = useState(false);
 
     // Sport
     const [selectedSportSlug, setSelectedSportSlug] = useState<string | null>(null);
@@ -307,9 +298,8 @@ export default function GeneratePlanScreen() {
     }
 
     async function generate() {
-        if (!profile) return;
-        setPhase('generating');
-        setGenerateError(null);
+        if (!profile || isSaving) return;
+        setIsSaving(true);
         const { data: { session: authSession } } = await supabase.auth.getSession();
         if (authSession?.user?.id) {
             usePlanGenerationStore.getState().subscribe(authSession.user.id);
@@ -379,14 +369,13 @@ export default function GeneratePlanScreen() {
                 const body = await res.json().catch(() => ({}));
                 throw new Error(body?.error ?? `HTTP ${res.status}`);
             }
-        } catch (err: any) {
-            setGenerateError(err?.message ?? t('plan.error_generate'));
-        }
-    }
 
-    function handleAnimationComplete() {
-        useModalResultStore.getState().setPlanJustGenerated(true);
-        setSuccess(true);
+            router.replace('/(tabs)/plan');
+        } catch (err: any) {
+            setIsSaving(false);
+            // TODO: show error toast
+            console.error('generate error:', err?.message);
+        }
     }
 
     const canProceedSport = !!selectedSportSlug;
@@ -421,56 +410,11 @@ export default function GeneratePlanScreen() {
                     phase === 'schedule' ? preferredDays.size >= 2 && preferredDuration !== null :
                         true;
 
-    // ── Success state ─────────────────────────────────────────────────────────
-    if (success) {
-        return (
-            <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
-                <View style={[styles.successContainer, { paddingBottom: Math.max(insets.bottom, 24) }]}>
-                    <View style={styles.successIconCircle}>
-                        <Ionicons name="checkmark-circle" size={64} color={Cyan[500]} />
-                    </View>
-                    <JempText type="h1" color={theme.text} style={styles.successTitle}>
-                        {t('plan.success_title')}
-                    </JempText>
-                    <JempText type="body-l" color={theme.textMuted} style={styles.successSubtitle}>
-                        {t('plan.success_body')}
-                    </JempText>
-                    <View style={styles.successButtons}>
-                        <Pressable
-                            style={styles.viewPlanBtn}
-                            onPress={() => router.replace('/(tabs)/plan')}
-                        >
-                            <LinearGradient
-                                colors={GRADIENT}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 0 }}
-                                style={styles.viewPlanBtnGradient}
-                            >
-                                <JempText type="button" color="#fff">
-                                    {t('plan.success_view_plan')}
-                                </JempText>
-                            </LinearGradient>
-                        </Pressable>
-                        <Pressable
-                            style={[styles.closePlanBtn, { backgroundColor: theme.surface }]}
-                            onPress={() => router.back()}
-                        >
-                            <JempText type="body-l" color={theme.textMuted}>
-                                {t('ui.close')}
-                            </JempText>
-                        </Pressable>
-                    </View>
-                </View>
-            </View>
-        );
-    }
-
     return (
         <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
 
             {/* Header */}
-            {phase !== 'generating' && (
-                <View style={[styles.header]}>
+            <View style={[styles.header]}>
                     <Pressable onPress={goBack} hitSlop={12}>
                         <Ionicons
                             name={phase === 'sport' ? 'close' : 'arrow-back'}
@@ -483,8 +427,7 @@ export default function GeneratePlanScreen() {
                         <StepBars phase={phase} />
                     </View>
                     <View style={{ width: 24 }} />
-                </View>
-            )}
+            </View>
 
             {/* ── Sport ── */}
             {phase === 'sport' && (
@@ -844,38 +787,28 @@ export default function GeneratePlanScreen() {
                 );
             })()}
 
-            {/* ── Generating ── */}
-            {phase === 'generating' && (
-                <GeneratingView
-                    error={generateError ?? jobError}
-                    isComplete={isComplete}
-                    onRetry={generate}
-                    onClose={() => router.back()}
-                    onAnimationComplete={handleAnimationComplete}
-                />
-            )}
-
             {/* Fixed bottom button */}
-            {phase !== 'generating' && (
-                <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 20), backgroundColor: theme.background }]}>
-                    <Pressable
-                        onPress={phase === 'weekly' ? generate : handleNext}
-                        disabled={!canProceedNext}
-                        style={styles.bottomBtn}
+            <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 20), backgroundColor: theme.background }]}>
+                <Pressable
+                    onPress={phase === 'weekly' ? generate : handleNext}
+                    disabled={!canProceedNext || isSaving}
+                    style={styles.bottomBtn}
+                >
+                    <LinearGradient
+                        colors={canProceedNext ? GRADIENT : [theme.surface, theme.surface]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.bottomBtnGradient}
                     >
-                        <LinearGradient
-                            colors={canProceedNext ? GRADIENT : [theme.surface, theme.surface]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.bottomBtnGradient}
-                        >
-                            <JempText type="button" color={canProceedNext ? '#fff' : theme.textMuted}>
+                        {isSaving
+                            ? <ActivityIndicator color="#fff" />
+                            : <JempText type="button" color={canProceedNext ? '#fff' : theme.textMuted}>
                                 {phase === 'weekly' ? t('plan.create') : t('ui.continue')}
                             </JempText>
-                        </LinearGradient>
-                    </Pressable>
-                </View>
-            )}
+                        }
+                    </LinearGradient>
+                </Pressable>
+            </View>
         </View>
     );
 }
@@ -960,38 +893,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(61, 158, 203, 0.15)',
     },
 
-    // Success state
-    successContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 32,
-        gap: 16,
-    },
-    successIconCircle: {
-        marginBottom: 8,
-    },
-    successTitle: {
-        textAlign: 'center',
-    },
-    successSubtitle: {
-        textAlign: 'center',
-        lineHeight: 22,
-    },
-    successButtons: {
-        width: '100%',
-        gap: 10,
-        marginTop: 8,
-    },
-    viewPlanBtn: {
-        borderRadius: 100,
-        overflow: 'hidden',
-    },
-    viewPlanBtnGradient: {
-        height: 52,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
     closePlanBtn: {
         borderRadius: 100,
         height: 52,
