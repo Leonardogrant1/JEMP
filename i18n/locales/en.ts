@@ -581,6 +581,7 @@ const en = {
 
     // ── Plan generation ──────────────────────────────────────────────────────────
     'planGeneration.title': 'Creating your plan...',
+    'planGeneration.fetching_data': 'Loading profile & equipment',
     'planGeneration.planning_week': 'Building weekly structure',
     'planGeneration.generating_session': 'Generating session {{current}}/{{total}}',
     'planGeneration.saving': 'Saving plan',

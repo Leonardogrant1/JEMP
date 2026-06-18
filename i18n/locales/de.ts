@@ -583,6 +583,7 @@ const de: Record<TranslationKeys, string> = {
 
     // ── Plan generation ──────────────────────────────────────────────────────────
     'planGeneration.title': 'Plan wird erstellt...',
+    'planGeneration.fetching_data': 'Profil & Equipment wird geladen',
     'planGeneration.planning_week': 'Wochenstruktur wird geplant',
     'planGeneration.generating_session': 'Session {{current}}/{{total}} wird generiert',
     'planGeneration.saving': 'Plan wird gespeichert',

@@ -27,8 +27,10 @@ export async function generatePlanWorkflow(input: {
   const { userId, jobId } = input
 
   try {
-    await updateJobStatus({ jobId, status: 'planning_week' })
+    await updateJobStatus({ jobId, status: 'fetching_data' })
     const prepareResult = await preparePlanGeneration({ userId })
+
+    await updateJobStatus({ jobId, status: 'planning_week' })
 
     const totalSessions = prepareResult.sessionBuildInputs.length
     const plannedSessions: PlannedSession[] = []

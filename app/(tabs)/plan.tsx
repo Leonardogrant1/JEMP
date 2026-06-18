@@ -228,6 +228,7 @@ function getPreviewSession(
 // ── Plan generation progress ──────────────────────────────────────────────
 
 const STEPS = [
+    { statusKey: 'fetching_data', i18nKey: 'planGeneration.fetching_data' },
     { statusKey: 'planning_week', i18nKey: 'planGeneration.planning_week' },
     { statusKey: 'generating_session', i18nKey: 'planGeneration.generating_session' },
     { statusKey: 'saving', i18nKey: 'planGeneration.saving' },
