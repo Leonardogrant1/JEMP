@@ -41,6 +41,7 @@ export function PlanGenerationStep() {
                     categoryLevels,
                     equipmentIds,
                     environmentIds,
+                    equipmentEnvironments,
                     dayEnvironments,
                     weekly_schedule,
                     name_source,
@@ -65,6 +66,7 @@ export function PlanGenerationStep() {
                     supabase.from('user_category_levels').delete().eq('user_id', session.user.id),
                     supabase.from('user_environments').delete().eq('user_id', session.user.id),
                     supabase.from('user_equipments').delete().eq('user_id', session.user.id),
+                    (supabase as any).from('user_equipment_environments').delete().eq('user_id', session.user.id),
                 ]);
 
                 if (targetedCategories.length > 0) {
@@ -107,6 +109,17 @@ export function PlanGenerationStep() {
                         }))
                     );
                     if (equipError) throw equipError;
+                }
+
+                if (equipmentEnvironments.length > 0) {
+                    const { error: equipEnvError } = await (supabase as any).from('user_equipment_environments').insert(
+                        equipmentEnvironments.map(({ equipment_id, environment_id }) => ({
+                            user_id: session.user.id,
+                            equipment_id,
+                            environment_id,
+                        }))
+                    );
+                    if (equipEnvError) throw equipEnvError;
                 }
 
                 const { error: genError } = await supabase.functions.invoke('generate-trainings-plan');

@@ -1,9 +1,15 @@
+import { Tables } from "@/database.types";
 import { saveLanguageLocally, type AppLanguage } from "@/i18n";
 import { supabase } from "@/services/supabase/client";
-import { UserProfile } from "@/types/database";
+import { WeeklySchedule } from "@/types/database";
 import i18n from "i18next";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useAuth } from "./auth-provider";
+
+type UserProfile = Omit<Tables<'user_profiles'>, "weekly_schedule"> & {
+    sport: Tables<'sports'> | null,
+    weekly_schedule: WeeklySchedule
+}
 
 type CurrentUserContextType = {
     profile: UserProfile | null;

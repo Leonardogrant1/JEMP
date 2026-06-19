@@ -53,3 +53,5 @@ test-scripts
 
 jemp-493808-firebase-adminsdk-fbsvc-373c6eb63f.json
 externals/jemp-temporal-worker/env.dev.yaml
+
+env.*.yaml

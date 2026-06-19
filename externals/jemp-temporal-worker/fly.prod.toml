@@ -1,0 +1,10 @@
+app = "memolib-temporal-worker-prod"
+primary_region = "fra"
+
+[deploy]
+  strategy = "rolling"
+
+[vm]
+  memory = "2gb"
+  cpu_kind = "shared"
+  cpus = 2

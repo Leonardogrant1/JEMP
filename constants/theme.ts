@@ -46,6 +46,14 @@ export const Cyan = {
 } as const;
 
 
+export const MODE_COLORS: Record<string, string> = {
+  full: '#22c55e',
+  reduced: '#f59e0b',
+  activation: '#3b82f6',
+  recovery: '#a78bfa',
+};
+
+
 // Mid-point between Cyan[500] and Electric[500] gradient
 export const GradientMid = '#3D9ECB';
 

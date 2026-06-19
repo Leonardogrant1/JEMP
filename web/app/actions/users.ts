@@ -70,6 +70,7 @@ export type UserProfile = {
   sport: { slug: string; name_de: string } | null
   environments: { slug: string; name_de: string }[]
   equipments: { slug: string; name_de: string }[]
+  equipment_environments: { equipment_slug: string; environment_slugs: string[] }[]
   focus_categories: { slug: string; name_de: string; priority: number }[]
   category_levels: { slug: string; name_de: string; level_score: number }[]
 }
@@ -221,28 +222,44 @@ export async function getUsers(
 export async function fetchUserProfile(userId: string): Promise<UserProfile | null> {
   await requireAdmin()
 
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .select(`
-      id, first_name, last_name, email, birth_date, gender,
-      height_in_cm, weight_in_kg, role, has_onboarded,
-      preferred_language, timezone, preferred_session_duration,
-      preferred_workout_days, load_score, load_profile,
-      created_at, last_active_at,
-      sport:sports(slug, name_i18n),
-      user_environments(environment:environments(slug, name_i18n)),
-      user_equipments(equipment:equipments(slug, name_i18n)),
-      user_targeted_categories(priority, category:categories(slug, name_i18n)),
-      user_category_levels(level_score, category:categories(slug, name_i18n))
-    `)
-    .eq('id', userId)
-    .single()
+  const [{ data, error }, { data: equipEnvData }] = await Promise.all([
+    supabase
+      .from('user_profiles')
+      .select(`
+        id, first_name, last_name, email, birth_date, gender,
+        height_in_cm, weight_in_kg, role, has_onboarded,
+        preferred_language, timezone, preferred_session_duration,
+        preferred_workout_days, load_score, load_profile,
+        created_at, last_active_at,
+        sport:sports(slug, name_i18n),
+        user_environments(environment:environments(slug, name_i18n)),
+        user_equipments!user_equipments_user_id_fkey(equipment:equipments!user_equipments_equipment_id_fkey(slug, name_i18n)),
+        user_targeted_categories(priority, category:categories(slug, name_i18n)),
+        user_category_levels(level_score, category:categories(slug, name_i18n))
+      `)
+      .eq('id', userId)
+      .single(),
+    (supabase as any)
+      .from('user_equipment_environments')
+      .select('equipment_id, environment_id, equipment:equipments(slug), environment:environments(slug)')
+      .eq('user_id', userId),
+  ])
 
   if (error && error.code === 'PGRST116') return null
   if (error) throw new Error(error.message)
   if (!data) return null
 
   const d = data as any
+
+  // Group environment slugs by equipment slug
+  const equipEnvMap = new Map<string, string[]>()
+  for (const row of (equipEnvData ?? []) as any[]) {
+    const eqSlug = row.equipment?.slug
+    const envSlug = row.environment?.slug
+    if (!eqSlug || !envSlug) continue
+    if (!equipEnvMap.has(eqSlug)) equipEnvMap.set(eqSlug, [])
+    equipEnvMap.get(eqSlug)!.push(envSlug)
+  }
 
   return {
     id: d.id,
@@ -271,6 +288,10 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
     equipments: (d.user_equipments ?? []).map((r: any) => ({
       slug: r.equipment.slug,
       name_de: asI18n(r.equipment.name_i18n).de,
+    })),
+    equipment_environments: [...equipEnvMap.entries()].map(([equipment_slug, environment_slugs]) => ({
+      equipment_slug,
+      environment_slugs,
     })),
     focus_categories: (d.user_targeted_categories ?? [])
       .sort((a: any, b: any) => a.priority - b.priority)

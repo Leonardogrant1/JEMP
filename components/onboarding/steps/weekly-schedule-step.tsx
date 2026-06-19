@@ -6,7 +6,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { WeeklyScheduleSession } from '@/types/user-data';
 import Slider from '@react-native-community/slider';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -14,6 +14,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 type SessionType = WeeklyScheduleSession['type'];
 
 const COMBAT_SPORTS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
+const EMPTY_ARRAY: number[] = [];
 
 function getSessionTypes(sportSlug: string | null): { key: SessionType; labelKey: string }[] {
     const isCombat = COMBAT_SPORTS.has(sportSlug ?? '');
@@ -44,7 +45,7 @@ export function WeeklyScheduleStep() {
         { value: 7, label: t('onboarding.workout_prefs_day_sun') },
     ];
 
-    const preferredWorkoutDays = useOnboardingStore((s) => s.preferred_workout_days);
+    const preferredWorkoutDays = useOnboardingStore((s) => s.preferred_workout_days ?? EMPTY_ARRAY);
 
     const [sessions, setSessions] = useState<WeeklyScheduleSession[]>(
         () => storedSchedule?.sessions ?? []
@@ -52,7 +53,7 @@ export function WeeklyScheduleStep() {
 
     useEffect(() => {
         setCanContinue(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     function persist(next: WeeklyScheduleSession[]) {
@@ -77,10 +78,11 @@ export function WeeklyScheduleStep() {
         persist(sessions.map((s) => s.day_of_week === day ? { ...s, intensity } : s));
     }
 
-    const selectedDays = new Set(sessions.map((s) => s.day_of_week));
-    const sortedSessions = [...sessions].sort((a, b) => a.day_of_week - b.day_of_week);
+    const selectedDays = useMemo(() => new Set(sessions.map((s) => s.day_of_week)), [sessions]);
+    const sortedSessions = useMemo(() => [...sessions].sort((a, b) => a.day_of_week - b.day_of_week), [sessions]);
 
     function getAffectedJempDays(sportDay: number, mode: 'adjacent' | 'same'): number[] {
+        if (preferredWorkoutDays.length === 0) return []
         if (mode === 'same') {
             return preferredWorkoutDays.includes(sportDay) ? [sportDay] : [];
         }
@@ -130,9 +132,9 @@ export function WeeklyScheduleStep() {
                         style={[styles.card, { backgroundColor: theme.surface }]}
                     >
                         <View style={styles.cardHeader}>
-                            <JempText type="body-m" style={styles.cardDay}>{dayLabel}</JempText>
+                            <JempText type="body-sm" style={styles.cardDay}>{dayLabel}</JempText>
                             <TouchableOpacity onPress={() => toggleDay(session.day_of_week)} hitSlop={12}>
-                                <JempText type="body-m" color={theme.textMuted}>✕</JempText>
+                                <JempText type="body-sm" color={theme.textMuted}>✕</JempText>
                             </TouchableOpacity>
                         </View>
 
@@ -199,8 +201,8 @@ export function WeeklyScheduleStep() {
                                     const key = sameDay.length > 0 && adjacent.length > 0
                                         ? 'onboarding.weekly_schedule_hint_intensity_8plus_both'
                                         : sameDay.length > 0
-                                        ? 'onboarding.weekly_schedule_hint_intensity_8plus_same'
-                                        : 'onboarding.weekly_schedule_hint_intensity_8plus_adjacent';
+                                            ? 'onboarding.weekly_schedule_hint_intensity_8plus_same'
+                                            : 'onboarding.weekly_schedule_hint_intensity_8plus_adjacent';
                                     return (
                                         <View style={[styles.hintBox, { backgroundColor: 'rgba(61, 158, 203, 0.15)' }]}>
                                             <JempText type="body-sm" color={GradientMid}>

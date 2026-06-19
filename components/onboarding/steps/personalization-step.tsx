@@ -157,6 +157,7 @@ export function PersonalizationStep() {
                 supabase.from('user_category_levels').delete().eq('user_id', session.user.id),
                 supabase.from('user_environments').delete().eq('user_id', session.user.id),
                 supabase.from('user_equipments').delete().eq('user_id', session.user.id),
+                (supabase as any).from('user_equipment_environments').delete().eq('user_id', session.user.id),
             ]);
 
             if (targetedCategories.length > 0) {
@@ -187,11 +188,14 @@ export function PersonalizationStep() {
                 if (e) throw e;
             }
 
-            const equipEnvRows = equipmentEnvironments.flatMap(({ equipment_id, environment_ids }) =>
-                environment_ids.map(environment_id => ({ user_id: session.user.id, equipment_id, environment_id }))
-            );
-            if (equipEnvRows.length > 0) {
-                const { error: e } = await (supabase as any).from('user_equipment_environments').insert(equipEnvRows);
+            if (equipmentEnvironments.length > 0) {
+                const { error: e } = await (supabase as any).from('user_equipment_environments').insert(
+                    equipmentEnvironments.map(({ equipment_id, environment_id }) => ({
+                        user_id: session.user.id,
+                        equipment_id,
+                        environment_id,
+                    }))
+                );
                 if (e) throw e;
             }
 

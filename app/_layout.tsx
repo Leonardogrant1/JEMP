@@ -154,10 +154,10 @@ function MainStack({ languageReady }: { languageReady: boolean }) {
         <Stack.Screen name="assessment-confirm" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="session-manage" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="session-reschedule" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
-        <Stack.Screen name="equipment" options={{ animation: 'slide_from_bottom', headerShown: false }} />
-        <Stack.Screen name="goals" options={{ animation: 'slide_from_bottom', headerShown: false }} />
-        <Stack.Screen name="sport" options={{ animation: 'slide_from_bottom', headerShown: false }} />
-        <Stack.Screen name="generate-plan" options={{ animation: 'slide_from_bottom', headerShown: false }} />
+        <Stack.Screen name="equipment" options={{ animation: 'slide_from_bottom', headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="goals" options={{ animation: 'slide_from_bottom', headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="sport" options={{ animation: 'slide_from_bottom', headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="generate-plan" options={{ animation: 'slide_from_bottom', headerShown: false, gestureEnabled: false }} />
       </Stack.Protected>
 
 

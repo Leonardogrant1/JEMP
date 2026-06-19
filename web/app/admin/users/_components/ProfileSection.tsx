@@ -82,10 +82,25 @@ export function ProfileSection({ profile }: { profile: UserProfile }) {
           <SectionTitle>Equipment</SectionTitle>
           {profile.equipments.length === 0
             ? <p className="text-xs text-gray-600 mb-4">—</p>
-            : <div className="flex flex-wrap gap-1.5 mb-4">
-                {profile.equipments.map(e => (
-                  <span key={e.slug} className="text-xs bg-gray-900 border border-gray-800 rounded px-2 py-0.5">{e.name_de}</span>
-                ))}
+            : <div className="flex flex-col gap-1.5 mb-4">
+                {profile.equipments.map(e => {
+                  const envSlugs = profile.equipment_environments.find(
+                    ee => ee.equipment_slug === e.slug
+                  )?.environment_slugs ?? []
+                  return (
+                    <div key={e.slug} className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs bg-gray-900 border border-gray-800 rounded px-2 py-0.5">{e.name_de}</span>
+                      {envSlugs.length > 0 && (
+                        <>
+                          <span className="text-[10px] text-gray-600">→</span>
+                          {envSlugs.map(s => (
+                            <span key={s} className="text-[10px] text-gray-400 bg-gray-900/60 border border-gray-800/60 rounded px-1.5 py-0.5">{s}</span>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
           }
 

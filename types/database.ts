@@ -1,6 +1,20 @@
+
 export type Gender = 'male' | 'female' | 'other';
 
 export type SessionDuration = '30min' | '45min' | '60min' | '90min';
+
+export type ScheduleSessionType = "team_training" | "game" | "tournament";
+
+export type ScheduleSession = {
+  type: ScheduleSessionType;
+  intensity: number;
+  day_of_week: number;
+};
+
+export type WeeklySchedule = {
+  notes: string | null;
+  sessions: ScheduleSession[];
+};
 
 export type UserProfile = {
   id: string

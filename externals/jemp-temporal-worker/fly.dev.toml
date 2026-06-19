@@ -1,0 +1,10 @@
+app = "memolib-temporal-worker-dev"
+primary_region = "fra"
+
+[deploy]
+  strategy = "immediate"
+
+[vm]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
