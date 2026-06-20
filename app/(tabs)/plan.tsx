@@ -1,20 +1,20 @@
 import { JempText } from '@/components/jemp-text';
-import { supabase } from '@/services/supabase/client';
+import { EmptyPlanCard } from '@/components/plan/EmptyPlanCard';
 import { PlanGenerationScreen } from '@/components/plan/PlanGenerationScreen';
 import { PlanSessionCard } from '@/components/plan/PlanSessionCard';
 import { SessionCard } from '@/components/plan/SessionCard';
 import { StatsCard } from '@/components/plan/StatsCard';
 import { WeekStrip } from '@/components/plan/WeekStrip';
-import { EmptyPlanCard } from '@/components/plan/EmptyPlanCard';
 import { type DayVariant, RestDayCard } from '@/components/rest-day-card';
 import { MONTHS } from '@/constants/date-constants';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { getISOWeek, getPreviewSession, getWeekDays, toDateStr } from '@/helpers/date-helpers';
+import { getDayVariant, toDatabaseDow } from '@/helpers/session-helpers';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { type PlanSession, usePlan } from '@/providers/plan-provider';
+import { supabase } from '@/services/supabase/client';
 import { usePlanGenerationStore } from '@/stores/plan-generation-store';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -111,44 +111,19 @@ export default function PlanScreen() {
         return getPreviewSession(selectedDay, sessions, planSessionByDow);
     }, [selectedDay, sessions, planSessionByDow]);
 
-    // First upcoming concrete session for the preview template (for "View Details" navigation)
-    const previewNextSession = useMemo(() => {
-        if (!selectedDayPreview) return null;
-        const todayStr = toDateStr(new Date());
-        return sessions.find(s =>
-            s.workout_plan_session_id === selectedDayPreview.id &&
-            s.scheduled_at != null &&
-            toDateStr(new Date(s.scheduled_at)) > todayStr
-        ) ?? null;
-    }, [selectedDayPreview, sessions]);
-
     // Day variant from weekly_schedule
     const selectedDayVariant = useMemo((): DayVariant => {
-        const weeklySchedule = profile?.weekly_schedule;
-        if (!weeklySchedule?.sessions?.length) return 'rest';
-        const jsDay = selectedDay.getDay();
-        const dow = jsDay === 0 ? 7 : jsDay;
-        const sportSession = weeklySchedule.sessions.find((s) => s.day_of_week === dow);
-        if (!sportSession) return 'rest';
-        const COMBAT_SPORTS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
-        const isCombat = COMBAT_SPORTS.has(profile?.sport?.slug ?? '');
-        if (sportSession.type === 'tournament') return 'tournament';
-        if (sportSession.type === 'game') return isCombat ? 'fight' : 'game';
-        return 'training';
+        return getDayVariant(selectedDay, profile?.weekly_schedule, profile?.sport?.slug);
     }, [selectedDay, profile]);
 
     function renderSelectedDayContent() {
         if (selectedDaySessions.length > 0) {
             const session = selectedDaySessions[0];
-            const js = selectedDay.getDay();
-            const dow = js === 0 ? 7 : js;
-            const planSession = planSessionByDow.get(dow);
             return (
                 <>
                     <SessionCard
                         key={session.id}
                         session={session}
-                        modeSlug={planSession?.mode_slug}
                         theme={theme}
                     />
                     {session.status === 'scheduled' && (
@@ -185,7 +160,6 @@ export default function PlanScreen() {
                 <PlanSessionCard
                     key={selectedDayPreview.id}
                     planSession={selectedDayPreview}
-                    nextSession={previewNextSession}
                     theme={theme}
                 />
             );
@@ -279,7 +253,7 @@ const styles = StyleSheet.create({
     title: { letterSpacing: -0.5 },
     weekInfo: { alignItems: 'flex-end', gap: 2, paddingBottom: 4 },
 
-    centered: { paddingTop: 60, alignItems: 'center' },
+    centered: { paddingTop: 60, alignItems: 'center', flex: 1, justifyContent: "center" },
 
 
     // Sessions

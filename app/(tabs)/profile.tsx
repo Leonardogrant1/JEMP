@@ -168,7 +168,7 @@ export default function ProfileScreen() {
                         <SettingsRow
                             icon={<CalendarIcon width={20} height={20} color="#fff" />}
                             label={t('ui.new_plan')}
-                            onPress={() => openWithPlacement('generate_plan', () => router.push('/generate-plan'))}
+                            onPress={() => openWithPlacement('generate_plan', () => router.replace('/generate-plan'))}
                         />
                         {/* <SettingsRow
                             icon={<DumbellIcon width={20} height={20} color="#fff" />}

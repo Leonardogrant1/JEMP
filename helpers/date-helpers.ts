@@ -1,3 +1,4 @@
+import { toDatabaseDow } from "./session-helpers";
 import { PlanSession, WorkoutSession } from "@/providers/plan-provider";
 
 function getISOWeek(date: Date): number {
@@ -31,8 +32,7 @@ function getPreviewSession(
     const dateStr = toDateStr(day);
     const hasReal = sessions.some(s => toDateStr(new Date(s.scheduled_at!)) === dateStr);
     if (hasReal) return null;
-    const jsDay = day.getDay(); // 0=So, 1=Mo, …, 6=Sa
-    const dow = jsDay === 0 ? 7 : jsDay; // DB: 1=Mo, 7=So
+    const dow = toDatabaseDow(day);
     const planSession = planSessionByDow.get(dow);
     if (!planSession) return null;
     // Don't show preview if a real session for this plan template already exists this week

@@ -1,18 +1,20 @@
-import * as Haptics from 'expo-haptics';
+import { Cyan, Electric, GradientMid } from '@/constants/theme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useAuth } from '@/providers/auth-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { supabase } from '@/services/supabase/client';
 import { useOnboardingStore } from '@/stores/onboarding-store';
-import { Cyan, Electric, GradientMid } from '@/constants/theme';
-import { devLog } from '@/utils/dev-log';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { Keyframe } from 'react-native-reanimated';
+import { OnboardingBackground } from './onboarding-background';
+import { OnboardingControlContext } from './onboarding-control-context';
+import { OnboardingStep } from './types';
 
 const enterFromRight = new Keyframe({
     0: { opacity: 0, transform: [{ translateX: 48 }] },
@@ -33,9 +35,6 @@ const exitToRight = new Keyframe({
     0: { opacity: 1, transform: [{ translateX: 0 }] },
     100: { opacity: 0, transform: [{ translateX: 48 }] },
 }).duration(340);
-import { OnboardingBackground } from './onboarding-background';
-import { OnboardingControlContext } from './onboarding-control-context';
-import { OnboardingStep } from './types';
 
 const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
 
@@ -79,8 +78,11 @@ export function OnboardingProgressWrapper({ steps }: Props) {
             }
             const referralCode = onboardingData.referral_code;
             onboardingData.reset();
-            await refreshProfile();
-            const navigate = () => router.replace('/tutorial');
+
+            const navigate = async () => {
+                await refreshProfile();
+                router.replace('/tutorial');
+            }
             if (referralCode) {
                 await update({ promocode: referralCode });
             }

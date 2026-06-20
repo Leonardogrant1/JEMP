@@ -108,6 +108,7 @@ export default function GeneratePlanScreen() {
     const [phase, setPhase] = useState<Phase>('sport');
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
 
     // Sport
     const [selectedSportSlug, setSelectedSportSlug] = useState<string | null>(null);
@@ -305,6 +306,7 @@ export default function GeneratePlanScreen() {
     async function generate() {
         if (!profile || isSaving) return;
         setIsSaving(true);
+        setSaveError(null);
         const { data: { session: authSession } } = await supabase.auth.getSession();
         if (authSession?.user?.id) {
             usePlanGenerationStore.getState().subscribe(authSession.user.id);
@@ -396,7 +398,7 @@ export default function GeneratePlanScreen() {
             router.replace('/(tabs)/plan');
         } catch (err: any) {
             setIsSaving(false);
-            // TODO: show error toast
+            setSaveError(err?.message ?? 'Unknown error');
             console.error('generate error:', err?.message);
         }
     }
@@ -851,6 +853,11 @@ export default function GeneratePlanScreen() {
 
             {/* Fixed bottom button */}
             <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 20), backgroundColor: theme.background }]}>
+                {saveError && (
+                    <JempText type="body-sm" color="#ef4444" style={{ textAlign: 'center', marginBottom: 8 }}>
+                        {saveError}
+                    </JempText>
+                )}
                 <Pressable
                     onPress={phase === 'weekly' ? generate : handleNext}
                     disabled={!canProceedNext || isSaving}

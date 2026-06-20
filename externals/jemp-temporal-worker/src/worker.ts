@@ -35,7 +35,7 @@
 
 import { NativeConnection, Worker } from '@temporalio/worker';
 import * as dotenv from 'dotenv';
-import { preparePlanGeneration, runSessionPhasesCD, savePlan, updateJobStatus } from './activities';
+import { preparePlanGeneration, runSessionPhasesCD, savePlan, sendPlanNotification, updateJobStatus } from './activities';
 
 dotenv.config();
 
@@ -62,7 +62,7 @@ async function main() {
         namespace,
         taskQueue: 'jemp-queue',
         ...workflowBundleConfig,
-        activities: { updateJobStatus, preparePlanGeneration, runSessionPhasesCD, savePlan },
+        activities: { updateJobStatus, preparePlanGeneration, runSessionPhasesCD, savePlan, sendPlanNotification },
         maxConcurrentActivityTaskExecutions: 2,  // plan gen is I/O heavy
     });
 

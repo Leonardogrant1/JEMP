@@ -1,6 +1,7 @@
 import { getSessionImage } from "@/constants/session-images";
 import { Cyan, Electric } from "@/constants/theme";
-import { WorkoutSession } from "@/providers/plan-provider";
+import { getSessionModeSlug } from "@/helpers/session-helpers";
+import { usePlan, WorkoutSession } from "@/providers/plan-provider";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -11,9 +12,12 @@ import { JempText } from "../jemp-text";
 import { ModeBadge } from "./ModeBadge";
 import { StatusBadge } from "./StatusBadge";
 
-export function SessionCard({ session, modeSlug, theme }: { session: WorkoutSession; modeSlug?: string | null; theme: any }) {
+export function SessionCard({ session, modeSlug: propModeSlug, theme }: { session: WorkoutSession; modeSlug?: string | null; theme: any }) {
     const router = useRouter();
     const { t } = useTranslation();
+    const { planSessions } = usePlan();
+
+    const modeSlug = propModeSlug !== undefined ? propModeSlug : getSessionModeSlug(session, planSessions);
 
     return (
         <View style={styles.sessionCard}>

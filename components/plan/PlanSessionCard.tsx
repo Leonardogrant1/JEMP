@@ -1,10 +1,12 @@
 import { getSessionImage } from "@/constants/session-images";
 import { Cyan, Electric, GradientMid } from "@/constants/theme";
-import { PlanSession, WorkoutSession } from "@/providers/plan-provider";
+import { toDateStr } from "@/helpers/date-helpers";
+import { PlanSession, usePlan, WorkoutSession } from "@/providers/plan-provider";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, View } from "react-native";
 import { JempText } from "../jemp-text";
@@ -12,13 +14,24 @@ import { ModeBadge } from "./ModeBadge";
 
 
 
-export function PlanSessionCard({ planSession, nextSession, theme }: {
+export function PlanSessionCard({ planSession, nextSession: propNextSession, theme }: {
     planSession: PlanSession;
-    nextSession: WorkoutSession | null;
+    nextSession?: WorkoutSession | null;
     theme: any;
 }) {
     const router = useRouter();
     const { t } = useTranslation();
+    const { sessions } = usePlan();
+
+    const nextSession = propNextSession !== undefined ? propNextSession : useMemo(() => {
+        const todayStr = toDateStr(new Date());
+        return sessions.find(s =>
+            s.workout_plan_session_id === planSession.id &&
+            s.scheduled_at != null &&
+            toDateStr(new Date(s.scheduled_at)) > todayStr
+        ) ?? null;
+    }, [planSession.id, sessions]);
+
     return (
         <View style={styles.sessionCard}>
             <Image

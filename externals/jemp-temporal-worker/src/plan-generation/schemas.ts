@@ -164,11 +164,13 @@ export function buildWarmupCooldownSchema(
   cooldownSlugs: string[],
   categorySlugs: string[],
 ) {
-  const warmupSlugEnum = toEnum(warmupSlugs)
-  const cooldownSlugEnum = toEnum(cooldownSlugs)
+  // Merge warmup+cooldown slugs into one enum — OpenAI Structured Outputs
+  // does not support per-block slug enums via union/tuple. Slug separation
+  // is enforced by the prompt ("warmup-Slugs NICHT im cooldown und umgekehrt").
+  const slugEnum = toEnum([...warmupSlugs, ...cooldownSlugs])
   const categoryEnum = toEnum(categorySlugs)
 
-  const makeExercise = (slugEnum: z.ZodTypeAny) => z.object({
+  const dynExercise = z.object({
     exercise_slug: slugEnum,
     order_index: z.number(),
     notes: z.string(),
@@ -182,24 +184,13 @@ export function buildWarmupCooldownSchema(
     target_load_value: z.number(),
   })
 
-  const warmupBlock = z.object({
-    block_type: z.literal("warmup"),
-    order_index: z.number(),
-    focused_category_slug: categoryEnum,
-    exercises: z.array(makeExercise(warmupSlugEnum)),
-  })
-
-  const cooldownBlock = z.object({
-    block_type: z.literal("cooldown"),
-    order_index: z.number(),
-    focused_category_slug: categoryEnum,
-    exercises: z.array(makeExercise(cooldownSlugEnum)),
-  })
-
-  // Use tuple to enforce that BOTH warmup and cooldown are always generated.
-  // Separate slug enums also prevent warmup slugs from appearing in cooldown and vice versa.
   return z.object({
-    blocks: z.tuple([warmupBlock, cooldownBlock]),
+    blocks: z.array(z.object({
+      block_type: z.enum(["warmup", "cooldown"]),
+      order_index: z.number(),
+      focused_category_slug: categoryEnum,
+      exercises: z.array(dynExercise),
+    })),
   })
 }
 
