@@ -357,7 +357,7 @@ export default function GeneratePlanScreen() {
         else if (phase === 'equipment-env') setPhase('equipment');
         else if (phase === 'goals') {
             if (goalsSubPhase === 'rank') setGoalsSubPhase('select');
-            else setPhase('equipment');
+            else setPhase(ambiguousEquipment.length > 0 ? 'equipment-env' : 'equipment');
         }
         else if (phase === 'body') {
             if (selectedCategoryIds.size <= 1) {
