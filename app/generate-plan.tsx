@@ -462,7 +462,7 @@ export default function GeneratePlanScreen() {
                 throw new Error(body?.error ?? `HTTP ${res.status}`);
             }
 
-            router.replace('/(tabs)/plan');
+            router.navigate('/(tabs)/plan');
         } catch (err: any) {
             setIsSaving(false);
             setSaveError(err?.message ?? 'Unknown error');
