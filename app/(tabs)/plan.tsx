@@ -1,4 +1,5 @@
 import { JempText } from '@/components/jemp-text';
+import { supabase } from '@/services/supabase/client';
 import { PlanGenerationScreen } from '@/components/plan/PlanGenerationScreen';
 import { PlanSessionCard } from '@/components/plan/PlanSessionCard';
 import { SessionCard } from '@/components/plan/SessionCard';
@@ -192,6 +193,23 @@ export default function PlanScreen() {
         return <RestDayCard variant={selectedDayVariant} />;
     }
 
+    async function startGeneration() {
+        const { data: { session: authSession } } = await supabase.auth.getSession();
+        if (!authSession) return;
+
+        usePlanGenerationStore.getState().subscribe(authSession.user.id);
+
+        const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+        const res = await fetch(`${backendUrl}/api/plan-generation/start`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${authSession.access_token}` },
+        });
+
+        if (!res.ok) {
+            usePlanGenerationStore.getState().clear();
+        }
+    }
+
     const showGenerationScreen = isGenerating || isError;
 
     return (
@@ -217,10 +235,23 @@ export default function PlanScreen() {
                         </View>
                     ) : !plan ? (
                         <View style={[styles.emptyCard, { backgroundColor: theme.surface }]}>
-                            <Ionicons name="barbell-outline" size={32} color={theme.textMuted} />
-                            <JempText type="body-l" color={theme.textMuted} style={styles.centeredText}>
-                                {t('ui.no_active_plan')}
+                            <Ionicons name="rocket-outline" size={48} color={theme.textMuted} />
+                            <JempText type="h2" style={styles.centeredText}>
+                                {t('ui.plan_empty_title')}
                             </JempText>
+                            <JempText type="body-l" color={theme.textMuted} style={styles.centeredText}>
+                                {t('ui.plan_empty_subtitle')}
+                            </JempText>
+                            <TouchableOpacity style={styles.generateBtn} onPress={startGeneration}>
+                                <LinearGradient
+                                    colors={[Cyan[500], Electric[500]]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={styles.generateBtnGradient}
+                                >
+                                    <JempText type="button" color="#fff">{t('ui.plan_generate')}</JempText>
+                                </LinearGradient>
+                            </TouchableOpacity>
                         </View>
                     ) : (
                         <>
@@ -259,6 +290,8 @@ const styles = StyleSheet.create({
     centered: { paddingTop: 60, alignItems: 'center' },
     centeredText: { textAlign: 'center' },
     emptyCard: { borderRadius: 16, padding: 32, alignItems: 'center', gap: 12 },
+    generateBtn: { marginTop: 8, width: '100%', borderRadius: 100, overflow: 'hidden' },
+    generateBtnGradient: { height: 52, alignItems: 'center', justifyContent: 'center' },
 
 
     // Sessions
