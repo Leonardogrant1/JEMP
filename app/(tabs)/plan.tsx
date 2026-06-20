@@ -193,20 +193,29 @@ export default function PlanScreen() {
         return <RestDayCard variant={selectedDayVariant} />;
     }
 
+    const generatingRef = useRef(false);
+
     async function startGeneration() {
-        const { data: { session: authSession } } = await supabase.auth.getSession();
-        if (!authSession) return;
+        if (generatingRef.current) return;
+        generatingRef.current = true;
 
-        usePlanGenerationStore.getState().subscribe(authSession.user.id);
+        try {
+            const { data: { session: authSession } } = await supabase.auth.getSession();
+            if (!authSession) return;
 
-        const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
-        const res = await fetch(`${backendUrl}/api/plan-generation/start`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${authSession.access_token}` },
-        });
+            usePlanGenerationStore.getState().subscribe(authSession.user.id);
 
-        if (!res.ok) {
-            usePlanGenerationStore.getState().clear();
+            const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+            const res = await fetch(`${backendUrl}/api/plan-generation/start`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${authSession.access_token}` },
+            });
+
+            if (!res.ok) {
+                usePlanGenerationStore.getState().clear();
+            }
+        } finally {
+            generatingRef.current = false;
         }
     }
 

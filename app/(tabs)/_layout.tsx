@@ -285,7 +285,7 @@ export default function TabLayout() {
             <Pressable
               onPress={() => {
                 setShowWelcomeDialog(false);
-                router.push('/(tabs)/plan');
+                router.navigate('/(tabs)/plan');
               }}
               style={styles.congratsBtn}
             >
