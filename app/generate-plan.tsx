@@ -591,6 +591,42 @@ export default function GeneratePlanScreen() {
                 </ScrollView>
             )}
 
+            {/* ── Equipment environment ── */}
+            {phase === 'equipment-env' && (
+                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    <JempText type="h1" color={theme.text} style={styles.bodyTitle}>
+                        {t('onboarding.equipment_location_title')}
+                    </JempText>
+                    <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
+                        {t('onboarding.equipment_location_subtitle')}
+                    </JempText>
+                    {ambiguousEquipment.map(eq => {
+                        const eqSelections = equipmentEnvSelections.get(eq.id) ?? new Set<string>();
+                        return (
+                            <View key={eq.id} style={styles.equipmentEnvRow}>
+                                <JempText type="body-l" color={theme.text} style={styles.equipmentEnvLabel}>
+                                    {eq.name_i18n?.[locale] ?? eq.slug}
+                                </JempText>
+                                <View style={styles.chipGrid}>
+                                    {eq.compatibleEnvIds.map(envId => {
+                                        const env = allEnvs.find(e => e.id === envId);
+                                        if (!env) return null;
+                                        return (
+                                            <SelectableChip
+                                                key={envId}
+                                                label={env.name_i18n?.[locale] ?? env.slug}
+                                                selected={eqSelections.has(envId)}
+                                                onPress={() => toggleEquipmentEnv(eq.id, envId)}
+                                            />
+                                        );
+                                    })}
+                                </View>
+                            </View>
+                        );
+                    })}
+                </ScrollView>
+            )}
+
             {/* ── Goals ── */}
             {phase === 'goals' && goalsSubPhase === 'select' && (
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -1001,6 +1037,10 @@ const styles = StyleSheet.create({
 
     // Environment cards
     envList: { gap: 12 },
+
+    // Equipment environment
+    equipmentEnvRow: { marginBottom: 24 },
+    equipmentEnvLabel: { marginBottom: 10 },
 
     // Schedule
     section: { marginBottom: 32 },
