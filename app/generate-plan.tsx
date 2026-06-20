@@ -35,6 +35,7 @@ type GoalsSubPhase = 'select' | 'rank';
 
 interface EnvItem { id: string; slug: string; icon: keyof typeof Ionicons.glyphMap; name_i18n: Record<string, string> | null; description_i18n: Record<string, string> | null }
 interface EquipmentItem { id: string; slug: string; name_i18n: Record<string, string> | null }
+interface AmbiguousItem { id: string; slug: string; name_i18n: Record<string, string> | null; compatibleEnvIds: string[] }
 interface CategoryItem { id: string; slug: string; label: string; name_i18n: CategoryI18n }
 
 const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
@@ -122,6 +123,11 @@ export default function GeneratePlanScreen() {
     const [allEquipment, setAllEquipment] = useState<EquipmentItem[]>([]);
     const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<Set<string>>(new Set());
 
+    // Equipment-environment mapping
+    const [ambiguousEquipment, setAmbiguousEquipment] = useState<AmbiguousItem[]>([]);
+    const [equipmentEnvSelections, setEquipmentEnvSelections] = useState<Map<string, Set<string>>>(new Map());
+    const [savedEquipmentEnvMappings, setSavedEquipmentEnvMappings] = useState<{ equipment_id: string; environment_id: string }[]>([]);
+
     // Goals
     const [allCategories, setAllCategories] = useState<CategoryItem[]>([]);
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<string>>(new Set());
@@ -176,7 +182,8 @@ export default function GeneratePlanScreen() {
             supabase.from('categories').select('id, slug, name_i18n'),
             supabase.from('user_targeted_categories').select('category_id, priority').eq('user_id', profile.id).order('priority'),
             supabase.from('user_environments').select('environment_id').eq('user_id', profile.id),
-        ]).then(async ([envsRes, userEquipRes, envEqRes, catsRes, targetedRes, userEnvsRes]) => {
+            (supabase as any).from('user_equipment_environments').select('equipment_id, environment_id').eq('user_id', profile.id),
+        ]).then(async ([envsRes, userEquipRes, envEqRes, catsRes, targetedRes, userEnvsRes, userEqEnvRes]) => {
             // Categories
             const catItems: CategoryItem[] = (catsRes.data ?? []).map(c => ({
                 id: c.id,
@@ -237,6 +244,7 @@ export default function GeneratePlanScreen() {
                     setSelectedEnvIds(new Set());
                 }
             }
+            setSavedEquipmentEnvMappings(userEqEnvRes.data ?? []);
             setLoading(false);
         });
     }, [profile]);
