@@ -415,10 +415,10 @@ export default function GeneratePlanScreen() {
             // 4b. Update equipment-environment mapping (which equipment is in which environment)
             await (supabase as any).from('user_equipment_environments').delete().eq('user_id', profile.id);
             const equipEnvRows: { user_id: string; equipment_id: string; environment_id: string }[] = [];
-            for (const envId of selectedEnvIds) {
-                for (const eq of equipmentByEnv.get(envId) ?? []) {
-                    if (selectedEquipmentIds.has(eq.id)) {
-                        equipEnvRows.push({ user_id: profile.id, equipment_id: eq.id, environment_id: envId });
+            for (const [equipmentId, envIds] of equipmentEnvSelections) {
+                if (selectedEquipmentIds.has(equipmentId)) {
+                    for (const envId of envIds) {
+                        equipEnvRows.push({ user_id: profile.id, equipment_id: equipmentId, environment_id: envId });
                     }
                 }
             }
