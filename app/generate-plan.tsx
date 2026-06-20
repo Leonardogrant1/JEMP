@@ -956,16 +956,6 @@ export default function GeneratePlanScreen() {
                 );
             })()}
 
-            {/* DEV: skip to plan */}
-            {__DEV__ && (
-                <Pressable
-                    onPress={() => { router.back(); router.navigate('/(tabs)/plan'); }}
-                    style={{ position: 'absolute', top: insets.top + 10, right: 16, zIndex: 99 }}
-                >
-                    <JempText type="body-sm" color="#f59e0b">DEV→Plan</JempText>
-                </Pressable>
-            )}
-
             {/* Fixed bottom button */}
             <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 20), backgroundColor: theme.background }]}>
                 {saveError && (
