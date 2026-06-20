@@ -1,4 +1,5 @@
 import { trackerManager } from '@/lib/tracking/tracker-manager';
+import { useCurrentUser } from '@/providers/current-user-provider';
 import { cancelPaywallAbandonNotification } from '@/services/notifications';
 import { useRevenueCat } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
 import { devError, devLog } from "@/utils/dev-log";
@@ -45,6 +46,7 @@ export const useSuperwallFunctions = () => {
 };
 
 export const SuperwallFunctionsProvider = ({ children }: { children: React.ReactNode }) => {
+    const { profile } = useCurrentUser();
     const { refreshUserInfoWithRetry } = useRevenueCat();
     const { dismiss } = useSuperwall();
     const pendingDismissRef = useRef<(() => void) | null>(null);
@@ -80,6 +82,10 @@ export const SuperwallFunctionsProvider = ({ children }: { children: React.React
         },
     });
     const openWithPlacement = async (placement: string, onFeature?: () => void, params?: Record<string, any>, onDismiss?: () => void) => {
+        if (profile?.role === 'admin') {
+            onFeature?.();
+            return;
+        }
         pendingDismissRef.current = onDismiss ?? null;
         await registerPlacement({
             placement: placement,
