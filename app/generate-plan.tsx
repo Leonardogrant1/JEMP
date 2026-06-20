@@ -30,7 +30,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type SessionDuration = Enums<'session_duration'>;
-type Phase = 'sport' | 'environment' | 'equipment' | 'goals' | 'body' | 'schedule' | 'weekly';
+type Phase = 'sport' | 'environment' | 'equipment' | 'equipment-env' | 'goals' | 'body' | 'schedule' | 'weekly';
 type GoalsSubPhase = 'select' | 'rank';
 
 interface EnvItem { id: string; slug: string; icon: keyof typeof Ionicons.glyphMap; name_i18n: Record<string, string> | null; description_i18n: Record<string, string> | null }
@@ -39,7 +39,7 @@ interface AmbiguousItem { id: string; slug: string; name_i18n: Record<string, st
 interface CategoryItem { id: string; slug: string; label: string; name_i18n: CategoryI18n }
 
 const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
-const PHASES: Phase[] = ['sport', 'environment', 'equipment', 'goals', 'body', 'schedule', 'weekly'];
+const PHASES: Phase[] = ['sport', 'environment', 'equipment', 'equipment-env', 'goals', 'body', 'schedule', 'weekly'];
 
 const COMBAT_SPORTS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
 
@@ -268,10 +268,68 @@ export default function GeneratePlanScreen() {
         setPhase('equipment');
     }
 
+    function handleEquipmentNext() {
+        // Find equipment compatible with 2+ selected environments
+        const eqToEnvs = new Map<string, Set<string>>();
+        for (const envId of selectedEnvIds) {
+            for (const eq of equipmentByEnv.get(envId) ?? []) {
+                if (!selectedEquipmentIds.has(eq.id)) continue;
+                if (!eqToEnvs.has(eq.id)) eqToEnvs.set(eq.id, new Set());
+                eqToEnvs.get(eq.id)!.add(envId);
+            }
+        }
+
+        // Build selections: auto-assign unambiguous, collect ambiguous for UI
+        const selections = new Map<string, Set<string>>();
+        const ambiguous: AmbiguousItem[] = [];
+
+        // Restore saved mappings grouped by equipment
+        const savedByEq = new Map<string, Set<string>>();
+        for (const m of savedEquipmentEnvMappings) {
+            if (!savedByEq.has(m.equipment_id)) savedByEq.set(m.equipment_id, new Set());
+            savedByEq.get(m.equipment_id)!.add(m.environment_id);
+        }
+
+        for (const [eqId, envIds] of eqToEnvs) {
+            if (envIds.size > 1) {
+                // Ambiguous: will be shown in UI
+                const eqItem = allEquipment.find(e => e.id === eqId);
+                if (eqItem) {
+                    ambiguous.push({ id: eqId, slug: eqItem.slug, name_i18n: eqItem.name_i18n, compatibleEnvIds: [...envIds] });
+                }
+                // Restore saved selection or default to all compatible envs
+                selections.set(eqId, savedByEq.get(eqId) ?? new Set(envIds));
+            } else {
+                // Unambiguous: auto-assign
+                selections.set(eqId, new Set(envIds));
+            }
+        }
+
+        setEquipmentEnvSelections(selections);
+
+        if (ambiguous.length === 0) {
+            setGoalsSubPhase('select');
+            setPhase('goals');
+        } else {
+            setAmbiguousEquipment(ambiguous);
+            setPhase('equipment-env');
+        }
+    }
+
     function toggleEquipment(id: string) {
         setSelectedEquipmentIds(prev => {
             const next = new Set(prev);
             next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    }
+
+    function toggleEquipmentEnv(equipmentId: string, envId: string) {
+        setEquipmentEnvSelections(prev => {
+            const next = new Map(prev);
+            const envSet = new Set(next.get(equipmentId) ?? []);
+            envSet.has(envId) ? envSet.delete(envId) : envSet.add(envId);
+            next.set(equipmentId, envSet);
             return next;
         });
     }
@@ -296,6 +354,7 @@ export default function GeneratePlanScreen() {
     function goBack() {
         if (phase === 'environment') setPhase('sport');
         else if (phase === 'equipment') setPhase('environment');
+        else if (phase === 'equipment-env') setPhase('equipment');
         else if (phase === 'goals') {
             if (goalsSubPhase === 'rank') setGoalsSubPhase('select');
             else setPhase('equipment');
@@ -417,7 +476,8 @@ export default function GeneratePlanScreen() {
     function handleNext() {
         if (phase === 'sport') setPhase('environment');
         else if (phase === 'environment') goToEquipment();
-        else if (phase === 'equipment') { setGoalsSubPhase('select'); setPhase('goals'); }
+        else if (phase === 'equipment') handleEquipmentNext();
+        else if (phase === 'equipment-env') { setGoalsSubPhase('select'); setPhase('goals'); }
         else if (phase === 'goals') {
             if (goalsSubPhase === 'select') {
                 const selected = allCategories.filter(c => selectedCategoryIds.has(c.id));
