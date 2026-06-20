@@ -462,6 +462,7 @@ export default function GeneratePlanScreen() {
                 throw new Error(body?.error ?? `HTTP ${res.status}`);
             }
 
+            router.back();
             router.navigate('/(tabs)/plan');
         } catch (err: any) {
             setIsSaving(false);
@@ -958,7 +959,7 @@ export default function GeneratePlanScreen() {
             {/* DEV: skip to plan */}
             {__DEV__ && (
                 <Pressable
-                    onPress={() => router.navigate('/(tabs)/plan')}
+                    onPress={() => { router.back(); router.navigate('/(tabs)/plan'); }}
                     style={{ position: 'absolute', top: insets.top + 10, right: 16, zIndex: 99 }}
                 >
                     <JempText type="body-sm" color="#f59e0b">DEV→Plan</JempText>
