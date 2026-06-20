@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "855255853074",
+    "project_id": "jemp-493808",
+    "storage_bucket": "jemp-493808.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:855255853074:android:d73e8b64864eb711b8d0cb",
+        "android_client_info": {
+          "package_name": "studio.northbyte.jemp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "855255853074-cggmhq6a2mlorb9durodh8egn4mv85a4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBfKraBEsq88KPL3qucGuTGgvw2UN2CYAE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "855255853074-cggmhq6a2mlorb9durodh8egn4mv85a4.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "855255853074-c396ffah7fudi5coiairklfpe09984k1.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "studio.northbyte.jemp",
+                "app_store_id": "6762546573"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
