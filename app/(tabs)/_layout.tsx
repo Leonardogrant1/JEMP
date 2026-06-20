@@ -17,11 +17,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, Tabs } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function TabLayout() {
   const { session, signOut } = useAuth();
-  const { refreshProfile } = useCurrentUser();
+  const { refreshProfile, profile } = useCurrentUser();
   const { registerPushNotificationsAndSaveToken } = useNotifications();
   const { hasEntitlement } = useRevenueCat();
   const resetOnboardingStore = useOnboardingStore(s => s.reset);
@@ -29,6 +30,8 @@ export default function TabLayout() {
   const queryClient = useQueryClient();
   const [devOpen, setDevOpen] = useState(false);
   const [showDevCongrats, setShowDevCongrats] = useState(false);
+  const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
+  const hasSeenTutorial = useTutorialStore(s => s.hasSeenTutorial);
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
@@ -40,6 +43,28 @@ export default function TabLayout() {
       return () => usePlanGenerationStore.getState().unsubscribe();
     }
   }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!hasSeenTutorial || !profile?.id) return;
+
+    (async () => {
+      const shown = await AsyncStorage.getItem('welcome_dialog_shown');
+      if (shown) return;
+
+      // Check whether a plan already exists
+      const { data } = await supabase
+        .from('workout_plans')
+        .select('id')
+        .eq('user_id', profile.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (!data) {
+        await AsyncStorage.setItem('welcome_dialog_shown', 'true');
+        setShowWelcomeDialog(true);
+      }
+    })();
+  }, [hasSeenTutorial, profile?.id]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -241,6 +266,36 @@ export default function TabLayout() {
                 style={styles.congratsBtnGradient}
               >
                 <Text style={styles.congratsBtnText}>{t('ui.cancel')}</Text>
+              </LinearGradient>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent animationType="fade" visible={showWelcomeDialog} statusBarTranslucent>
+        <View style={styles.congratsOverlay}>
+          <View style={[styles.congratsCard, { backgroundColor: theme.surface }]}>
+            <Text style={styles.congratsEmoji}>🎉</Text>
+            <Text style={[styles.congratsTitle, { color: theme.text }]}>
+              {t('ui.welcome_dialog_title', { name: profile?.first_name ?? '' })}
+            </Text>
+            <Text style={[styles.congratsSubtitle, { color: theme.textMuted }]}>
+              {t('ui.welcome_dialog_body')}
+            </Text>
+            <Pressable
+              onPress={() => {
+                setShowWelcomeDialog(false);
+                router.push('/(tabs)/plan');
+              }}
+              style={styles.congratsBtn}
+            >
+              <LinearGradient
+                colors={[Cyan[500], Electric[500]]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.congratsBtnGradient}
+              >
+                <Text style={styles.congratsBtnText}>{t('ui.welcome_dialog_cta')}</Text>
               </LinearGradient>
             </Pressable>
           </View>
