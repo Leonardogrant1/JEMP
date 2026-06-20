@@ -1,7 +1,5 @@
-import BallIcon from '@/assets/icons/basketball.svg';
 import BugIcon from '@/assets/icons/bug.svg';
 import CalendarIcon from '@/assets/icons/calendar.svg';
-import DumbellIcon from '@/assets/icons/dumbell.svg';
 import FemaleIcon from '@/assets/icons/female.svg';
 import HeadsetIcon from '@/assets/icons/headset.svg';
 import HeightIcon from '@/assets/icons/height.svg';
@@ -9,7 +7,6 @@ import LogoutIcon from '@/assets/icons/logout.svg';
 import MaleIcon from '@/assets/icons/male.svg';
 import RocketIcon from '@/assets/icons/rocket.svg';
 import ShieldIcon from '@/assets/icons/shield.svg';
-import TargetIcon from '@/assets/icons/target.svg';
 import UserIcon from '@/assets/icons/user.svg';
 import WeightIcon from '@/assets/icons/weight.svg';
 import { JempText } from '@/components/jemp-text';
@@ -24,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -163,17 +160,17 @@ export default function ProfileScreen() {
                 <View style={styles.settingsSection}>
                     <SectionLabel label={t('ui.section_training')} />
                     <View style={styles.settingsGroup}>
-                        <SettingsRow
+                        {/* <SettingsRow
                             icon={<BallIcon width={20} height={20} color="#fff" />}
                             label={t('ui.sport')}
                             onPress={() => router.push('/sport')}
-                        />
+                        /> */}
                         <SettingsRow
                             icon={<CalendarIcon width={20} height={20} color="#fff" />}
                             label={t('ui.new_plan')}
                             onPress={() => openWithPlacement('generate_plan', () => router.push('/generate-plan'))}
                         />
-                        <SettingsRow
+                        {/* <SettingsRow
                             icon={<DumbellIcon width={20} height={20} color="#fff" />}
                             label={t('ui.available_equipment')}
                             onPress={() => router.push('/equipment')}
@@ -182,7 +179,7 @@ export default function ProfileScreen() {
                             icon={<TargetIcon width={20} height={20} color="#fff" />}
                             label={t('ui.focused_goals')}
                             onPress={() => router.push('/goals')}
-                        />
+                        /> */}
                     </View>
                 </View>
 

@@ -9,7 +9,7 @@ import { supabase } from '@/services/supabase/client';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator, Pressable, ScrollView,
@@ -28,9 +28,19 @@ const ENV_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
     home: 'home-outline',
 };
 
+const WEEK_DAYS: { dow: number; key: string }[] = [
+    { dow: 1, key: 'onboarding.workout_prefs_day_mon' },
+    { dow: 2, key: 'onboarding.workout_prefs_day_tue' },
+    { dow: 3, key: 'onboarding.workout_prefs_day_wed' },
+    { dow: 4, key: 'onboarding.workout_prefs_day_thu' },
+    { dow: 5, key: 'onboarding.workout_prefs_day_fri' },
+    { dow: 6, key: 'onboarding.workout_prefs_day_sat' },
+    { dow: 7, key: 'onboarding.workout_prefs_day_sun' },
+];
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Phase = 'environment' | 'equipment';
+type Phase = 'environment' | 'equipment' | 'day_env';
 type EnvItem = { id: string; slug: string; icon: keyof typeof Ionicons.glyphMap; name_i18n: Record<string, string> | null; description_i18n: Record<string, string> | null };
 type EquipmentItem = { id: string; slug: string; name_i18n: Record<string, string> | null };
 
@@ -40,7 +50,7 @@ export default function EquipmentScreen() {
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
-    const { i18n } = useTranslation();
+    const { t, i18n } = useTranslation();
     const locale = i18n.language;
     const router = useRouter();
     const { profile } = useCurrentUser();
@@ -51,9 +61,12 @@ export default function EquipmentScreen() {
     const [selectedEnvIds, setSelectedEnvIds] = useState<Set<string>>(new Set());
     const [allEquipment, setAllEquipment] = useState<EquipmentItem[]>([]);
     const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<Set<string>>(new Set());
+    const [equipmentByEnv, setEquipmentByEnv] = useState<Map<string, EquipmentItem[]>>(new Map());
+    const [dayEnvMap, setDayEnvMap] = useState<Record<number, string>>({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [equipmentByEnv, setEquipmentByEnv] = useState<Map<string, EquipmentItem[]>>(new Map());
+
+    const preferredDays: number[] = (profile?.preferred_workout_days ?? []).slice().sort((a, b) => a - b);
 
     useFocusEffect(useCallback(() => {
         setPhase('environment');
@@ -88,6 +101,15 @@ export default function EquipmentScreen() {
                 setAllEnvs(envItems);
                 setSelectedEnvIds(new Set((userEnvsRes.data ?? []).map(r => r.environment_id)));
             }
+
+            // Pre-fill day environments from profile
+            const savedDayEnvs = (profile as any).day_environments as { day_of_week: number; environment_id: string }[] | null;
+            if (savedDayEnvs?.length) {
+                const map: Record<number, string> = {};
+                savedDayEnvs.forEach(de => { map[de.day_of_week] = de.environment_id; });
+                setDayEnvMap(map);
+            }
+
             setLoading(false);
         });
     }, [userId]));
@@ -96,6 +118,16 @@ export default function EquipmentScreen() {
         setSelectedEnvIds(prev => {
             const next = new Set(prev);
             next.has(id) ? next.delete(id) : next.add(id);
+            // Clean up dayEnvMap entries for deselected env
+            if (next.has(id) === false) {
+                setDayEnvMap(m => {
+                    const cleaned: Record<number, string> = {};
+                    Object.entries(m).forEach(([day, envId]) => {
+                        if (envId !== id) cleaned[Number(day)] = envId;
+                    });
+                    return cleaned;
+                });
+            }
             return next;
         });
     }
@@ -119,6 +151,26 @@ export default function EquipmentScreen() {
         setPhase('equipment');
     }
 
+    function handleNext() {
+        if (phase === 'environment') {
+            goToEquipment();
+        } else if (phase === 'equipment') {
+            if (selectedEnvIds.size > 1 && preferredDays.length > 0) {
+                setPhase('day_env');
+            } else {
+                save();
+            }
+        } else {
+            save();
+        }
+    }
+
+    function goBack() {
+        if (phase === 'day_env') setPhase('equipment');
+        else if (phase === 'equipment') setPhase('environment');
+        else router.back();
+    }
+
     async function save() {
         setSaving(true);
         await Promise.all([
@@ -129,14 +181,38 @@ export default function EquipmentScreen() {
         if (selectedEnvIds.size > 0) {
             inserts.push(supabase.from('user_environments').insert(
                 [...selectedEnvIds].map(environment_id => ({ user_id: userId, environment_id }))
-            ).select());
+            ));
         }
         if (selectedEquipmentIds.size > 0) {
             inserts.push(supabase.from('user_equipments').insert(
                 [...selectedEquipmentIds].map(equipment_id => ({ user_id: userId, equipment_id }))
-            ).select());
+            ));
         }
         await Promise.all(inserts);
+
+        // Save equipment-environment mapping
+        await (supabase as any).from('user_equipment_environments').delete().eq('user_id', userId);
+        const equipEnvRows: { user_id: string; equipment_id: string; environment_id: string }[] = [];
+        for (const envId of selectedEnvIds) {
+            for (const eq of equipmentByEnv.get(envId) ?? []) {
+                if (selectedEquipmentIds.has(eq.id)) {
+                    equipEnvRows.push({ user_id: userId, equipment_id: eq.id, environment_id: envId });
+                }
+            }
+        }
+        if (equipEnvRows.length > 0) {
+            await (supabase as any).from('user_equipment_environments').insert(equipEnvRows);
+        }
+
+        // Save per-day environments to user_profiles
+        const dayEnvironments = Object.entries(dayEnvMap).map(([day, environment_id]) => ({
+            day_of_week: Number(day),
+            environment_id,
+        }));
+        await supabase.from('user_profiles').update({
+            day_environments: dayEnvironments.length > 0 ? dayEnvironments as any : null,
+        }).eq('id', userId);
+
         trackerManager.track('equipment_changed', {
             environment_count: selectedEnvIds.size,
             equipment_count: selectedEquipmentIds.size,
@@ -145,35 +221,37 @@ export default function EquipmentScreen() {
         router.back();
     }
 
+    const PHASES: Phase[] = selectedEnvIds.size > 1 && preferredDays.length > 0
+        ? ['environment', 'equipment', 'day_env']
+        : ['environment', 'equipment'];
+
     const canProceed = phase === 'environment' ? selectedEnvIds.size > 0 : true;
+
+    const selectedEnvList = allEnvs.filter(e => selectedEnvIds.has(e.id));
 
     return (
         <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
 
             {/* ── Header ── */}
             <View style={styles.header}>
-                <Pressable
-                    onPress={phase === 'equipment' ? () => setPhase('environment') : () => router.back()}
-                    hitSlop={12}
-                    style={styles.headerSide}
-                >
+                <Pressable onPress={goBack} hitSlop={12} style={styles.headerSide}>
                     <Ionicons
-                        name={phase === 'equipment' ? 'chevron-back' : 'close'}
+                        name={phase === 'environment' ? 'close' : 'chevron-back'}
                         size={24}
                         color={theme.text}
                     />
                 </Pressable>
                 <View style={styles.headerCenter}>
                     <JempText type="body-l" color={theme.textMuted}>
-                        Equipment
+                        {t('ui.available_equipment')}
                     </JempText>
                     <View style={styles.stepBars}>
-                        {(['environment', 'equipment'] as Phase[]).map((p, i) => (
+                        {PHASES.map((p, i) => (
                             <View
                                 key={p}
                                 style={[
                                     styles.stepBar,
-                                    { backgroundColor: i <= (['environment', 'equipment'] as Phase[]).indexOf(phase) ? GradientMid : theme.borderStrong },
+                                    { backgroundColor: i <= PHASES.indexOf(phase) ? GradientMid : theme.borderStrong },
                                 ]}
                             />
                         ))}
@@ -189,9 +267,9 @@ export default function EquipmentScreen() {
                 </View>
             ) : phase === 'environment' ? (
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                    <JempText type="h1" color={theme.text} style={styles.title}>Umgebung</JempText>
+                    <JempText type="h1" color={theme.text} style={styles.title}>{t('plan.environment_title')}</JempText>
                     <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
-                        Wo trainierst du? Wähle alle zutreffenden Umgebungen.
+                        {t('plan.environment_subtitle')}
                     </JempText>
                     <View style={styles.envList}>
                         {allEnvs.map(env => (
@@ -206,11 +284,11 @@ export default function EquipmentScreen() {
                         ))}
                     </View>
                 </ScrollView>
-            ) : (
+            ) : phase === 'equipment' ? (
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                    <JempText type="h1" color={theme.text} style={styles.title}>Equipment</JempText>
+                    <JempText type="h1" color={theme.text} style={styles.title}>{t('plan.equipment_title')}</JempText>
                     <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
-                        Wähle das Equipment das du zur Verfügung hast.
+                        {t('plan.equipment_subtitle')}
                     </JempText>
                     <View style={styles.chipGrid}>
                         {allEquipment.map(eq => (
@@ -223,12 +301,45 @@ export default function EquipmentScreen() {
                         ))}
                     </View>
                 </ScrollView>
+            ) : (
+                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    <JempText type="h1" color={theme.text} style={styles.title}>{t('onboarding.workout_prefs_env_label')}</JempText>
+                    <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
+                        {t('onboarding.workout_prefs_env_hint')}
+                    </JempText>
+                    {preferredDays.map(dow => {
+                        const dayKey = WEEK_DAYS.find(d => d.dow === dow)?.key;
+                        return (
+                            <View key={dow} style={styles.dayEnvRow}>
+                                <JempText type="body-l" style={styles.dayEnvLabel}>
+                                    {dayKey ? t(dayKey as any) : ''}
+                                </JempText>
+                                <View style={styles.dayEnvChips}>
+                                    {selectedEnvList.map(env => (
+                                        <SelectableChip
+                                            key={env.id}
+                                            label={env.name_i18n?.[locale] ?? env.slug}
+                                            selected={dayEnvMap[dow] === env.id}
+                                            onPress={() => setDayEnvMap(prev => {
+                                                const next = { ...prev };
+                                                if (next[dow] === env.id) delete next[dow];
+                                                else next[dow] = env.id;
+                                                return next;
+                                            })}
+                                            style={styles.dayEnvChip}
+                                        />
+                                    ))}
+                                </View>
+                            </View>
+                        );
+                    })}
+                </ScrollView>
             )}
 
             {/* ── Fixed bottom button ── */}
             <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 20), backgroundColor: theme.background }]}>
                 <Pressable
-                    onPress={phase === 'equipment' ? save : goToEquipment}
+                    onPress={handleNext}
                     disabled={!canProceed || saving}
                     style={styles.bottomBtn}
                 >
@@ -242,7 +353,11 @@ export default function EquipmentScreen() {
                             <ActivityIndicator color="#fff" size="small" />
                         ) : (
                             <JempText type="button" color={canProceed ? '#fff' : theme.textMuted}>
-                                {phase === 'equipment' ? 'Speichern' : 'Weiter'}
+                                {phase === 'equipment' && !(selectedEnvIds.size > 1 && preferredDays.length > 0)
+                                    ? t('ui.save')
+                                    : phase === 'day_env'
+                                        ? t('ui.save')
+                                        : t('ui.continue')}
                             </JempText>
                         )}
                     </LinearGradient>
@@ -276,13 +391,14 @@ const styles = StyleSheet.create({
     title: { marginBottom: 6 },
     subtitle: { lineHeight: 20, marginBottom: 24 },
 
-    // Environment
     envList: { gap: 12 },
-
-    // Equipment
     chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 
-    // Bottom button
+    dayEnvRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 12 },
+    dayEnvLabel: { width: 28 },
+    dayEnvChips: { flexDirection: 'row', gap: 8, flex: 1 },
+    dayEnvChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
+
     bottomBar: {
         position: 'absolute',
         bottom: 0,

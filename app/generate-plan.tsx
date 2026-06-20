@@ -137,6 +137,7 @@ export default function GeneratePlanScreen() {
     const [preferredDays, setPreferredDays] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6, 7]));
     const [preferredDuration, setPreferredDuration] = useState<SessionDuration | null>(null);
     const [scheduleNotes, setScheduleNotes] = useState('');
+    const [dayEnvMap, setDayEnvMap] = useState<Record<number, string>>({});
 
     // Weekly sport schedule
     const [sportSessions, setSportSessions] = useState<WeeklyScheduleSession[]>([]);
@@ -160,6 +161,12 @@ export default function GeneratePlanScreen() {
         setPreferredDuration(profile.preferred_session_duration ?? null);
         setScheduleNotes(profile.schedule_notes ?? '');
         setSportSessions((profile as any).weekly_schedule?.sessions ?? []);
+        const savedDayEnvs = (profile as any).day_environments as { day_of_week: number; environment_id: string }[] | null;
+        if (savedDayEnvs?.length) {
+            const map: Record<number, string> = {};
+            savedDayEnvs.forEach(de => { map[de.day_of_week] = de.environment_id; });
+            setDayEnvMap(map);
+        }
 
         Promise.all([
             supabase.from('environments').select('id, slug, name_i18n, description_i18n'),
@@ -366,6 +373,10 @@ export default function GeneratePlanScreen() {
                     preferred_session_duration: preferredDuration,
                     schedule_notes: scheduleNotes.trim() || null,
                     weekly_schedule: { sessions: sportSessions, notes: null } as any,
+                    day_environments: Object.entries(dayEnvMap).map(([day, environment_id]) => ({
+                        day_of_week: Number(day),
+                        environment_id,
+                    })) as any,
                     load_score,
                     load_profile,
                 })
@@ -615,6 +626,7 @@ export default function GeneratePlanScreen() {
                                     onPress={() => setPreferredDays(prev => {
                                         const next = new Set(prev);
                                         if (next.has(dow) && next.size <= 2) return prev;
+                        if (next.has(dow)) setDayEnvMap(m => { const n = { ...m }; delete n[dow]; return n; });
                                         next.has(dow) ? next.delete(dow) : next.add(dow);
                                         return next;
                                     })}
@@ -640,6 +652,44 @@ export default function GeneratePlanScreen() {
                             ))}
                         </View>
                     </View>
+
+                    {selectedEnvIds.size > 1 && preferredDays.size > 0 && (
+                        <View style={styles.section}>
+                            <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                                {t('onboarding.workout_prefs_env_label')}
+                            </JempText>
+                            <JempText type="body-sm" color={theme.textMuted} style={styles.notesHint}>
+                                {t('onboarding.workout_prefs_env_hint')}
+                            </JempText>
+                            {[...preferredDays].sort((a, b) => a - b).map(dow => {
+                                const dayKey = WEEK_DAYS.find(d => d.dow === dow)?.key;
+                                const selectedEnvs = allEnvs.filter(e => selectedEnvIds.has(e.id));
+                                return (
+                                    <View key={dow} style={styles.dayEnvRow}>
+                                        <JempText type="body-l" style={styles.dayEnvLabel}>
+                                            {dayKey ? t(dayKey as any) : ''}
+                                        </JempText>
+                                        <View style={styles.dayEnvChips}>
+                                            {selectedEnvs.map(env => (
+                                                <SelectableChip
+                                                    key={env.id}
+                                                    label={env.name_i18n?.[locale] ?? env.slug}
+                                                    selected={dayEnvMap[dow] === env.id}
+                                                    onPress={() => setDayEnvMap(prev => {
+                                                        const next = { ...prev };
+                                                        if (next[dow] === env.id) delete next[dow];
+                                                        else next[dow] = env.id;
+                                                        return next;
+                                                    })}
+                                                    style={styles.dayEnvChip}
+                                                />
+                                            ))}
+                                        </View>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    )}
 
                     <View style={styles.section}>
                         <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
@@ -890,6 +940,10 @@ const styles = StyleSheet.create({
     durationChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
     notesHint: { marginBottom: 12 },
     notesInput: { minHeight: 100 },
+    dayEnvRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 12 },
+    dayEnvLabel: { width: 28 },
+    dayEnvChips: { flexDirection: 'row', gap: 8, flex: 1 },
+    dayEnvChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
 
     // Weekly sport schedule
     sportCard: { borderRadius: 14, padding: 16, marginBottom: 12 },
