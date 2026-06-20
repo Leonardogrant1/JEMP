@@ -107,6 +107,14 @@
           "enableVibration": true,
           "iosDisplayInForeground": true
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
       ]
     ],
     "experiments": {

@@ -5,6 +5,7 @@ import { PlanSessionCard } from '@/components/plan/PlanSessionCard';
 import { SessionCard } from '@/components/plan/SessionCard';
 import { StatsCard } from '@/components/plan/StatsCard';
 import { WeekStrip } from '@/components/plan/WeekStrip';
+import { EmptyPlanCard } from '@/components/plan/EmptyPlanCard';
 import { type DayVariant, RestDayCard } from '@/components/rest-day-card';
 import { MONTHS } from '@/constants/date-constants';
 import { Colors, Cyan, Electric } from '@/constants/theme';
@@ -243,25 +244,7 @@ export default function PlanScreen() {
                             <ActivityIndicator color={theme.primary} />
                         </View>
                     ) : !plan ? (
-                        <View style={[styles.emptyCard, { backgroundColor: theme.surface }]}>
-                            <Ionicons name="rocket-outline" size={48} color={theme.textMuted} />
-                            <JempText type="h2" style={styles.centeredText}>
-                                {t('ui.plan_empty_title')}
-                            </JempText>
-                            <JempText type="body-l" color={theme.textMuted} style={styles.centeredText}>
-                                {t('ui.plan_empty_subtitle')}
-                            </JempText>
-                            <TouchableOpacity style={styles.generateBtn} onPress={startGeneration}>
-                                <LinearGradient
-                                    colors={[Cyan[500], Electric[500]]}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 0 }}
-                                    style={styles.generateBtnGradient}
-                                >
-                                    <JempText type="button" color="#fff">{t('ui.plan_generate')}</JempText>
-                                </LinearGradient>
-                            </TouchableOpacity>
-                        </View>
+                        <EmptyPlanCard onGenerate={startGeneration} />
                     ) : (
                         <>
                             <StatsCard />
@@ -297,10 +280,6 @@ const styles = StyleSheet.create({
     weekInfo: { alignItems: 'flex-end', gap: 2, paddingBottom: 4 },
 
     centered: { paddingTop: 60, alignItems: 'center' },
-    centeredText: { textAlign: 'center' },
-    emptyCard: { borderRadius: 16, padding: 32, alignItems: 'center', gap: 12 },
-    generateBtn: { marginTop: 8, width: '100%', borderRadius: 100, overflow: 'hidden' },
-    generateBtnGradient: { height: 52, alignItems: 'center', justifyContent: 'center' },
 
 
     // Sessions

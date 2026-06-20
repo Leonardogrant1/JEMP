@@ -606,7 +606,8 @@ const en = {
     'planGeneration.error_title': 'Plan generation failed',
     'planGeneration.error_generic': 'Something went wrong. Please try again.',
     'planGeneration.hint': 'Your plan is being created',
-    'planGeneration.hint_tap': 'Tap for details',
+    'planGeneration.hint_tap': 'View progress',
+    'planGeneration.notify_hint': 'You\'ll be notified when your plan is ready.',
 
 } as const;
 

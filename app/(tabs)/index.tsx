@@ -131,22 +131,31 @@ export default function HomeScreen() {
     }, [nextSession, updateStatus, router, openWithPlacement]);
 
 
-    return (
-        <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
-            {isGenerating && (
-                <Pressable
-                    onPress={() => router.push('/(tabs)/plan')}
-                    style={[styles.generationBanner, { backgroundColor: Electric[500] + '22' }]}
-                >
-                    <ActivityIndicator size="small" color={Electric[500]} />
-                    <JempText type="caption" color={Electric[500]}>
+    if (isGenerating) {
+        return (
+            <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
+                <View style={styles.generatingContainer}>
+                    <ActivityIndicator size="large" color={Electric[500]} />
+                    <JempText type="h2" style={styles.centeredText}>
                         {t('planGeneration.hint')}
                     </JempText>
-                    <JempText type="caption" color={Electric[500]}>
-                        {t('planGeneration.hint_tap')} →
-                    </JempText>
-                </Pressable>
-            )}
+                    <Pressable onPress={() => router.push('/(tabs)/plan')} style={styles.progressBtn}>
+                        <LinearGradient
+                            colors={[Cyan[500], Electric[500]]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.progressBtnGradient}
+                        >
+                            <JempText type="button" color="#fff">{t('planGeneration.hint_tap')}</JempText>
+                        </LinearGradient>
+                    </Pressable>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    return (
+        <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
             <View style={styles.content}>
 
                 {/* ── Header ── */}
@@ -312,14 +321,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    generationBanner: {
-        flexDirection: 'row',
+    generatingContainer: {
+        flex: 1,
         alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        marginHorizontal: 16,
-        marginBottom: 8,
-        borderRadius: 10,
+        justifyContent: 'center',
+        gap: 24,
+        paddingHorizontal: 32,
     },
+    centeredText: { textAlign: 'center' },
+    progressBtn: { width: '100%', borderRadius: 100, overflow: 'hidden' },
+    progressBtnGradient: { height: 52, alignItems: 'center', justifyContent: 'center' },
 });

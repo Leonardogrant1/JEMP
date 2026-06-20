@@ -66,7 +66,6 @@ async function main() {
         maxConcurrentActivityTaskExecutions: 2,  // plan gen is I/O heavy
     });
 
-    console.log('Temporal Workers started: memolib-queue (playlist, quiz, flashcard) + memolib-demo-queue (demo)');
     console.log('JEMP worker started: jemp-queue (plan generation)');
     console.log(`Connected to Temporal server: ${process.env.TEMPORAL_ADDRESS || 'localhost:7233'}`);
 

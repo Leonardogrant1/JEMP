@@ -18,9 +18,11 @@ if [ $# -eq 1 ]; then
   # Only project given – no env
   ENV=""
   PROJECT=$1
+  EXTRA_FLAGS=""
 else
   ENV=$1
   PROJECT=$2
+  EXTRA_FLAGS="${@:3}"
 fi
 
 echo "Deploying $PROJECT to Fly.io in $ENV environment"
@@ -126,7 +128,7 @@ fi
 echo "Deploying '$APPNAME'..."
 echo "Current directory: $(pwd)"
 
-$FLYCTL deploy --config $CONFIG_PATH --dockerfile $DOCKERFILE_PATH --build-arg PROJECT="$PROJECT" -a $APPNAME
+$FLYCTL deploy --config $CONFIG_PATH --dockerfile $DOCKERFILE_PATH --build-arg PROJECT="$PROJECT" -a $APPNAME $EXTRA_FLAGS
 
 if [ $? -eq 0 ]; then
   echo "Deployment successful"

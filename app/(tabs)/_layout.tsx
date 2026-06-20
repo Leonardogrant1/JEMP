@@ -1,4 +1,5 @@
 import { Confetti } from '@/components/confetti';
+import Logo from '@/assets/icons/logo.svg';
 import { TabBar } from '@/components/tab-bar';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -144,6 +145,16 @@ export default function TabLayout() {
               <TouchableOpacity
                 style={styles.debugButton}
                 onPress={async () => {
+                  await AsyncStorage.removeItem('welcome_dialog_shown');
+                  setShowWelcomeDialog(true);
+                }}
+              >
+                <Text style={styles.debugButtonText}>👋 Show Welcome Dialog</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={async () => {
                   if (!session) return;
                   await supabase
                     .from('user_profiles')
@@ -275,7 +286,7 @@ export default function TabLayout() {
       <Modal transparent animationType="fade" visible={showWelcomeDialog} statusBarTranslucent>
         <View style={styles.congratsOverlay}>
           <View style={[styles.congratsCard, { backgroundColor: theme.surface }]}>
-            <Text style={styles.congratsEmoji}>🎉</Text>
+            <Logo width={64} height={64} />
             <Text style={[styles.congratsTitle, { color: theme.text }]}>
               {t('ui.welcome_dialog_title', { name: profile?.first_name ?? '' })}
             </Text>
