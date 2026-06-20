@@ -1,5 +1,5 @@
-import { Connection, Client } from '@temporalio/client'
 import { createClient } from '@supabase/supabase-js'
+import { Client, Connection } from '@temporalio/client'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
   // 3. Start Temporal workflow
   const temporalAddress = process.env.TEMPORAL_ADDRESS ?? 'localhost:7233'
   const namespace = process.env.TEMPORAL_NAMESPACE ?? 'default'
+
+  console.log(temporalAddress)
+  console.log(namespace)
 
   try {
     const connection = await Connection.connect({ address: temporalAddress })
