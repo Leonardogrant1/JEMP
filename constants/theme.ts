@@ -53,6 +53,9 @@ export const MODE_COLORS: Record<string, string> = {
   recovery: '#a78bfa',
 };
 
+export const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
+
+
 
 // Mid-point between Cyan[500] and Electric[500] gradient
 export const GradientMid = '#3D9ECB';

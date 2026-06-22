@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client';
+import { devLog } from '@/utils/dev-log';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from './query-keys';
 
@@ -21,7 +22,7 @@ async function fetchUserCategoryHistory(
     if (categoriesRes.error) throw categoriesRes.error;
     if (historyRes.error) throw historyRes.error;
 
-    console.log('[history] rows fetched:', historyRes.data?.length ?? 0, '| since:', since);
+    devLog('[history] rows fetched:', historyRes.data?.length ?? 0, '| since:', since);
 
     const slugById = new Map<string | null, string>(
         categoriesRes.data.map(c => [c.id, c.slug])

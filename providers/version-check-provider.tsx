@@ -49,14 +49,16 @@ export function VersionCheckProvider({ children }: Props) {
     const localVersion = Application.nativeApplicationVersion
     if (!localVersion) return
 
-    const [storeResult, checkResult] = await Promise.allSettled([
+    let [storeResult, checkResult] = await Promise.allSettled([
       fetchStoreVersion(),
       fetchVersionCheck(localVersion),
     ])
 
+    // DEBUG: Erzwinge Force Update
+    // checkResult = { status: 'fulfilled', value: { updateRequired: true } }
     // Backend-Kompatibilitäts-Check hat höchste Priorität
     if (checkResult.status === 'fulfilled' && checkResult.value.updateRequired) {
-      setState({ status: 'maintenance', storeVersion: null, releaseNotes: null, showDialog: false })
+      setState({ status: 'force_update', storeVersion: null, releaseNotes: null, showDialog: false })
       return
     }
 
@@ -64,7 +66,6 @@ export function VersionCheckProvider({ children }: Props) {
     if (storeResult.status === 'fulfilled') {
       const { version: storeVersion, releaseNotes } = storeResult.value
       const diff = compareVersions(localVersion, storeVersion)
-
       if (diff === 'major') {
         setState({ status: 'force_update', storeVersion, releaseNotes, showDialog: false })
         return

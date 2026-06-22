@@ -1,6 +1,6 @@
 import { Platform } from 'react-native'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? ''
+const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? ''
 
 export const COOLDOWN_STORAGE_KEY = 'version_check_last_dialog'
 export const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000

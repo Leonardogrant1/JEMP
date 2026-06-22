@@ -158,6 +158,7 @@ export async function prepareGeneration(
     user_focus_categories,
     day_environments = [],
     equipment_environments = [],
+    sport_group_name = '',
   } = input
 
   const userEnvironmentIds = new Set(environment_ids)
@@ -196,11 +197,13 @@ export async function prepareGeneration(
     { data: allEnvRows },
     { data: allEquipmentRows },
     { data: allExercises },
+    { data: exerciseSportGroupRows },
   ] = await Promise.all([
     supabase.from('exercise_environments').select('exercise_id, environment_id'),
     supabase.from('environments').select('id, slug'),
     supabase.from('exercise_equipments').select('exercise_id, equipment_id'),
-    supabase.from('exercises').select('*, intensity_score, exercise_type, measurement_type, categories(id, slug), exercise_blocks(block_types(slug))'),
+    supabase.from('exercises').select('*, intensity_score, exercise_type, measurement_type, is_sport_specific, categories(id, slug), exercise_blocks(block_types(slug))'),
+    (supabase as any).from('exercise_sport_groups').select('exercise_id, sport_group'),
   ])
   console.log(`[t=${elapsed(t0)}] DB fetch done (${elapsed(tDb)})`)
 
@@ -218,6 +221,12 @@ export async function prepareGeneration(
   for (const row of allEquipmentRows ?? []) {
     if (!exerciseEquipmentMap.has(row.exercise_id!)) exerciseEquipmentMap.set(row.exercise_id!, new Set())
     exerciseEquipmentMap.get(row.exercise_id!)!.add(row.equipment_id!)
+  }
+
+  const exerciseSportGroupMap = new Map<string, Set<string>>()
+  for (const row of exerciseSportGroupRows ?? []) {
+    if (!exerciseSportGroupMap.has(row.exercise_id)) exerciseSportGroupMap.set(row.exercise_id, new Set())
+    exerciseSportGroupMap.get(row.exercise_id)!.add(row.sport_group)
   }
 
   // ── 3. Exercise filter helpers ───────────────────────────────
@@ -273,6 +282,8 @@ export async function prepareGeneration(
   ): any[] {
     return (allExercises ?? []).filter((exercise) => {
       if (exercise.categories?.slug !== categorySlug) return false
+      // Sport-specific skills never appear in main blocks
+      if (exercise.is_sport_specific) return false
 
       const exerciseType = exercise.exercise_type
       const intensityScore = exercise.intensity_score
@@ -303,7 +314,11 @@ export async function prepareGeneration(
     return (allExercises ?? []).filter((exercise) => {
       const blockSlugs = (exercise.exercise_blocks as any[])?.map((b: any) => b.block_types?.slug) ?? []
       if (!blockSlugs.includes(blockType)) return false
-
+      // Sport-specific exercises: only show for matching sport group
+      if (exercise.is_sport_specific) {
+        const allowedGroups = exerciseSportGroupMap.get(exercise.id)
+        if (!allowedGroups || !allowedGroups.has(sport_group_name)) return false
+      }
       return passesEquipmentAndEnv(exercise, sessionEnvId)
     })
   }
@@ -334,12 +349,18 @@ export async function prepareGeneration(
 
   // ── 4. Phase A: Week planner — AI picks categories per block ──
 
+  // Build per-day preset environments (slug form for the prompt)
+  const dayPresetEnvironments = day_environments
+    .map((de) => ({ day_of_week: de.day_of_week, environment_slug: envIdToSlugMap.get(de.environment_id) ?? '' }))
+    .filter((de) => de.environment_slug !== '')
+
   const userContext = JSON.stringify({
     sport_slug,
     load_profile,
     load_score,
     ...(weekly_schedule.sessions.length > 0 ? { weekly_schedule } : {}),
     user_environments: environment_slugs,
+    ...(dayPresetEnvironments.length > 0 ? { day_preset_environments: dayPresetEnvironments } : {}),
     sport_required_categories,
     user_focus_categories,
   }, null, 2)
@@ -348,11 +369,6 @@ export async function prepareGeneration(
   console.log(`[t=${elapsed(t0)}] Phase A — calling week planner: ${sessionSpecs.length} sessions, categorySlugs=[${categorySlugs.join(', ')}]`)
 
   const dynamicWeekPlanSchema = buildWeekPlanSchema(categorySlugs, environment_slugs)
-
-  // Build per-day preset environments (slug form for the prompt)
-  const dayPresetEnvironments = day_environments
-    .map((de) => ({ day_of_week: de.day_of_week, environment_slug: envIdToSlugMap.get(de.environment_id) ?? '' }))
-    .filter((de) => de.environment_slug !== '')
 
   const weekPlanCompletion = await openai.chat.completions.create({
     model: 'gpt-5-mini',
@@ -452,20 +468,7 @@ export async function prepareGeneration(
     console.log(`Phase B day ${spec.day_of_week}: environment=${sessionEnvSlug ?? 'none'} (id=${sessionEnvId ?? 'null'})`)
 
     const blockPools: BlockPool[] = plannedBlocks.map((block) => {
-      const rawPool = filterByCategoryForMode(block.category_slug, spec.mode_slug, sessionEnvId)
-
-      // Accessory pools get filtered by body_regions so each session has region-specific exercises.
-      // Minimum 3 exercises required to give the LLM meaningful choice; fall back to full pool if too few.
-      const pool = (block.block_type === 'accessory' && sessionBodyRegions.size > 0)
-        ? (() => {
-            const filtered = filterByBodyRegion(rawPool, sessionBodyRegions)
-            if (filtered.length < 3) {
-              console.log(`Phase B day ${spec.day_of_week} accessory body_region filter too restrictive (${filtered.length} exercises) — using full pool`)
-              return rawPool
-            }
-            return filtered
-          })()
-        : rawPool
+      const pool = filterByCategoryForMode(block.category_slug, spec.mode_slug, sessionEnvId)
 
       if (pool.length === 0) {
         console.warn(`Phase B day ${spec.day_of_week} [${spec.mode_slug}] ${block.block_type}/${block.category_slug}: EMPTY pool — no exercises for this category`)
@@ -515,6 +518,71 @@ export async function prepareGeneration(
       cooldownCategorySlugs: uniqueSlugs(cooldownPool),
     }
   })
+
+  // ── Pool Optimization: switch env if any block pool is too small ────────────
+  const MIN_BLOCK_POOL = 3
+
+  for (const si of sessionBuildInputs) {
+    // Never override user-preset environments
+    if (dayEnvMap.has(si.spec.day_of_week)) continue
+
+    const tooSmall = si.blockPools.filter(
+      (p) => p.slugs.split(',').filter(Boolean).length < MIN_BLOCK_POOL,
+    )
+    if (tooSmall.length === 0) continue
+
+    const tooSmallDesc = tooSmall
+      .map((p) => `${p.block_type}/${p.category_slug}=${p.slugs.split(',').filter(Boolean).length}`)
+      .join(', ')
+    console.log(`Pool Opt day ${si.spec.day_of_week}: small pools: ${tooSmallDesc} (threshold=${MIN_BLOCK_POOL})`)
+
+    const scoreEnv = (envId: string | null): number =>
+      si.blockPools.reduce((sum, block) => {
+        return sum + filterByCategoryForMode(block.category_slug, si.spec.mode_slug, envId).length
+      }, 0)
+
+    const currentScore = scoreEnv(si.environment_id)
+    let bestEnvId = si.environment_id
+    let bestScore = currentScore
+
+    for (const envId of environment_ids) {
+      if (envId === si.environment_id) continue
+      const score = scoreEnv(envId)
+      if (score > bestScore) { bestScore = score; bestEnvId = envId }
+    }
+
+    if (bestEnvId === si.environment_id) {
+      console.log(`  Pool Opt day ${si.spec.day_of_week}: no better environment found`)
+      continue
+    }
+
+    const fromSlug = si.environment_id ? (envIdToSlugMap.get(si.environment_id) ?? si.environment_id) : 'none'
+    const toSlug = bestEnvId ? (envIdToSlugMap.get(bestEnvId) ?? bestEnvId) : 'none'
+    console.log(`  Pool Opt day ${si.spec.day_of_week}: switching env ${fromSlug} → ${toSlug} (score: ${currentScore} → ${bestScore})`)
+    si.environment_id = bestEnvId
+
+    // Recompute block pools with new environment
+    for (const block of si.blockPools) {
+      const pool = filterByCategoryForMode(block.category_slug, si.spec.mode_slug, bestEnvId)
+      block.exercisesString = exercisesToString(pool)
+      block.slugs = pool.map((e: any) => e.slug).join(', ')
+      console.log(`     ${block.block_type}/${block.category_slug}: → ${pool.length} exercises`)
+    }
+
+    // Recompute warmup/cooldown pools
+    const sessionBodyRegions = new Set(si.bodyRegions)
+    const allWarmupOpt = filterByBlockType('warmup', bestEnvId)
+    const allCooldownOpt = filterByBlockType('cooldown', bestEnvId)
+    const warmupPoolOpt = (() => { const f = filterByBodyRegion(allWarmupOpt, sessionBodyRegions); return f.length > 0 ? f : allWarmupOpt })()
+    const cooldownPoolOpt = (() => { const f = filterByBodyRegion(allCooldownOpt, sessionBodyRegions); return f.length > 0 ? f : allCooldownOpt })()
+    const uniqueSlugsOpt = (pool: any[]) => [...new Set(pool.map((e: any) => e.categories?.slug).filter(Boolean))]
+    si.warmupExercisesString = exercisesToString(warmupPoolOpt)
+    si.warmupSlugs = warmupPoolOpt.map((e: any) => e.slug).join(', ')
+    si.warmupCategorySlugs = uniqueSlugsOpt(warmupPoolOpt)
+    si.cooldownExercisesString = exercisesToString(cooldownPoolOpt)
+    si.cooldownSlugs = cooldownPoolOpt.map((e: any) => e.slug).join(', ')
+    si.cooldownCategorySlugs = uniqueSlugsOpt(cooldownPoolOpt)
+  }
 
   // Build compact measurement type lookup
   const exerciseSlugToMeasurementType: Record<string, string> = {}

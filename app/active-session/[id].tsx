@@ -1,7 +1,7 @@
 import { Confetti } from '@/components/confetti';
 import { ExerciseVideoHero } from '@/components/exercise-video-hero';
 import { JempText } from '@/components/jemp-text';
-import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
+import { Colors, Cyan, Electric, GRADIENT, GradientMid } from '@/constants/theme';
 import { formatTargetReps, loadUnit } from '@/helpers/format';
 import { calculateProgression } from '@/helpers/progression-suggestion';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -33,11 +33,11 @@ import {
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Animated, {
     Easing,
-    type SharedValue,
     runOnJS,
     useAnimatedStyle,
     useSharedValue,
     withTiming,
+    type SharedValue,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -808,7 +808,7 @@ export default function ActiveSessionScreen() {
                                         {hasTarget && (
                                             <View style={[styles.timerTrack, { backgroundColor: theme.borderStrong, width: '100%' }]}>
                                                 <View style={[styles.timerFill, { width: `${progress * 100}%` as any }]}>
-                                                    <LinearGradient colors={[Cyan[500], Electric[500]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+                                                    <LinearGradient colors={GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
                                                 </View>
                                             </View>
                                         )}

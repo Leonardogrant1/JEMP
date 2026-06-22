@@ -10,8 +10,11 @@ import ShieldIcon from '@/assets/icons/shield.svg';
 import UserIcon from '@/assets/icons/user.svg';
 import WeightIcon from '@/assets/icons/weight.svg';
 import { JempText } from '@/components/jemp-text';
+import { SectionLabel } from '@/components/profile/SectionLabel';
+import { SettingsRow } from '@/components/profile/SettingRow';
 import { StatCard } from '@/components/profile/stat-card';
-import { Colors, Cyan, Electric } from '@/constants/theme';
+import { FEATURE_REQUEST_URL, PRIVACY_POLICY_URL, REPORT_BUG_URL } from '@/constants/settings';
+import { Colors, Cyan, GRADIENT } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useCurrentUser } from '@/providers/current-user-provider';
@@ -23,62 +26,11 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 
-// ── Settings row ─────────────────────────────────────────────
-
-interface SettingsRowProps {
-    icon: React.ReactNode;
-    label: string;
-    onPress: () => void;
-    loading?: boolean;
-    destructive?: boolean;
-}
-
-function SettingsRow({ icon, label, onPress, loading, destructive }: SettingsRowProps) {
-    const colorScheme = useColorScheme();
-    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
-
-    return (
-        <Pressable
-            style={({ pressed }) => [
-                styles.settingsRow,
-                { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },
-            ]}
-            onPress={onPress}
-            disabled={loading}
-        >
-            <View style={[styles.settingsIconBox, { backgroundColor: theme.background }, destructive && styles.settingsIconBoxDestructive]}>
-                {loading
-                    ? <ActivityIndicator size="small" color={destructive ? '#ef4444' : '#fff'} />
-                    : icon
-                }
-            </View>
-            <JempText type="body-l" color={destructive ? '#ef4444' : theme.text} style={styles.settingsLabel}>{label}</JempText>
-            <Ionicons name="chevron-forward" size={16} color={theme.textSubtle} />
-        </Pressable>
-    );
-}
-const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
-
-function SectionLabel({ label }: { label: string }) {
-    const colorScheme = useColorScheme();
-    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
-    return (
-        <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
-            {label.toUpperCase()}
-        </JempText>
-    );
-}
-
-// ── Screen ───────────────────────────────────────────────────
-
-const FEATURE_REQUEST_URL = 'https://northbyte.studio/features/jemp';
-const REPORT_BUG_URL = 'https://northbyte.studio/bugs/jemp';
-const PRIVACY_POLICY_URL = 'https://www.northbyte.studio/privacy-policy/jemp';
 
 export default function ProfileScreen() {
     const { t, i18n } = useTranslation();
@@ -281,29 +233,10 @@ const styles = StyleSheet.create({
 
     // Settings sections
     settingsSection: { gap: 8 },
-    sectionLabel: { letterSpacing: 1, fontSize: 11, paddingHorizontal: 4 },
 
     // Settings — each row is its own card
     settingsGroup: { gap: 10 },
-    settingsRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        borderRadius: 16,
-        gap: 14,
-    },
-    settingsIconBox: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    settingsIconBoxDestructive: {
-        backgroundColor: '#ef444418',
-    },
-    settingsLabel: { flex: 1 },
+
 
     // Plan success modal
     successOverlay: {

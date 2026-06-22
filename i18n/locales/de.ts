@@ -611,6 +611,15 @@ const de: Record<TranslationKeys, string> = {
     'planGeneration.hint_tap': 'Fortschritt ansehen',
     'planGeneration.notify_hint': 'Du wirst benachrichtigt, wenn dein Plan fertig ist.',
 
+    // ── Version / App updates ────────────────────────────────────────────────────
+    'version.maintenance_title': 'Wartung',
+    'version.maintenance_body': 'Wir führen gerade Wartungsarbeiten durch. Die App ist in Kürze wieder verfügbar.',
+    'version.update_available_title': 'Update verfügbar',
+    'version.update_now': 'Jetzt updaten',
+    'version.update_later': 'Später',
+    'version.force_update_title': 'Update erforderlich',
+    'version.force_update_body': 'Diese Version der App wird nicht mehr unterstützt. Bitte update die App um weiterzumachen.',
+
 };
 
 export default de;

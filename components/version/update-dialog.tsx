@@ -1,9 +1,9 @@
-// components/version/update-dialog.tsx
 import { JempText } from '@/components/jemp-text'
 import { Colors, GRADIENT } from '@/constants/theme'
 import { STORE_URL } from '@/constants/store-urls'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useTranslation } from 'react-i18next'
 import { Linking, Modal, Pressable, StyleSheet } from 'react-native'
 
 type Props = {
@@ -13,6 +13,7 @@ type Props = {
 }
 
 export function UpdateDialog({ storeVersion, releaseNotes, onDismiss }: Props) {
+  const { t } = useTranslation()
   const scheme = (useColorScheme() ?? 'dark') as 'light' | 'dark'
   const colors = Colors[scheme]
 
@@ -26,7 +27,7 @@ export function UpdateDialog({ storeVersion, releaseNotes, onDismiss }: Props) {
       <Pressable style={styles.backdrop} onPress={onDismiss}>
         <Pressable onPress={(e) => e.stopPropagation()} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.borderCard }]}>
           <JempText type="h2" style={styles.title}>
-            Update verfügbar
+            {t('version.update_available_title')}
           </JempText>
 
           <JempText type="body-sm" color={colors.textMuted} style={styles.version}>
@@ -47,14 +48,14 @@ export function UpdateDialog({ storeVersion, releaseNotes, onDismiss }: Props) {
               style={styles.button}
             >
               <JempText type="button" color="#fff">
-                Jetzt updaten
+                {t('version.update_now')}
               </JempText>
             </LinearGradient>
           </Pressable>
 
           <Pressable onPress={onDismiss} style={styles.laterButton}>
             <JempText type="body-sm" color={colors.textMuted}>
-              Später
+              {t('version.update_later')}
             </JempText>
           </Pressable>
         </Pressable>

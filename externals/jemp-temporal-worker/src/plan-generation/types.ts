@@ -15,6 +15,7 @@ export type WeeklySchedule = {
 
 export type PlanGenerationInput = {
   sport_slug: string
+  sport_group_name?: string
   preferred_workout_days: number[]
   min_session_duration: number
   max_session_duration: number

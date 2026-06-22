@@ -1,7 +1,7 @@
 import { JempText } from '@/components/jemp-text';
-import { SelectableRow } from '@/components/ui/selectable-row';
 import { SelectableChip } from '@/components/ui/selectable-chip';
-import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
+import { SelectableRow } from '@/components/ui/selectable-row';
+import { Colors, GRADIENT, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useCurrentUser } from '@/providers/current-user-provider';
@@ -20,7 +20,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
 
 const ENV_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
     gym: 'barbell-outline',

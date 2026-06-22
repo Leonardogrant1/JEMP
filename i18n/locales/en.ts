@@ -609,6 +609,15 @@ const en = {
     'planGeneration.hint_tap': 'View progress',
     'planGeneration.notify_hint': 'You\'ll be notified when your plan is ready.',
 
+    // ── Version / App updates ────────────────────────────────────────────────────
+    'version.maintenance_title': 'Maintenance',
+    'version.maintenance_body': 'We are currently performing maintenance. The app will be available again shortly.',
+    'version.update_available_title': 'Update Available',
+    'version.update_now': 'Update Now',
+    'version.update_later': 'Later',
+    'version.force_update_title': 'Update Required',
+    'version.force_update_body': 'This version of the app is no longer supported. Please update to continue.',
+
 } as const;
 
 export type TranslationKeys = keyof typeof en;

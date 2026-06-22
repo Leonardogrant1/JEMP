@@ -1,9 +1,10 @@
+import Logo from '@/assets/icons/logo.svg'
 import { JempText } from '@/components/jemp-text'
 import { Colors, GRADIENT } from '@/constants/theme'
 import { STORE_URL } from '@/constants/store-urls'
 import { useColorScheme } from '@/hooks/use-color-scheme'
-import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useTranslation } from 'react-i18next'
 import { Linking, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -12,6 +13,7 @@ type Props = {
 }
 
 export function ForceUpdateScreen({ releaseNotes }: Props) {
+  const { t } = useTranslation()
   const scheme = (useColorScheme() ?? 'dark') as 'light' | 'dark'
   const colors = Colors[scheme]
   const insets = useSafeAreaInsets()
@@ -19,16 +21,16 @@ export function ForceUpdateScreen({ releaseNotes }: Props) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
       <View style={styles.content}>
-        <View style={[styles.iconBox, { backgroundColor: colors.surface }]}>
-          <Ionicons name="arrow-up-circle-outline" size={40} color={GRADIENT[0]} />
+        <View style={styles.logoWrapper}>
+          <Logo width={64} height={64} />
         </View>
 
         <JempText type="h1" style={styles.title}>
-          Update erforderlich
+          {t('version.force_update_title')}
         </JempText>
 
         <JempText type="body-l" color={colors.textMuted} style={styles.body}>
-          Diese Version der App wird nicht mehr unterstützt. Bitte update die App um weiterzumachen.
+          {t('version.force_update_body')}
         </JempText>
 
         {releaseNotes ? (
@@ -48,7 +50,7 @@ export function ForceUpdateScreen({ releaseNotes }: Props) {
           style={styles.button}
         >
           <JempText type="button" color="#fff">
-            Jetzt updaten
+            {t('version.update_now')}
           </JempText>
         </LinearGradient>
       </Pressable>
@@ -68,13 +70,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 16,
   },
-  iconBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
+  logoWrapper: {
+    marginBottom: 16,
   },
   title: {
     textAlign: 'center',

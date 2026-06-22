@@ -55,7 +55,7 @@ export async function preparePlanGeneration(input: { userId: string }): Promise<
   // ── Fetch sport + categories ─────────────────────────────────────────────
   const { data: sportData } = await supabase
     .from('sports')
-    .select('slug, sport_category_relevance(relevance, categories(slug))')
+    .select('slug, group_name, sport_category_relevance(relevance, categories(slug))')
     .eq('id', userProfile.sport_id)
     .single()
 
@@ -89,6 +89,7 @@ export async function preparePlanGeneration(input: { userId: string }): Promise<
   return prepareGeneration(
     {
       sport_slug: sportData?.slug ?? '',
+      sport_group_name: (sportData as any)?.group_name ?? '',
       preferred_workout_days: userProfile.preferred_workout_days ?? [],
       min_session_duration: durationPref.min,
       max_session_duration: durationPref.max,

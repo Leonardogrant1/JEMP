@@ -1,5 +1,5 @@
 import { JempText } from '@/components/jemp-text';
-import { Colors, Cyan, Electric } from '@/constants/theme';
+import { Colors, Cyan, GRADIENT } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { supabase } from '@/services/supabase/client';
@@ -18,7 +18,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
 
 const GROUP_TITLE_KEYS: Record<string, string> = {
     combat_sports: 'sport_group.martial_arts',

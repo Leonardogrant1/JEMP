@@ -1,14 +1,14 @@
 import { JempText } from '@/components/jemp-text';
 import { SelectableChip } from '@/components/ui/selectable-chip';
 import { getCategoryLabel, type CategoryI18n } from '@/constants/category-labels';
-import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
+import { Colors, GRADIENT, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { supabase } from '@/services/supabase/client';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator, Pressable, ScrollView,
@@ -19,7 +19,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
 const PHASES: Phase[] = ['select', 'rank', 'level'];
 
 const LEVEL_PRESET_SCORES = [15, 35, 55, 75, 90] as const;
@@ -238,21 +237,21 @@ export default function GoalsScreen() {
             ) : phase === 'rank' ? (
                 /* Rank phase: DraggableFlatList owns scrolling */
                 <DraggableFlatList
-                        data={ranked}
-                        keyExtractor={item => item.id}
-                        onDragEnd={({ data }) => setRanked(data)}
-                        renderItem={renderRankItem}
-                        contentContainerStyle={styles.content}
-                        showsVerticalScrollIndicator={false}
-                        ListHeaderComponent={
-                            <View style={styles.listHeader}>
-                                <JempText type="h1" color={theme.text} style={styles.title}>{phaseTitle}</JempText>
-                                <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
-                                    {phaseSubtitle}
-                                </JempText>
-                            </View>
-                        }
-                    />
+                    data={ranked}
+                    keyExtractor={item => item.id}
+                    onDragEnd={({ data }) => setRanked(data)}
+                    renderItem={renderRankItem}
+                    contentContainerStyle={styles.content}
+                    showsVerticalScrollIndicator={false}
+                    ListHeaderComponent={
+                        <View style={styles.listHeader}>
+                            <JempText type="h1" color={theme.text} style={styles.title}>{phaseTitle}</JempText>
+                            <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
+                                {phaseSubtitle}
+                            </JempText>
+                        </View>
+                    }
+                />
             ) : (
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                     <JempText type="h1" color={theme.text} style={styles.title}>{phaseTitle}</JempText>

@@ -5,7 +5,7 @@ import { SelectableChip } from '@/components/ui/selectable-chip';
 import { SelectableRow } from '@/components/ui/selectable-row';
 import { getCategoryLabel, type CategoryI18n } from '@/constants/category-labels';
 import { getSportLabelI18n, SPORT_GROUPS } from '@/constants/sports';
-import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
+import { Colors, GRADIENT, GradientMid } from '@/constants/theme';
 import { Enums } from '@/database.types';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { computeLoadProfile } from '@/lib/load-profile';
@@ -38,7 +38,6 @@ interface EquipmentItem { id: string; slug: string; name_i18n: Record<string, st
 interface AmbiguousItem { id: string; slug: string; name_i18n: Record<string, string> | null; compatibleEnvIds: string[] }
 interface CategoryItem { id: string; slug: string; label: string; name_i18n: CategoryI18n }
 
-const GRADIENT: [string, string] = [Cyan[500], Electric[500]];
 const PHASES: Phase[] = ['sport', 'environment', 'equipment', 'equipment-env', 'goals', 'body', 'schedule', 'weekly'];
 
 const COMBAT_SPORTS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
@@ -733,7 +732,7 @@ export default function GeneratePlanScreen() {
                                     onPress={() => setPreferredDays(prev => {
                                         const next = new Set(prev);
                                         if (next.has(dow) && next.size <= 2) return prev;
-                        if (next.has(dow)) setDayEnvMap(m => { const n = { ...m }; delete n[dow]; return n; });
+                                        if (next.has(dow)) setDayEnvMap(m => { const n = { ...m }; delete n[dow]; return n; });
                                         next.has(dow) ? next.delete(dow) : next.add(dow);
                                         return next;
                                     })}
