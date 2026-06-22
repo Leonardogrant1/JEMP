@@ -7,6 +7,7 @@ import { AuthProvider } from '@/providers/auth-provider';
 import { CurrentUserProvider, useCurrentUser } from '@/providers/current-user-provider';
 import { NotificationProvider } from '@/providers/notification-provider';
 import { PlanProvider } from '@/providers/plan-provider';
+import { VersionCheckProvider } from '@/providers/version-check-provider';
 import { initPosthog } from '@/services/posthog/init';
 import { PurchaseWrapper } from '@/services/purchases/PurchasesWrapper';
 import { RevenueCatProvider } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
@@ -72,7 +73,8 @@ export default function RootLayout() {
 
   return (
     <PostHogProvider client={posthog}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
+      <VersionCheckProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <PostHogSurveyProvider>
           <QueryClientProvider client={queryClient}>
             <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -95,7 +97,8 @@ export default function RootLayout() {
             </ThemeProvider>
           </QueryClientProvider>
         </PostHogSurveyProvider>
-      </GestureHandlerRootView>
+        </GestureHandlerRootView>
+      </VersionCheckProvider>
     </PostHogProvider>
   );
 }
