@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
+import { versionCheckHandler } from './routes/version-check-route';
 
 dotenv.config();
 
@@ -20,6 +21,9 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 app.get('/health', (_req, res) => {
     res.json({ ok: true });
 });
+
+// Version check
+app.get('/version-check', versionCheckHandler);
 
 // POST /api/plan-generation/start
 app.post('/api/plan-generation/start', async (req, res) => {
