@@ -318,7 +318,7 @@ Leite aus den Ziel-Körperregionen dieser Session das Bewegungsmuster ab und wä
 - estimated_duration_minutes: ${duration.min}–${duration.max}
 - mode_slug: "${spec.mode_slug}", day_of_week: ${spec.day_of_week}
 - session_type: "${spec.mode_slug === "recovery" ? "recovery" : "training"}"
-- Name: kurz, beschreibend, kein Wochentag
+- Name: kurz, beschreibend, kein Wochentag, keine Nummerierung (NICHT "Session 1", "Training 2" o.ä.)
 `
 }
 
@@ -490,6 +490,6 @@ WICHTIG: warmup-Slugs NICHT im cooldown verwenden und umgekehrt.
 - estimated_duration_minutes: ${duration.min}–${duration.max}
 - mode_slug: "${spec.mode_slug}", day_of_week: ${spec.day_of_week}
 - session_type: "${spec.mode_slug === "recovery" ? "recovery" : "training"}"
-- Name: kurz, beschreibend, kein Wochentag
+- Name: kurz, beschreibend, kein Wochentag, keine Nummerierung (NICHT "Session 1", "Training 2" o.ä.)
 `
 }
