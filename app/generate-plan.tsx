@@ -1,23 +1,21 @@
 import { JempText } from '@/components/jemp-text';
+import { StepBars } from '@/components/plan-generation/StepBars';
 import { JempInput } from '@/components/ui/jemp-input';
 import { HeightSlider, WeightSlider } from '@/components/ui/measurement-slider';
 import { SelectableChip } from '@/components/ui/selectable-chip';
 import { SelectableRow } from '@/components/ui/selectable-row';
-import { getCategoryLabel, type CategoryI18n } from '@/constants/category-labels';
+import { DURATIONS, WEEK_DAYS } from '@/constants/plan-generation-constants';
 import { getSportLabelI18n, SPORT_GROUPS } from '@/constants/sports';
 import { Colors, GRADIENT, GradientMid } from '@/constants/theme';
-import { Enums } from '@/database.types';
+import { getSessionTypes } from '@/helpers/plan-generation-helpers';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { computeLoadProfile } from '@/lib/load-profile';
 import { useCurrentUser } from '@/providers/current-user-provider';
-import { supabase } from '@/services/supabase/client';
-import { usePlanGenerationStore } from '@/stores/plan-generation-store';
-import { WeeklyScheduleSession } from '@/types/user-data';
+import { usePlanWizardStore } from '@/stores/plan-wizard-store';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator, Pressable, ScrollView, StyleSheet,
@@ -27,74 +25,8 @@ import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-nativ
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type SessionDuration = Enums<'session_duration'>;
-type Phase = 'sport' | 'environment' | 'equipment' | 'equipment-env' | 'goals' | 'body' | 'schedule' | 'weekly';
-type GoalsSubPhase = 'select' | 'rank';
-
-interface EnvItem { id: string; slug: string; icon: keyof typeof Ionicons.glyphMap; name_i18n: Record<string, string> | null; description_i18n: Record<string, string> | null }
-interface EquipmentItem { id: string; slug: string; name_i18n: Record<string, string> | null }
-interface AmbiguousItem { id: string; slug: string; name_i18n: Record<string, string> | null; compatibleEnvIds: string[] }
-interface CategoryItem { id: string; slug: string; label: string; name_i18n: CategoryI18n }
-
-const PHASES: Phase[] = ['sport', 'environment', 'equipment', 'equipment-env', 'goals', 'body', 'schedule', 'weekly'];
-
 const COMBAT_SPORTS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
 
-function getSessionTypes(sportSlug: string | null | undefined): { key: WeeklyScheduleSession['type']; labelKey: string }[] {
-    const isCombat = COMBAT_SPORTS.has(sportSlug ?? '');
-    return [
-        { key: 'team_training', labelKey: 'onboarding.weekly_schedule_type_training' },
-        { key: 'game', labelKey: isCombat ? 'onboarding.weekly_schedule_type_fight' : 'onboarding.weekly_schedule_type_game' },
-        { key: 'tournament', labelKey: 'onboarding.weekly_schedule_type_tournament' },
-    ];
-}
-
-const DURATIONS: { value: SessionDuration; label: string }[] = [
-    { value: '30min', label: '30 min' },
-    { value: '45min', label: '45 min' },
-    { value: '60min', label: '60 min' },
-    { value: '90min', label: '90 min' },
-];
-
-const WEEK_DAYS: { dow: number; key: string }[] = [
-    { dow: 1, key: 'onboarding.workout_prefs_day_mon' },
-    { dow: 2, key: 'onboarding.workout_prefs_day_tue' },
-    { dow: 3, key: 'onboarding.workout_prefs_day_wed' },
-    { dow: 4, key: 'onboarding.workout_prefs_day_thu' },
-    { dow: 5, key: 'onboarding.workout_prefs_day_fri' },
-    { dow: 6, key: 'onboarding.workout_prefs_day_sat' },
-    { dow: 7, key: 'onboarding.workout_prefs_day_sun' },
-];
-
-const ENV_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-    gym: 'barbell-outline',
-    outdoor: 'leaf-outline',
-    home: 'home-outline',
-};
-
-// ─── Step indicator ───────────────────────────────────────────────────────────
-
-function StepBars({ phase }: { phase: Phase }) {
-    const colorScheme = useColorScheme();
-    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
-    const idx = PHASES.indexOf(phase);
-
-    return (
-        <View style={styles.stepBars}>
-            {PHASES.map((_, i) =>
-                i <= idx ? (
-                    <View key={i} style={[styles.stepBar, { backgroundColor: GradientMid }]} />
-                ) : (
-                    <View key={i} style={[styles.stepBar, { backgroundColor: theme.borderStrong }]} />
-                )
-            )}
-        </View>
-    );
-}
-
-// ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function GeneratePlanScreen() {
     const insets = useSafeAreaInsets();
@@ -105,410 +37,41 @@ export default function GeneratePlanScreen() {
     const router = useRouter();
     const { profile } = useCurrentUser();
 
-    const [phase, setPhase] = useState<Phase>('sport');
-    const [loading, setLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-    const [saveError, setSaveError] = useState<string | null>(null);
+    const {
+        phase, goalsSubPhase, loading, isSaving, saveError,
+        selectedSportSlug, allEnvs, selectedEnvIds,
+        allEquipment, selectedEquipmentIds,
+        ambiguousEquipment, equipmentEnvSelections,
+        allCategories, selectedCategoryIds, rankedCategories,
+        weightKg, heightCm, weightUnit, heightUnit,
+        preferredDays, preferredDuration, scheduleNotes, dayEnvMap,
+        sportSessions,
+        initialize,
+        setSelectedSportSlug, toggleEnv, toggleEquipment, toggleEquipmentEnv,
+        toggleCategory, setRankedCategories,
+        setWeightKg, setHeightCm, setWeightUnit, setHeightUnit,
+        togglePreferredDay, setPreferredDuration, setScheduleNotes, toggleDayEnv,
+        toggleSportDay, setSportType, setSportIntensity,
+        goBack, goNext, generate,
+    } = usePlanWizardStore();
 
-    // Sport
-    const [selectedSportSlug, setSelectedSportSlug] = useState<string | null>(null);
-
-    // Environment
-    const [allEnvs, setAllEnvs] = useState<EnvItem[]>([]);
-    const [selectedEnvIds, setSelectedEnvIds] = useState<Set<string>>(new Set());
-    const [equipmentByEnv, setEquipmentByEnv] = useState<Map<string, EquipmentItem[]>>(new Map());
-
-    // Equipment
-    const [allEquipment, setAllEquipment] = useState<EquipmentItem[]>([]);
-    const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<Set<string>>(new Set());
-
-    // Equipment-environment mapping
-    const [ambiguousEquipment, setAmbiguousEquipment] = useState<AmbiguousItem[]>([]);
-    const [equipmentEnvSelections, setEquipmentEnvSelections] = useState<Map<string, Set<string>>>(new Map());
-    const [savedEquipmentEnvMappings, setSavedEquipmentEnvMappings] = useState<{ equipment_id: string; environment_id: string }[]>([]);
-
-    // Goals
-    const [allCategories, setAllCategories] = useState<CategoryItem[]>([]);
-    const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<string>>(new Set());
-    const [rankedCategories, setRankedCategories] = useState<CategoryItem[]>([]);
-    const [goalsSubPhase, setGoalsSubPhase] = useState<GoalsSubPhase>('select');
-
-    // Body
-    const [weightKg, setWeightKg] = useState(75);
-    const [heightCm, setHeightCm] = useState(175);
-    const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg');
-    const [heightUnit, setHeightUnit] = useState<'cm' | 'ft'>('cm');
-
-    // Schedule
-    const [preferredDays, setPreferredDays] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6, 7]));
-    const [preferredDuration, setPreferredDuration] = useState<SessionDuration | null>(null);
-    const [scheduleNotes, setScheduleNotes] = useState('');
-    const [dayEnvMap, setDayEnvMap] = useState<Record<number, string>>({});
-
-    // Weekly sport schedule
-    const [sportSessions, setSportSessions] = useState<WeeklyScheduleSession[]>([]);
-
-    // Pre-fill on mount
     useEffect(() => {
-        if (!profile) return;
-
-        setPhase('sport');
-        setLoading(true);
-
-        // Pre-fill body data
-        if (profile.weight_in_kg) setWeightKg(profile.weight_in_kg);
-        if (profile.height_in_cm) setHeightCm(profile.height_in_cm);
-        // Pre-fill sport
-        setSelectedSportSlug(profile.sport?.slug ?? null);
-        // Pre-fill preferred days
-        if (profile.preferred_workout_days?.length) {
-            setPreferredDays(new Set(profile.preferred_workout_days));
-        }
-        setPreferredDuration(profile.preferred_session_duration ?? null);
-        setScheduleNotes(profile.schedule_notes ?? '');
-        setSportSessions((profile as any).weekly_schedule?.sessions ?? []);
-        const savedDayEnvs = (profile as any).day_environments as { day_of_week: number; environment_id: string }[] | null;
-        if (savedDayEnvs?.length) {
-            const map: Record<number, string> = {};
-            savedDayEnvs.forEach(de => { map[de.day_of_week] = de.environment_id; });
-            setDayEnvMap(map);
-        }
-
-        Promise.all([
-            supabase.from('environments').select('id, slug, name_i18n, description_i18n'),
-            supabase.from('user_equipments').select('equipment_id').eq('user_id', profile.id),
-            supabase.from('environment_equipments').select('environment_id, equipment:equipments(id, slug, name_i18n)'),
-            supabase.from('categories').select('id, slug, name_i18n'),
-            supabase.from('user_targeted_categories').select('category_id, priority').eq('user_id', profile.id).order('priority'),
-            supabase.from('user_environments').select('environment_id').eq('user_id', profile.id),
-            (supabase as any).from('user_equipment_environments').select('equipment_id, environment_id').eq('user_id', profile.id),
-        ]).then(async ([envsRes, userEquipRes, envEqRes, catsRes, targetedRes, userEnvsRes, userEqEnvRes]) => {
-            // Categories
-            const catItems: CategoryItem[] = (catsRes.data ?? []).map(c => ({
-                id: c.id,
-                slug: c.slug,
-                name_i18n: c.name_i18n as CategoryI18n,
-                label: getCategoryLabel(c.slug, t, c.name_i18n as CategoryI18n),
-            }));
-            setAllCategories(catItems);
-            if (targetedRes.data?.length) {
-                const ids = new Set(targetedRes.data.map(r => r.category_id));
-                setSelectedCategoryIds(ids);
-                const ordered = targetedRes.data
-                    .sort((a, b) => a.priority - b.priority)
-                    .map(r => catItems.find(c => c.id === r.category_id)!)
-                    .filter(Boolean);
-                setRankedCategories(ordered);
-            } else {
-                setSelectedCategoryIds(new Set());
-                setRankedCategories([]);
-            }
-            setGoalsSubPhase('select');
-            const currentIds = new Set((userEquipRes.data ?? []).map(r => r.equipment_id));
-            setSelectedEquipmentIds(currentIds);
-
-            // Build envId → EquipmentItem[] map
-            const byEnv = new Map<string, EquipmentItem[]>();
-            for (const row of envEqRes.data ?? []) {
-                const eq = (row.equipment as any);
-                if (!eq) continue;
-                if (!byEnv.has(row.environment_id)) byEnv.set(row.environment_id, []);
-                byEnv.get(row.environment_id)!.push({ id: eq.id, slug: eq.slug, name_i18n: eq.name_i18n as Record<string, string> | null });
-            }
-            setEquipmentByEnv(byEnv);
-
-            if (envsRes.data) {
-                const envItems: EnvItem[] = envsRes.data.map(e => ({
-                    id: e.id,
-                    slug: e.slug,
-                    icon: ENV_ICONS[e.slug] ?? 'location-outline',
-                    name_i18n: e.name_i18n as Record<string, string> | null,
-                    description_i18n: e.description_i18n as Record<string, string> | null,
-                }));
-                setAllEnvs(envItems);
-
-                // Pre-select saved user environments; fall back to inferring from equipment
-                const savedEnvIds = (userEnvsRes.data ?? []).map(r => r.environment_id);
-                if (savedEnvIds.length > 0) {
-                    setSelectedEnvIds(new Set(savedEnvIds));
-                } else if (currentIds.size > 0) {
-                    const { data: envEqRows } = await supabase
-                        .from('environment_equipments')
-                        .select('environment_id')
-                        .in('equipment_id', [...currentIds]);
-                    if (envEqRows) {
-                        setSelectedEnvIds(new Set(envEqRows.map(r => r.environment_id)));
-                    }
-                } else {
-                    setSelectedEnvIds(new Set());
-                }
-            }
-            setSavedEquipmentEnvMappings(userEqEnvRes.data ?? []);
-            setLoading(false);
-        });
+        if (profile) initialize(profile);
     }, [profile]);
 
-    function toggleEnv(id: string) {
-        setSelectedEnvIds(prev => {
-            const next = new Set(prev);
-            next.has(id) ? next.delete(id) : next.add(id);
-            return next;
-        });
-    }
-
-    function goToEquipment() {
-        const map = new Map<string, EquipmentItem>();
-        for (const envId of selectedEnvIds) {
-            for (const eq of equipmentByEnv.get(envId) ?? []) {
-                if (!map.has(eq.id)) map.set(eq.id, eq);
-            }
-        }
-        setAllEquipment([...map.values()].sort((a, b) => a.slug.localeCompare(b.slug)));
-        setPhase('equipment');
-    }
-
-    function handleEquipmentNext() {
-        // Find equipment compatible with 2+ selected environments
-        const eqToEnvs = new Map<string, Set<string>>();
-        for (const envId of selectedEnvIds) {
-            for (const eq of equipmentByEnv.get(envId) ?? []) {
-                if (!selectedEquipmentIds.has(eq.id)) continue;
-                if (!eqToEnvs.has(eq.id)) eqToEnvs.set(eq.id, new Set());
-                eqToEnvs.get(eq.id)!.add(envId);
-            }
-        }
-
-        // Build selections: auto-assign unambiguous, collect ambiguous for UI
-        const selections = new Map<string, Set<string>>();
-        const ambiguous: AmbiguousItem[] = [];
-
-        // Restore saved mappings grouped by equipment
-        const savedByEq = new Map<string, Set<string>>();
-        for (const m of savedEquipmentEnvMappings) {
-            if (!savedByEq.has(m.equipment_id)) savedByEq.set(m.equipment_id, new Set());
-            savedByEq.get(m.equipment_id)!.add(m.environment_id);
-        }
-
-        for (const [eqId, envIds] of eqToEnvs) {
-            if (envIds.size > 1) {
-                // Ambiguous: will be shown in UI
-                const eqItem = allEquipment.find(e => e.id === eqId);
-                if (eqItem) {
-                    ambiguous.push({ id: eqId, slug: eqItem.slug, name_i18n: eqItem.name_i18n, compatibleEnvIds: [...envIds] });
-                }
-                // Restore saved selection or default to all compatible envs
-                selections.set(eqId, savedByEq.get(eqId) ?? new Set(envIds));
-            } else {
-                // Unambiguous: auto-assign
-                selections.set(eqId, new Set(envIds));
-            }
-        }
-
-        setEquipmentEnvSelections(selections);
-
-        if (ambiguous.length === 0) {
-            setGoalsSubPhase('select');
-            setPhase('goals');
-        } else {
-            setAmbiguousEquipment(ambiguous);
-            setPhase('equipment-env');
-        }
-    }
-
-    function toggleEquipment(id: string) {
-        setSelectedEquipmentIds(prev => {
-            const next = new Set(prev);
-            next.has(id) ? next.delete(id) : next.add(id);
-            return next;
-        });
-    }
-
-    function toggleEquipmentEnv(equipmentId: string, envId: string) {
-        setEquipmentEnvSelections(prev => {
-            const next = new Map(prev);
-            const envSet = new Set(next.get(equipmentId) ?? []);
-            envSet.has(envId) ? envSet.delete(envId) : envSet.add(envId);
-            next.set(equipmentId, envSet);
-            return next;
-        });
-    }
-
-    function toggleSportDay(day: number) {
-        const exists = sportSessions.find(s => s.day_of_week === day);
-        if (exists) {
-            setSportSessions(prev => prev.filter(s => s.day_of_week !== day));
-        } else {
-            setSportSessions(prev => [...prev, { day_of_week: day, type: 'team_training', intensity: 6 }]);
-        }
-    }
-
-    function setSportType(day: number, type: WeeklyScheduleSession['type']) {
-        setSportSessions(prev => prev.map(s => s.day_of_week === day ? { ...s, type } : s));
-    }
-
-    function setSportIntensity(day: number, intensity: number) {
-        setSportSessions(prev => prev.map(s => s.day_of_week === day ? { ...s, intensity } : s));
-    }
-
-    function goBack() {
-        if (phase === 'environment') setPhase('sport');
-        else if (phase === 'equipment') setPhase('environment');
-        else if (phase === 'equipment-env') setPhase('equipment');
-        else if (phase === 'goals') {
-            if (goalsSubPhase === 'rank') setGoalsSubPhase('select');
-            else setPhase(ambiguousEquipment.length > 0 ? 'equipment-env' : 'equipment');
-        }
-        else if (phase === 'body') {
-            if (selectedCategoryIds.size <= 1) {
-                setGoalsSubPhase('select');
-            }
-            setPhase('goals');
-        }
-        else if (phase === 'schedule') setPhase('body');
-        else if (phase === 'weekly') setPhase('schedule');
-        else router.back();
-    }
-
-    async function generate() {
-        if (!profile || isSaving) return;
-        setIsSaving(true);
-        setSaveError(null);
-        const { data: { session: authSession } } = await supabase.auth.getSession();
-        if (authSession?.user?.id) {
-            usePlanGenerationStore.getState().subscribe(authSession.user.id);
-        }
-        try {
-            // 1. Update sport if changed
-            if (selectedSportSlug && selectedSportSlug !== profile.sport?.slug) {
-                const { data: sportRow } = await supabase
-                    .from('sports').select('id').eq('slug', selectedSportSlug).single();
-                if (sportRow) {
-                    await supabase.from('user_profiles')
-                        .update({ sport_id: sportRow.id })
-                        .eq('id', profile.id);
-                }
-            }
-
-            // 2. Update weight / height (always in kg/cm)
-            await supabase.from('user_profiles').update({
-                ...(weightKg > 0 && { weight_in_kg: weightKg }),
-                ...(heightCm > 0 && { height_in_cm: heightCm }),
-            }).eq('id', profile.id);
-
-            // 3. Update environments
-            await supabase.from('user_environments').delete().eq('user_id', profile.id);
-            if (selectedEnvIds.size > 0) {
-                await supabase.from('user_environments').insert(
-                    [...selectedEnvIds].map(environment_id => ({ user_id: profile.id, environment_id }))
-                );
-            }
-
-            // 4. Update equipment
-            await supabase.from('user_equipments').delete().eq('user_id', profile.id);
-            if (selectedEquipmentIds.size > 0) {
-                await supabase.from('user_equipments').insert(
-                    [...selectedEquipmentIds].map(equipment_id => ({ user_id: profile.id, equipment_id }))
-                );
-            }
-
-            // 4b. Update equipment-environment mapping (which equipment is in which environment)
-            await (supabase as any).from('user_equipment_environments').delete().eq('user_id', profile.id);
-            const equipEnvRows: { user_id: string; equipment_id: string; environment_id: string }[] = [];
-            for (const [equipmentId, envIds] of equipmentEnvSelections) {
-                if (selectedEquipmentIds.has(equipmentId)) {
-                    for (const envId of envIds) {
-                        equipEnvRows.push({ user_id: profile.id, equipment_id: equipmentId, environment_id: envId });
-                    }
-                }
-            }
-            if (equipEnvRows.length > 0) {
-                await (supabase as any).from('user_equipment_environments').insert(equipEnvRows);
-            }
-
-            // 5. Update goals (targeted categories with priority)
-            await supabase.from('user_targeted_categories').delete().eq('user_id', profile.id);
-            if (rankedCategories.length > 0) {
-                await supabase.from('user_targeted_categories').insert(
-                    rankedCategories.map((cat, i) => ({ user_id: profile.id, category_id: cat.id, priority: i + 1 }))
-                );
-            }
-
-            // 6. Update preferred workout days, duration, notes + weekly sport schedule
-            const { load_score, load_profile } = computeLoadProfile(sportSessions);
-            await supabase.from('user_profiles')
-                .update({
-                    preferred_workout_days: [...preferredDays].sort((a, b) => a - b),
-                    preferred_session_duration: preferredDuration,
-                    schedule_notes: scheduleNotes.trim() || null,
-                    weekly_schedule: { sessions: sportSessions, notes: null } as any,
-                    day_environments: Object.entries(dayEnvMap).map(([day, environment_id]) => ({
-                        day_of_week: Number(day),
-                        environment_id,
-                    })) as any,
-                    load_score,
-                    load_profile,
-                })
-                .eq('id', profile.id);
-
-            // 7. Generate plan — fire-and-forget; job progress tracked via Realtime store
-            const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
-            const res = await fetch(`${backendUrl}/api/plan-generation/start`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${authSession?.access_token}` },
-            });
-            if (!res.ok) {
-                const body = await res.json().catch(() => ({}));
-                throw new Error(body?.error ?? `HTTP ${res.status}`);
-            }
-
-            router.back();
-            router.navigate('/(tabs)/plan');
-        } catch (err: any) {
-            setIsSaving(false);
-            setSaveError(err?.message ?? 'Unknown error');
-            console.error('generate error:', err?.message);
-        }
-    }
-
-    const canProceedSport = !!selectedSportSlug;
-    const canProceedEnv = selectedEnvIds.size > 0;
-
-    function handleNext() {
-        if (phase === 'sport') setPhase('environment');
-        else if (phase === 'environment') goToEquipment();
-        else if (phase === 'equipment') handleEquipmentNext();
-        else if (phase === 'equipment-env') { setGoalsSubPhase('select'); setPhase('goals'); }
-        else if (phase === 'goals') {
-            if (goalsSubPhase === 'select') {
-                const selected = allCategories.filter(c => selectedCategoryIds.has(c.id));
-                if (selected.length > 1) {
-                    setRankedCategories(selected);
-                    setGoalsSubPhase('rank');
-                } else {
-                    setRankedCategories(selected);
-                    setPhase('body');
-                }
-            } else {
-                setPhase('body');
-            }
-        }
-        else if (phase === 'body') setPhase('schedule');
-        else if (phase === 'schedule') setPhase('weekly');
-    }
-
     const canProceedNext =
-        phase === 'sport' ? canProceedSport :
-            phase === 'environment' ? canProceedEnv :
-                phase === 'goals' ? selectedCategoryIds.size > 0 :
-                    phase === 'schedule' ? preferredDays.size >= 2 && preferredDuration !== null :
-                        true;
+        phase === 'sport' ? !!selectedSportSlug :
+        phase === 'environment' ? selectedEnvIds.size > 0 :
+        phase === 'goals' ? selectedCategoryIds.size > 0 :
+        phase === 'schedule' ? preferredDays.size >= 2 && preferredDuration !== null :
+        true;
 
     return (
         <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
 
             {/* Header */}
             <View style={[styles.header]}>
-                <Pressable onPress={goBack} hitSlop={12}>
+                <Pressable onPress={() => goBack(router)} hitSlop={12}>
                     <Ionicons
                         name={phase === 'sport' ? 'close' : 'arrow-back'}
                         size={24}
@@ -640,11 +203,7 @@ export default function GeneratePlanScreen() {
                                 key={cat.id}
                                 label={cat.label}
                                 selected={selectedCategoryIds.has(cat.id)}
-                                onPress={() => setSelectedCategoryIds(prev => {
-                                    const next = new Set(prev);
-                                    next.has(cat.id) ? next.delete(cat.id) : next.add(cat.id);
-                                    return next;
-                                })}
+                                onPress={() => toggleCategory(cat.id)}
                             />
                         ))}
                     </View>
@@ -658,7 +217,7 @@ export default function GeneratePlanScreen() {
                     onDragEnd={({ data }) => setRankedCategories(data)}
                     contentContainerStyle={styles.content}
                     showsVerticalScrollIndicator={false}
-                    renderItem={({ item, drag }: RenderItemParams<CategoryItem>) => {
+                    renderItem={({ item, drag }: RenderItemParams<(typeof rankedCategories)[number]>) => {
                         const index = rankedCategories.indexOf(item);
                         return (
                             <ScaleDecorator activeScale={1.03}>
@@ -700,13 +259,13 @@ export default function GeneratePlanScreen() {
                         valueKg={weightKg}
                         onChange={setWeightKg}
                         unit={weightUnit}
-                        onToggleUnit={() => setWeightUnit(u => u === 'kg' ? 'lbs' : 'kg')}
+                        onToggleUnit={() => setWeightUnit(weightUnit === 'kg' ? 'lbs' : 'kg')}
                     />
                     <HeightSlider
                         valueCm={heightCm}
                         onChange={setHeightCm}
                         unit={heightUnit}
-                        onToggleUnit={() => setHeightUnit(u => u === 'cm' ? 'ft' : 'cm')}
+                        onToggleUnit={() => setHeightUnit(heightUnit === 'cm' ? 'ft' : 'cm')}
                     />
                 </ScrollView>
             )}
@@ -729,13 +288,7 @@ export default function GeneratePlanScreen() {
                                     key={dow}
                                     label={t(key as any)}
                                     selected={preferredDays.has(dow)}
-                                    onPress={() => setPreferredDays(prev => {
-                                        const next = new Set(prev);
-                                        if (next.has(dow) && next.size <= 2) return prev;
-                                        if (next.has(dow)) setDayEnvMap(m => { const n = { ...m }; delete n[dow]; return n; });
-                                        next.has(dow) ? next.delete(dow) : next.add(dow);
-                                        return next;
-                                    })}
+                                    onPress={() => togglePreferredDay(dow)}
                                     style={styles.dayChip}
                                 />
                             ))}
@@ -781,12 +334,7 @@ export default function GeneratePlanScreen() {
                                                     key={env.id}
                                                     label={env.name_i18n?.[locale] ?? env.slug}
                                                     selected={dayEnvMap[dow] === env.id}
-                                                    onPress={() => setDayEnvMap(prev => {
-                                                        const next = { ...prev };
-                                                        if (next[dow] === env.id) delete next[dow];
-                                                        else next[dow] = env.id;
-                                                        return next;
-                                                    })}
+                                                    onPress={() => toggleDayEnv(dow, env.id)}
                                                     style={styles.dayEnvChip}
                                                 />
                                             ))}
@@ -874,7 +422,7 @@ export default function GeneratePlanScreen() {
                                     </View>
 
                                     <View style={styles.chipGrid}>
-                                        {getSessionTypes(selectedSportSlug).map(st => (
+                                        {getSessionTypes(selectedSportSlug, COMBAT_SPORTS).map(st => (
                                             <SelectableChip
                                                 key={st.key}
                                                 label={t(st.labelKey as any)}
@@ -963,7 +511,7 @@ export default function GeneratePlanScreen() {
                     </JempText>
                 )}
                 <Pressable
-                    onPress={phase === 'weekly' ? generate : handleNext}
+                    onPress={phase === 'weekly' ? () => generate(router) : goNext}
                     disabled={!canProceedNext || isSaving}
                     style={styles.bottomBtn}
                 >
@@ -1000,8 +548,6 @@ const styles = StyleSheet.create({
         borderBottomWidth: StyleSheet.hairlineWidth,
     },
     headerCenter: { flex: 1, alignItems: 'center', gap: 15, paddingHorizontal: 12 },
-    stepBars: { flexDirection: 'row', gap: 5 },
-    stepBar: { width: 24, height: 3, borderRadius: 2 },
 
     content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 120 },
 
