@@ -1,9 +1,11 @@
+import { Enums } from "@/database.types";
 
 export type Gender = 'male' | 'female' | 'other';
 
-export type SessionDuration = '30min' | '45min' | '60min' | '90min';
-
 export type ScheduleSessionType = "team_training" | "game" | "tournament";
+
+export type SessionDuration = Enums<'session_duration'>;
+
 
 export type ScheduleSession = {
   type: ScheduleSessionType;

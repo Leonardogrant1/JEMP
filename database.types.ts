@@ -290,6 +290,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_location_specific: boolean
           name_i18n: Json | null
           slug: string
           updated_at: string | null
@@ -297,6 +298,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          is_location_specific?: boolean
           name_i18n?: Json | null
           slug: string
           updated_at?: string | null
@@ -304,6 +306,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          is_location_specific?: boolean
           name_i18n?: Json | null
           slug?: string
           updated_at?: string | null
@@ -418,6 +421,29 @@ export type Database = {
           },
         ]
       }
+      exercise_sport_groups: {
+        Row: {
+          exercise_id: string
+          sport_group: string
+        }
+        Insert: {
+          exercise_id: string
+          sport_group: string
+        }
+        Update: {
+          exercise_id?: string
+          sport_group?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_sport_groups_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exercises: {
         Row: {
           body_region: Database["public"]["Enums"]["body_region"] | null
@@ -431,7 +457,9 @@ export type Database = {
             | Database["public"]["Enums"]["exercise_image_group"]
             | null
           intensity_score: number | null
+          is_sport_specific: boolean
           is_unilateral: boolean
+          laterality: string
           max_level: number
           measurement_type: string
           min_level: number
@@ -457,7 +485,9 @@ export type Database = {
             | Database["public"]["Enums"]["exercise_image_group"]
             | null
           intensity_score?: number | null
+          is_sport_specific?: boolean
           is_unilateral?: boolean
+          laterality?: string
           max_level: number
           measurement_type?: string
           min_level: number
@@ -483,7 +513,9 @@ export type Database = {
             | Database["public"]["Enums"]["exercise_image_group"]
             | null
           intensity_score?: number | null
+          is_sport_specific?: boolean
           is_unilateral?: boolean
+          laterality?: string
           max_level?: number
           measurement_type?: string
           min_level?: number
@@ -604,6 +636,50 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      plan_generation_jobs: {
+        Row: {
+          created_at: string | null
+          error: string | null
+          id: string
+          phase_detail: string | null
+          plan_id: string | null
+          status: string
+          updated_at: string | null
+          user_id: string
+          workflow_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          phase_detail?: string | null
+          plan_id?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+          workflow_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          phase_detail?: string | null
+          plan_id?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+          workflow_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_generation_jobs_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "workout_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       session_modes: {
         Row: {
@@ -853,6 +929,53 @@ export type Database = {
           },
           {
             foreignKeyName: "user_environments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_equipment_environments: {
+        Row: {
+          environment_id: string
+          equipment_id: string
+          user_id: string
+        }
+        Insert: {
+          environment_id: string
+          equipment_id: string
+          user_id: string
+        }
+        Update: {
+          environment_id?: string
+          equipment_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_equipment_environments_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_equipment_environments_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_equipment_environments_user_id_equipment_id_fkey"
+            columns: ["user_id", "equipment_id"]
+            isOneToOne: false
+            referencedRelation: "user_equipments"
+            referencedColumns: ["user_id", "equipment_id"]
+          },
+          {
+            foreignKeyName: "user_equipment_environments_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user_profiles"

@@ -1,3 +1,5 @@
+import { WeeklyScheduleSession } from "@/types/user-data";
+
 const PLAN_FEATURES = [
     'plan.feature_weekly_plan',
     'plan.feature_exercises',
@@ -32,7 +34,16 @@ function getStageLabel(t: (k: string, opts?: any) => string, status: string, pha
     return t('planGeneration.title');
 }
 
+function getSessionTypes(sportSlug: string | null | undefined, combatSportSlugs: Set<string>): { key: WeeklyScheduleSession['type']; labelKey: string }[] {
+    const isCombat = combatSportSlugs.has(sportSlug ?? '');
+    return [
+        { key: 'team_training', labelKey: 'onboarding.weekly_schedule_type_training' },
+        { key: 'game', labelKey: isCombat ? 'onboarding.weekly_schedule_type_fight' : 'onboarding.weekly_schedule_type_game' },
+        { key: 'tournament', labelKey: 'onboarding.weekly_schedule_type_tournament' },
+    ];
+}
+
 export {
-    computeProgress,
-    getStageLabel, PLAN_FEATURES
+    computeProgress, getSessionTypes, getStageLabel, PLAN_FEATURES
 };
+
