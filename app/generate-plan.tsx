@@ -29,7 +29,7 @@ export default function GeneratePlanScreen() {
     const { profile } = useCurrentUser();
 
     const {
-        phase, isSaving, saveError,
+        phase, loading, isSaving, saveError,
         selectedSportSlug, selectedEnvIds,
         selectedCategoryIds,
         preferredDays, preferredDuration,
@@ -64,14 +64,19 @@ export default function GeneratePlanScreen() {
                 <View style={{ width: 24 }} />
             </View>
 
-            {phase === 'sport' && <SportStep />}
-            {phase === 'environment' && <EnvironmentStep />}
-            {phase === 'equipment' && <EquipmentStep />}
-            {phase === 'equipment-env' && <EquipmentEnvironmentStep />}
-            {phase === 'goals' && <GoalsStep />}
-            {phase === 'body' && <BodyStep />}
-            {phase === 'schedule' && <ScheduleStep />}
-            {phase === 'weekly' && <WeeklyStep />}
+            {loading
+                ? <ActivityIndicator style={{ flex: 1 }} />
+                : <>
+                    {phase === 'sport' && <SportStep />}
+                    {phase === 'environment' && <EnvironmentStep />}
+                    {phase === 'equipment' && <EquipmentStep />}
+                    {phase === 'equipment-env' && <EquipmentEnvironmentStep />}
+                    {phase === 'goals' && <GoalsStep />}
+                    {phase === 'body' && <BodyStep />}
+                    {phase === 'schedule' && <ScheduleStep />}
+                    {phase === 'weekly' && <WeeklyStep />}
+                </>
+            }
 
             <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 20), backgroundColor: theme.background }]}>
                 {saveError && (
