@@ -91,39 +91,41 @@ export type PlanWizardState = {
     reset: () => void;
 };
 
-const initialState = {
-    phase: 'sport' as Phase,
-    goalsSubPhase: 'select' as GoalsSubPhase,
-    loading: true,
-    isSaving: false,
-    saveError: null,
-    profileId: null,
-    originalSportSlug: null,
-    selectedSportSlug: null,
-    allEnvs: [],
-    selectedEnvIds: new Set<string>(),
-    equipmentByEnv: new Map<string, EquipmentItem[]>(),
-    allEquipment: [],
-    selectedEquipmentIds: new Set<string>(),
-    ambiguousEquipment: [],
-    equipmentEnvSelections: new Map<string, Set<string>>(),
-    savedEquipmentEnvMappings: [] as { equipment_id: string; environment_id: string }[],
-    allCategories: [],
-    selectedCategoryIds: new Set<string>(),
-    rankedCategories: [],
-    weightKg: 75,
-    heightCm: 175,
-    weightUnit: 'kg' as const,
-    heightUnit: 'cm' as const,
-    preferredDays: new Set([1, 2, 3, 4, 5, 6, 7]),
-    preferredDuration: null,
-    scheduleNotes: '',
-    dayEnvMap: {} as Record<number, string>,
-    sportSessions: [] as WeeklyScheduleSession[],
-};
+function getInitialState() {
+    return {
+        phase: 'sport' as Phase,
+        goalsSubPhase: 'select' as GoalsSubPhase,
+        loading: true,
+        isSaving: false,
+        saveError: null,
+        profileId: null,
+        originalSportSlug: null,
+        selectedSportSlug: null,
+        allEnvs: [],
+        selectedEnvIds: new Set<string>(),
+        equipmentByEnv: new Map<string, EquipmentItem[]>(),
+        allEquipment: [],
+        selectedEquipmentIds: new Set<string>(),
+        ambiguousEquipment: [],
+        equipmentEnvSelections: new Map<string, Set<string>>(),
+        savedEquipmentEnvMappings: [] as { equipment_id: string; environment_id: string }[],
+        allCategories: [],
+        selectedCategoryIds: new Set<string>(),
+        rankedCategories: [],
+        weightKg: 75,
+        heightCm: 175,
+        weightUnit: 'kg' as const,
+        heightUnit: 'cm' as const,
+        preferredDays: new Set([1, 2, 3, 4, 5, 6, 7]),
+        preferredDuration: null,
+        scheduleNotes: '',
+        dayEnvMap: {} as Record<number, string>,
+        sportSessions: [] as WeeklyScheduleSession[],
+    };
+}
 
 export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
-    ...initialState,
+    ...getInitialState(),
 
     initialize: async (profile) => {
         set({
@@ -422,6 +424,8 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
     },
 
     generate: async (router) => {
+        if (get().isSaving) return;
+
         const {
             profileId, originalSportSlug, selectedSportSlug,
             selectedEnvIds, selectedEquipmentIds, equipmentEnvSelections,
@@ -534,5 +538,5 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
         }
     },
 
-    reset: () => set({ ...initialState }),
+    reset: () => set(getInitialState()),
 }));
