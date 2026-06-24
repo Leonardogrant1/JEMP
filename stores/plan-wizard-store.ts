@@ -378,8 +378,158 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
     setHeightUnit: (unit) => set({ heightUnit: unit }),
     setPreferredDuration: (duration) => set({ preferredDuration: duration }),
     setScheduleNotes: (notes) => set({ scheduleNotes: notes }),
-    goBack: () => {},
-    goNext: () => {},
-    generate: async () => {},
+    goBack: (router) => {
+        const { phase, goalsSubPhase, ambiguousEquipment, selectedCategoryIds } = get();
+        if (phase === 'sport') { router.back(); return; }
+        if (phase === 'environment') { set({ phase: 'sport' }); return; }
+        if (phase === 'equipment') { set({ phase: 'environment' }); return; }
+        if (phase === 'equipment-env') { set({ phase: 'equipment' }); return; }
+        if (phase === 'goals') {
+            if (goalsSubPhase === 'rank') { set({ goalsSubPhase: 'select' }); return; }
+            set({ phase: ambiguousEquipment.length > 0 ? 'equipment-env' : 'equipment' });
+            return;
+        }
+        if (phase === 'body') {
+            if (selectedCategoryIds.size <= 1) set({ goalsSubPhase: 'select' });
+            set({ phase: 'goals' });
+            return;
+        }
+        if (phase === 'schedule') { set({ phase: 'body' }); return; }
+        if (phase === 'weekly') { set({ phase: 'schedule' }); return; }
+    },
+
+    goNext: () => {
+        const { phase, goalsSubPhase, allCategories, selectedCategoryIds } = get();
+        if (phase === 'sport') { set({ phase: 'environment' }); return; }
+        if (phase === 'environment') { get().goToEquipment(); return; }
+        if (phase === 'equipment') { get().handleEquipmentNext(); return; }
+        if (phase === 'equipment-env') { set({ goalsSubPhase: 'select', phase: 'goals' }); return; }
+        if (phase === 'goals') {
+            if (goalsSubPhase === 'select') {
+                const selected = allCategories.filter(c => selectedCategoryIds.has(c.id));
+                if (selected.length > 1) {
+                    set({ rankedCategories: selected, goalsSubPhase: 'rank' });
+                } else {
+                    set({ rankedCategories: selected, phase: 'body' });
+                }
+                return;
+            }
+            set({ phase: 'body' });
+            return;
+        }
+        if (phase === 'body') { set({ phase: 'schedule' }); return; }
+        if (phase === 'schedule') { set({ phase: 'weekly' }); return; }
+    },
+
+    generate: async (router) => {
+        const {
+            profileId, originalSportSlug, selectedSportSlug,
+            selectedEnvIds, selectedEquipmentIds, equipmentEnvSelections,
+            rankedCategories, preferredDays, preferredDuration,
+            scheduleNotes, sportSessions, dayEnvMap,
+            weightKg, heightCm,
+        } = get();
+
+        if (!profileId) return;
+
+        set({ isSaving: true, saveError: null });
+
+        const { data: { session: authSession } } = await supabase.auth.getSession();
+        if (authSession?.user?.id) {
+            usePlanGenerationStore.getState().subscribe(authSession.user.id);
+        }
+
+        try {
+            // 1. Update sport if changed
+            if (selectedSportSlug && selectedSportSlug !== originalSportSlug) {
+                const { data: sportRow } = await supabase
+                    .from('sports').select('id').eq('slug', selectedSportSlug).single();
+                if (sportRow) {
+                    await supabase.from('user_profiles')
+                        .update({ sport_id: sportRow.id })
+                        .eq('id', profileId);
+                }
+            }
+
+            // 2. Update weight / height
+            await supabase.from('user_profiles').update({
+                ...(weightKg > 0 && { weight_in_kg: weightKg }),
+                ...(heightCm > 0 && { height_in_cm: heightCm }),
+            }).eq('id', profileId);
+
+            // 3. Update environments
+            await supabase.from('user_environments').delete().eq('user_id', profileId);
+            if (selectedEnvIds.size > 0) {
+                await supabase.from('user_environments').insert(
+                    [...selectedEnvIds].map(environment_id => ({ user_id: profileId, environment_id }))
+                );
+            }
+
+            // 4. Update equipment
+            await supabase.from('user_equipments').delete().eq('user_id', profileId);
+            if (selectedEquipmentIds.size > 0) {
+                await supabase.from('user_equipments').insert(
+                    [...selectedEquipmentIds].map(equipment_id => ({ user_id: profileId, equipment_id }))
+                );
+            }
+
+            // 4b. Update equipment-environment mapping
+            await (supabase as any).from('user_equipment_environments').delete().eq('user_id', profileId);
+            const equipEnvRows: { user_id: string; equipment_id: string; environment_id: string }[] = [];
+            for (const [equipmentId, envIds] of equipmentEnvSelections) {
+                if (selectedEquipmentIds.has(equipmentId)) {
+                    for (const envId of envIds) {
+                        equipEnvRows.push({ user_id: profileId, equipment_id: equipmentId, environment_id: envId });
+                    }
+                }
+            }
+            if (equipEnvRows.length > 0) {
+                await (supabase as any).from('user_equipment_environments').insert(equipEnvRows);
+            }
+
+            // 5. Update goals
+            await supabase.from('user_targeted_categories').delete().eq('user_id', profileId);
+            if (rankedCategories.length > 0) {
+                await supabase.from('user_targeted_categories').insert(
+                    rankedCategories.map((cat, i) => ({ user_id: profileId, category_id: cat.id, priority: i + 1 }))
+                );
+            }
+
+            // 6. Update schedule
+            const { load_score, load_profile } = computeLoadProfile(sportSessions);
+            await supabase.from('user_profiles')
+                .update({
+                    preferred_workout_days: [...preferredDays].sort((a, b) => a - b),
+                    preferred_session_duration: preferredDuration,
+                    schedule_notes: scheduleNotes.trim() || null,
+                    weekly_schedule: { sessions: sportSessions, notes: null } as any,
+                    day_environments: Object.entries(dayEnvMap).map(([day, environment_id]) => ({
+                        day_of_week: Number(day),
+                        environment_id,
+                    })) as any,
+                    load_score,
+                    load_profile,
+                })
+                .eq('id', profileId);
+
+            // 7. Trigger plan generation
+            const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+            const res = await fetch(`${backendUrl}/api/plan-generation/start`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${authSession?.access_token}` },
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body?.error ?? `HTTP ${res.status}`);
+            }
+
+            router.back();
+            router.navigate('/(tabs)/plan');
+        } catch (err: any) {
+            set({ isSaving: false, saveError: err?.message ?? 'Unknown error' });
+            console.error('generate error:', err?.message);
+        }
+    },
+
     reset: () => set({ ...initialState }),
 }));
