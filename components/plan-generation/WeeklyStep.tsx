@@ -9,7 +9,6 @@ import Slider from '@react-native-community/slider';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
-export const COMBAT_SPORTS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
 
 function getAffectedJempDays(sportDay: number, mode: 'adjacent' | 'same', preferredDaysArray: number[]): number[] {
     if (mode === 'same') return preferredDaysArray.includes(sportDay) ? [sportDay] : [];
@@ -27,7 +26,7 @@ export function WeeklyStep() {
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const {
-        sportSessions, selectedSportSlug, preferredDays,
+        sportSessions, selectedSportSlug, preferredDays, combatSportSlugs,
         toggleSportDay, setSportType, setSportIntensity,
     } = usePlanWizardStore();
 
@@ -75,7 +74,7 @@ export function WeeklyStep() {
                         </View>
 
                         <View style={styles.chipGrid}>
-                            {getSessionTypes(selectedSportSlug, COMBAT_SPORTS).map(st => (
+                            {getSessionTypes(selectedSportSlug, combatSportSlugs).map(st => (
                                 <SelectableChip
                                     key={st.key}
                                     label={t(st.labelKey as any)}
