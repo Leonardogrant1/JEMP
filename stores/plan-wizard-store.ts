@@ -432,14 +432,16 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
 
         if (!profileId) return;
 
-        set({ isSaving: true, saveError: null });
-
-        const { data: { session: authSession } } = await supabase.auth.getSession();
-        if (authSession?.user?.id) {
-            usePlanGenerationStore.getState().subscribe(authSession.user.id);
-        }
-
         try {
+            set({ isSaving: true, saveError: null });
+
+            const { data: { session: authSession } } = await supabase.auth.getSession();
+            if (!authSession) throw new Error('No auth session');
+
+            if (authSession?.user?.id) {
+                usePlanGenerationStore.getState().subscribe(authSession.user.id);
+            }
+
             // 1. Update sport if changed
             if (selectedSportSlug && selectedSportSlug !== originalSportSlug) {
                 const { data: sportRow } = await supabase
@@ -523,6 +525,7 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
                 throw new Error(body?.error ?? `HTTP ${res.status}`);
             }
 
+            set({ isSaving: false });
             router.back();
             router.navigate('/(tabs)/plan');
         } catch (err: any) {
