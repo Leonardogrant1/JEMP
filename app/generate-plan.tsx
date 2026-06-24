@@ -1,5 +1,6 @@
 import { JempText } from '@/components/jemp-text';
 import { StepBars } from '@/components/plan-generation/StepBars';
+import { COMBAT_SPORTS } from '@/components/plan-generation/WeeklyStep';
 import { JempInput } from '@/components/ui/jemp-input';
 import { HeightSlider, WeightSlider } from '@/components/ui/measurement-slider';
 import { SelectableChip } from '@/components/ui/selectable-chip';
@@ -24,8 +25,6 @@ import {
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const COMBAT_SPORTS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
 
 
 export default function GeneratePlanScreen() {

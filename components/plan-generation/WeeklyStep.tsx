@@ -9,7 +9,18 @@ import Slider from '@react-native-community/slider';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
-const COMBAT_SPORTS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
+export const COMBAT_SPORTS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
+
+function getAffectedJempDays(sportDay: number, mode: 'adjacent' | 'same', preferredDaysArray: number[]): number[] {
+    if (mode === 'same') return preferredDaysArray.includes(sportDay) ? [sportDay] : [];
+    const prev = sportDay === 1 ? 7 : sportDay - 1;
+    const next = sportDay === 7 ? 1 : sportDay + 1;
+    return preferredDaysArray.filter(d => d === prev || d === next);
+}
+
+function formatDays(days: number[], t: (key: any) => string): string {
+    return days.map(d => t(WEEK_DAYS.find(x => x.dow === d)?.key as any ?? '')).join(', ');
+}
 
 export function WeeklyStep() {
     const { t } = useTranslation();
@@ -23,17 +34,6 @@ export function WeeklyStep() {
     const selectedSportDays = new Set(sportSessions.map(s => s.day_of_week));
     const sortedSportSessions = [...sportSessions].sort((a, b) => a.day_of_week - b.day_of_week);
     const preferredDaysArray = [...preferredDays];
-
-    function getAffectedJempDays(sportDay: number, mode: 'adjacent' | 'same'): number[] {
-        if (mode === 'same') return preferredDaysArray.includes(sportDay) ? [sportDay] : [];
-        const prev = sportDay === 1 ? 7 : sportDay - 1;
-        const next = sportDay === 7 ? 1 : sportDay + 1;
-        return preferredDaysArray.filter(d => d === prev || d === next);
-    }
-
-    function formatDays(days: number[]): string {
-        return days.map(d => t(WEEK_DAYS.find(x => x.dow === d)?.key as any ?? '')).join(', ');
-    }
 
     return (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -94,7 +94,7 @@ export function WeeklyStep() {
                             return (
                                 <View style={styles.hintBox}>
                                     <JempText type="body-sm" color={GradientMid}>
-                                        {t('onboarding.weekly_schedule_hint_game', { days: formatDays(affected) })}
+                                        {t('onboarding.weekly_schedule_hint_game', { days: formatDays(affected, t) })}
                                     </JempText>
                                 </View>
                             );
@@ -120,19 +120,19 @@ export function WeeklyStep() {
                                     thumbTintColor={theme.text}
                                 />
                                 {session.intensity === 7 && (() => {
-                                    const sameDay = getAffectedJempDays(session.day_of_week, 'same');
+                                    const sameDay = getAffectedJempDays(session.day_of_week, 'same', preferredDaysArray);
                                     if (sameDay.length === 0) return null;
                                     return (
                                         <View style={styles.hintBox}>
                                             <JempText type="body-sm" color={GradientMid}>
-                                                {t('onboarding.weekly_schedule_hint_intensity_7', { days: formatDays(sameDay) })}
+                                                {t('onboarding.weekly_schedule_hint_intensity_7', { days: formatDays(sameDay, t) })}
                                             </JempText>
                                         </View>
                                     );
                                 })()}
                                 {session.intensity >= 8 && (() => {
-                                    const sameDay = getAffectedJempDays(session.day_of_week, 'same');
-                                    const adjacent = getAffectedJempDays(session.day_of_week, 'adjacent');
+                                    const sameDay = getAffectedJempDays(session.day_of_week, 'same', preferredDaysArray);
+                                    const adjacent = getAffectedJempDays(session.day_of_week, 'adjacent', preferredDaysArray);
                                     if (sameDay.length === 0 && adjacent.length === 0) return null;
                                     const key = sameDay.length > 0 && adjacent.length > 0
                                         ? 'onboarding.weekly_schedule_hint_intensity_8plus_both'
@@ -142,7 +142,7 @@ export function WeeklyStep() {
                                     return (
                                         <View style={styles.hintBox}>
                                             <JempText type="body-sm" color={GradientMid}>
-                                                {t(key, { sameDays: formatDays(sameDay), adjacentDays: formatDays(adjacent) })}
+                                                {t(key, { sameDays: formatDays(sameDay, t), adjacentDays: formatDays(adjacent, t) })}
                                             </JempText>
                                         </View>
                                     );
