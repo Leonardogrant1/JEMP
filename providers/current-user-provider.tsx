@@ -6,7 +6,7 @@ import i18n from "i18next";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useAuth } from "./auth-provider";
 
-type UserProfile = Omit<Tables<'user_profiles'>, "weekly_schedule"> & {
+export type UserProfile = Omit<Tables<'user_profiles'>, "weekly_schedule"> & {
     sport: Tables<'sports'> | null,
     weekly_schedule: WeeklySchedule
 }
