@@ -234,26 +234,150 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
         }
     },
 
-    // Placeholder actions — implemented in Task 2
-    toggleEnv: () => {},
-    goToEquipment: () => {},
-    toggleEquipment: () => {},
-    handleEquipmentNext: () => {},
-    toggleEquipmentEnv: () => {},
-    toggleCategory: () => {},
-    setRankedCategories: () => {},
-    togglePreferredDay: () => {},
-    toggleDayEnv: () => {},
-    toggleSportDay: () => {},
-    setSportType: () => {},
-    setSportIntensity: () => {},
-    setSelectedSportSlug: () => {},
-    setWeightKg: () => {},
-    setHeightCm: () => {},
-    setWeightUnit: () => {},
-    setHeightUnit: () => {},
-    setPreferredDuration: () => {},
-    setScheduleNotes: () => {},
+    toggleEnv: (id) => {
+        set(state => {
+            const next = new Set(state.selectedEnvIds);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return { selectedEnvIds: next };
+        });
+    },
+
+    goToEquipment: () => {
+        const { selectedEnvIds, equipmentByEnv } = get();
+        const map = new Map<string, EquipmentItem>();
+        for (const envId of selectedEnvIds) {
+            for (const eq of equipmentByEnv.get(envId) ?? []) {
+                if (!map.has(eq.id)) map.set(eq.id, eq);
+            }
+        }
+        set({
+            allEquipment: [...map.values()].sort((a, b) => a.slug.localeCompare(b.slug)),
+            phase: 'equipment',
+        });
+    },
+
+    toggleEquipment: (id) => {
+        set(state => {
+            const next = new Set(state.selectedEquipmentIds);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return { selectedEquipmentIds: next };
+        });
+    },
+
+    handleEquipmentNext: () => {
+        const { selectedEnvIds, equipmentByEnv, selectedEquipmentIds, allEquipment, savedEquipmentEnvMappings } = get();
+
+        const eqToEnvs = new Map<string, Set<string>>();
+        for (const envId of selectedEnvIds) {
+            for (const eq of equipmentByEnv.get(envId) ?? []) {
+                if (!selectedEquipmentIds.has(eq.id)) continue;
+                if (!eqToEnvs.has(eq.id)) eqToEnvs.set(eq.id, new Set());
+                eqToEnvs.get(eq.id)!.add(envId);
+            }
+        }
+
+        const selections = new Map<string, Set<string>>();
+        const ambiguous: AmbiguousItem[] = [];
+
+        const savedByEq = new Map<string, Set<string>>();
+        for (const m of savedEquipmentEnvMappings) {
+            if (!savedByEq.has(m.equipment_id)) savedByEq.set(m.equipment_id, new Set());
+            savedByEq.get(m.equipment_id)!.add(m.environment_id);
+        }
+
+        for (const [eqId, envIds] of eqToEnvs) {
+            if (envIds.size > 1) {
+                const eqItem = allEquipment.find(e => e.id === eqId);
+                if (eqItem) {
+                    ambiguous.push({ id: eqId, slug: eqItem.slug, name_i18n: eqItem.name_i18n, compatibleEnvIds: [...envIds] });
+                }
+                selections.set(eqId, savedByEq.get(eqId) ?? new Set(envIds));
+            } else {
+                selections.set(eqId, new Set(envIds));
+            }
+        }
+
+        set({ equipmentEnvSelections: selections });
+
+        if (ambiguous.length === 0) {
+            set({ goalsSubPhase: 'select', phase: 'goals' });
+        } else {
+            set({ ambiguousEquipment: ambiguous, phase: 'equipment-env' });
+        }
+    },
+
+    toggleEquipmentEnv: (equipmentId, envId) => {
+        set(state => {
+            const next = new Map(state.equipmentEnvSelections);
+            const envSet = new Set(next.get(equipmentId) ?? []);
+            envSet.has(envId) ? envSet.delete(envId) : envSet.add(envId);
+            next.set(equipmentId, envSet);
+            return { equipmentEnvSelections: next };
+        });
+    },
+
+    toggleCategory: (id) => {
+        set(state => {
+            const next = new Set(state.selectedCategoryIds);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return { selectedCategoryIds: next };
+        });
+    },
+
+    setRankedCategories: (items) => set({ rankedCategories: items }),
+
+    togglePreferredDay: (dow) => {
+        set(state => {
+            const next = new Set(state.preferredDays);
+            if (next.has(dow) && next.size <= 2) return state; // minimum 2 days
+            let dayEnvMap = state.dayEnvMap;
+            if (next.has(dow)) {
+                dayEnvMap = { ...dayEnvMap };
+                delete dayEnvMap[dow];
+            }
+            next.has(dow) ? next.delete(dow) : next.add(dow);
+            return { preferredDays: next, dayEnvMap };
+        });
+    },
+
+    toggleDayEnv: (dow, envId) => {
+        set(state => {
+            const next = { ...state.dayEnvMap };
+            if (next[dow] === envId) delete next[dow];
+            else next[dow] = envId;
+            return { dayEnvMap: next };
+        });
+    },
+
+    toggleSportDay: (day) => {
+        set(state => {
+            const exists = state.sportSessions.find(s => s.day_of_week === day);
+            if (exists) {
+                return { sportSessions: state.sportSessions.filter(s => s.day_of_week !== day) };
+            }
+            return { sportSessions: [...state.sportSessions, { day_of_week: day, type: 'team_training', intensity: 6 }] };
+        });
+    },
+
+    setSportType: (day, type) => {
+        set(state => ({
+            sportSessions: state.sportSessions.map(s => s.day_of_week === day ? { ...s, type } : s),
+        }));
+    },
+
+    setSportIntensity: (day, intensity) => {
+        set(state => ({
+            sportSessions: state.sportSessions.map(s => s.day_of_week === day ? { ...s, intensity } : s),
+        }));
+    },
+
+    setSelectedSportSlug: (slug) => set({ selectedSportSlug: slug }),
+    setWeightKg: (kg) => set({ weightKg: kg }),
+    setHeightCm: (cm) => set({ heightCm: cm }),
+    setWeightUnit: (unit) => set({ weightUnit: unit }),
+    setHeightUnit: (unit) => set({ heightUnit: unit }),
+    setPreferredDuration: (duration) => set({ preferredDuration: duration }),
+    setScheduleNotes: (notes) => set({ scheduleNotes: notes }),
     goBack: () => {},
     goNext: () => {},
     generate: async () => {},
