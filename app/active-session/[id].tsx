@@ -1,5 +1,5 @@
 import { Confetti } from '@/components/confetti';
-import { ExerciseVideoHero } from '@/components/exercise-video-hero';
+import { ExerciseCard } from '@/components/active-session/ExerciseCard';
 import { SessionHeader } from '@/components/active-session/SessionHeader';
 import { JempText } from '@/components/jemp-text';
 import { Colors, Cyan, Electric, GRADIENT, GradientMid } from '@/constants/theme';
@@ -596,44 +596,7 @@ export default function ActiveSessionScreen() {
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
                     {/* ── Exercise title + video + equipment (slides on exercise change) ── */}
-                    <Animated.View style={exAnimStyle}>
-                        <View style={styles.titleRow}>
-                            <View style={styles.titleLeft}>
-                                <JempText type="caption" color={GradientMid} style={styles.blockLabel}>
-                                    {current.blockType
-                                        ? t(`block_type.${current.blockType.slug}`).toUpperCase()
-                                        : t('ui.active_session').toUpperCase()}
-                                </JempText>
-                                <JempText type="hero">{current.exercise.name}</JempText>
-                            </View>
-                        </View>
-
-                        <ExerciseVideoHero
-                            key={current.exercise.id}
-                            videoStoragePath={current.exercise.video_storage_path}
-                            youtubeUrl={current.exercise.youtube_url}
-                            thumbnailStoragePath={current.exercise.thumbnail_storage_path}
-                            exerciseId={current.exercise.id}
-                        />
-
-                        {current.exercise.equipment?.length > 0 && (
-                            <View style={styles.equipmentSection}>
-                                <JempText type="caption" color={theme.textMuted} style={styles.equipmentLabel}>
-                                    Benötigtes Equipment
-                                </JempText>
-                                <View style={styles.equipmentRow}>
-                                    {current.exercise.equipment.map((eq, i) => {
-                                        const label = (eq.name_i18n as any)?.[locale] ?? eq.slug;
-                                        return (
-                                            <View key={i} style={[styles.equipmentChip, { backgroundColor: theme.surface }]}>
-                                                <JempText type="caption" color="#fff" style={styles.equipmentChipText}>{label}</JempText>
-                                            </View>
-                                        );
-                                    })}
-                                </View>
-                            </View>
-                        )}
-                    </Animated.View>
+                    <ExerciseCard animatedStyle={exAnimStyle} />
 
                     {/* ── Rest timer ── */}
                     {isResting && (
@@ -964,17 +927,6 @@ const styles = StyleSheet.create({
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
     content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24, gap: 20 },
-
-    // Title
-    titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-    titleLeft: { flex: 1, gap: 6 },
-    blockLabel: { letterSpacing: 1.5 },
-    setCounter: { alignItems: 'center', marginLeft: 12 },
-    equipmentSection: { gap: 12 },
-    equipmentLabel: { letterSpacing: 0.5 },
-    equipmentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    equipmentChip: { borderRadius: 20, paddingVertical: 9, paddingHorizontal: 16, borderWidth: 1, borderColor: GradientMid },
-    equipmentChipText: { fontSize: 14, fontWeight: '500' },
 
     // Timer
     timerCard: {
