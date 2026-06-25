@@ -12,8 +12,10 @@ import {
     StyleSheet,
     TextInput,
     View,
+    type StyleProp,
+    type ViewStyle,
 } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { type AnimatedStyle } from 'react-native-reanimated';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -25,11 +27,8 @@ function formatTimer(s: number) {
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Props = {
-    // The return type of useAnimatedStyle is AnimatedStyleHandle which is not publicly exported;
-    // using `any` avoids a call-site type error that also affects ExerciseCard.
-    animatedStyle: any;
+    animatedStyle: StyleProp<AnimatedStyle<ViewStyle>>;
     onStartExerciseTimer: () => void;
     onStopExerciseTimer: () => void;
     onStartExerciseTimerSide: (side: 'left' | 'right') => void;
