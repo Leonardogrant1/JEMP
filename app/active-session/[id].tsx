@@ -1,5 +1,6 @@
 import { Confetti } from '@/components/confetti';
 import { ExerciseVideoHero } from '@/components/exercise-video-hero';
+import { SessionHeader } from '@/components/active-session/SessionHeader';
 import { JempText } from '@/components/jemp-text';
 import { Colors, Cyan, Electric, GRADIENT, GradientMid } from '@/constants/theme';
 import { formatTargetReps, loadUnit } from '@/helpers/format';
@@ -589,26 +590,7 @@ export default function ActiveSessionScreen() {
 
     return (
         <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
-            {/* ── Header ── */}
-            <View style={styles.header}>
-                <Pressable onPress={leaveSession} style={styles.headerSide}>
-                    <Ionicons name="chevron-back" size={24} color={theme.text} />
-                </Pressable>
-                <View style={styles.headerCenter}>
-                    <JempText type="body-l" color={theme.textMuted} numberOfLines={1}>{session.name}</JempText>
-                    <View style={[styles.progressTrack, { backgroundColor: theme.borderStrong }]}>
-                        <View style={[styles.progressFill, { width: `${((exerciseIdx + 1) / allExercises.length) * 100}%` as any }]}>
-                            <LinearGradient
-                                colors={[Cyan[500], Electric[500]]}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 0 }}
-                                style={StyleSheet.absoluteFill}
-                            />
-                        </View>
-                    </View>
-                </View>
-                <View style={styles.headerSide} />
-            </View>
+            <SessionHeader onBack={leaveSession} />
 
             <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -982,20 +964,6 @@ const styles = StyleSheet.create({
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
     content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24, gap: 20 },
-
-    // Header
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 14,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-    },
-    headerSide: { width: 24 },
-    headerCenter: { flex: 1, alignItems: 'center', gap: 10, paddingHorizontal: 12 },
-    progressTrack: { width: '80%', height: 3, borderRadius: 2, overflow: 'hidden' },
-    progressFill: { height: 3, borderRadius: 2, overflow: 'hidden' },
 
     // Title
     titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
