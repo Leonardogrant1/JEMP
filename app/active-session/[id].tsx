@@ -1,8 +1,9 @@
 import { Confetti } from '@/components/confetti';
 import { ExerciseCard } from '@/components/active-session/ExerciseCard';
+import { RestTimerCard } from '@/components/active-session/RestTimerCard';
 import { SessionHeader } from '@/components/active-session/SessionHeader';
 import { JempText } from '@/components/jemp-text';
-import { Colors, Cyan, Electric, GRADIENT, GradientMid } from '@/constants/theme';
+import { Colors, Cyan, Electric, GRADIENT } from '@/constants/theme';
 import { formatTargetReps, loadUnit } from '@/helpers/format';
 import { calculateProgression } from '@/helpers/progression-suggestion';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -599,43 +600,13 @@ export default function ActiveSessionScreen() {
                     <ExerciseCard animatedStyle={exAnimStyle} />
 
                     {/* ── Rest timer ── */}
-                    {isResting && (
-                        <View style={[styles.timerCard, { backgroundColor: theme.surface }]}>
-                            <JempText type="caption" color={theme.textMuted} style={styles.timerLabel}>
-                                PAUSE
-                            </JempText>
-                            <JempText type="hero" gradient style={styles.timerDisplay}>
-                                {formatTimer(restSeconds)}
-                            </JempText>
-                            <View style={[styles.timerTrack, { backgroundColor: theme.borderStrong }]}>
-                                <View style={[
-                                    styles.timerFill,
-                                    { width: `${totalRestSeconds > 0 ? (1 - restSeconds / totalRestSeconds) * 100 : 100}%` as any },
-                                ]}>
-                                    <LinearGradient
-                                        colors={[Cyan[500], Electric[500]]}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 0 }}
-                                        style={StyleSheet.absoluteFill}
-                                    />
-                                </View>
-                            </View>
-                            <View style={styles.timerActions}>
-                                <Pressable
-                                    style={[styles.timerBtn, { backgroundColor: theme.surface }]}
-                                    onPress={() => {
-                                        setRestSeconds(prev => prev + 30);
-                                        setTotalRestSeconds(prev => prev + 30);
-                                    }}
-                                >
-                                    <JempText type="body-sm" color={theme.text}>+ 30s</JempText>
-                                </Pressable>
-                                <Pressable style={[styles.timerSkip, { backgroundColor: theme.surface }]} onPress={stopTimer}>
-                                    <JempText type="body-sm" color={theme.textMuted}>Überspringen</JempText>
-                                </Pressable>
-                            </View>
-                        </View>
-                    )}
+                    <RestTimerCard
+                        onStop={stopTimer}
+                        onAddTime={(secs) => {
+                            setRestSeconds(prev => prev + secs);
+                            setTotalRestSeconds(prev => prev + secs);
+                        }}
+                    />
 
                     {/* ── Log set inputs (slides on set change) ── */}
                     <Animated.View style={[styles.logSection, setAnimStyle]}>
@@ -928,23 +899,7 @@ const styles = StyleSheet.create({
 
     content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24, gap: 20 },
 
-    // Timer
-    timerCard: {
-        alignItems: 'center',
-        gap: 14,
-        paddingVertical: 24,
-        paddingHorizontal: 24,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: GradientMid + '55',
-    },
-    timerLabel: {
-        letterSpacing: 2,
-    },
-    timerDisplay: {
-        fontSize: 64,
-        lineHeight: 72,
-    },
+    // Timer (for exercise timer, used by timerTrack and timerFill in exercise UI)
     timerTrack: {
         width: '100%',
         height: 3,
@@ -955,21 +910,6 @@ const styles = StyleSheet.create({
         height: 3,
         borderRadius: 2,
         overflow: 'hidden',
-    },
-    timerActions: {
-        flexDirection: 'row',
-        gap: 10,
-        marginTop: 4,
-    },
-    timerBtn: {
-        borderRadius: 20,
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-    },
-    timerSkip: {
-        borderRadius: 20,
-        paddingHorizontal: 20,
-        paddingVertical: 10,
     },
 
     // Log set
