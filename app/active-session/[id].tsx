@@ -11,6 +11,8 @@ import { useUpsertPerformedSets } from '@/mutations/use-upsert-performed-set';
 import { usePreviousExerciseSetsQuery } from '@/queries/use-previous-exercise-sets-query';
 import { useSessionDetailQuery } from '@/queries/use-session-detail-query';
 import { useActiveSessionStore } from '@/stores/active-session-store';
+import { useActiveSessionUIStore } from '@/stores/active-session-ui-store';
+import type { FlatExercise } from '@/stores/active-session-ui-store';
 import { devLog } from '@/utils/dev-log';
 import { Ionicons } from '@expo/vector-icons';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
@@ -41,33 +43,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// ── Types ────────────────────────────────────────────────────────────────
-
-type FlatExercise = {
-    id: string;
-    blockId: string;
-    blockType: { slug: string } | null;
-    exercise: {
-        id: string;
-        name: string;
-        body_region: string | null;
-        movement_pattern: string | null;
-        youtube_url: string | null;
-        thumbnail_storage_path: string | null;
-        video_storage_path: string | null;
-        is_unilateral: boolean;
-        measurement_type: string;
-        equipment: { slug: string; name_i18n: Record<string, string> | null }[];
-    };
-    target_sets: number | null;
-    target_reps_min: number | null;
-    target_reps_max: number | null;
-    target_duration_seconds: number | null;
-    target_rest_seconds: number | null;
-    target_load_type: string | null;
-    target_load_value: number | null;
-};
-
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 function formatTimer(s: number) {
@@ -89,10 +64,31 @@ export default function ActiveSessionScreen() {
     const { data: session, isLoading } = useSessionDetailQuery(id);
     const updateStatus = useUpdateSessionStatus();
     const upsertSets = useUpsertPerformedSets();
-    const [isCompleting, setIsCompleting] = useState(false);
-    const [showCongrats, setShowCongrats] = useState(false);
 
     const store = useActiveSessionStore();
+    const ui = useActiveSessionUIStore();
+
+    // Destructure UI store state and actions
+    const {
+        reps, load, repsLeft, repsRight, loadLeft, loadRight,
+        previousSet, suggestionHint,
+        restSeconds, totalRestSeconds, isResting,
+        exerciseDuration, exerciseTimerActive,
+        exerciseDurationLeft, exerciseDurationRight, exerciseTimerActiveSide,
+        initialized, isCompleting, showCongrats,
+        setSession, setReps, setLoad, setRepsLeft, setRepsRight, setLoadLeft, setLoadRight,
+        setPreviousSet, setSuggestionHint,
+        setRestSeconds, setTotalRestSeconds, setIsResting,
+        setExerciseDuration, setExerciseTimerActive,
+        setExerciseDurationLeft, setExerciseDurationRight, setExerciseTimerActiveSide,
+        setInitialized, setIsCompleting, setShowCongrats,
+        resetInputs,
+    } = ui;
+
+    // Local state controls what the UI renders (animation timing)
+    // Crash-recovery store is updated immediately; local state updates in slideOut callbacks
+    const [exerciseIdx, setExerciseIdx] = useState(0);
+    const [currentSet, setCurrentSet] = useState(1);
 
     // Flatten exercises
     const allExercises = useMemo<FlatExercise[]>(() => {
@@ -106,25 +102,19 @@ export default function ActiveSessionScreen() {
         );
     }, [session]);
 
-    // Init from saved progress
-    const [exerciseIdx, setExerciseIdx] = useState(0);
-    const [currentSet, setCurrentSet] = useState(1);
-    const [initialized, setInitialized] = useState(false);
-    const [reps, setReps] = useState('');
-    const [load, setLoad] = useState('');
-    const [repsLeft, setRepsLeft] = useState('');
-    const [repsRight, setRepsRight] = useState('');
-    const [loadLeft, setLoadLeft] = useState('');
-    const [loadRight, setLoadRight] = useState('');
-    const [previousSet, setPreviousSet] = useState<{ reps: string; load: string; repsRight?: string } | null>(null);
-    const [suggestionHint, setSuggestionHint] = useState<string | null>(null);
+    // Sync session data into UI store
+    useEffect(() => {
+        if (session) setSession(session, allExercises);
+    }, [session, allExercises]);
 
     // Restore progress — prefer local store (more up-to-date), fall back to DB
     useEffect(() => {
         if (session && allExercises.length > 0 && !initialized) {
             if (store.sessionId === id) {
                 // Resume from local store (no DB round-trip needed)
-                setExerciseIdx(Math.min(store.exerciseIdx, allExercises.length - 1));
+                const clampedIdx = Math.min(store.exerciseIdx, allExercises.length - 1);
+                store.setProgress(clampedIdx, store.currentSet);
+                setExerciseIdx(clampedIdx);
                 setCurrentSet(store.currentSet);
             } else {
                 // New session — init store and restore from DB
@@ -138,20 +128,12 @@ export default function ActiveSessionScreen() {
     }, [session, allExercises.length, initialized]);
 
     // Rest timer (count-down between sets)
-    const [restSeconds, setRestSeconds] = useState(0);
-    const [totalRestSeconds, setTotalRestSeconds] = useState(0);
-    const [isResting, setIsResting] = useState(false);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Exercise timer — bilateral duration
-    const [exerciseDuration, setExerciseDuration] = useState(0);
-    const [exerciseTimerActive, setExerciseTimerActive] = useState(false);
     const exerciseTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Exercise timer — unilateral duration (left / right independent)
-    const [exerciseDurationLeft, setExerciseDurationLeft] = useState(0);
-    const [exerciseDurationRight, setExerciseDurationRight] = useState(0);
-    const [exerciseTimerActiveSide, setExerciseTimerActiveSide] = useState<'left' | 'right' | null>(null);
     const exerciseTimerSideRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Countdown sounds
@@ -208,7 +190,7 @@ export default function ActiveSessionScreen() {
         op.value = withTiming(0, { duration: 100 });
     };
 
-    // Save progress locally
+    // Save progress locally — crash-recovery store updates immediately; local state mirrors it
     const saveProgress = useCallback((exIdx: number, setNum: number) => {
         store.setProgress(exIdx, setNum);
         setExerciseIdx(exIdx);
@@ -220,19 +202,11 @@ export default function ActiveSessionScreen() {
     useEffect(() => {
         if (!current || !initialized) return;
         setPreviousSet(null);
-        setRepsLeft('');
-        setRepsRight('');
-        setLoadLeft('');
-        setLoadRight('');
-        setExerciseDuration(0);
-        setExerciseTimerActive(false);
+        resetInputs();
         if (exerciseTimerRef.current) {
             clearInterval(exerciseTimerRef.current);
             exerciseTimerRef.current = null;
         }
-        setExerciseDurationLeft(0);
-        setExerciseDurationRight(0);
-        setExerciseTimerActiveSide(null);
         if (exerciseTimerSideRef.current) {
             clearInterval(exerciseTimerSideRef.current);
             exerciseTimerSideRef.current = null;
@@ -457,6 +431,7 @@ export default function ActiveSessionScreen() {
             );
             trackerManager.track('session_completed', { session_id: id });
             store.clear();
+            ui.reset();
             setIsCompleting(false);
             // Haptic celebration sequence
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);

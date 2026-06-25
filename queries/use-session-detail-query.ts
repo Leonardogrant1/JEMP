@@ -36,7 +36,7 @@ async function fetchSessionDetail(id: string) {
         .sort((a, b) => a.order_index - b.order_index);
 
     // Collect all exercise IDs, then fetch their equipment in one query
-    const exerciseIds = blocks.flatMap(b => b.exercises.map(e => (e.exercise as any)?.id)).filter(Boolean) as string[];
+    const exerciseIds = blocks.flatMap(b => b.exercises.map(e => (e.exercise)?.id)).filter(Boolean) as string[];
 
     const { data: equipmentRows } = exerciseIds.length > 0
         ? await supabase
@@ -48,10 +48,13 @@ async function fetchSessionDetail(id: string) {
     // Map: exercise_id → equipment list
     const equipmentByExercise = new Map<string, { slug: string; name_i18n: Record<string, string> | null }[]>();
     for (const row of equipmentRows ?? []) {
-        const eq = (row as any).equipment;
+        const eq = row.equipment;
         if (!eq) continue;
-        if (!equipmentByExercise.has(row.exercise_id)) equipmentByExercise.set(row.exercise_id, []);
-        equipmentByExercise.get(row.exercise_id)!.push(eq);
+        if (!equipmentByExercise.has(row.exercise_id!)) equipmentByExercise.set(row.exercise_id!, []);
+        equipmentByExercise.get(row.exercise_id!)!.push({
+            ...eq,
+            name_i18n: eq.name_i18n as Record<string, string> | null,
+        });
     }
 
     // Attach equipment to each exercise
@@ -60,8 +63,8 @@ async function fetchSessionDetail(id: string) {
         exercises: b.exercises.map(ex => ({
             ...ex,
             exercise: ex.exercise ? {
-                ...(ex.exercise as any),
-                equipment: equipmentByExercise.get((ex.exercise as any).id) ?? [],
+                ...ex.exercise,
+                equipment: equipmentByExercise.get(ex.exercise.id) ?? [],
             } : ex.exercise,
         })),
     }));
