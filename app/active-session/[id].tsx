@@ -1,4 +1,5 @@
 import { Confetti } from '@/components/confetti';
+import { BottomBar } from '@/components/active-session/BottomBar';
 import { ExerciseCard } from '@/components/active-session/ExerciseCard';
 import { LogSetSection } from '@/components/active-session/LogSetSection';
 import { RestTimerCard } from '@/components/active-session/RestTimerCard';
@@ -615,36 +616,8 @@ export default function ActiveSessionScreen() {
                     />
                 </ScrollView>
 
-                {/* ── Bottom CTAs ── */}
-                <View style={[styles.bottomBar, { backgroundColor: theme.background, position: undefined }]}>
-                    <Pressable
-                        style={styles.logBtn}
-                        onPress={handleLogSet}
-                        disabled={((isDuration && isUnilateral) ? (exerciseDurationLeft === 0 && exerciseDurationRight === 0) : isDuration ? exerciseDuration === 0 : isUnilateral ? (repsLeft.trim() === '' && repsRight.trim() === '') : reps.trim() === '') || isCompleting}
-                    >
-                        <LinearGradient
-                            colors={((isDuration && isUnilateral) ? (exerciseDurationLeft > 0 || exerciseDurationRight > 0) : isDuration ? exerciseDuration > 0 : isUnilateral ? (repsLeft.trim() !== '' || repsRight.trim() !== '') : reps.trim() !== '') ? [Cyan[500], Electric[500]] : [`${Cyan[500]}40`, `${Electric[500]}40`]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.logBtnGradient}
-                        >
-                            {isCompleting ? (
-                                <ActivityIndicator color="#fff" size="small" />
-                            ) : (
-                                <JempText type="button" color="#fff">
-                                    {isLastSet && isLastExercise
-                                        ? t('ui.log_and_finish')
-                                        : isLastSet
-                                            ? t('ui.log_and_next')
-                                            : t('ui.log_set_and_next')}
-                                </JempText>
-                            )}
-                        </LinearGradient>
-                    </Pressable>
-                    <Pressable onPress={handleSkipSet} style={styles.skipLink}>
-                        <JempText type="body-sm" color={theme.textMuted}>{t('ui.skip_set')}</JempText>
-                    </Pressable>
-                </View>
+                {/* ── Bottom bar ── */}
+                <BottomBar onLogSet={handleLogSet} onSkipSet={handleSkipSet} />
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -689,19 +662,4 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
 
-    // Bottom
-    bottomBar: {
-        paddingHorizontal: 20,
-        paddingBottom: 24,
-        paddingTop: 12,
-        gap: 8,
-        alignItems: 'center',
-    },
-    logBtn: { borderRadius: 100, overflow: 'hidden', width: '100%' },
-    logBtnGradient: {
-        height: 52,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    skipLink: { paddingVertical: 4 },
 });
