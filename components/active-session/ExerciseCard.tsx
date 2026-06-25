@@ -9,7 +9,7 @@ import Animated, { type AnimatedProps } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
 type Props = {
-    animatedStyle: any;
+    animatedStyle: StyleProp<AnimatedProps<ViewStyle>>;
 };
 
 export function ExerciseCard({ animatedStyle }: Props) {
