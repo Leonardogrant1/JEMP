@@ -105,7 +105,7 @@ export default function ActiveSessionScreen() {
     // Sync session data into UI store
     useEffect(() => {
         if (session) setSession(session, allExercises);
-    }, [session, allExercises]);
+    }, [session, allExercises, setSession]);
 
     // Restore progress — prefer local store (more up-to-date), fall back to DB
     useEffect(() => {
@@ -113,7 +113,6 @@ export default function ActiveSessionScreen() {
             if (store.sessionId === id) {
                 // Resume from local store (no DB round-trip needed)
                 const clampedIdx = Math.min(store.exerciseIdx, allExercises.length - 1);
-                store.setProgress(clampedIdx, store.currentSet);
                 setExerciseIdx(clampedIdx);
                 setCurrentSet(store.currentSet);
             } else {
@@ -431,7 +430,6 @@ export default function ActiveSessionScreen() {
             );
             trackerManager.track('session_completed', { session_id: id });
             store.clear();
-            ui.reset();
             setIsCompleting(false);
             // Haptic celebration sequence
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -440,6 +438,7 @@ export default function ActiveSessionScreen() {
             setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success), 500);
             setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 700);
             setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 850);
+            ui.reset();
             setShowCongrats(true);
         } catch (error) {
             devLog('Error completing session:', error);
