@@ -5,7 +5,7 @@ import type { PreviousSessionSummary } from '../plan-generation/prompts'
 import type { PlannedSession } from '../plan-generation/generate-plan'
 
 const activityOptions: ActivityOptions = {
-  startToCloseTimeout: '10 minutes',
+  startToCloseTimeout: '30 minutes',
   retry: {
     maximumAttempts: 3,
     initialInterval: '10 seconds',
@@ -87,5 +87,6 @@ export async function generatePlanWorkflow(input: {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
     await updateJobStatus({ jobId, status: 'error', errorMessage: message })
+    throw err
   }
 }

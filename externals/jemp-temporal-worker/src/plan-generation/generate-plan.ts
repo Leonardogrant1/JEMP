@@ -388,7 +388,7 @@ export async function prepareGeneration(
     }],
     reasoning_effort: 'low',
     response_format: zodResponseFormat(dynamicWeekPlanSchema as any, 'data'),
-    max_completion_tokens: 4000,
+    max_completion_tokens: 8000,
   })
 
   const weekPlanChoice = weekPlanCompletion.choices[0]
@@ -664,7 +664,7 @@ export async function runSessionCD(
       }),
     }],
     response_format: zodResponseFormat(dynamicMainSchema as any, 'data'),
-    max_completion_tokens: 5000,
+    max_completion_tokens: 8000,
   })
 
   const mainChoice = mainCompletion.choices[0]

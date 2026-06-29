@@ -156,6 +156,11 @@ export function WorkoutPrefsStep() {
                             />
                         ))}
                     </View>
+                    {selectedDays.size > 0 && (
+                        <JempText type="body-sm" color={theme.textMuted} style={styles.daysCounter}>
+                            {selectedDays.size}× {t('onboarding.workout_prefs_days_counter')}
+                        </JempText>
+                    )}
                 </View>
             </Animated.View>
 
@@ -250,6 +255,7 @@ const styles = StyleSheet.create({
         marginBottom: 14,
     },
     dayRow: { flexDirection: 'row', gap: 6 },
+    daysCounter: { marginTop: 10 },
     dayChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
     durationRow: { flexDirection: 'row', gap: 8 },
     durationChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
