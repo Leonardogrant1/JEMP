@@ -1,5 +1,5 @@
-import { create } from 'zustand';
 import type { SessionDetail } from '@/queries/use-session-detail-query';
+import { create } from 'zustand';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,6 +16,7 @@ export type FlatExercise = {
         thumbnail_storage_path: string | null;
         video_storage_path: string | null;
         is_unilateral: boolean;
+        laterality: string;
         measurement_type: string;
         equipment: { slug: string; name_i18n: Record<string, string> | null }[];
     };
@@ -54,14 +55,7 @@ type ActiveSessionUIState = {
     totalRestSeconds: number;
     isResting: boolean;
 
-    // Exercise timer — bilateral
-    exerciseDuration: number;
-    exerciseTimerActive: boolean;
 
-    // Exercise timer — unilateral
-    exerciseDurationLeft: number;
-    exerciseDurationRight: number;
-    exerciseTimerActiveSide: 'left' | 'right' | null;
 
     // UI flow
     initialized: boolean;
@@ -88,13 +82,6 @@ type ActiveSessionUIActions = {
     setTotalRestSeconds: (v: number | ((prev: number) => number)) => void;
     setIsResting: (v: boolean) => void;
 
-    setExerciseDuration: (v: number | ((prev: number) => number)) => void;
-    setExerciseTimerActive: (v: boolean) => void;
-
-    setExerciseDurationLeft: (v: number | ((prev: number) => number)) => void;
-    setExerciseDurationRight: (v: number | ((prev: number) => number)) => void;
-    setExerciseTimerActiveSide: (v: 'left' | 'right' | null) => void;
-
     setInitialized: (v: boolean) => void;
     setIsCompleting: (v: boolean) => void;
     setShowCongrats: (v: boolean) => void;
@@ -119,11 +106,6 @@ const INITIAL: ActiveSessionUIState = {
     restSeconds: 0,
     totalRestSeconds: 0,
     isResting: false,
-    exerciseDuration: 0,
-    exerciseTimerActive: false,
-    exerciseDurationLeft: 0,
-    exerciseDurationRight: 0,
-    exerciseTimerActiveSide: null,
     initialized: false,
     isCompleting: false,
     showCongrats: false,
@@ -153,15 +135,7 @@ export const useActiveSessionUIStore = create<ActiveSessionUIState & ActiveSessi
             set(s => ({ totalRestSeconds: typeof v === 'function' ? v(s.totalRestSeconds) : v })),
         setIsResting: (isResting) => set({ isResting }),
 
-        setExerciseDuration: (v) =>
-            set(s => ({ exerciseDuration: typeof v === 'function' ? v(s.exerciseDuration) : v })),
-        setExerciseTimerActive: (exerciseTimerActive) => set({ exerciseTimerActive }),
 
-        setExerciseDurationLeft: (v) =>
-            set(s => ({ exerciseDurationLeft: typeof v === 'function' ? v(s.exerciseDurationLeft) : v })),
-        setExerciseDurationRight: (v) =>
-            set(s => ({ exerciseDurationRight: typeof v === 'function' ? v(s.exerciseDurationRight) : v })),
-        setExerciseTimerActiveSide: (exerciseTimerActiveSide) => set({ exerciseTimerActiveSide }),
 
         setInitialized: (initialized) => set({ initialized }),
         setIsCompleting: (isCompleting) => set({ isCompleting }),
@@ -169,8 +143,6 @@ export const useActiveSessionUIStore = create<ActiveSessionUIState & ActiveSessi
 
         resetInputs: () => set({
             reps: '', load: '', repsLeft: '', repsRight: '', loadLeft: '', loadRight: '',
-            exerciseDuration: 0, exerciseTimerActive: false,
-            exerciseDurationLeft: 0, exerciseDurationRight: 0, exerciseTimerActiveSide: null,
         }),
 
         reset: () => set(INITIAL),

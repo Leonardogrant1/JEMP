@@ -9,12 +9,12 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Reanimated, {
-    runOnJS,
     useAnimatedStyle,
     useSharedValue,
     withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { scheduleOnRN } from 'react-native-worklets';
 
 export default function SessionManageScreen() {
     const { t } = useTranslation();
@@ -43,7 +43,7 @@ export default function SessionManageScreen() {
     function handleClose() {
         overlayValue.value = withTiming(0, { duration: 200 });
         slideValue.value = withTiming(600, { duration: 200 }, (finished) => {
-            if (finished) runOnJS(goBack)();
+            if (finished) scheduleOnRN(goBack);
         });
     }
 
@@ -52,14 +52,14 @@ export default function SessionManageScreen() {
         handleClose();
     }
 
+    function navigateToReschedule() {
+        router.replace({ pathname: '/session-reschedule', params: { sessionId } });
+    }
+
     function handleReschedule() {
         overlayValue.value = withTiming(0, { duration: 200 });
         slideValue.value = withTiming(600, { duration: 200 }, (finished) => {
-            if (finished) {
-                runOnJS(() => {
-                    router.replace({ pathname: '/session-reschedule', params: { sessionId } });
-                })();
-            }
+            if (finished) scheduleOnRN(navigateToReschedule);
         });
     }
 

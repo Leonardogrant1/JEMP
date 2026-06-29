@@ -296,6 +296,11 @@ const en = {
     'ui.session_cancel_confirm_submit': 'Yes, cancel',
     'ui.session_reschedule_title': 'Reschedule to...',
     'ui.session_reschedule_no_free_days': 'No free days available this week.',
+    'ui.session_reschedule_scope_title': 'How to reschedule?',
+    'ui.session_reschedule_scope_body': 'Move session from {{from}} to {{to}}.',
+    'ui.session_reschedule_scope_single': 'Only this session',
+    'ui.session_reschedule_scope_all': 'All {{day}} sessions',
+    'ui.confirm': 'Confirm',
 
     // ── Tabs ─────────────────────────────────────────────────────────────
     'tab.today': 'Today',

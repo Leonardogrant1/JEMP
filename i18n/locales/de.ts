@@ -298,6 +298,11 @@ const de: Record<TranslationKeys, string> = {
     'ui.session_cancel_confirm_submit': 'Ja, absagen',
     'ui.session_reschedule_title': 'Verschieben auf...',
     'ui.session_reschedule_no_free_days': 'Keine freien Tage diese Woche.',
+    'ui.session_reschedule_scope_title': 'Wie verschieben?',
+    'ui.session_reschedule_scope_body': 'Session von {{from}} auf {{to}} verschieben.',
+    'ui.session_reschedule_scope_single': 'Nur diese Session',
+    'ui.session_reschedule_scope_all': 'Alle {{day}}-Sessions',
+    'ui.confirm': 'Bestätigen',
 
     // ── Tabs ─────────────────────────────────────────────────────────────
     'tab.today': 'Heute',

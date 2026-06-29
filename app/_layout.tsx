@@ -75,28 +75,28 @@ export default function RootLayout() {
     <PostHogProvider client={posthog}>
       <VersionCheckProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
-        <PostHogSurveyProvider>
-          <QueryClientProvider client={queryClient}>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <KeyboardProvider>
-                <AuthProvider>
-                  <CurrentUserProvider>
-                    <NotificationProvider>
-                      <RevenueCatProvider>
-                        <PurchaseWrapper>
-                          <PlanProvider>
-                            <MainStack languageReady={languageReady} />
-                          </PlanProvider>
-                        </PurchaseWrapper>
-                      </RevenueCatProvider>
-                    </NotificationProvider>
-                  </CurrentUserProvider>
-                </AuthProvider>
-              </KeyboardProvider>
-              <StatusBar style="auto" />
-            </ThemeProvider>
-          </QueryClientProvider>
-        </PostHogSurveyProvider>
+          <PostHogSurveyProvider>
+            <QueryClientProvider client={queryClient}>
+              <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                <KeyboardProvider>
+                  <AuthProvider>
+                    <CurrentUserProvider>
+                      <NotificationProvider>
+                        <RevenueCatProvider>
+                          <PurchaseWrapper>
+                            <PlanProvider>
+                              <MainStack languageReady={languageReady} />
+                            </PlanProvider>
+                          </PurchaseWrapper>
+                        </RevenueCatProvider>
+                      </NotificationProvider>
+                    </CurrentUserProvider>
+                  </AuthProvider>
+                </KeyboardProvider>
+                <StatusBar style="auto" />
+              </ThemeProvider>
+            </QueryClientProvider>
+          </PostHogSurveyProvider>
         </GestureHandlerRootView>
       </VersionCheckProvider>
     </PostHogProvider>

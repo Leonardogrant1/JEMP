@@ -1,14 +1,14 @@
 import { JempText } from '@/components/jemp-text';
 import { Colors, Cyan, Electric, GradientMid, Neutral } from '@/constants/theme';
-import { formatLoad, formatReps, formatRest } from '@/helpers/format';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
+import { formatLoad, formatReps, formatRest } from '@/helpers/format';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useSessionDetailQuery, type SessionDetail } from '@/queries/use-session-detail-query';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -37,6 +37,7 @@ export default function SessionDetailScreen() {
     useEffect(() => {
         trackerManager.track('session_details_opened', { session_id: id });
     }, []);
+
 
     if (isLoading) {
         return (

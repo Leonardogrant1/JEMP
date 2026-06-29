@@ -47,8 +47,35 @@ function getPreviewSession(
     return planSession;
 }
 
+// JS getDay(): 0=Sun,1=Mon,...,6=Sat → DAY_KEYS index: 0=Mon,...,6=Sun
+const DAY_KEYS = [
+    'onboarding.workout_prefs_day_mon',
+    'onboarding.workout_prefs_day_tue',
+    'onboarding.workout_prefs_day_wed',
+    'onboarding.workout_prefs_day_thu',
+    'onboarding.workout_prefs_day_fri',
+    'onboarding.workout_prefs_day_sat',
+    'onboarding.workout_prefs_day_sun',
+] as const;
+
+function dowToDayKey(jsDow: number): typeof DAY_KEYS[number] {
+    return DAY_KEYS[jsDow === 0 ? 6 : jsDow - 1];
+}
+
+function getDow(isoDate: string): number {
+    return new Date(isoDate.split('T')[0]).getDay();
+}
+
+function shiftDate(scheduledAt: string, dayDiff: number): string {
+    const [datePart, ...rest] = scheduledAt.split('T');
+    const d = new Date(datePart);
+    d.setDate(d.getDate() + dayDiff);
+    const newDatePart = d.toISOString().split('T')[0];
+    return `${newDatePart}T${rest.join('T')}`;
+}
+
 export {
-    getISOWeek, getPreviewSession, getWeekDays,
-    toDateStr
+    DAY_KEYS, dowToDayKey, getDow, getISOWeek, getPreviewSession, getWeekDays,
+    shiftDate, toDateStr,
 };
 

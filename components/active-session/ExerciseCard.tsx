@@ -2,25 +2,26 @@ import { ExerciseVideoHero } from '@/components/exercise-video-hero';
 import { JempText } from '@/components/jemp-text';
 import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useActiveSessionStore } from '@/stores/active-session-store';
+import { useActiveSessionTransition } from '@/providers/active-session-transition-provider';
 import { useActiveSessionUIStore } from '@/stores/active-session-ui-store';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { type AnimatedProps } from 'react-native-reanimated';
+import { StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
-type Props = {
-    animatedStyle: StyleProp<AnimatedProps<ViewStyle>>;
-};
-
-export function ExerciseCard({ animatedStyle }: Props) {
+export function ExerciseCard() {
     const { t, i18n } = useTranslation();
     const locale = i18n.language;
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
+    const { exerciseIdx, exSlideX, exOpacity } = useActiveSessionTransition();
     const allExercises = useActiveSessionUIStore(s => s.allExercises);
-    const exerciseIdx = useActiveSessionStore(s => s.exerciseIdx);
     const current = allExercises[exerciseIdx] ?? null;
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ translateX: exSlideX.value }],
+        opacity: exOpacity.value,
+    }));
 
     if (!current) return null;
 

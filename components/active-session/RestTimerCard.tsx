@@ -1,6 +1,7 @@
 import { JempText } from '@/components/jemp-text';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useRestTimer } from '@/providers/rest-timer-provider';
 import { useActiveSessionUIStore } from '@/stores/active-session-ui-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -11,12 +12,8 @@ function formatTimer(s: number) {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
-type Props = {
-    onStop: () => void;
-    onAddTime: (seconds: number) => void;
-};
-
-export function RestTimerCard({ onStop, onAddTime }: Props) {
+export function RestTimerCard() {
+    const { stop, addTime } = useRestTimer();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
@@ -56,11 +53,11 @@ export function RestTimerCard({ onStop, onAddTime }: Props) {
             <View style={styles.timerActions}>
                 <Pressable
                     style={[styles.timerBtn, { backgroundColor: theme.surface }]}
-                    onPress={() => onAddTime(30)}
+                    onPress={() => addTime(30)}
                 >
                     <JempText type="body-sm" color={theme.text}>+ 30s</JempText>
                 </Pressable>
-                <Pressable style={[styles.timerSkip, { backgroundColor: theme.surface }]} onPress={onStop}>
+                <Pressable style={[styles.timerSkip, { backgroundColor: theme.surface }]} onPress={stop}>
                     <JempText type="body-sm" color={theme.textMuted}>Überspringen</JempText>
                 </Pressable>
             </View>

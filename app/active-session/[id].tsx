@@ -1,33 +1,29 @@
-import { Confetti } from '@/components/confetti';
 import { BottomBar } from '@/components/active-session/BottomBar';
 import { ExerciseCard } from '@/components/active-session/ExerciseCard';
 import { LogSetSection } from '@/components/active-session/LogSetSection';
 import { RestTimerCard } from '@/components/active-session/RestTimerCard';
 import { SessionHeader } from '@/components/active-session/SessionHeader';
+import { TimerAutoStopper } from '@/components/active-session/timer-auto-stopper';
+import { Confetti } from '@/components/confetti';
 import { JempText } from '@/components/jemp-text';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { loadUnit } from '@/helpers/format';
 import { calculateProgression } from '@/helpers/progression-suggestion';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { trackerManager } from '@/lib/tracking/tracker-manager';
-import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
-import { useUpsertPerformedSets } from '@/mutations/use-upsert-performed-set';
+import { ActiveSessionTransitionProvider, useActiveSessionTransition } from '@/providers/active-session-transition-provider';
+import { RestTimerProvider } from '@/providers/rest-timer-provider';
+import { ExerciseTimerProvider, useExerciseTimer } from '@/providers/timer-ref-provider';
 import { usePreviousExerciseSetsQuery } from '@/queries/use-previous-exercise-sets-query';
-import { useSessionDetailQuery } from '@/queries/use-session-detail-query';
+import { useSessionDetailQuery, type SessionDetail } from '@/queries/use-session-detail-query';
 import { useActiveSessionStore } from '@/stores/active-session-store';
-import { useActiveSessionUIStore } from '@/stores/active-session-ui-store';
 import type { FlatExercise } from '@/stores/active-session-ui-store';
-import { devLog } from '@/utils/dev-log';
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
-import * as Haptics from 'expo-haptics';
+import { useActiveSessionUIStore } from '@/stores/active-session-ui-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator,
-    Alert,
-    Keyboard,
     Modal,
     Pressable,
     ScrollView,
@@ -35,511 +31,16 @@ import {
     View,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import Animated, {
-    Easing,
-    runOnJS,
-    useAnimatedStyle,
-    useSharedValue,
-    withTiming,
-    type SharedValue,
-} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// ── Helpers ──────────────────────────────────────────────────────────────
-
-function formatTimer(s: number) {
-    const mins = Math.floor(s / 60);
-    const secs = s % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-}
-
-// ── Screen ───────────────────────────────────────────────────────────────
 
 export default function ActiveSessionScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
-    const router = useRouter();
-    const { t, i18n } = useTranslation();
-    const locale = i18n.language;
+    const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
     const { data: session, isLoading } = useSessionDetailQuery(id);
-    const updateStatus = useUpdateSessionStatus();
-    const upsertSets = useUpsertPerformedSets();
-
-    const store = useActiveSessionStore();
-    const ui = useActiveSessionUIStore();
-
-    // Destructure UI store state and actions
-    const {
-        reps, load, repsLeft, repsRight, loadLeft, loadRight,
-        previousSet, suggestionHint,
-        restSeconds, totalRestSeconds, isResting,
-        exerciseDuration, exerciseTimerActive,
-        exerciseDurationLeft, exerciseDurationRight, exerciseTimerActiveSide,
-        initialized, isCompleting, showCongrats,
-        setSession, setReps, setLoad, setRepsLeft, setRepsRight, setLoadLeft, setLoadRight,
-        setPreviousSet, setSuggestionHint,
-        setRestSeconds, setTotalRestSeconds, setIsResting,
-        setExerciseDuration, setExerciseTimerActive,
-        setExerciseDurationLeft, setExerciseDurationRight, setExerciseTimerActiveSide,
-        setInitialized, setIsCompleting, setShowCongrats,
-        resetInputs,
-    } = ui;
-
-    // Local state controls what the UI renders (animation timing)
-    // Crash-recovery store is updated immediately; local state updates in slideOut callbacks
-    const [exerciseIdx, setExerciseIdx] = useState(0);
-    const [currentSet, setCurrentSet] = useState(1);
-
-    // Flatten exercises
-    const allExercises = useMemo<FlatExercise[]>(() => {
-        if (!session) return [];
-        return session.blocks.flatMap(block =>
-            block.exercises.map(ex => ({
-                ...ex,
-                blockId: block.id,
-                blockType: block.block_type,
-            })),
-        );
-    }, [session]);
-
-    // Sync session data into UI store
-    useEffect(() => {
-        if (session) setSession(session, allExercises);
-    }, [session, allExercises, setSession]);
-
-    // Restore progress — prefer local store (more up-to-date), fall back to DB
-    useEffect(() => {
-        if (session && allExercises.length > 0 && !initialized) {
-            if (store.sessionId === id) {
-                // Resume from local store (no DB round-trip needed)
-                const clampedIdx = Math.min(store.exerciseIdx, allExercises.length - 1);
-                setExerciseIdx(clampedIdx);
-                setCurrentSet(store.currentSet);
-            } else {
-                // New session — init store and restore from DB
-                const savedIdx = Math.min(session.current_exercise_index, allExercises.length - 1);
-                store.initSession(id!, savedIdx, session.current_set_number);
-                setExerciseIdx(savedIdx);
-                setCurrentSet(session.current_set_number);
-            }
-            setInitialized(true);
-        }
-    }, [session, allExercises.length, initialized]);
-
-    // Rest timer (count-down between sets)
-    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-    // Exercise timer — bilateral duration
-    const exerciseTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-    // Exercise timer — unilateral duration (left / right independent)
-    const exerciseTimerSideRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-    // Countdown sounds
-    const tickSoundRef = useRef<AudioPlayer | null>(null);
-    const endSoundRef = useRef<AudioPlayer | null>(null);
-    useEffect(() => {
-        const tick = createAudioPlayer(require('@/assets/sounds/countdown.mp3'));
-        const end = createAudioPlayer(require('@/assets/sounds/countdown_end.mp3'));
-        tickSoundRef.current = tick;
-        endSoundRef.current = end;
-        return () => {
-            tick.remove();
-            end.remove();
-        };
-    }, []);
-
-    const current = allExercises[exerciseIdx] ?? null;
-    const { data: prevSets } = usePreviousExerciseSetsQuery(current?.exercise.id, id);
-    const totalSets = current?.target_sets ?? 1;
-    const isLastSet = currentSet >= totalSets;
-    const isLastExercise = exerciseIdx === allExercises.length - 1;
-    const unit = current ? loadUnit(current.target_load_type) : '';
-    const showLoad = unit !== '';
-    const isUnilateral = current?.exercise.is_unilateral ?? false;
-    const isDuration = current?.exercise.measurement_type === 'duration';
-
-    // ── Transition animations ─────────────────────────────────────────────
-    const exSlideX = useSharedValue(0);
-    const exOpacity = useSharedValue(1);
-    const setSlideX = useSharedValue(0);
-    const setOpacity = useSharedValue(1);
-
-    const exAnimStyle = useAnimatedStyle(() => ({
-        transform: [{ translateX: exSlideX.value }],
-        opacity: exOpacity.value,
-    }));
-    const setAnimStyle = useAnimatedStyle(() => ({
-        transform: [{ translateX: setSlideX.value }],
-        opacity: setOpacity.value,
-    }));
-
-    const slideOut = (x: SharedValue<number>, op: SharedValue<number>, dist: number, cb: () => void) => {
-        'worklet';
-        x.value = withTiming(-dist, { duration: 100, easing: Easing.in(Easing.ease) }, (done) => {
-            'worklet';
-            if (done) {
-                x.value = dist * 0.6;
-                op.value = 0;
-                x.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.ease) });
-                op.value = withTiming(1, { duration: 220 });
-                runOnJS(cb)();
-            }
-        });
-        op.value = withTiming(0, { duration: 100 });
-    };
-
-    // Save progress locally — crash-recovery store updates immediately; local state mirrors it
-    const saveProgress = useCallback((exIdx: number, setNum: number) => {
-        store.setProgress(exIdx, setNum);
-        setExerciseIdx(exIdx);
-        setCurrentSet(setNum);
-    }, [store]);
-
-
-    // On exercise change: clear session state + timers
-    useEffect(() => {
-        if (!current || !initialized) return;
-        setPreviousSet(null);
-        resetInputs();
-        if (exerciseTimerRef.current) {
-            clearInterval(exerciseTimerRef.current);
-            exerciseTimerRef.current = null;
-        }
-        if (exerciseTimerSideRef.current) {
-            clearInterval(exerciseTimerSideRef.current);
-            exerciseTimerSideRef.current = null;
-        }
-        // Rest timer intentionally NOT stopped here — when moving to next exercise
-        // handleLogSet starts the rest timer first, then updates exerciseIdx.
-        // Stopping it here would immediately cancel the between-exercise pause.
-    }, [exerciseIdx, current?.id]);
-
-    // On exercise or set change: apply progression suggestion
-    useEffect(() => {
-        if (!current || !initialized) return;
-
-        const suggestion = prevSets?.length
-            ? calculateProgression(current.target_load_type, prevSets, currentSet)
-            : null;
-
-        // Prefill load: last logged set in current session → cross-session previous → target value
-        // This keeps the weight consistent between sets of the same exercise within one session.
-        const sessionSets = useActiveSessionStore.getState().pendingSets
-            .filter(s => s.workout_session_block_exercise_id === current.id)
-            .sort((a, b) => b.set_number - a.set_number);
-        const lastSessionLoad = sessionSets[0]?.performed_load_value;
-
-        const prefillLoad = lastSessionLoad != null
-            ? String(lastSessionLoad)
-            : suggestion?.previousLoad != null
-                ? String(suggestion.previousLoad)
-                : (current.target_load_value != null ? String(current.target_load_value) : '');
-        const prefillReps = suggestion?.previousReps != null
-            ? String(suggestion.previousReps)
-            : '';
-        setLoad(prefillLoad);
-        setReps(prefillReps);
-        setLoadLeft(prefillLoad);
-        setLoadRight(prefillLoad);
-        setRepsLeft(prefillReps);
-        setRepsRight(prefillReps);
-
-        // Show suggested progression as hint (only when there's a suggestion beyond the previous)
-        if (suggestion?.suggestedLoad != null) {
-            setSuggestionHint(`${suggestion.suggestedLoad} ${unit}`);
-        } else if (suggestion?.suggestedReps != null && !showLoad) {
-            setSuggestionHint(`${suggestion.suggestedReps} ${t('ui.reps').toLowerCase()}`);
-        } else {
-            setSuggestionHint(null);
-        }
-    }, [exerciseIdx, currentSet, current?.id, prevSets]);
-
-    // Timer logic
-    const startTimer = useCallback((seconds: number) => {
-        stopTimer();
-        setRestSeconds(seconds);
-        setTotalRestSeconds(seconds);
-        setIsResting(true);
-        timerRef.current = setInterval(() => {
-            setRestSeconds(prev => {
-                if (prev <= 1) {
-                    stopTimer();
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-    }, []);
-
-    const stopTimer = useCallback(() => {
-        if (timerRef.current) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-        }
-        setIsResting(false);
-        setRestSeconds(0);
-    }, []);
-
-    useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
-
-    const startExerciseTimer = useCallback(() => {
-        if (exerciseTimerRef.current) return; // already running
-        setExerciseTimerActive(true);
-        exerciseTimerRef.current = setInterval(() => {
-            setExerciseDuration(prev => prev + 1);
-        }, 1000);
-    }, []);
-
-    const stopExerciseTimer = useCallback(() => {
-        if (exerciseTimerRef.current) {
-            clearInterval(exerciseTimerRef.current);
-            exerciseTimerRef.current = null;
-        }
-        setExerciseTimerActive(false);
-    }, []);
-
-    useEffect(() => () => { if (exerciseTimerRef.current) clearInterval(exerciseTimerRef.current); }, []);
-    useEffect(() => () => { if (exerciseTimerSideRef.current) clearInterval(exerciseTimerSideRef.current); }, []);
-
-    const startExerciseTimerSide = useCallback((side: 'left' | 'right') => {
-        if (exerciseTimerSideRef.current) return; // one side at a time
-        setExerciseTimerActiveSide(side);
-        exerciseTimerSideRef.current = setInterval(() => {
-            if (side === 'left') setExerciseDurationLeft(p => p + 1);
-            else setExerciseDurationRight(p => p + 1);
-        }, 1000);
-    }, []);
-
-    const stopExerciseTimerSide = useCallback(() => {
-        if (exerciseTimerSideRef.current) {
-            clearInterval(exerciseTimerSideRef.current);
-            exerciseTimerSideRef.current = null;
-        }
-        setExerciseTimerActiveSide(null);
-    }, []);
-
-    // Auto-stop + countdown sounds when target duration is reached (bilateral)
-    useEffect(() => {
-        const target = current?.target_duration_seconds ?? 0;
-        if (!isDuration || isUnilateral || target === 0) return;
-
-        const remaining = target - exerciseDuration;
-        if (remaining > 0 && remaining <= 3) {
-            const t = tickSoundRef.current;
-            if (t) { t.seekTo(0); t.play(); }
-        } else if (remaining === 0) {
-            const e = endSoundRef.current;
-            if (e) { e.seekTo(0); e.play(); }
-        }
-        if (remaining <= 0 && exerciseTimerRef.current) {
-            clearInterval(exerciseTimerRef.current);
-            exerciseTimerRef.current = null;
-            setExerciseTimerActive(false);
-            setExerciseDuration(target);
-        }
-    }, [exerciseDuration, current?.target_duration_seconds, isDuration, isUnilateral]);
-
-    // Auto-stop + sounds for unilateral side timers
-    useEffect(() => {
-        const target = current?.target_duration_seconds ?? 0;
-        if (!isDuration || !isUnilateral || target === 0) return;
-
-        const checkSide = (duration: number, isActive: boolean, setDuration: (v: number) => void, stopFn: () => void) => {
-            const remaining = target - duration;
-            if (remaining > 0 && remaining <= 3) {
-                const t = tickSoundRef.current;
-                if (t) { t.seekTo(0); t.play(); }
-            } else if (remaining === 0) {
-                const e = endSoundRef.current;
-                if (e) { e.seekTo(0); e.play(); }
-            }
-            if (remaining <= 0 && isActive) {
-                stopFn();
-                setDuration(target);
-            }
-        };
-
-        if (exerciseTimerActiveSide === 'left') {
-            checkSide(exerciseDurationLeft, true, setExerciseDurationLeft, stopExerciseTimerSide);
-        } else if (exerciseTimerActiveSide === 'right') {
-            checkSide(exerciseDurationRight, true, setExerciseDurationRight, stopExerciseTimerSide);
-        }
-    }, [exerciseDurationLeft, exerciseDurationRight, exerciseTimerActiveSide, current?.target_duration_seconds, isDuration, isUnilateral, stopExerciseTimerSide]);
-
-    // Collect performed set into store + update progress — fully synchronous, no network
-    const saveSetAndProgress = useCallback((nextExerciseIdx: number, nextSetNumber: number) => {
-        if (!current || !id) return;
-
-        const base = {
-            workout_session_id: id,
-            workout_session_block_id: current.blockId,
-            workout_session_block_exercise_id: current.id,
-            set_number: currentSet,
-            performed_rpe: null,
-            performed_duration_seconds: null,
-            performed_distance_meters: null,
-        };
-
-        const setsToLog: ReturnType<typeof Object.assign>[] = [];
-
-        if (isDuration && isUnilateral) {
-            if (exerciseDurationLeft > 0) setsToLog.push({ ...base, side: 'left', performed_reps: null, performed_duration_seconds: exerciseDurationLeft, performed_load_value: null });
-            if (exerciseDurationRight > 0) setsToLog.push({ ...base, side: 'right', performed_reps: null, performed_duration_seconds: exerciseDurationRight, performed_load_value: null });
-        } else if (isDuration && exerciseDuration > 0) {
-            setsToLog.push({ ...base, side: 'bilateral', performed_reps: null, performed_duration_seconds: exerciseDuration, performed_load_value: null });
-        } else if (isUnilateral) {
-            if (repsLeft.trim() !== '') setsToLog.push({ ...base, side: 'left', performed_reps: parseInt(repsLeft, 10), performed_load_value: loadLeft.trim() !== '' ? parseFloat(loadLeft) : null });
-            if (repsRight.trim() !== '') setsToLog.push({ ...base, side: 'right', performed_reps: parseInt(repsRight, 10), performed_load_value: loadRight.trim() !== '' ? parseFloat(loadRight) : null });
-        } else if (reps.trim() !== '') {
-            setsToLog.push({ ...base, side: 'bilateral', performed_reps: parseInt(reps, 10), performed_load_value: load.trim() !== '' ? parseFloat(load) : null });
-        }
-
-        if (setsToLog.length > 0) store.logSets(setsToLog as any);
-        store.setProgress(nextExerciseIdx, nextSetNumber);
-    }, [current, id, currentSet, reps, load, repsLeft, repsRight, loadLeft, loadRight, isUnilateral, isDuration, exerciseDuration, exerciseDurationLeft, exerciseDurationRight, store]);
-
-    // Flush all pending sets to DB, mark session complete, show congrats
-    const completeSession = useCallback(async () => {
-        if (!id) return;
-        setIsCompleting(true);
-        try {
-            // Read directly from Zustand store (not the React snapshot) so we get the
-            // freshest pendingSets — including any set logged in the same tick as this call.
-            const freshSets = useActiveSessionStore.getState().pendingSets;
-
-            // Deduplicate by (exercise_id, set_number, side) — a batch with duplicate
-            // unique keys fails even with onConflict upsert.
-            const seen = new Set<string>();
-            const uniqueSets = freshSets.filter(s => {
-                const key = `${s.workout_session_block_exercise_id}|${s.set_number}|${s.side}`;
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            });
-
-            if (uniqueSets.length > 0) {
-                devLog('Logging sets:', uniqueSets);
-                await upsertSets.mutateAsync(uniqueSets);
-            }
-            await new Promise<void>((resolve, reject) =>
-                updateStatus.mutate(
-                    { sessionId: id, status: 'completed' },
-                    { onSuccess: () => resolve(), onError: reject },
-                )
-            );
-            trackerManager.track('session_completed', { session_id: id });
-            store.clear();
-            setIsCompleting(false);
-            // Haptic celebration sequence
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 150);
-            setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 300);
-            setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success), 500);
-            setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 700);
-            setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 850);
-            ui.reset();
-            setShowCongrats(true);
-        } catch (error) {
-            devLog('Error completing session:', error);
-            setIsCompleting(false);
-        }
-    }, [id, store, upsertSets, updateStatus]);
-
-    // Log set & next
-    const handleLogSet = useCallback(async () => {
-        Keyboard.dismiss();
-        const canLog = isDuration && isUnilateral
-            ? (exerciseDurationLeft > 0 || exerciseDurationRight > 0)
-            : isDuration
-                ? exerciseDuration > 0
-                : isUnilateral
-                    ? (repsLeft.trim() !== '' || repsRight.trim() !== '')
-                    : reps.trim() !== '';
-        if (!canLog) return;
-
-        if (isLastSet && isLastExercise) {
-            saveSetAndProgress(exerciseIdx, currentSet);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            await completeSession();
-        } else if (isLastSet) {
-            // Exercise change — heavy haptic + exercise slide transition
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            const nextIdx = exerciseIdx + 1;
-            saveSetAndProgress(nextIdx, 1);
-            if (isUnilateral) {
-                setPreviousSet({ reps: repsLeft, load: loadLeft, repsRight });
-            } else if (!isDuration) {
-                setPreviousSet({ reps, load });
-            }
-            slideOut(exSlideX, exOpacity, 40, () => {
-                setExerciseIdx(nextIdx);
-                setCurrentSet(1);
-            });
-            const restDuration = current?.target_rest_seconds || session?.pause_between_sets || 60;
-            startTimer(restDuration);
-        } else {
-            // Set change — medium haptic + log section slide transition
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            const nextSet = currentSet + 1;
-            saveSetAndProgress(exerciseIdx, nextSet);
-            if (isDuration && isUnilateral) {
-                const lStr = exerciseDurationLeft > 0 ? `L: ${formatTimer(exerciseDurationLeft)}` : '';
-                const rStr = exerciseDurationRight > 0 ? `R: ${formatTimer(exerciseDurationRight)}` : '';
-                setPreviousSet({ reps: [lStr, rStr].filter(Boolean).join('  '), load: '' });
-                stopExerciseTimerSide();
-                setExerciseDurationLeft(0);
-                setExerciseDurationRight(0);
-            } else if (isDuration) {
-                setPreviousSet({ reps: formatTimer(exerciseDuration), load: '' });
-                stopExerciseTimer();
-                setExerciseDuration(0);
-            } else if (isUnilateral) {
-                setPreviousSet({ reps: repsLeft, load: loadLeft, repsRight });
-                setRepsLeft('');
-                setRepsRight('');
-            } else {
-                setPreviousSet({ reps, load });
-                setReps('');
-            }
-            slideOut(setSlideX, setOpacity, 24, () => {
-                setCurrentSet(nextSet);
-            });
-            const restDuration = current?.target_rest_seconds || session?.pause_between_sets || 60;
-            startTimer(restDuration);
-        }
-    }, [reps, load, repsLeft, repsRight, loadLeft, loadRight, isUnilateral, isDuration, exerciseDuration, exerciseDurationLeft, exerciseDurationRight, saveSetAndProgress, completeSession, isLastSet, isLastExercise, exerciseIdx, currentSet, current, session, startTimer, stopExerciseTimer, stopExerciseTimerSide, exSlideX, exOpacity, setSlideX, setOpacity, slideOut]);
-
-    // Skip set
-    const handleSkipSet = useCallback(async () => {
-        if (isLastSet && isLastExercise) {
-            Alert.alert(t('ui.finish_session_title'), t('ui.finish_session_message'), [
-                { text: t('ui.cancel'), style: 'cancel' },
-                { text: t('ui.finish'), style: 'destructive', onPress: () => completeSession() },
-            ]);
-        } else if (isLastSet) {
-            saveProgress(exerciseIdx + 1, 1);
-        } else {
-            saveProgress(exerciseIdx, currentSet + 1);
-            setReps('');
-        }
-    }, [isLastSet, isLastExercise, exerciseIdx, currentSet, t, saveProgress, completeSession]);
-
-    // Finish early
-    const handleFinishEarly = useCallback(() => {
-        Alert.alert(t('ui.finish_session_title'), t('ui.finish_session_message'), [
-            { text: t('ui.cancel'), style: 'cancel' },
-            { text: t('ui.finish'), style: 'destructive', onPress: () => completeSession() },
-        ]);
-    }, [t, completeSession]);
-
-    const leaveSession = useCallback(() => {
-        router.back();
-    }, [router]);
-
-    // ── Render ───────────────────────────────────────────────────────────
 
     if (isLoading || !session) {
         return (
@@ -553,6 +54,138 @@ export default function ActiveSessionScreen() {
             </SafeAreaView>
         );
     }
+
+    return (
+        <ExerciseTimerProvider>
+            <RestTimerProvider>
+                <ActiveSessionTransitionProvider>
+                    <TimerAutoStopper>
+                        <ActiveSessionContent id={id!} session={session} />
+                    </TimerAutoStopper>
+                </ActiveSessionTransitionProvider>
+            </RestTimerProvider>
+        </ExerciseTimerProvider>
+    );
+}
+
+function ActiveSessionContent({ id, session }: { id: string; session: SessionDetail }) {
+    const router = useRouter();
+    const { t } = useTranslation();
+    const colorScheme = useColorScheme();
+    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+
+    const { exerciseIdx, currentSet, setExerciseIdx, setCurrentSet } = useActiveSessionTransition();
+    const { stopExerciseTimer, stopExerciseTimerSide, setExerciseDuration, setExerciseDurationLeft, setExerciseDurationRight } = useExerciseTimer();
+
+    const store = useActiveSessionStore();
+    const {
+        initialized, showCongrats,
+        setSession, setReps, setLoad, setRepsLeft, setRepsRight, setLoadLeft, setLoadRight,
+        setPreviousSet, setSuggestionHint,
+        setInitialized,
+        resetInputs,
+    } = useActiveSessionUIStore();
+
+    // Flatten exercises
+    const allExercises = useMemo<FlatExercise[]>(() => {
+        return session.blocks.flatMap(block =>
+            block.exercises.map(ex => ({
+                ...ex,
+                blockId: block.id,
+                blockType: block.block_type,
+            })),
+        );
+    }, [session]);
+
+    // Reset initialized on unmount so re-entering the screen reinitializes correctly
+    useEffect(() => {
+        return () => setInitialized(false);
+    }, []);
+
+    // Sync session data into UI store
+    useEffect(() => {
+        setSession(session, allExercises);
+    }, [session, allExercises, setSession]);
+
+    // Restore progress — prefer local store (more up-to-date), fall back to DB
+    useEffect(() => {
+        console.log(allExercises.length, initialized);
+        if (allExercises.length > 0 && !initialized) {
+            if (store.sessionId === id) {
+                console.log('restoring');
+                const clampedIdx = Math.min(store.exerciseIdx, allExercises.length - 1);
+                setExerciseIdx(clampedIdx);
+                setCurrentSet(store.currentSet);
+            } else {
+                console.log('restoring from DB');
+                const savedIdx = Math.min(session.current_exercise_index, allExercises.length - 1);
+                store.initSession(id, savedIdx, session.current_set_number);
+                setExerciseIdx(savedIdx);
+                setCurrentSet(session.current_set_number);
+            }
+            setInitialized(true);
+        }
+    }, [allExercises.length, initialized]);
+
+    const current = allExercises[exerciseIdx] ?? null;
+    const { data: prevSets } = usePreviousExerciseSetsQuery(current?.exercise.id, id);
+    const unit = current ? loadUnit(current.target_load_type) : '';
+    const showLoad = unit !== '';
+
+    // On exercise change: clear inputs + exercise timers
+    useEffect(() => {
+        if (!current || !initialized) return;
+        setPreviousSet(null);
+        resetInputs();
+        stopExerciseTimer();
+        setExerciseDuration(0);
+        stopExerciseTimerSide();
+        setExerciseDurationLeft(0);
+        setExerciseDurationRight(0);
+        // Rest timer intentionally NOT stopped here — handleLogSet starts the rest timer
+        // before updating exerciseIdx, so stopping here would cancel the between-exercise pause.
+    }, [exerciseIdx, current?.id]);
+
+    // On exercise or set change: apply progression suggestion
+    useEffect(() => {
+        if (!current || !initialized) return;
+
+        const suggestion = prevSets?.length
+            ? calculateProgression(current.target_load_type, prevSets, currentSet)
+            : null;
+
+        // Prefill load: last logged set in current session → cross-session previous → target value
+        const sessionSets = useActiveSessionStore.getState().pendingSets
+            .filter(s => s.workout_session_block_exercise_id === current.id)
+            .sort((a, b) => b.set_number - a.set_number);
+        const lastSessionLoad = sessionSets[0]?.performed_load_value;
+
+        const prefillLoad = lastSessionLoad != null
+            ? String(lastSessionLoad)
+            : suggestion?.previousLoad != null
+                ? String(suggestion.previousLoad)
+                : (current.target_load_value != null ? String(current.target_load_value) : '');
+        const prefillReps = suggestion?.previousReps != null ? String(suggestion.previousReps) : '';
+
+        setLoad(prefillLoad);
+        setReps(prefillReps);
+        setLoadLeft(prefillLoad);
+        setLoadRight(prefillLoad);
+        setRepsLeft(prefillReps);
+        setRepsRight(prefillReps);
+
+        if (suggestion?.suggestedLoad != null) {
+            setSuggestionHint(`${suggestion.suggestedLoad} ${unit}`);
+        } else if (suggestion?.suggestedReps != null && !showLoad) {
+            setSuggestionHint(`${suggestion.suggestedReps} ${t('ui.reps').toLowerCase()}`);
+        } else {
+            setSuggestionHint(null);
+        }
+    }, [exerciseIdx, currentSet, current?.id, prevSets]);
+
+    const leaveSession = useCallback(() => {
+        router.back();
+    }, [router]);
 
     if (!current) return null;
 
@@ -593,31 +226,12 @@ export default function ActiveSessionScreen() {
 
             <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-
-                    {/* ── Exercise title + video + equipment (slides on exercise change) ── */}
-                    <ExerciseCard animatedStyle={exAnimStyle} />
-
-                    {/* ── Rest timer ── */}
-                    <RestTimerCard
-                        onStop={stopTimer}
-                        onAddTime={(secs) => {
-                            setRestSeconds(prev => prev + secs);
-                            setTotalRestSeconds(prev => prev + secs);
-                        }}
-                    />
-
-                    {/* ── Log set inputs (slides on set change) ── */}
-                    <LogSetSection
-                        animatedStyle={setAnimStyle}
-                        onStartExerciseTimer={startExerciseTimer}
-                        onStopExerciseTimer={stopExerciseTimer}
-                        onStartExerciseTimerSide={startExerciseTimerSide}
-                        onStopExerciseTimerSide={stopExerciseTimerSide}
-                    />
+                    <ExerciseCard />
+                    <RestTimerCard />
+                    <LogSetSection />
                 </ScrollView>
 
-                {/* ── Bottom bar ── */}
-                <BottomBar onLogSet={handleLogSet} onSkipSet={handleSkipSet} />
+                <BottomBar />
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -628,10 +242,8 @@ export default function ActiveSessionScreen() {
 const styles = StyleSheet.create({
     root: { flex: 1 },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-
     content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24, gap: 20 },
 
-    // Congrats
     congratsOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.75)',
@@ -661,5 +273,4 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-
 });

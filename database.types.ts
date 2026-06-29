@@ -459,7 +459,7 @@ export type Database = {
           intensity_score: number | null
           is_sport_specific: boolean
           is_unilateral: boolean
-          laterality: string
+          laterality: Database["public"]["Enums"]["laterality"]
           max_level: number
           measurement_type: string
           min_level: number
@@ -487,7 +487,7 @@ export type Database = {
           intensity_score?: number | null
           is_sport_specific?: boolean
           is_unilateral?: boolean
-          laterality?: string
+          laterality?: Database["public"]["Enums"]["laterality"]
           max_level: number
           measurement_type?: string
           min_level: number
@@ -515,7 +515,7 @@ export type Database = {
           intensity_score?: number | null
           is_sport_specific?: boolean
           is_unilateral?: boolean
-          laterality?: string
+          laterality?: Database["public"]["Enums"]["laterality"]
           max_level?: number
           measurement_type?: string
           min_level?: number
@@ -1824,6 +1824,7 @@ export type Database = {
         | "sprint_drills"
         | "mobility_development"
       gender: "male" | "female" | "other"
+      laterality: "bilateral" | "unilateral" | "alternating"
       load_type: "bodyweight" | "kg" | "percent_1rm" | "rpe" | "pace"
       metric_source_type: "manual" | "assessment" | "session" | "derived"
       metric_unit:
@@ -2042,6 +2043,7 @@ export const Constants = {
         "mobility_development",
       ],
       gender: ["male", "female", "other"],
+      laterality: ["bilateral", "unilateral", "alternating"],
       load_type: ["bodyweight", "kg", "percent_1rm", "rpe", "pace"],
       metric_source_type: ["manual", "assessment", "session", "derived"],
       metric_unit: [
