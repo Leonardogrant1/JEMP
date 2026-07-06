@@ -1,9 +1,11 @@
 'use server'
 
+import { asI18n } from '@/lib/i18n'
+import type { AssessmentUserProfile } from '@/lib/score-calculators/assessment-score'
+import { calculateAssessmentScore } from '@/lib/score-calculators/assessment-score'
 import { supabase } from '@/lib/supabase'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { asI18n } from '@/lib/i18n'
 
 // ─── Auth helpers ─────────────────────────────────────────────
 
@@ -15,7 +17,7 @@ async function requireUser() {
     {
       cookies: {
         getAll() { return cookieStore.getAll() },
-        setAll() {},
+        setAll() { },
       },
     }
   )
@@ -427,6 +429,159 @@ export async function fetchUserPlanStructure(planId: string): Promise<PlanStruct
   }))
 
   return { planSessions }
+}
+
+// ─── fetchUserAssessmentScores ────────────────────────────────
+
+export type UserAssessmentScore = {
+  id: string
+  completed_at: string
+  assessment_slug: string
+  assessment_name: string
+  category_slug: string
+  category_name: string
+  metric_unit: string
+  value: number | null
+  score: number | null
+}
+
+export async function fetchUserAssessmentScores(userId: string): Promise<UserAssessmentScore[]> {
+  await requireAdmin()
+
+  const { data, error } = await supabase
+    .from('user_assessments')
+    .select(`
+      id, completed_at,
+      assessment:assessments (
+        slug, name_i18n,
+        category:categories ( slug, name_i18n ),
+        metric:metrics!measured_metric_id ( unit )
+      ),
+      metric_entries ( value, score )
+    `)
+    .eq('user_id', userId)
+    .eq('status', 'completed')
+    .order('completed_at', { ascending: false })
+
+  if (error) throw new Error(error.message)
+
+  // Deduplicate: keep only the latest completed entry per assessment slug
+  const seen = new Set<string>()
+  const results: UserAssessmentScore[] = []
+
+  for (const ua of (data as any[])) {
+    const slug = ua.assessment?.slug ?? ''
+    if (seen.has(slug)) continue
+    seen.add(slug)
+
+    const entry = (ua.metric_entries ?? [])[0]
+    results.push({
+      id: ua.id,
+      completed_at: ua.completed_at,
+      assessment_slug: slug,
+      assessment_name: asI18n(ua.assessment?.name_i18n).de ?? slug,
+      category_slug: ua.assessment?.category?.slug ?? '',
+      category_name: asI18n(ua.assessment?.category?.name_i18n).de ?? '',
+      metric_unit: ua.assessment?.metric?.unit ?? '',
+      value: entry?.value ?? null,
+      score: entry?.score ?? null,
+    })
+  }
+
+  return results
+}
+
+// ─── recalculateUserAssessments ───────────────────────────────
+
+export async function recalculateUserAssessments(userId: string): Promise<{ updated: number }> {
+  await requireAdmin()
+
+  // 1. Fetch user profile for calculator inputs
+  const { data: profileData, error: profileError } = await supabase
+    .from('user_profiles')
+    .select('gender, weight_in_kg, height_in_cm, birth_date')
+    .eq('id', userId)
+    .single()
+
+  if (profileError) throw new Error(profileError.message)
+  if (!profileData?.gender || !profileData.weight_in_kg || !profileData.height_in_cm || !profileData.birth_date) {
+    throw new Error('Benutzerprofil unvollständig (Geschlecht, Gewicht, Größe oder Geburtsdatum fehlt)')
+  }
+
+  const profile: AssessmentUserProfile = {
+    gender: profileData.gender as 'male' | 'female',
+    weight_kg: profileData.weight_in_kg,
+    height_cm: profileData.height_in_cm,
+    birth_date: profileData.birth_date,
+  }
+
+  // 2. Fetch all completed user_assessments with their metric entries
+  const { data, error } = await supabase
+    .from('user_assessments')
+    .select(`
+      id, completed_at,
+      assessment:assessments ( id, slug, category_id ),
+      metric_entries ( id, value )
+    `)
+    .eq('user_id', userId)
+    .eq('status', 'completed')
+    .order('completed_at', { ascending: false })
+
+  if (error) throw new Error(error.message)
+
+  // Deduplicate: keep only the latest completed user_assessment per assessment_id
+  type EntryMeta = { metricEntryId: string; value: number; categoryId: string; slug: string }
+  const latestByAssessmentId = new Map<string, EntryMeta>()
+
+  for (const ua of data) {
+    const assessmentId = ua.assessment?.id
+    const slug = ua.assessment?.slug as string | undefined
+    const categoryId = ua.assessment?.category_id as string | undefined
+    const entry = (ua.metric_entries ?? [])[0]
+    if (!assessmentId || !slug || !categoryId || !entry || entry.value === null) continue
+    if (!latestByAssessmentId.has(assessmentId)) {
+      latestByAssessmentId.set(assessmentId, {
+        metricEntryId: entry.id,
+        value: entry.value,
+        categoryId,
+        slug,
+      })
+    }
+  }
+
+  // 3. Recalculate scores and collect per category
+  let updated = 0
+  const scoresByCategory = new Map<string, number[]>()
+
+  for (const item of latestByAssessmentId.values()) {
+    const newScore = calculateAssessmentScore(item.slug, item.value, profile)
+    if (newScore === null) continue
+
+    const { error: updateError } = await supabase
+      .from('metric_entries')
+      .update({ score: newScore })
+      .eq('id', item.metricEntryId)
+
+    if (updateError) throw new Error(updateError.message)
+    updated++
+
+    if (!scoresByCategory.has(item.categoryId)) scoresByCategory.set(item.categoryId, [])
+    scoresByCategory.get(item.categoryId)!.push(newScore)
+  }
+
+  // 4. Update user_category_levels with new averages
+  for (const [categoryId, scores] of scoresByCategory.entries()) {
+    const avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+    const { error: upsertError } = await supabase
+      .from('user_category_levels')
+      .upsert(
+        { user_id: userId, category_id: categoryId, level_score: avgScore },
+        { onConflict: 'user_id,category_id' },
+      )
+    if (upsertError) throw new Error(upsertError.message)
+  }
+
+  return { updated }
 }
 
 // ─── fetchSessionDetail ───────────────────────────────────────

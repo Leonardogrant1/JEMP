@@ -104,13 +104,12 @@ export default function AssessmentScreen() {
         ? stopwatch.bestTime !== null ? String(stopwatch.bestTime) : ''
         : value;
 
-    // For 5RM mode, compute estimated 1RM before submitting
     const submitValue = isKgBased && repMode === '5rm' && rawSubmitValue
-        ? String(estimateOneRepMax(parseFloat(rawSubmitValue), 5))
+        ? String(estimateOneRepMax(parseFloat(rawSubmitValue.replace(',', '.')), 5))
         : rawSubmitValue;
 
-    const estimated1RM = isKgBased && repMode === '5rm' && rawSubmitValue && !isNaN(parseFloat(rawSubmitValue))
-        ? estimateOneRepMax(parseFloat(rawSubmitValue), 5)
+    const estimated1RM = isKgBased && repMode === '5rm' && rawSubmitValue && !isNaN(parseFloat(rawSubmitValue.replace(',', '.')))
+        ? estimateOneRepMax(parseFloat(rawSubmitValue.replace(',', '.')), 5)
         : null;
 
     const ratingColor = ratingToColor(rating);
@@ -155,7 +154,7 @@ export default function AssessmentScreen() {
         if (!profile.birth_date || !profile.weight_in_kg || !profile.height_in_cm || !profile.gender) return;
         if (completeAssessment.isPending) return;
 
-        const numericValue = parseFloat(submitValue);
+        const numericValue = parseFloat(submitValue.replace(',', '.'));
         if (isNaN(numericValue) || numericValue <= 0) return;
 
         completeAssessment.mutate({

@@ -142,10 +142,10 @@ export function BottomBar() {
         } else if (isDuration && exerciseDuration > 0) {
             setsToLog.push({ ...base, side: 'bilateral', performed_reps: null, performed_duration_seconds: exerciseDuration, performed_load_value: null });
         } else if (isUnilateral) {
-            if (repsLeft.trim() !== '') setsToLog.push({ ...base, side: 'left', performed_reps: parseInt(repsLeft, 10), performed_load_value: loadLeft.trim() !== '' ? parseFloat(loadLeft) : null });
-            if (repsRight.trim() !== '') setsToLog.push({ ...base, side: 'right', performed_reps: parseInt(repsRight, 10), performed_load_value: loadRight.trim() !== '' ? parseFloat(loadRight) : null });
-        } else if (reps.trim() !== '') {
-            setsToLog.push({ ...base, side: 'bilateral', performed_reps: parseInt(reps, 10), performed_load_value: load.trim() !== '' ? parseFloat(load) : null });
+            if (repsLeft.trim() !== '') setsToLog.push({ ...base, side: 'left', performed_reps: parseInt(repsLeft, 10), performed_load_value: loadLeft.trim() !== '' ? parseFloat(loadLeft.replace(',', '.')) : null });
+            if (repsRight.trim() !== '') setsToLog.push({ ...base, side: 'right', performed_reps: parseInt(repsRight, 10), performed_load_value: loadRight.trim() !== '' ? parseFloat(loadRight.replace(',', '.')) : null });
+        } else {
+            setsToLog.push({ ...base, side: 'bilateral', performed_reps: parseInt(reps, 10), performed_load_value: load.trim() !== '' ? parseFloat(load.replace(',', '.')) : null });
         }
 
         if (setsToLog.length > 0) store.logSets(setsToLog as any);

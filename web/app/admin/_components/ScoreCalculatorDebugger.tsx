@@ -99,16 +99,26 @@ function LabeledInput({
   step?: number
   unit?: string
 }) {
+  const [display, setDisplay] = useState(String(value))
+
+  useEffect(() => {
+    if (parseFloat(display) !== value) setDisplay(String(value))
+  }, [value])
+
   return (
     <div className="flex flex-col gap-1">
       <label className="text-xs text-gray-400">{label}{unit && ` (${unit})`}</label>
       <input
         type="number"
-        value={value}
+        value={display}
         min={min}
         max={max}
         step={step}
-        onChange={e => onChange(Number(e.target.value))}
+        onChange={e => {
+          setDisplay(e.target.value)
+          const parsed = parseFloat(e.target.value)
+          if (!isNaN(parsed)) onChange(parsed)
+        }}
         className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white w-full focus:outline-none focus:border-gray-500"
       />
     </div>
@@ -243,7 +253,6 @@ export function ScoreCalculatorDebugger() {
       case 'lower_plyo': {
         const n = LOWER_PLYO_NORMS[lowerPlyoExercise][gender]
         setNormMean(n.mean); setNormStd(n.std)
-        setRefWeight(75)
         break
       }
       case 'upper_plyo': {
@@ -281,8 +290,7 @@ export function ScoreCalculatorDebugger() {
         return toLevel((ageAdj - normMean) / normStd)
       }
       case 'lower_plyo': {
-        const weightAdj = timeSeconds * Math.sqrt(refWeight / bodyWeight)
-        const ageAdj = weightAdj * ageFactor(age)
+        const ageAdj = timeSeconds * ageFactor(age, 'lower_body_plyometrics')
         return toLevel((normMean - ageAdj) / normStd)
       }
       case 'upper_plyo': {
@@ -432,7 +440,7 @@ export function ScoreCalculatorDebugger() {
               )}
 
               {/* Formula-specific vars */}
-              {(category === 'jumps' || category === 'lower_plyo' || category === 'bodyweight') && (
+              {(category === 'jumps' || category === 'bodyweight') && (
                 <div className="border-t border-gray-800 pt-4 flex flex-col gap-4">
                   <LabeledInput
                     label="Reference weight"

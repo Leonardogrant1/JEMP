@@ -8,6 +8,7 @@ import { Database, Json } from '../../../database.types'
 export type BodyRegion = Database['public']['Enums']['body_region']
 export type MovementPattern = Database['public']['Enums']['movement_pattern']
 export type ExerciseImageGroup = Database['public']['Enums']['exercise_image_group']
+export type Laterality = Database['public']['Enums']['laterality']
 
 export type ExerciseListItem = {
   id: string
@@ -28,7 +29,7 @@ export type Exercise = ExerciseListItem & {
   min_level: number | null
   max_level: number | null
   is_unilateral: boolean
-  laterality: string
+  laterality: Laterality
   measurement_type: string
   intensity_score: number | null
   exercise_type: string | null
@@ -138,7 +139,7 @@ export async function updateExercise(
     min_level?: number | undefined
     max_level?: number | undefined
     is_unilateral?: boolean
-    laterality?: string
+    laterality?: Laterality
     measurement_type?: string
     intensity_score?: number | null
     exercise_type?: string | null
@@ -193,7 +194,7 @@ export async function createExercise(fields: {
   min_level?: number
   max_level?: number
   is_unilateral?: boolean
-  laterality?: string
+  laterality?: Laterality
   measurement_type?: string
   intensity_score?: number | null
   exercise_type?: string | null

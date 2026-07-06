@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { fetchUserProfile, fetchUserActivePlan, fetchUserPlanStructure } from '@/app/actions/users'
+import { fetchUserProfile, fetchUserActivePlan, fetchUserPlanStructure, fetchUserAssessmentScores } from '@/app/actions/users'
 import { ProfileSection } from '../_components/ProfileSection'
+import { AssessmentSection } from '../_components/AssessmentSection'
 import { PlanSection } from '../_components/PlanSection'
 import { SubscriptionSection, SubscriptionSkeleton } from '../_components/SubscriptionSection'
 
@@ -13,9 +14,10 @@ export default async function UserDetailPage({
 }) {
   const { id } = await params
 
-  const [profile, plan] = await Promise.all([
+  const [profile, plan, assessmentScores] = await Promise.all([
     fetchUserProfile(id),
     fetchUserActivePlan(id),
+    fetchUserAssessmentScores(id),
   ])
 
   if (!profile) notFound()
@@ -37,6 +39,9 @@ export default async function UserDetailPage({
 
       {/* Profile */}
       <ProfileSection profile={profile} />
+
+      {/* Assessment scores */}
+      <AssessmentSection scores={assessmentScores} userId={id} />
 
       {/* Plan */}
       <PlanSection plan={plan} planStructure={planStructure} userId={id} />

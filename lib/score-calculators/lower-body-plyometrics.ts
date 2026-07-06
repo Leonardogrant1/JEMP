@@ -21,16 +21,6 @@ const NORMS = {
 
 export type LowerBodyPlyometricsExercise = keyof typeof NORMS;
 
-/**
- * Calculates a 1–100 level score for lower body plyometrics (sprints, agility).
- * Lower time = higher score (inverted z-score).
- * Heavier athletes are slightly penalized (more mass to accelerate).
- * @param timeSeconds  Result in seconds
- * @param bodyWeight   Athlete weight in kg
- * @param age          Athlete age in years
- * @param gender       'male' | 'female'
- * @param exercise     Exercise key
- */
 export function lowerBodyPlyometricsLevel(
     timeSeconds: number,
     bodyWeight: number,
@@ -38,9 +28,8 @@ export function lowerBodyPlyometricsLevel(
     gender: 'male' | 'female',
     exercise: LowerBodyPlyometricsExercise,
 ): number {
-    const weightAdjusted = timeSeconds * Math.sqrt(75 / bodyWeight);
-    const ageAdjusted    = weightAdjusted * ageFactor(age);
-    const { mean, std }  = NORMS[exercise][gender];
-    const z              = (mean - ageAdjusted) / std;
+    const ageAdjusted   = timeSeconds * ageFactor(age, 'lower_body_plyometrics');
+    const { mean, std } = NORMS[exercise][gender];
+    const z             = (mean - ageAdjusted) / std;
     return toLevel(z);
 }

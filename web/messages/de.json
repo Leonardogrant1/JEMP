@@ -49,5 +49,67 @@
     "impressum": "Impressum",
     "privacy": "Datenschutz",
     "terms": "AGB"
+  },
+  "creatorApplication": {
+    "title": "UGC Creator Bewerbung",
+    "intro": {
+      "title": "Werde JEMP UGC Creator",
+      "description": "Erstelle Content für die am schnellsten wachsende Fitness-App. Lade dir JEMP herunter, nimm ein authentisches UGC-Video beim Trainieren auf und bewirb dich hier damit.",
+      "cta": "Jetzt bewerben"
+    },
+    "steps": {
+      "personal": {
+        "title": "Persönliche Daten",
+        "name": "Vollständiger Name",
+        "namePlaceholder": "Max Mustermann",
+        "email": "E-Mail-Adresse",
+        "emailPlaceholder": "max@example.com",
+        "phone": "Telefonnummer",
+        "phonePlaceholder": "+49 123 456789",
+        "country": "Land",
+        "countryPlaceholder": "Z.B. DE"
+      },
+      "socials": {
+        "title": "Social Media Kanäle",
+        "subtitle": "Trage deine TikTok- und Instagram-Handles ein (z.B. @max_tiktok).",
+        "handleLabel": "Social Media Handle",
+        "handlePlaceholder": "@username",
+        "addButton": "Hinzufügen",
+        "noAccounts": "Bitte füge mindestens einen Social-Media-Kanal hinzu.",
+        "listHeader": "Deine Kanäle:"
+      },
+      "portfolio": {
+        "title": "Dein Bewerbungsvideo & Motivation",
+        "videoLabel": "Link zu deinem JEMP UGC Bewerbungsvideo (z.B. Drive/TikTok/Insta)",
+        "videoPlaceholder": "https://...",
+        "descLabel": "Beschreibe kurz wer du bist und warum du perfekt passt",
+        "descPlaceholder": "Ich bin Creator und liebe Fitness..."
+      },
+      "review": {
+        "title": "Bewerbung prüfen",
+        "subtitle": "Bitte überprüfe deine Angaben, bevor du die Bewerbung abschickst.",
+        "submit": "Bewerbung abschicken",
+        "submitting": "Wird gesendet...",
+        "socialAccounts": "Social-Media-Kanäle",
+        "videoLink": "Video-Link",
+        "description": "Beschreibung"
+      },
+      "success": {
+        "title": "Bewerbung erhalten!",
+        "subtitle": "Vielen Dank für deine Bewerbung. Wir werden uns in Kürze bei dir melden.",
+        "backHome": "Zur Startseite"
+      }
+    },
+    "buttons": {
+      "back": "Zurück",
+      "next": "Weiter"
+    },
+    "errors": {
+      "required": "Bitte fülle alle Pflichtfelder aus.",
+      "invalidEmail": "Bitte gib eine gültige E-Mail-Adresse ein.",
+      "invalidUrl": "Bitte gib eine gültige URL ein (z.B. https://...).",
+      "atLeastOneSocial": "Bitte füge mindestens einen Social-Media-Kanal hinzu.",
+      "submitFailed": "Fehler beim Senden der Bewerbung. Bitte versuche es erneut."
+    }
   }
 }

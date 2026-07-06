@@ -37,8 +37,8 @@ export function AssessmentRow({ entry, categorySlug }: AssessmentRowProps) {
                 {/* Start → End values, or just latest if only one entry */}
                 <JempText type="caption" color={theme.textMuted}>
                     {entry.firstValue !== null
-                        ? `${entry.firstValue} → ${entry.latestValue} ${entry.unit}`
-                        : `${entry.latestValue} ${entry.unit}`}
+                        ? `${entry.firstValue.toLocaleString()} → ${entry.latestValue.toLocaleString()} ${entry.unit}`
+                        : `${entry.latestValue.toLocaleString()} ${entry.unit}`}
                 </JempText>
             </View>
             <View style={styles.assessRight}>

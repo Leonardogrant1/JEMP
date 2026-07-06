@@ -49,5 +49,67 @@
     "impressum": "Imprint",
     "privacy": "Privacy Policy",
     "terms": "Terms of Use"
+  },
+  "creatorApplication": {
+    "title": "UGC Creator Application",
+    "intro": {
+      "title": "Become a JEMP UGC Creator",
+      "description": "Create content for the fastest growing fitness app. Download JEMP, record an authentic UGC video of your training with the app, and apply here with it.",
+      "cta": "Apply Now"
+    },
+    "steps": {
+      "personal": {
+        "title": "Personal Information",
+        "name": "Full Name",
+        "namePlaceholder": "Max Mustermann",
+        "email": "Email Address",
+        "emailPlaceholder": "max@example.com",
+        "phone": "Phone Number",
+        "phonePlaceholder": "+49 123 456789",
+        "country": "Country",
+        "countryPlaceholder": "e.g., DE"
+      },
+      "socials": {
+        "title": "Social Media Channels",
+        "subtitle": "Enter your TikTok and Instagram handles (e.g., @max_tiktok).",
+        "handleLabel": "Social Media Handle",
+        "handlePlaceholder": "@username",
+        "addButton": "Add",
+        "noAccounts": "Please add at least one social media channel.",
+        "listHeader": "Your channels:"
+      },
+      "portfolio": {
+        "title": "Your Application Video & Motivation",
+        "videoLabel": "Link to your JEMP UGC application video (e.g., Drive/TikTok/Insta)",
+        "videoPlaceholder": "https://...",
+        "descLabel": "Briefly describe who you are and why you're a perfect fit",
+        "descPlaceholder": "I am a creator and love fitness..."
+      },
+      "review": {
+        "title": "Review Application",
+        "subtitle": "Please double-check your details before submitting.",
+        "submit": "Submit Application",
+        "submitting": "Submitting...",
+        "socialAccounts": "Social Media Channels",
+        "videoLink": "Video Link",
+        "description": "Description"
+      },
+      "success": {
+        "title": "Application Received!",
+        "subtitle": "Thank you for your application. We will get back to you shortly.",
+        "backHome": "Back to Home"
+      }
+    },
+    "buttons": {
+      "back": "Back",
+      "next": "Next"
+    },
+    "errors": {
+      "required": "Please fill in all required fields.",
+      "invalidEmail": "Please enter a valid email address.",
+      "invalidUrl": "Please enter a valid URL.",
+      "atLeastOneSocial": "Please add at least one social media channel.",
+      "submitFailed": "Failed to submit application. Please try again."
+    }
   }
 }

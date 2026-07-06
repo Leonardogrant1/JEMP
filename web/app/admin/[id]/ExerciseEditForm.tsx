@@ -10,6 +10,7 @@ import {
   type MovementPattern,
   type BodyRegion,
   type ExerciseImageGroup,
+  type Laterality,
 } from '../../actions/exercises'
 import { asI18n } from '@/lib/i18n'
 import type { Json } from '../../../../database.types'
@@ -439,7 +440,7 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
             <select
               value={laterality}
               onChange={e => {
-                setLaterality(e.target.value)
+                setLaterality(e.target.value as Laterality)
                 setIsUnilateral(e.target.value === 'unilateral')
               }}
               className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
