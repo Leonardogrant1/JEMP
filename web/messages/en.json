@@ -52,7 +52,9 @@
   },
   "creatorApplication": {
     "title": "UGC Creator Application",
+    "progress": "Step {step} of {total}",
     "intro": {
+      "badge": "UGC Creator",
       "title": "Become a JEMP UGC Creator",
       "description": "Create content for the fastest growing fitness app. Download JEMP, record an authentic UGC video of your training with the app, and apply here with it.",
       "cta": "Apply Now"
@@ -71,9 +73,9 @@
       },
       "socials": {
         "title": "Social Media Channels",
-        "subtitle": "Enter your TikTok and Instagram handles (e.g., @max_tiktok).",
-        "handleLabel": "Social Media Handle",
-        "handlePlaceholder": "@username",
+        "subtitle": "Paste the links to your profiles — the platform is detected automatically (Instagram, TikTok, YouTube, …).",
+        "handleLabel": "Profile Link",
+        "handlePlaceholder": "instagram.com/yourname",
         "addButton": "Add",
         "noAccounts": "Please add at least one social media channel.",
         "listHeader": "Your channels:"
@@ -108,6 +110,8 @@
       "required": "Please fill in all required fields.",
       "invalidEmail": "Please enter a valid email address.",
       "invalidUrl": "Please enter a valid URL.",
+      "invalidProfileUrl": "Please enter a valid profile link (e.g., instagram.com/yourname).",
+      "duplicateSocial": "This account has already been added.",
       "atLeastOneSocial": "Please add at least one social media channel.",
       "submitFailed": "Failed to submit application. Please try again."
     }

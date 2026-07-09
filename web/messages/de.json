@@ -52,7 +52,9 @@
   },
   "creatorApplication": {
     "title": "UGC Creator Bewerbung",
+    "progress": "Schritt {step} von {total}",
     "intro": {
+      "badge": "UGC Creator",
       "title": "Werde JEMP UGC Creator",
       "description": "Erstelle Content für die am schnellsten wachsende Fitness-App. Lade dir JEMP herunter, nimm ein authentisches UGC-Video beim Trainieren auf und bewirb dich hier damit.",
       "cta": "Jetzt bewerben"
@@ -71,9 +73,9 @@
       },
       "socials": {
         "title": "Social Media Kanäle",
-        "subtitle": "Trage deine TikTok- und Instagram-Handles ein (z.B. @max_tiktok).",
-        "handleLabel": "Social Media Handle",
-        "handlePlaceholder": "@username",
+        "subtitle": "Füge die Links zu deinen Profilen ein – die Plattform wird automatisch erkannt (Instagram, TikTok, YouTube, …).",
+        "handleLabel": "Profil-Link",
+        "handlePlaceholder": "instagram.com/deinname",
         "addButton": "Hinzufügen",
         "noAccounts": "Bitte füge mindestens einen Social-Media-Kanal hinzu.",
         "listHeader": "Deine Kanäle:"
@@ -108,6 +110,8 @@
       "required": "Bitte fülle alle Pflichtfelder aus.",
       "invalidEmail": "Bitte gib eine gültige E-Mail-Adresse ein.",
       "invalidUrl": "Bitte gib eine gültige URL ein (z.B. https://...).",
+      "invalidProfileUrl": "Bitte gib einen gültigen Profil-Link ein (z.B. instagram.com/deinname).",
+      "duplicateSocial": "Dieser Account wurde bereits hinzugefügt.",
       "atLeastOneSocial": "Bitte füge mindestens einen Social-Media-Kanal hinzu.",
       "submitFailed": "Fehler beim Senden der Bewerbung. Bitte versuche es erneut."
     }

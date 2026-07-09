@@ -8,7 +8,8 @@ function formatDate(iso: string | null): string {
 
 function formatValue(value: number | null, unit: string): string {
   if (value === null) return '—'
-  return `${value} ${unit}`
+  const formatted = unit === 's' ? Number(value).toFixed(2) : String(value)
+  return `${formatted} ${unit}`
 }
 
 function ScoreBar({ score }: { score: number | null }) {
