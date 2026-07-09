@@ -619,25 +619,25 @@ export function CreatorApplicationForm() {
                 </div>
 
                 <div className="space-y-4 bg-white/[0.02] border border-white/5 rounded-2xl p-5 text-sm divide-y divide-white/5">
-                  <div className="pb-3 grid grid-cols-3 gap-2">
+                  <div className="pb-3 flex flex-col gap-1 sm:grid sm:grid-cols-3 sm:gap-2">
                     <span className="text-white/40 font-medium">{t("steps.personal.name")}</span>
-                    <span className="col-span-2 text-white font-semibold">{formData.name}</span>
+                    <span className="sm:col-span-2 text-white font-semibold">{formData.name}</span>
                   </div>
-                  <div className="py-3 grid grid-cols-3 gap-2">
+                  <div className="py-3 flex flex-col gap-1 sm:grid sm:grid-cols-3 sm:gap-2">
                     <span className="text-white/40 font-medium">{t("steps.personal.email")}</span>
-                    <span className="col-span-2 text-white font-semibold break-all">{formData.email}</span>
+                    <span className="sm:col-span-2 text-white font-semibold break-all">{formData.email}</span>
                   </div>
-                  <div className="py-3 grid grid-cols-3 gap-2">
+                  <div className="py-3 flex flex-col gap-1 sm:grid sm:grid-cols-3 sm:gap-2">
                     <span className="text-white/40 font-medium">{t("steps.personal.phone")}</span>
-                    <span className="col-span-2 text-white font-semibold">{formData.phone}</span>
+                    <span className="sm:col-span-2 text-white font-semibold">{formData.phone}</span>
                   </div>
-                  <div className="py-3 grid grid-cols-3 gap-2">
+                  <div className="py-3 flex flex-col gap-1 sm:grid sm:grid-cols-3 sm:gap-2">
                     <span className="text-white/40 font-medium">{t("steps.personal.country")}</span>
-                    <span className="col-span-2 text-white font-semibold">{formData.country}</span>
+                    <span className="sm:col-span-2 text-white font-semibold">{formData.country}</span>
                   </div>
-                  <div className="py-3 grid grid-cols-3 gap-2">
+                  <div className="py-3 flex flex-col gap-1 sm:grid sm:grid-cols-3 sm:gap-2">
                     <span className="text-white/40 font-medium">{t("steps.review.socialAccounts")}</span>
-                    <div className="col-span-2 flex flex-wrap gap-1.5">
+                    <div className="sm:col-span-2 flex flex-wrap gap-1.5">
                       {formData.social_accounts.map((acc, index) => {
                         const profile = parseProfileUrl(acc);
                         return (
@@ -652,20 +652,20 @@ export function CreatorApplicationForm() {
                       })}
                     </div>
                   </div>
-                  <div className="py-3 grid grid-cols-3 gap-2">
+                  <div className="py-3 flex flex-col gap-1 sm:grid sm:grid-cols-3 sm:gap-2">
                     <span className="text-white/40 font-medium">{t("steps.review.videoLink")}</span>
                     <a
                       href={formData.video_link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="col-span-2 text-brand-cyan hover:underline break-all font-semibold"
+                      className="sm:col-span-2 text-brand-cyan hover:underline break-all font-semibold"
                     >
                       {formData.video_link}
                     </a>
                   </div>
-                  <div className="pt-3 grid grid-cols-3 gap-2">
+                  <div className="pt-3 flex flex-col gap-1 sm:grid sm:grid-cols-3 sm:gap-2">
                     <span className="text-white/40 font-medium">{t("steps.review.description")}</span>
-                    <p className="col-span-2 text-white/80 line-clamp-3 leading-relaxed whitespace-pre-line">
+                    <p className="sm:col-span-2 text-white/80 line-clamp-3 leading-relaxed whitespace-pre-line">
                       {formData.description}
                     </p>
                   </div>
@@ -677,7 +677,7 @@ export function CreatorApplicationForm() {
             {step === 5 && (
               <div className="text-center py-6 space-y-6">
                 <div className="flex justify-center">
-                  <div className="w-20 h-20 rounded-full bg-brand-cyan/10 border border-brand-cyan/20 flex items-center justify-center text-brand-cyan animate-bounce">
+                  <div className="w-20 h-20 rounded-full bg-brand-cyan/10 border border-brand-cyan/20 flex items-center justify-center text-brand-cyan animate-scale-in">
                     <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
                     </svg>
@@ -704,7 +704,7 @@ export function CreatorApplicationForm() {
 
             {/* Validation Error Message */}
             {validationError && (
-              <div className="mt-6 flex items-start gap-2.5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium animate-fadeIn">
+              <div className="mt-6 flex items-start gap-2.5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium animate-fade-in">
                 <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
