@@ -2,6 +2,7 @@
   "nav": {
     "features": "Features",
     "earlyAccess": "Download",
+    "creator": "Become a UGC Creator",
     "cta": "Get the App"
   },
   "hero": {
@@ -49,6 +50,13 @@
     "impressum": "Imprint",
     "privacy": "Privacy Policy",
     "terms": "Terms of Use"
+  },
+  "creatorCta": {
+    "badge": "UGC Creator",
+    "headline1": "Become a JEMP",
+    "headline2": "UGC Creator",
+    "subtitle": "Create content for the fastest growing fitness app and work directly with us.",
+    "cta": "Apply Now"
   },
   "creatorApplication": {
     "title": "UGC Creator Application",
@@ -112,6 +120,7 @@
       "invalidUrl": "Please enter a valid URL.",
       "invalidProfileUrl": "Please enter a valid profile link (e.g., instagram.com/yourname).",
       "duplicateSocial": "This account has already been added.",
+      "emailExists": "An application with this email address has already been submitted.",
       "atLeastOneSocial": "Please add at least one social media channel.",
       "submitFailed": "Failed to submit application. Please try again."
     }

@@ -1,9 +1,11 @@
 import Image from "next/image";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { LanguagePicker } from "./language-picker";
 
 export async function Navbar() {
   const t = await getTranslations("nav");
+  const locale = await getLocale();
+  const creatorHref = locale === "de" ? "/creator-application" : `/${locale}/creator-application`;
 
   return (
     <header className="fixed top-0 inset-x-0 z-50 border-b border-white/8 bg-brand-bg/80 backdrop-blur-md">
@@ -19,6 +21,9 @@ export async function Navbar() {
           </a>
           <a href="https://apps.apple.com/app/id6762546573" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-white/60 hover:text-white transition-colors">
             {t("earlyAccess")}
+          </a>
+          <a href={creatorHref} className="text-sm font-medium text-white/60 hover:text-white transition-colors">
+            {t("creator")}
           </a>
         </nav>
 

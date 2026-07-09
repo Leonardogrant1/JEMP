@@ -328,7 +328,10 @@ export function CreatorApplicationForm() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 409) {
+          throw new Error(t("errors.emailExists"));
+        }
         throw new Error(errorData.error || t("errors.submitFailed"));
       }
 

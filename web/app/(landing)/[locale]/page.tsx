@@ -1,3 +1,4 @@
+import { CreatorCta } from "@/components/creator-cta";
 import { EarlyAccess } from "@/components/early-access";
 import { Features } from "@/components/features";
 import { Footer } from "@/components/footer";
@@ -11,6 +12,7 @@ export default function Home() {
       <main>
         <Hero />
         <Features />
+        <CreatorCta />
         <EarlyAccess />
       </main>
       <Footer />
