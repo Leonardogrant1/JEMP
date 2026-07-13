@@ -10,7 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { Keyframe } from 'react-native-reanimated';
 import { OnboardingBackground } from './onboarding-background';
 import { OnboardingControlContext } from './onboarding-control-context';
@@ -68,27 +68,37 @@ export function OnboardingProgressWrapper({ steps }: Props) {
 
 
     async function finishOnboarding() {
+        // Guard against re-entry: the continue button stays mounted while the
+        // paywall is loading, and a second run would persist the reset store.
+        if (inFlightRef.current) return;
+        inFlightRef.current = true;
+        setIsLoading(true);
         try {
             if (session?.user?.id) {
                 const { first_name, last_name, birth_date, gender, sport_id, height_in_cm, weight_in_kg, preferred_workout_days, preferred_session_duration, schedule_notes, timezone } = onboardingData;
-                await supabase
+                const { error } = await supabase
                     .from('user_profiles')
                     .update({ first_name, last_name, birth_date, gender, sport_id, height_in_cm, weight_in_kg, preferred_workout_days, preferred_session_duration, schedule_notes, timezone, has_onboarded: true })
                     .eq('id', session.user.id);
+                if (error) throw error;
             }
             const referralCode = onboardingData.referral_code;
-            onboardingData.reset();
 
             const navigate = async () => {
                 await refreshProfile();
                 router.replace('/tutorial');
+                onboardingData.reset();
             }
             if (referralCode) {
                 await update({ promocode: referralCode });
             }
             await openWithPlacement('onboarding_completed', navigate, undefined, navigate);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error finishing onboarding:', error);
+            Alert.alert(t('ui.error'), error?.message ?? '');
+        } finally {
+            inFlightRef.current = false;
+            setIsLoading(false);
         }
     }
 

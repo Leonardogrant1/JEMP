@@ -1859,7 +1859,7 @@ export type Database = {
         | "skipped"
         | "cancelled"
       session_type: "training" | "recovery"
-      user_role: "user" | "admin" | "tester"
+      user_role: "user" | "admin" | "tester" | "affiliate"
     }
     CompositeTypes: {
       [_ in never]: never

@@ -82,7 +82,7 @@ export const SuperwallFunctionsProvider = ({ children }: { children: React.React
         },
     });
     const openWithPlacement = async (placement: string, onFeature?: () => void, params?: Record<string, any>, onDismiss?: () => void) => {
-        if (profile?.role === 'admin') {
+        if (profile?.role === 'admin' || profile?.role === 'affiliate') {
             onFeature?.();
             return;
         }

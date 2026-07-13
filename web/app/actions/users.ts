@@ -45,7 +45,7 @@ export type UserListRow = {
   last_name: string | null
   email: string
   sport: string | null
-  role: 'user' | 'admin' | 'tester'
+  role: 'user' | 'admin' | 'tester' | 'affiliate'
   has_onboarded: boolean | null
   last_active_at: string | null
 }
@@ -59,7 +59,7 @@ export type UserProfile = {
   gender: 'male' | 'female' | 'other' | null
   height_in_cm: number | null
   weight_in_kg: number | null
-  role: 'user' | 'admin' | 'tester'
+  role: 'user' | 'admin' | 'tester' | 'affiliate'
   has_onboarded: boolean | null
   preferred_language: string | null
   timezone: string | null

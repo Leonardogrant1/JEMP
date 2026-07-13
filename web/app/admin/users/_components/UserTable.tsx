@@ -99,6 +99,7 @@ export function UserTable({
                 <span className={`text-xs px-2 py-0.5 rounded-full ${
                   user.role === 'admin' ? 'bg-purple-900 text-purple-300' :
                   user.role === 'tester' ? 'bg-yellow-900 text-yellow-300' :
+                  user.role === 'affiliate' ? 'bg-blue-900 text-blue-300' :
                   'bg-gray-800 text-gray-400'
                 }`}>
                   {user.role}
