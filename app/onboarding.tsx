@@ -33,6 +33,8 @@ import { useTranslation } from 'react-i18next';
 export default function OnboardingScreen() {
     const { t } = useTranslation();
     const targetedCategories = useOnboardingStore((s) => s.targetedCategories);
+    const environmentIds = useOnboardingStore((s) => s.environmentIds);
+    const equipmentIds = useOnboardingStore((s) => s.equipmentIds);
 
     const steps: OnboardingStep[] = [
 
@@ -57,7 +59,7 @@ export default function OnboardingScreen() {
         { component: CategoryPriorityStep, theme: 'dark', initialCanContinue: true, shouldSkip: () => targetedCategories.length <= 1 },
         { component: EnvironmentStep, theme: 'dark', initialCanContinue: false },
         { component: EquipmentStep, theme: 'dark', initialCanContinue: true },
-        { component: EquipmentEnvironmentStep, theme: 'dark', initialCanContinue: true },
+        { component: EquipmentEnvironmentStep, theme: 'dark', initialCanContinue: true, shouldSkip: () => environmentIds.length <= 1 || equipmentIds.length === 0 },
         { component: WorkoutPrefsStep, theme: 'dark', initialCanContinue: false },
         { component: WeeklyScheduleStep, theme: 'dark', initialCanContinue: true },
         { component: CompleteStep, theme: 'dark', continueButtonText: t('onboarding.btn_create_plan') },

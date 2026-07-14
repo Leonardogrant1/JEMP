@@ -2,7 +2,8 @@ import { Cyan, Electric, GradientMid } from '@/constants/theme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useAuth } from '@/providers/auth-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
-import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
+import { paywallOpenRef, useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
+import { devError } from '@/utils/dev-log';
 import { supabase } from '@/services/supabase/client';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import * as Haptics from 'expo-haptics';
@@ -54,6 +55,7 @@ export function OnboardingProgressWrapper({ steps }: Props) {
 
     const [visionDescription, setVisionDescription] = useState('');
     const inFlightRef = useRef(false);
+    const hasNavigatedRef = useRef(false);
     const { openWithPlacement, update } = useSuperwallFunctions();
     const { session } = useAuth();
     const { refreshProfile } = useCurrentUser();
@@ -85,14 +87,30 @@ export function OnboardingProgressWrapper({ steps }: Props) {
             const referralCode = onboardingData.referral_code;
 
             const navigate = async () => {
+                if (hasNavigatedRef.current) return;
+                hasNavigatedRef.current = true;
                 await refreshProfile();
                 router.replace('/tutorial');
                 onboardingData.reset();
             }
-            if (referralCode) {
-                await update({ promocode: referralCode });
+            // Superwall can hang without ever presenting (e.g. config not
+            // loaded). Profile is already saved at this point — never strand
+            // the user here: if no paywall is on screen after the timeout,
+            // continue without it.
+            const superwallFlow = (async () => {
+                if (referralCode) {
+                    await update({ promocode: referralCode });
+                }
+                await openWithPlacement('onboarding_completed', navigate, undefined, navigate);
+            })();
+            await Promise.race([
+                superwallFlow,
+                new Promise<void>((resolve) => setTimeout(resolve, 8000)),
+            ]);
+            if (!paywallOpenRef.current && !hasNavigatedRef.current) {
+                devError('Superwall did not present onboarding_completed paywall, continuing without it');
+                await navigate();
             }
-            await openWithPlacement('onboarding_completed', navigate, undefined, navigate);
         } catch (error: any) {
             console.error('Error finishing onboarding:', error);
             Alert.alert(t('ui.error'), error?.message ?? '');
