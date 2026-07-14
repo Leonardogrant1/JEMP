@@ -19,7 +19,7 @@ export async function Navbar() {
           <a href="#features" className="text-sm font-medium text-white/60 hover:text-white transition-colors">
             {t("features")}
           </a>
-          <a href="https://apps.apple.com/app/id6762546573" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-white/60 hover:text-white transition-colors">
+          <a href="/api/download" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-white/60 hover:text-white transition-colors">
             {t("earlyAccess")}
           </a>
           <a href={creatorHref} className="text-sm font-medium text-white/60 hover:text-white transition-colors">
@@ -30,7 +30,7 @@ export async function Navbar() {
         <div className="flex items-center gap-2">
           <LanguagePicker />
           <a
-            href="https://apps.apple.com/app/id6762546573"
+            href="/api/download"
             target="_blank"
             rel="noopener noreferrer"
             className="px-4 py-2 rounded-xl bg-brand-gradient font-bold text-sm text-white hover:opacity-90 transition-opacity"

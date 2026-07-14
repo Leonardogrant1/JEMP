@@ -10,7 +10,7 @@
     "headline1": "Trainiere wie ein",
     "headline2": "Profi-Athlet.",
     "subtitle": "JEMP erstellt deinen persönlichen Trainingsplan — abgestimmt auf deine Sportart, dein Level und dein Equipment.",
-    "cta": "Im App Store laden"
+    "cta": "Jetzt herunterladen"
   },
   "features": {
     "headline1": "Alles was du brauchst.",
@@ -42,8 +42,9 @@
     "badge": "Jetzt verfügbar",
     "headline1": "Bereit für dein",
     "headline2": "nächstes Level?",
-    "subtitle": "Lade JEMP jetzt kostenlos im App Store und starte mit deinem persönlichen Trainingsplan.",
-    "cta": "Im App Store laden"
+    "subtitle": "Lade JEMP jetzt kostenlos herunter und starte mit deinem persönlichen Trainingsplan.",
+    "ctaAppStore": "Im App Store laden",
+    "ctaPlayStore": "Im Play Store laden"
   },
   "footer": {
     "copyright": "JEMP · studio.northbyte",
