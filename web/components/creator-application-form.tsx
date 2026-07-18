@@ -110,25 +110,52 @@ function parseProfileUrl(raw: string): ParsedProfile | null {
   return { href: url.href, platform, handle };
 }
 
+const PLATFORM_URL_BUILDERS: Record<Exclude<PlatformKey, "other">, (user: string) => string> = {
+  instagram: (u) => `https://instagram.com/${u}`,
+  tiktok: (u) => `https://tiktok.com/@${u}`,
+  youtube: (u) => `https://youtube.com/@${u}`,
+  x: (u) => `https://x.com/${u}`,
+  facebook: (u) => `https://facebook.com/${u}`,
+};
+
+function buildProfileHref(platform: PlatformKey, raw: string): string | null {
+  const input = raw.trim();
+  if (!input) return null;
+  if (platform === "other") {
+    return parseProfileUrl(input)?.href ?? null;
+  }
+  let username = input;
+  // Volle URL eingefügt? Username extrahieren, sofern die Domain zur Plattform passt.
+  if (/^https?:\/\//i.test(input) || input.includes("/")) {
+    const parsed = parseProfileUrl(input);
+    if (!parsed || parsed.platform !== platform) return null;
+    username = parsed.handle;
+  }
+  username = username.replace(/^@+/, "");
+  if (!/^[A-Za-z0-9._-]+$/.test(username)) return null;
+  return PLATFORM_URL_BUILDERS[platform](username);
+}
+
 const COUNTRY_CODES = ["DE", "AT", "CH", "US", "GB", "FR", "IT", "ES", "NL"];
 
-function CountryDropdown({
+type DropdownOption<V extends string> = {
+  value: V;
+  label: string;
+  icon?: React.ReactNode;
+};
+
+function Dropdown<V extends string>({
   value,
+  options,
   onChange,
 }: {
-  value: string;
-  onChange: (code: string) => void;
+  value: V;
+  options: DropdownOption<V>[];
+  onChange: (value: V) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [opensUpward, setOpensUpward] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const locale = useLocale();
-
-  const regionNames = new Intl.DisplayNames([locale], { type: "region" });
-  const countries = COUNTRY_CODES.map((code) => ({
-    code,
-    name: `${regionNames.of(code) ?? code} (${code})`,
-  }));
 
   // max-h-60 (240px) + 8px Abstand zum Button
   const PANEL_SPACE = 248;
@@ -162,7 +189,7 @@ function CountryDropdown({
     };
   }, [open]);
 
-  const selected = countries.find((c) => c.code === value);
+  const selected = options.find((o) => o.value === value);
 
   return (
     <div ref={containerRef} className="relative">
@@ -173,7 +200,10 @@ function CountryDropdown({
         aria-expanded={open}
         className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/10 text-white text-left focus:outline-none focus:border-brand-cyan focus:bg-white/[0.07] transition-all flex items-center justify-between gap-2 cursor-pointer"
       >
-        <span className="truncate">{selected?.name ?? value}</span>
+        <span className="flex items-center gap-2.5 truncate">
+          {selected?.icon}
+          <span className="truncate">{selected?.label ?? value}</span>
+        </span>
         <svg
           className={`w-4 h-4 text-white/50 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
           fill="none"
@@ -191,24 +221,27 @@ function CountryDropdown({
             opensUpward ? "bottom-full mb-2" : "top-full mt-2"
           }`}
         >
-          {countries.map((c) => (
-            <li key={c.code}>
+          {options.map((o) => (
+            <li key={o.value}>
               <button
                 type="button"
                 role="option"
-                aria-selected={c.code === value}
+                aria-selected={o.value === value}
                 onClick={() => {
-                  onChange(c.code);
+                  onChange(o.value);
                   setOpen(false);
                 }}
                 className={`w-full px-4 py-2.5 text-left text-sm transition-colors flex items-center justify-between gap-2 ${
-                  c.code === value
+                  o.value === value
                     ? "text-brand-cyan bg-brand-cyan/10 font-semibold"
                     : "text-white/80 hover:bg-white/5 hover:text-white"
                 }`}
               >
-                <span className="truncate">{c.name}</span>
-                {c.code === value && (
+                <span className="flex items-center gap-2.5 truncate">
+                  {o.icon}
+                  <span className="truncate">{o.label}</span>
+                </span>
+                {o.value === value && (
                   <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                   </svg>
@@ -222,11 +255,28 @@ function CountryDropdown({
   );
 }
 
+function CountryDropdown({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (code: string) => void;
+}) {
+  const locale = useLocale();
+  const regionNames = new Intl.DisplayNames([locale], { type: "region" });
+  const options = COUNTRY_CODES.map((code) => ({
+    value: code,
+    label: `${regionNames.of(code) ?? code} (${code})`,
+  }));
+  return <Dropdown value={value} options={options} onChange={onChange} />;
+}
+
 export function CreatorApplicationForm() {
   const t = useTranslations("creatorApplication");
   const [step, setStep] = useState<0 | 1 | 2 | 3 | 4 | 5>(0); // 0: Intro, 1: Personal, 2: Socials, 3: Content, 4: Review, 5: Success
   const [formData, setFormData] = useState<FormState>(initialFormState);
   const [socialInput, setSocialInput] = useState("");
+  const [socialPlatform, setSocialPlatform] = useState<PlatformKey>("instagram");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -238,21 +288,24 @@ export function CreatorApplicationForm() {
     setValidationError(null);
   };
 
-  const detectedProfile = parseProfileUrl(socialInput);
+  const previewHref = buildProfileHref(socialPlatform, socialInput);
+  const previewProfile = previewHref ? parseProfileUrl(previewHref) : null;
 
   const handleAddSocial = (e: React.FormEvent) => {
     e.preventDefault();
     if (!socialInput.trim()) return;
-    const parsed = parseProfileUrl(socialInput);
-    if (!parsed) {
-      setValidationError(t("errors.invalidProfileUrl"));
+    const href = buildProfileHref(socialPlatform, socialInput);
+    if (!href) {
+      setValidationError(
+        t(socialPlatform === "other" ? "errors.invalidProfileUrl" : "errors.invalidUsername")
+      );
       return;
     }
-    if (formData.social_accounts.includes(parsed.href)) {
+    if (formData.social_accounts.includes(href)) {
       setValidationError(t("errors.duplicateSocial"));
       return;
     }
-    handleInputChange("social_accounts", [...formData.social_accounts, parsed.href]);
+    handleInputChange("social_accounts", [...formData.social_accounts, href]);
     setSocialInput("");
     setValidationError(null);
   };
@@ -280,11 +333,12 @@ export function CreatorApplicationForm() {
         return false;
       }
     } else if (currentStep === 3) {
-      if (!formData.video_link.trim() || !formData.description.trim()) {
+      if (!formData.description.trim()) {
         setValidationError(t("errors.required"));
         return false;
       }
-      if (!formData.video_link.startsWith("http://") && !formData.video_link.startsWith("https://")) {
+      const videoLink = formData.video_link.trim();
+      if (videoLink && !videoLink.startsWith("http://") && !videoLink.startsWith("https://")) {
         setValidationError(t("errors.invalidUrl"));
         return false;
       }
@@ -503,29 +557,47 @@ export function CreatorApplicationForm() {
                 </div>
 
                 <div>
-                  <form onSubmit={handleAddSocial} className="flex gap-2">
-                    <div className="flex-1 relative">
+                  <form onSubmit={handleAddSocial} className="flex flex-col sm:flex-row gap-2">
+                    <div className="sm:w-44 shrink-0">
+                      <Dropdown
+                        value={socialPlatform}
+                        options={(Object.keys(PLATFORM_LABELS) as PlatformKey[]).map((p) => ({
+                          value: p,
+                          label: p === "other" ? t("steps.socials.platformOther") : PLATFORM_LABELS[p],
+                          icon: <PlatformIcon platform={p} className="w-4 h-4 shrink-0" />,
+                        }))}
+                        onChange={(p) => {
+                          setSocialPlatform(p);
+                          setValidationError(null);
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 flex gap-2">
                       <input
                         type="text"
-                        inputMode="url"
-                        placeholder={t("steps.socials.handlePlaceholder")}
+                        inputMode={socialPlatform === "other" ? "url" : "text"}
+                        placeholder={
+                          socialPlatform === "other"
+                            ? t("steps.socials.linkPlaceholder")
+                            : t("steps.socials.handlePlaceholder")
+                        }
                         value={socialInput}
                         onChange={(e) => setSocialInput(e.target.value)}
                         className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-brand-cyan focus:bg-white/[0.07] transition-all"
                       />
+                      <button
+                        type="submit"
+                        className="px-5 py-3.5 rounded-xl bg-white/10 hover:bg-white/15 active:scale-[0.97] transition-all font-bold text-sm text-white border border-white/10"
+                      >
+                        {t("steps.socials.addButton")}
+                      </button>
                     </div>
-                    <button
-                      type="submit"
-                      className="px-5 py-3.5 rounded-xl bg-white/10 hover:bg-white/15 active:scale-[0.97] transition-all font-bold text-sm text-white border border-white/10"
-                    >
-                      {t("steps.socials.addButton")}
-                    </button>
                   </form>
-                  {socialInput.trim() && detectedProfile && (
+                  {socialInput.trim() && previewProfile && (
                     <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-brand-cyan">
-                      <PlatformIcon platform={detectedProfile.platform} className="w-3.5 h-3.5" />
+                      <PlatformIcon platform={previewProfile.platform} className="w-3.5 h-3.5" />
                       <span>
-                        {PLATFORM_LABELS[detectedProfile.platform]} · {detectedProfile.handle}
+                        {PLATFORM_LABELS[previewProfile.platform]} · {previewProfile.handle}
                       </span>
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
@@ -580,20 +652,6 @@ export function CreatorApplicationForm() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-2">
-                      {t("steps.portfolio.videoLabel")}
-                    </label>
-                    <input
-                      type="url"
-                      placeholder={t("steps.portfolio.videoPlaceholder")}
-                      value={formData.video_link}
-                      onChange={(e) => handleInputChange("video_link", e.target.value)}
-                      className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-brand-cyan focus:bg-white/[0.07] transition-all"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-2">
                       {t("steps.portfolio.descLabel")}
                     </label>
                     <textarea
@@ -603,6 +661,22 @@ export function CreatorApplicationForm() {
                       rows={5}
                       className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-brand-cyan focus:bg-white/[0.07] transition-all resize-none"
                       required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-2">
+                      {t("steps.portfolio.videoLabel")}{" "}
+                      <span className="text-white/30 normal-case tracking-normal font-medium">
+                        ({t("steps.portfolio.optional")})
+                      </span>
+                    </label>
+                    <input
+                      type="url"
+                      placeholder={t("steps.portfolio.videoPlaceholder")}
+                      value={formData.video_link}
+                      onChange={(e) => handleInputChange("video_link", e.target.value)}
+                      className="w-full px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-brand-cyan focus:bg-white/[0.07] transition-all"
                     />
                   </div>
                 </div>
@@ -655,17 +729,19 @@ export function CreatorApplicationForm() {
                       })}
                     </div>
                   </div>
-                  <div className="py-3 flex flex-col gap-1 sm:grid sm:grid-cols-3 sm:gap-2">
-                    <span className="text-white/40 font-medium">{t("steps.review.videoLink")}</span>
-                    <a
-                      href={formData.video_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="sm:col-span-2 text-brand-cyan hover:underline break-all font-semibold"
-                    >
-                      {formData.video_link}
-                    </a>
-                  </div>
+                  {formData.video_link.trim() && (
+                    <div className="py-3 flex flex-col gap-1 sm:grid sm:grid-cols-3 sm:gap-2">
+                      <span className="text-white/40 font-medium">{t("steps.review.videoLink")}</span>
+                      <a
+                        href={formData.video_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="sm:col-span-2 text-brand-cyan hover:underline break-all font-semibold"
+                      >
+                        {formData.video_link}
+                      </a>
+                    </div>
+                  )}
                   <div className="pt-3 flex flex-col gap-1 sm:grid sm:grid-cols-3 sm:gap-2">
                     <span className="text-white/40 font-medium">{t("steps.review.description")}</span>
                     <p className="sm:col-span-2 text-white/80 line-clamp-3 leading-relaxed whitespace-pre-line">

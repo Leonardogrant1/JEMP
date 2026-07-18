@@ -47,9 +47,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!video_link || typeof video_link !== "string" || !video_link.startsWith("http")) {
+    // Video link is optional, but must be a valid URL if provided
+    if (
+      video_link != null &&
+      (typeof video_link !== "string" ||
+        (video_link.trim() !== "" && !video_link.startsWith("http")))
+    ) {
       return NextResponse.json(
-        { error: "Valid portfolio or sample video link is required" },
+        { error: "Video link must be a valid URL" },
         { status: 400 }
       );
     }
@@ -94,7 +99,7 @@ export async function POST(req: NextRequest) {
         phone,
         country,
         social_accounts,
-        video_link,
+        video_link: video_link?.trim() || null,
         description,
       }),
     });

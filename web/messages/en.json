@@ -65,7 +65,7 @@
     "intro": {
       "badge": "UGC Creator",
       "title": "Become a JEMP UGC Creator",
-      "description": "Create content for the fastest growing fitness app. Download JEMP, record an authentic UGC video of your training with the app, and apply here with it.",
+      "description": "Create content for the fastest growing fitness app. Apply with your social media channels – a UGC video is optional, but always welcome.",
       "cta": "Apply Now"
     },
     "steps": {
@@ -82,16 +82,19 @@
       },
       "socials": {
         "title": "Social Media Channels",
-        "subtitle": "Paste the links to your profiles — the platform is detected automatically (Instagram, TikTok, YouTube, …).",
-        "handleLabel": "Profile Link",
-        "handlePlaceholder": "instagram.com/yourname",
+        "subtitle": "Choose the platform and enter your username — no link needed.",
+        "handleLabel": "Username",
+        "handlePlaceholder": "@yourname",
+        "linkPlaceholder": "twitch.tv/yourname",
+        "platformOther": "Other link",
         "addButton": "Add",
         "noAccounts": "Please add at least one social media channel.",
         "listHeader": "Your channels:"
       },
       "portfolio": {
-        "title": "Your Application Video & Motivation",
-        "videoLabel": "Link to your JEMP UGC application video (e.g., Drive/TikTok/Insta)",
+        "title": "Your Motivation",
+        "videoLabel": "Link to a UGC video of yours (e.g., Drive/TikTok/Insta)",
+        "optional": "optional",
         "videoPlaceholder": "https://...",
         "descLabel": "Briefly describe who you are and why you're a perfect fit",
         "descPlaceholder": "I am a creator and love fitness..."
@@ -120,6 +123,7 @@
       "invalidEmail": "Please enter a valid email address.",
       "invalidUrl": "Please enter a valid URL.",
       "invalidProfileUrl": "Please enter a valid profile link (e.g., instagram.com/yourname).",
+      "invalidUsername": "Please enter a valid username.",
       "duplicateSocial": "This account has already been added.",
       "emailExists": "An application with this email address has already been submitted.",
       "atLeastOneSocial": "Please add at least one social media channel.",

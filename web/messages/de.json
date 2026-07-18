@@ -65,7 +65,7 @@
     "intro": {
       "badge": "UGC Creator",
       "title": "Werde JEMP UGC Creator",
-      "description": "Erstelle Content für die am schnellsten wachsende Fitness-App. Lade dir JEMP herunter, nimm ein authentisches UGC-Video beim Trainieren auf und bewirb dich hier damit.",
+      "description": "Erstelle Content für die am schnellsten wachsende Fitness-App. Bewirb dich mit deinen Social-Media-Kanälen – ein UGC-Video ist optional, aber gern gesehen.",
       "cta": "Jetzt bewerben"
     },
     "steps": {
@@ -82,16 +82,19 @@
       },
       "socials": {
         "title": "Social Media Kanäle",
-        "subtitle": "Füge die Links zu deinen Profilen ein – die Plattform wird automatisch erkannt (Instagram, TikTok, YouTube, …).",
-        "handleLabel": "Profil-Link",
-        "handlePlaceholder": "instagram.com/deinname",
+        "subtitle": "Wähle die Plattform und gib deinen Usernamen ein – ganz ohne Link.",
+        "handleLabel": "Username",
+        "handlePlaceholder": "@deinname",
+        "linkPlaceholder": "twitch.tv/deinname",
+        "platformOther": "Anderer Link",
         "addButton": "Hinzufügen",
         "noAccounts": "Bitte füge mindestens einen Social-Media-Kanal hinzu.",
         "listHeader": "Deine Kanäle:"
       },
       "portfolio": {
-        "title": "Dein Bewerbungsvideo & Motivation",
-        "videoLabel": "Link zu deinem JEMP UGC Bewerbungsvideo (z.B. Drive/TikTok/Insta)",
+        "title": "Deine Motivation",
+        "videoLabel": "Link zu einem UGC-Video von dir (z.B. Drive/TikTok/Insta)",
+        "optional": "optional",
         "videoPlaceholder": "https://...",
         "descLabel": "Beschreibe kurz wer du bist und warum du perfekt passt",
         "descPlaceholder": "Ich bin Creator und liebe Fitness..."
@@ -120,6 +123,7 @@
       "invalidEmail": "Bitte gib eine gültige E-Mail-Adresse ein.",
       "invalidUrl": "Bitte gib eine gültige URL ein (z.B. https://...).",
       "invalidProfileUrl": "Bitte gib einen gültigen Profil-Link ein (z.B. instagram.com/deinname).",
+      "invalidUsername": "Bitte gib einen gültigen Usernamen ein.",
       "duplicateSocial": "Dieser Account wurde bereits hinzugefügt.",
       "emailExists": "Mit dieser E-Mail-Adresse wurde bereits eine Bewerbung eingereicht.",
       "atLeastOneSocial": "Bitte füge mindestens einen Social-Media-Kanal hinzu.",
