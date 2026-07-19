@@ -40,16 +40,18 @@ export function WeekStrip({
                         style={[
                             styles.dayWrapper,
                             {
-                                backgroundColor: isToday
+                                backgroundColor: isSelected
                                     ? 'transparent'
-                                    : isSelected
-                                        ? `${Electric[500]}28`
+                                    : isToday
+                                        ? `${Electric[500]}40`
                                         : theme.surface,
+                                borderWidth: 1,
+                                borderColor: isToday && !isSelected ? Electric[500] : 'transparent',
                             },
                         ]}
                         onPress={() => setSelectedDay(new Date(day))}
                     >
-                        {isToday && (
+                        {isSelected && (
                             <LinearGradient
                                 colors={[Cyan[500], Electric[500]]}
                                 start={{ x: 0, y: 0 }}
@@ -60,21 +62,21 @@ export function WeekStrip({
                         <JempText
                             type="caption"
                             style={styles.dayName}
-                            color={isToday ? 'rgba(255,255,255,0.7)' : theme.textMuted}
+                            color={isSelected ? 'rgba(255,255,255,0.7)' : theme.textMuted}
                         >
                             {DAY_NAMES[i]}
                         </JempText>
                         <JempText
                             type="h2"
                             style={styles.dayNumber}
-                            color={isToday ? '#fff' : theme.text}
+                            color={isSelected ? '#fff' : theme.text}
                         >
                             {String(day.getDate())}
                         </JempText>
                         <View style={styles.dotSlot}>
                             {isToday
-                                ? <JempText type="caption" style={styles.todayLabel} color="rgba(255,255,255,0.7)">{t('ui.today')}</JempText>
-                                : hasSession && <View style={[styles.dot, { backgroundColor: theme.primary }]} />
+                                ? <JempText type="caption" style={styles.todayLabel} color={isSelected ? 'rgba(255,255,255,0.7)' : Electric[400]}>{t('ui.today')}</JempText>
+                                : hasSession && <View style={[styles.dot, { backgroundColor: isSelected ? '#fff' : theme.primary }]} />
                             }
                         </View>
                     </Pressable>

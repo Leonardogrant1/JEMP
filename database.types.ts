@@ -1671,6 +1671,7 @@ export type Database = {
           id: string
           name: string
           pause_between_sets: number
+          rest_adjust_seconds: number | null
           scheduled_at: string | null
           session_type: Database["public"]["Enums"]["session_type"] | null
           started_at: string | null
@@ -1691,6 +1692,7 @@ export type Database = {
           id?: string
           name: string
           pause_between_sets?: number
+          rest_adjust_seconds?: number | null
           scheduled_at?: string | null
           session_type?: Database["public"]["Enums"]["session_type"] | null
           started_at?: string | null
@@ -1711,6 +1713,7 @@ export type Database = {
           id?: string
           name?: string
           pause_between_sets?: number
+          rest_adjust_seconds?: number | null
           scheduled_at?: string | null
           session_type?: Database["public"]["Enums"]["session_type"] | null
           started_at?: string | null

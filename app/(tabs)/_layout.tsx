@@ -3,6 +3,7 @@ import Logo from '@/assets/icons/logo.svg';
 import { TabBar } from '@/components/tab-bar';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { acquireBackgroundAudio, addBackgroundTickListener, releaseBackgroundAudio } from '@/lib/background-timer-audio';
 import { useAuth } from '@/providers/auth-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { useNotifications } from '@/providers/notification-provider';
@@ -13,10 +14,11 @@ import { useOnboardingStore } from '@/stores/onboarding-store';
 import { usePlanGenerationStore } from '@/stores/plan-generation-store';
 import { useTutorialStore } from '@/stores/tutorial-store';
 import { useQueryClient } from '@tanstack/react-query';
+import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, Tabs } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -44,6 +46,78 @@ export default function TabLayout() {
       return () => usePlanGenerationStore.getState().unsubscribe();
     }
   }, [session?.user?.id]);
+
+  // DEV timer test — same mechanics as the in-session timers (wall-clock,
+  // background audio keeper, countdown sounds) without needing an active session
+  const TIMER_TEST_SECONDS = 20;
+  const [timerTestRemaining, setTimerTestRemaining] = useState<number | null>(null);
+  const timerTestIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerTestEndsAtRef = useRef<number | null>(null);
+  const timerTestAnnouncedRef = useRef<number | null>(null);
+  const timerTestTickRef = useRef<AudioPlayer | null>(null);
+  const timerTestEndRef = useRef<AudioPlayer | null>(null);
+  const timerTestRemoveListenerRef = useRef<(() => void) | null>(null);
+
+  function stopTimerTest() {
+    if (timerTestIntervalRef.current) {
+      clearInterval(timerTestIntervalRef.current);
+      timerTestIntervalRef.current = null;
+    }
+    if (timerTestRemoveListenerRef.current) {
+      timerTestRemoveListenerRef.current();
+      timerTestRemoveListenerRef.current = null;
+    }
+    timerTestEndsAtRef.current = null;
+    releaseBackgroundAudio('dev-timer-test');
+    setTimerTestRemaining(null);
+  }
+
+  async function startTimerTest() {
+    if (timerTestIntervalRef.current) {
+      stopTimerTest();
+      return;
+    }
+    await setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      interruptionMode: 'mixWithOthers',
+    });
+    if (!timerTestTickRef.current) timerTestTickRef.current = createAudioPlayer(require('@/assets/sounds/countdown.mp3'));
+    if (!timerTestEndRef.current) timerTestEndRef.current = createAudioPlayer(require('@/assets/sounds/countdown_end.mp3'));
+    acquireBackgroundAudio('dev-timer-test');
+    timerTestEndsAtRef.current = Date.now() + TIMER_TEST_SECONDS * 1000;
+    timerTestAnnouncedRef.current = null;
+    setTimerTestRemaining(TIMER_TEST_SECONDS);
+    const tick = () => {
+      if (timerTestEndsAtRef.current === null) return;
+      const remaining = Math.ceil((timerTestEndsAtRef.current - Date.now()) / 1000);
+      if (remaining !== timerTestAnnouncedRef.current) {
+        timerTestAnnouncedRef.current = remaining;
+        if (remaining > 0 && remaining <= 3) {
+          timerTestTickRef.current?.seekTo(0).then(() => timerTestTickRef.current?.play());
+        } else if (remaining <= 0) {
+          timerTestEndRef.current?.seekTo(0).then(() => timerTestEndRef.current?.play());
+        }
+      }
+      if (remaining <= 0) {
+        stopTimerTest();
+      } else {
+        setTimerTestRemaining(remaining);
+      }
+    };
+    timerTestIntervalRef.current = setInterval(tick, 250);
+    // Background audio events keep ticking on Android while the screen is
+    // locked (JS interval timers pause there)
+    timerTestRemoveListenerRef.current = addBackgroundTickListener(tick);
+  }
+
+  useEffect(() => () => {
+    if (timerTestIntervalRef.current) clearInterval(timerTestIntervalRef.current);
+    if (timerTestRemoveListenerRef.current) timerTestRemoveListenerRef.current();
+    releaseBackgroundAudio('dev-timer-test');
+    timerTestTickRef.current?.remove();
+    timerTestEndRef.current?.remove();
+  }, []);
 
   useEffect(() => {
     if (!hasSeenTutorial || !profile?.id) return;
@@ -240,6 +314,15 @@ export default function TabLayout() {
                 }}
               >
                 <Text style={styles.debugButtonText}>📲 Remote Notification</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.debugButton, timerTestRemaining !== null && { backgroundColor: 'rgba(34,197,94,0.85)' }]}
+                onPress={startTimerTest}
+              >
+                <Text style={styles.debugButtonText}>
+                  {timerTestRemaining !== null ? `⏱ Timer Test… ${timerTestRemaining}s` : `⏱ Timer Test (${TIMER_TEST_SECONDS}s)`}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity

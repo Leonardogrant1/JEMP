@@ -302,6 +302,14 @@ const de: Record<TranslationKeys, string> = {
     'ui.session_reschedule_scope_body': 'Session von {{from}} auf {{to}} verschieben.',
     'ui.session_reschedule_scope_single': 'Nur diese Session',
     'ui.session_reschedule_scope_all': 'Alle {{day}}-Sessions',
+    'ui.session_manage_rest': 'Pausen-Zeiten',
+    'ui.session_rest_title': 'Pausen anpassen',
+    'ui.session_rest_body': 'Verlängere oder verkürze alle Pausen relativ zu den empfohlenen Richtwerten.',
+    'ui.session_rest_recommended': 'Empfohlen',
+    'ui.session_rest_per_pause': 'pro Pause',
+    'ui.session_rest_preview': 'Deine Pausen',
+    'ui.session_rest_scope_single': 'Nur diese Session',
+    'ui.session_rest_scope_all': 'Alle {{day}}-Sessions',
     'ui.confirm': 'Bestätigen',
 
     // ── Tabs ─────────────────────────────────────────────────────────────

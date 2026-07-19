@@ -300,6 +300,14 @@ const en = {
     'ui.session_reschedule_scope_body': 'Move session from {{from}} to {{to}}.',
     'ui.session_reschedule_scope_single': 'Only this session',
     'ui.session_reschedule_scope_all': 'All {{day}} sessions',
+    'ui.session_manage_rest': 'Rest times',
+    'ui.session_rest_title': 'Adjust rest times',
+    'ui.session_rest_body': 'Lengthen or shorten all rest periods relative to the recommended values.',
+    'ui.session_rest_recommended': 'Recommended',
+    'ui.session_rest_per_pause': 'per rest',
+    'ui.session_rest_preview': 'Your rest times',
+    'ui.session_rest_scope_single': 'Only this session',
+    'ui.session_rest_scope_all': 'All {{day}} sessions',
     'ui.confirm': 'Confirm',
 
     // ── Tabs ─────────────────────────────────────────────────────────────

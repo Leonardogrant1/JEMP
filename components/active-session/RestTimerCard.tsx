@@ -3,7 +3,9 @@ import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRestTimer } from '@/providers/rest-timer-provider';
 import { useActiveSessionUIStore } from '@/stores/active-session-ui-store';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 function formatTimer(s: number) {
@@ -16,6 +18,8 @@ export function RestTimerCard() {
     const { stop, addTime } = useRestTimer();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+    const router = useRouter();
+    const { id: sessionId } = useLocalSearchParams<{ id: string }>();
 
     const restSeconds = useActiveSessionUIStore(s => s.restSeconds);
     const totalRestSeconds = useActiveSessionUIStore(s => s.totalRestSeconds);
@@ -25,6 +29,13 @@ export function RestTimerCard() {
 
     return (
         <View style={[styles.timerCard, { backgroundColor: theme.surface }]}>
+            <Pressable
+                style={styles.settingsBtn}
+                hitSlop={8}
+                onPress={() => router.push({ pathname: '/session-rest-adjust', params: { sessionId } })}
+            >
+                <Ionicons name="options-outline" size={18} color={theme.textMuted} />
+            </Pressable>
             <JempText type="caption" color={theme.textMuted} style={styles.timerLabel}>
                 PAUSE
             </JempText>
@@ -70,6 +81,7 @@ const styles = StyleSheet.create({
         alignItems: 'center', gap: 14, paddingVertical: 24, paddingHorizontal: 24,
         borderRadius: 20, borderWidth: 1, borderColor: GradientMid + '55',
     },
+    settingsBtn: { position: 'absolute', top: 14, right: 14 },
     timerLabel: { letterSpacing: 2 },
     timerDisplay: { fontSize: 64, lineHeight: 72 },
     timerTrack: { width: '100%', height: 3, borderRadius: 2, overflow: 'hidden' },

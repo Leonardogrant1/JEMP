@@ -4,62 +4,27 @@ import { useActiveSessionUIStore } from "@/stores/active-session-ui-store";
 import { useEffect } from "react";
 
 
+/**
+ * Feeds the current exercise's target duration into the timer provider.
+ * Countdown sounds and auto-stop happen inside the provider's tick, so they
+ * also fire while the screen is locked (driven by background audio events).
+ */
 export function TimerAutoStopper({ children }: { children: React.ReactNode }) {
 
-    const { playTickSound, playEndSound, stopExerciseTimer, stopExerciseTimerSide, setExerciseDuration, setExerciseDurationLeft, setExerciseDurationRight, exerciseDuration, exerciseDurationLeft, exerciseDurationRight, exerciseTimerActiveSide } = useExerciseTimer();
+    const { setExerciseTargetSeconds } = useExerciseTimer();
 
     const currentExerciseIdx = useActiveSessionStore(s => s.exerciseIdx);
     const allExercises = useActiveSessionUIStore(s => s.allExercises);
 
     const current = allExercises[currentExerciseIdx] ?? null;
 
-    const isUnilateral = current?.exercise.laterality === 'unilateral';
     const isDuration = current?.exercise.measurement_type === 'duration';
+    const target = isDuration ? current?.target_duration_seconds ?? 0 : 0;
 
-    // Auto-stop + countdown sounds when target duration is reached (bilateral)
     useEffect(() => {
-        const target = current?.target_duration_seconds ?? 0;
-        if (!isDuration || isUnilateral || target === 0) return;
-
-        const remaining = target - exerciseDuration;
-        if (remaining > 0 && remaining <= 3) {
-            playTickSound();
-        } else if (remaining === 0) {
-            playEndSound();
-        }
-        if (remaining <= 0) {
-            stopExerciseTimer();
-            setExerciseDuration(target); // keep duration at target so hasInput stays true
-        }
-    }, [exerciseDuration, current?.target_duration_seconds, isDuration, isUnilateral]);
-
-    // Auto-stop + sounds for unilateral side timers
-    useEffect(() => {
-        const target = current?.target_duration_seconds ?? 0;
-        if (!isDuration || !isUnilateral || target === 0) return;
-
-        const checkSide = (side: "left" | "right", duration: number) => {
-            const remaining = target - duration;
-            if (remaining > 0 && remaining <= 3) {
-                playTickSound();
-            } else if (remaining === 0) {
-                playEndSound();
-            }
-            if (remaining <= 0) {
-                stopExerciseTimerSide();
-                if (side === 'left') setExerciseDurationLeft(target);
-                else setExerciseDurationRight(target);
-            }
-        };
-
-        if (exerciseTimerActiveSide === 'left') {
-            checkSide('left', exerciseDurationLeft);
-        } else if (exerciseTimerActiveSide === 'right') {
-            checkSide('right', exerciseDurationRight);
-        }
-    }, [exerciseDurationLeft, exerciseDurationRight, exerciseTimerActiveSide, current?.target_duration_seconds, isDuration, isUnilateral]);
-
-
+        setExerciseTargetSeconds(target);
+        return () => setExerciseTargetSeconds(0);
+    }, [target, setExerciseTargetSeconds]);
 
     return children;
 }

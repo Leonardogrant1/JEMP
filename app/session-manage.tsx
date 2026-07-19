@@ -63,6 +63,17 @@ export default function SessionManageScreen() {
         });
     }
 
+    function navigateToRestAdjust() {
+        router.replace({ pathname: '/session-rest-adjust', params: { sessionId } });
+    }
+
+    function handleRestAdjust() {
+        overlayValue.value = withTiming(0, { duration: 200 });
+        slideValue.value = withTiming(600, { duration: 200 }, (finished) => {
+            if (finished) scheduleOnRN(navigateToRestAdjust);
+        });
+    }
+
     const sheetStyle = useAnimatedStyle(() => ({
         transform: [{ translateY: slideValue.value }],
     }));
@@ -146,6 +157,15 @@ export default function SessionManageScreen() {
                                         >
                                             <JempText type="body-l" color="#ef4444">
                                                 {t('ui.session_manage_cancel')}
+                                            </JempText>
+                                        </Pressable>
+
+                                        <Pressable
+                                            style={[styles.secondaryBtn, { backgroundColor: theme.background }]}
+                                            onPress={handleRestAdjust}
+                                        >
+                                            <JempText type="body-l" color={theme.text}>
+                                                {t('ui.session_manage_rest')}
                                             </JempText>
                                         </Pressable>
 

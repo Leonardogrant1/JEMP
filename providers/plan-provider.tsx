@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useMemo } from 'react';
 
 export type WorkoutSession = Pick<
     Tables<'workout_sessions'>,
-    'id' | 'name' | 'description' | 'session_type' | 'scheduled_at' | 'status' | 'estimated_duration_minutes' | 'workout_plan_session_id'
+    'id' | 'name' | 'description' | 'session_type' | 'scheduled_at' | 'status' | 'estimated_duration_minutes' | 'workout_plan_session_id' | 'rest_adjust_seconds'
 > & { primary_exercise_slug?: string | null; primary_image_group?: string | null };
 
 export type ActivePlan = Pick<

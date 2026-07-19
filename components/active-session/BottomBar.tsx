@@ -163,7 +163,10 @@ export function BottomBar() {
                     : reps.trim() !== '';
         if (!canLog) return;
 
-        const restDuration = current?.target_rest_seconds || session?.pause_between_sets || 60;
+        // Base rest per exercise + session-wide adjustment (Tagesform), floored so
+        // a negative adjustment can't produce a zero-length pause
+        const baseRest = current?.target_rest_seconds || session?.pause_between_sets || 60;
+        const restDuration = Math.max(15, baseRest + (session?.rest_adjust_seconds ?? 0));
 
         if (isLastSet && isLastExercise) {
             saveSetAndProgress(exerciseIdx, currentSet);

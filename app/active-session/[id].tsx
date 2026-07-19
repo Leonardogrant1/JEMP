@@ -18,6 +18,7 @@ import { useSessionDetailQuery, type SessionDetail } from '@/queries/use-session
 import { useActiveSessionStore } from '@/stores/active-session-store';
 import type { FlatExercise } from '@/stores/active-session-ui-store';
 import { useActiveSessionUIStore } from '@/stores/active-session-ui-store';
+import { useKeepAwake } from 'expo-keep-awake';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -35,6 +36,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 export default function ActiveSessionScreen() {
+    // Keep the screen on during the whole workout so JS timers keep ticking
+    useKeepAwake();
     const { id } = useLocalSearchParams<{ id: string }>();
     const { t } = useTranslation();
     const colorScheme = useColorScheme();

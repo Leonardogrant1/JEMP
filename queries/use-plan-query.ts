@@ -19,7 +19,7 @@ async function fetchActivePlan(userId: string) {
             .from('workout_sessions')
             .select(`
                 id, name, description, session_type, scheduled_at, status,
-                estimated_duration_minutes, workout_plan_session_id,
+                estimated_duration_minutes, workout_plan_session_id, rest_adjust_seconds,
                 workout_session_blocks(
                     block_type:block_types(slug),
                     workout_session_block_exercises(order_index, exercise:exercises(slug, image_group))
