@@ -19,6 +19,7 @@ const {
   runSessionPhasesCD,
   savePlan,
   sendPlanNotification,
+  trackPlanGeneration,
 } = proxyActivities<typeof activities>(activityOptions)
 
 export async function generatePlanWorkflow(input: {
@@ -83,10 +84,12 @@ export async function generatePlanWorkflow(input: {
     })
 
     await updateJobStatus({ jobId, status: 'completed', planId })
+    await trackPlanGeneration({ userId, event: 'plan_generation_success', properties: { job_id: jobId, plan_id: planId } })
     await sendPlanNotification({ userId })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
     await updateJobStatus({ jobId, status: 'error', errorMessage: message })
+    await trackPlanGeneration({ userId, event: 'plan_generation_failed', properties: { job_id: jobId, error: message } })
     throw err
   }
 }

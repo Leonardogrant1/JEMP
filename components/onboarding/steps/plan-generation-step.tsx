@@ -128,7 +128,7 @@ export function PlanGenerationStep() {
                 queryClient.invalidateQueries({ queryKey: queryKeys.plan(session.user.id) });
             }
 
-            trackerManager.track('plan_generation_success');
+            trackerManager.track('plan_generation_started');
             setIsComplete(true);
         } catch (err: any) {
             trackerManager.track('plan_generation_failed', { error: err?.message });
