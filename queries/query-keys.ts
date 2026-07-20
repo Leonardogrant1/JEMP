@@ -11,4 +11,5 @@ export const queryKeys = {
         ['category-assessments', userId, slug, since] as const,
     previousExerciseSets: (exerciseId: string | undefined, sessionId: string | undefined) =>
         ['previous-exercise-sets', exerciseId, sessionId] as const,
+    planExerciseProgress: (planId: string | undefined) => ['plan-exercise-progress', planId] as const,
 };

@@ -1,5 +1,6 @@
 import { JempText } from '@/components/jemp-text';
 import { EmptyPlanCard } from '@/components/plan/EmptyPlanCard';
+import { PlanCompletedCard } from '@/components/plan/PlanCompletedCard';
 import { PlanGenerationScreen } from '@/components/plan/PlanGenerationScreen';
 import { PlanSessionCard } from '@/components/plan/PlanSessionCard';
 import { SessionCard } from '@/components/plan/SessionCard';
@@ -19,7 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
@@ -68,6 +69,10 @@ export default function PlanScreen() {
 
     const today = new Date();
     const weekDays = useMemo(() => getWeekDays(today), [today]);
+
+    // Plan has run past its end date — no sessions exist beyond it, so show
+    // a completion state with a CTA instead of an empty week
+    const planExpired = !!plan?.end_date && plan.end_date < toDateStr(today);
 
     const weekNumber = getISOWeek(today);
     const month = MONTHS[today.getMonth()];
@@ -194,6 +199,13 @@ export default function PlanScreen() {
         }
     }
 
+    const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
+
+    function handleConfirmGeneration() {
+        setShowGenerateConfirm(false);
+        startGeneration();
+    }
+
     const showGenerationScreen = isGenerating || isError;
 
     return (
@@ -219,6 +231,8 @@ export default function PlanScreen() {
                         </View>
                     ) : !plan ? (
                         <EmptyPlanCard onGenerate={startGeneration} />
+                    ) : planExpired ? (
+                        <PlanCompletedCard planId={plan.id} planName={plan.name} planStartDate={plan.start_date} onGenerate={() => setShowGenerateConfirm(true)} />
                     ) : (
                         <>
                             <StatsCard />
@@ -238,6 +252,35 @@ export default function PlanScreen() {
                     )}
                 </View>
             )}
+
+            {/* ── Generate-plan confirm ── */}
+            <Modal transparent animationType="fade" visible={showGenerateConfirm} statusBarTranslucent>
+                <Pressable style={styles.confirmOverlay} onPress={() => setShowGenerateConfirm(false)}>
+                    <Pressable onPress={(e) => e.stopPropagation()} style={styles.confirmCardWrap}>
+                        <View style={[styles.confirmCard, { backgroundColor: theme.surface }]}>
+                            <JempText type="h2" style={{ textAlign: 'center' }}>
+                                {t('ui.plan_generate_confirm_title')}
+                            </JempText>
+                            <JempText type="body-l" color={theme.textMuted} style={styles.confirmBody}>
+                                {t('ui.plan_generate_confirm_body')}
+                            </JempText>
+                            <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirmGeneration}>
+                                <LinearGradient
+                                    colors={[Cyan[500], Electric[500]]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={styles.confirmBtnGradient}
+                                >
+                                    <JempText type="button" color="#fff">{t('ui.plan_completed_generate')}</JempText>
+                                </LinearGradient>
+                            </TouchableOpacity>
+                            <Pressable style={styles.confirmCancel} onPress={() => setShowGenerateConfirm(false)}>
+                                <JempText type="body-l" color={theme.textMuted}>{t('ui.cancel')}</JempText>
+                            </Pressable>
+                        </View>
+                    </Pressable>
+                </Pressable>
+            </Modal>
 
         </SafeAreaView>
     );
@@ -295,5 +338,23 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
 
-
+    // Generate-plan confirm modal
+    confirmOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.75)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+    },
+    confirmCardWrap: { width: '100%' },
+    confirmCard: {
+        borderRadius: 24,
+        padding: 28,
+        alignItems: 'center',
+        gap: 14,
+    },
+    confirmBody: { textAlign: 'center', lineHeight: 22 },
+    confirmBtn: { marginTop: 6, width: '100%', borderRadius: 100, overflow: 'hidden' },
+    confirmBtnGradient: { height: 52, alignItems: 'center', justifyContent: 'center' },
+    confirmCancel: { paddingVertical: 8 },
 });
