@@ -664,7 +664,7 @@ export async function runSessionCD(
       }),
     }],
     response_format: zodResponseFormat(dynamicMainSchema as any, 'data'),
-    max_completion_tokens: 8000,
+    max_completion_tokens: 16000,
   })
 
   const mainChoice = mainCompletion.choices[0]
