@@ -10,6 +10,7 @@ import { useNotifications } from '@/providers/notification-provider';
 import { useRevenueCat } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
 import { PREMIUM_IDENTIFIER } from '@/services/purchases/revenuecat/constants';
 import { supabase } from '@/services/supabase/client';
+import { useDevToolsStore } from '@/stores/dev-tools-store';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { usePlanGenerationStore } from '@/stores/plan-generation-store';
 import { useTutorialStore } from '@/stores/tutorial-store';
@@ -32,6 +33,7 @@ export default function TabLayout() {
   const setHasSeenTutorial = useTutorialStore(s => s.setHasSeenTutorial);
   const queryClient = useQueryClient();
   const [devOpen, setDevOpen] = useState(false);
+  const devButtonsVisible = useDevToolsStore(s => s.devButtonsVisible);
   const [showDevCongrats, setShowDevCongrats] = useState(false);
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const hasSeenTutorial = useTutorialStore(s => s.hasSeenTutorial);
@@ -154,7 +156,7 @@ export default function TabLayout() {
         <Tabs.Screen name="profile" />
       </Tabs>
 
-      {__DEV__ && (
+      {__DEV__ && devButtonsVisible && (
         <View style={styles.debugContainer} pointerEvents="box-none">
           <TouchableOpacity
             style={[styles.debugToggle, devOpen && styles.debugToggleActive]}

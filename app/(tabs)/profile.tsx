@@ -18,6 +18,7 @@ import { Colors, Cyan, GRADIENT } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useCurrentUser } from '@/providers/current-user-provider';
+import { useDevToolsStore } from '@/stores/dev-tools-store';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { calculateAge } from '@/types/user-data';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,7 +27,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
@@ -38,6 +39,8 @@ export default function ProfileScreen() {
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const { profile, refreshProfile } = useCurrentUser();
     const { openWithPlacement } = useSuperwallFunctions();
+    const devButtonsVisible = useDevToolsStore(s => s.devButtonsVisible);
+    const setDevButtonsVisible = useDevToolsStore(s => s.setDevButtonsVisible);
 
     const router = useRouter();
 
@@ -190,6 +193,27 @@ export default function ProfileScreen() {
                         />
                     </View>
                 </View>
+
+                {/* ── Developer (DEV builds only) ── */}
+                {__DEV__ && (
+                    <View style={styles.settingsSection}>
+                        <SectionLabel label="DEV" />
+                        <View style={styles.settingsGroup}>
+                            <SettingsRow
+                                icon={<Ionicons name="construct-outline" size={20} color="#fff" />}
+                                label="DEV Buttons"
+                                onPress={() => setDevButtonsVisible(!devButtonsVisible)}
+                                rightElement={
+                                    <Switch
+                                        value={devButtonsVisible}
+                                        onValueChange={setDevButtonsVisible}
+                                        trackColor={{ true: Cyan[500] }}
+                                    />
+                                }
+                            />
+                        </View>
+                    </View>
+                )}
 
             </ScrollView>
 

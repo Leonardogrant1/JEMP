@@ -2,6 +2,22 @@
 
 html {
   scroll-behavior: smooth;
+  /* Lets block-size transition to `auto` (FAQ accordion). Ignored by unsupporting browsers. */
+  interpolate-size: allow-keywords;
+}
+
+/* Animated open/close for the FAQ accordion. Browsers without
+   ::details-content support simply toggle instantly. */
+.faq-item::details-content {
+  block-size: 0;
+  overflow-y: clip;
+  transition:
+    block-size 0.3s ease,
+    content-visibility 0.3s allow-discrete;
+}
+
+.faq-item[open]::details-content {
+  block-size: auto;
 }
 @plugin "@tailwindcss/typography";
 

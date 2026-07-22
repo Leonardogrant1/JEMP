@@ -6,43 +6,97 @@
     "cta": "App laden"
   },
   "hero": {
-    "badge": "Jetzt verfügbar für iOS & Android",
-    "headline1": "Trainiere wie ein",
-    "headline2": "Profi-Athlet.",
-    "subtitle": "JEMP erstellt deinen persönlichen Trainingsplan — abgestimmt auf deine Sportart, dein Level und dein Equipment.",
+    "availableNow": "Die App ist jetzt für iOS & Android verfügbar",
+    "headline1": "Athletiktraining.",
+    "headline2": "Auf dich angepasst.",
+    "subtitle": "Kein Programm von der Stange. Dein Plan entsteht aus deinem Level, deiner Sportart und deinem Equipment.",
     "cta": "Jetzt herunterladen"
   },
-  "features": {
-    "headline1": "Alles was du brauchst.",
-    "headline2": "Nichts was du nicht brauchst.",
-    "subtitle": "Kein generischer Trainingsplan. Alles basiert auf deinem Profil.",
+  "trust": {
+    "headline": "Geliebt & genutzt von",
+    "highlightLabel": "Athleten",
+    "appStore": "Bewertung im App Store",
+    "playStore": "Bewertung im Play Store"
+  },
+  "showcase": {
+    "headline1": "Profis trainieren nicht nach Standardplan.",
+    "headline2": "Du ab jetzt auch nicht.",
+    "subtitle": "Dein Plan entsteht aus deinem Assessment, deiner Sportart und deinem Equipment.",
     "items": [
       {
-        "title": "Sportart-spezifisch",
-        "description": "Ob Boxer, Sprinter oder Basketballer — dein Plan ist auf deine Sportart zugeschnitten."
+        "badge": "Dein Plan",
+        "title": "Auf dich, deinen Sport und deine Woche angepasst.",
+        "description": "Du legst fest, an welchen Tagen du trainierst und ob im Gym, draußen oder zuhause. JEMP baut den Plan drumherum — zugeschnitten auf deine Sportart und nur mit Übungen für das Equipment, das du wirklich hast."
       },
       {
-        "title": "Level-adaptiv",
-        "description": "Das System bewertet dein aktuelles Level und skaliert mit dir mit."
+        "badge": "Assessment & Score",
+        "title": "Finde deinen Score heraus.",
+        "description": "Über 30 standardisierte Tests — Vertical Jump, Sprints, Maximalkraft, Medizinball-Würfe. Jede Kategorie bekommt einen Score von 1 bis 100, verglichen mit Athleten deines Alters und Geschlechts. Kein Gefühl, ein Messwert."
       },
       {
-        "title": "Dein Equipment",
-        "description": "Nur Übungen, die du mit dem Equipment machen kannst, das du wirklich hast."
-      },
-      {
-        "title": "Fortschritt tracken",
-        "description": "Sieh wie du dich Woche für Woche verbesserst — mit klaren Metriken."
+        "badge": "Fortschritt",
+        "title": "Sieh deine Steigerung.",
+        "description": "Nach jedem Re-Assessment aktualisieren sich deine Scores — und dein Plan zieht nach: Steigt dein Level, schaltet er automatisch härtere Übungen frei. Der Verlauf über 3, 6 oder 12 Monate zeigt schwarz auf weiß, dass es wirkt."
       }
-    ],
-    "centerTitle1": "Dein Plan.",
-    "centerTitle2": "Dein Level.",
-    "centerSubtitle": "Personalisiert bis ins Detail."
+    ]
+  },
+  "testimonials": {
+    "headline1": "Das sagen",
+    "headline2": "unsere Athleten.",
+    "items": [
+      {
+        "quote": "„Sehr gut aufgebaute App mit hochwertigen Trainingsinhalten. Die Workouts sind effektiv, verständlich und machen Spaß. Perfekt, um Athletik und Beweglichkeit gezielt zu verbessern. Absolute Empfehlung für alle Sportler, die ihre Leistung auf das nächste Level bringen wollen!“",
+        "name": "jasemin.asl",
+        "role": "App Store Review"
+      },
+      {
+        "quote": "„App ist der Hammer 🔥 Training so wie Profil einstellen war super easy auch der Plan ist geil gestaltet mit Videos und genauen Angaben nochmal erklärt over all wirklich genial 🤞“",
+        "name": "John Brandon lee",
+        "role": "App Store Review"
+      },
+      {
+        "quote": "„Nutze die App erst seid kurzem aber kann jzt schon sagen das sie top ist !“",
+        "name": "Azim.aro",
+        "role": "App Store Review"
+      }
+    ]
+  },
+  "faq": {
+    "headline1": "Häufige",
+    "headline2": "Fragen.",
+    "items": [
+      {
+        "question": "Ist JEMP kostenlos?",
+        "answer": "Die App ist 7 Tage kostenlos und unverbindlich testbar. Danach gibt es den vollen Zugriff auf alle Pläne, Assessments und Auswertungen im Abo — jederzeit kündbar über den App Store bzw. Play Store."
+      },
+      {
+        "question": "Für welche Sportarten funktioniert JEMP?",
+        "answer": "Für praktisch jede Sportart, die Athletik verlangt — Basketball, Fußball, Boxen, Sprint und viele mehr. Du wählst deine Sportart im Onboarding, und dein Plan wird darauf zugeschnitten."
+      },
+      {
+        "question": "Brauche ich ein Gym?",
+        "answer": "Nein. Du gibst an, ob du im Gym, draußen oder zuhause trainierst und welches Equipment du hast — dein Plan enthält nur Übungen, die du damit auch wirklich machen kannst."
+      },
+      {
+        "question": "Wie funktioniert das Assessment?",
+        "answer": "Über 30 standardisierte Tests in fünf Kategorien: Kraft, Sprünge, Ober- und Unterkörper-Plyometrie und Mobilität. Aus deinen Ergebnissen berechnet JEMP pro Kategorie einen Score von 1 bis 100 — verglichen mit Athleten deines Alters und Geschlechts. Du musst nicht alle Tests auf einmal machen."
+      },
+      {
+        "question": "Ich bin Anfänger — ist JEMP trotzdem was für mich?",
+        "answer": "Ja. Dein Plan richtet sich nach deinem Level — vom Einsteiger bis zum Elite-Athleten. Übungen, die zu schwer für dich sind, tauchen gar nicht erst auf. Wirst du besser, wächst der Plan mit."
+      },
+      {
+        "question": "Auf welchen Geräten läuft JEMP?",
+        "answer": "Auf iOS und Android — du findest JEMP im App Store und bei Google Play."
+      }
+    ]
   },
   "earlyAccess": {
     "badge": "Jetzt verfügbar",
     "headline1": "Bereit für dein",
     "headline2": "nächstes Level?",
-    "subtitle": "Lade JEMP jetzt kostenlos herunter und starte mit deinem persönlichen Trainingsplan.",
+    "subtitle": "Lade JEMP herunter und starte mit deinem ersten Assessment.",
+    "pricingNote": "7 Tage kostenlos testen — danach voller Zugriff im Abo.",
     "ctaAppStore": "Im App Store laden",
     "ctaPlayStore": "Im Play Store laden"
   },
@@ -53,10 +107,8 @@
     "terms": "AGB"
   },
   "creatorCta": {
-    "badge": "UGC Creator",
-    "headline1": "Werde JEMP",
-    "headline2": "UGC Creator",
-    "subtitle": "Erstelle Content für die am schnellsten wachsende Fitness-App und arbeite direkt mit uns zusammen.",
+    "title": "Content Creator?",
+    "subtitle": "Werde JEMP UGC Creator und arbeite direkt mit uns zusammen.",
     "cta": "Jetzt bewerben"
   },
   "creatorApplication": {

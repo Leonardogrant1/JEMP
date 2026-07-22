@@ -11,10 +11,11 @@ interface SettingsRowProps {
     onPress: () => void;
     loading?: boolean;
     destructive?: boolean;
+    rightElement?: React.ReactNode;
 }
 
 
-export function SettingsRow({ icon, label, onPress, loading, destructive }: SettingsRowProps) {
+export function SettingsRow({ icon, label, onPress, loading, destructive, rightElement }: SettingsRowProps) {
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
@@ -34,7 +35,7 @@ export function SettingsRow({ icon, label, onPress, loading, destructive }: Sett
                 }
             </View>
             <JempText type="body-l" color={destructive ? '#ef4444' : theme.text} style={styles.settingsLabel}>{label}</JempText>
-            <Ionicons name="chevron-forward" size={16} color={theme.textSubtle} />
+            {rightElement ?? <Ionicons name="chevron-forward" size={16} color={theme.textSubtle} />}
         </Pressable>
     );
 }

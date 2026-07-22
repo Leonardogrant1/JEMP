@@ -6,43 +6,97 @@
     "cta": "Get the App"
   },
   "hero": {
-    "badge": "Now available on iOS & Android",
-    "headline1": "Train like a",
-    "headline2": "Pro Athlete.",
-    "subtitle": "JEMP creates your personal training plan — tailored to your sport, your level, and your equipment.",
+    "availableNow": "The app is now available for iOS & Android",
+    "headline1": "Athletic training.",
+    "headline2": "Adapted to you.",
+    "subtitle": "No generic program. Your plan is built from your level, your sport and your equipment.",
     "cta": "Download Now"
   },
-  "features": {
-    "headline1": "Everything you need.",
-    "headline2": "Nothing you don't.",
-    "subtitle": "No generic training plan. Everything is based on your profile.",
+  "trust": {
+    "headline": "Loved & used by",
+    "highlightLabel": "athletes",
+    "appStore": "Rating on the App Store",
+    "playStore": "Rating on Google Play"
+  },
+  "showcase": {
+    "headline1": "Pros don't train on generic plans.",
+    "headline2": "Now neither do you.",
+    "subtitle": "Your plan is built from your assessment, your sport, and your equipment.",
     "items": [
       {
-        "title": "Sport-specific",
-        "description": "Whether boxer, sprinter, or basketball player — your plan is tailored to your sport."
+        "badge": "Your Plan",
+        "title": "Built around you, your sport, and your week.",
+        "description": "You choose which days you train and whether you train at the gym, outdoors, or at home. JEMP builds the plan around it — tailored to your sport and only with exercises for the equipment you actually have."
       },
       {
-        "title": "Level-adaptive",
-        "description": "The system evaluates your current level and scales with you as you improve."
+        "badge": "Assessment & Score",
+        "title": "Find out your score.",
+        "description": "30+ standardized tests — vertical jump, sprints, max strength, medicine ball throws. Every category gets a score from 1 to 100, compared against athletes of your age and gender. Not a feeling — a measurement."
       },
       {
-        "title": "Your Equipment",
-        "description": "Only exercises you can do with the equipment you actually have."
-      },
-      {
-        "title": "Track Progress",
-        "description": "See how you improve week by week — with clear metrics."
+        "badge": "Progress",
+        "title": "See yourself improve.",
+        "description": "After every re-assessment your scores update — and your plan keeps up: as your level rises, it automatically unlocks harder exercises. The 3, 6, or 12-month history shows you in black and white that it works."
       }
-    ],
-    "centerTitle1": "Your Plan.",
-    "centerTitle2": "Your Level.",
-    "centerSubtitle": "Personalized down to the last detail."
+    ]
+  },
+  "testimonials": {
+    "headline1": "What our",
+    "headline2": "athletes say.",
+    "items": [
+      {
+        "quote": "“Really well-built app with high-quality training content. The workouts are effective, easy to follow, and fun. Perfect for improving athleticism and mobility in a targeted way. Absolute recommendation for every athlete who wants to take their performance to the next level!”",
+        "name": "jasemin.asl",
+        "role": "App Store review, translated from German"
+      },
+      {
+        "quote": "“App is insane 🔥 Setting up training and profile was super easy, the plan looks great too, with videos and exact instructions — overall really brilliant 🤞”",
+        "name": "John Brandon lee",
+        "role": "App Store review, translated from German"
+      },
+      {
+        "quote": "“Only been using the app for a short while but I can already say it's top!”",
+        "name": "Azim.aro",
+        "role": "App Store review, translated from German"
+      }
+    ]
+  },
+  "faq": {
+    "headline1": "Common",
+    "headline2": "questions.",
+    "items": [
+      {
+        "question": "Is JEMP free?",
+        "answer": "You can try JEMP free for 7 days, no strings attached. After that, full access to all plans, assessments, and insights comes with a subscription — cancel anytime through the App Store or Play Store."
+      },
+      {
+        "question": "Which sports does JEMP work for?",
+        "answer": "Practically every sport that demands athleticism — basketball, football, boxing, sprinting, and many more. You pick your sport during onboarding, and your plan is tailored to it."
+      },
+      {
+        "question": "Do I need a gym?",
+        "answer": "No. You tell JEMP whether you train at the gym, outdoors, or at home, and which equipment you have — your plan only includes exercises you can actually do with it."
+      },
+      {
+        "question": "How does the assessment work?",
+        "answer": "30+ standardized tests across five categories: strength, jumps, upper and lower body plyometrics, and mobility. From your results, JEMP calculates a score from 1 to 100 per category — compared against athletes of your age and gender. You don't have to do all tests at once."
+      },
+      {
+        "question": "I'm a beginner — is JEMP still for me?",
+        "answer": "Yes. Your plan is based on your level — from beginner to elite athlete. Exercises that are too hard for you simply don't show up. As you get better, the plan grows with you."
+      },
+      {
+        "question": "Which devices does JEMP run on?",
+        "answer": "iOS and Android — you'll find JEMP on the App Store and Google Play."
+      }
+    ]
   },
   "earlyAccess": {
     "badge": "Now available",
     "headline1": "Ready for your",
     "headline2": "next level?",
-    "subtitle": "Download JEMP for free and start with your personal training plan.",
+    "subtitle": "Download JEMP and start with your first assessment.",
+    "pricingNote": "Try free for 7 days — then full access with a subscription.",
     "ctaAppStore": "Download on the App Store",
     "ctaPlayStore": "Get it on Google Play"
   },
@@ -53,10 +107,8 @@
     "terms": "Terms of Use"
   },
   "creatorCta": {
-    "badge": "UGC Creator",
-    "headline1": "Become a JEMP",
-    "headline2": "UGC Creator",
-    "subtitle": "Create content for the fastest growing fitness app and work directly with us.",
+    "title": "Content creator?",
+    "subtitle": "Become a JEMP UGC creator and work directly with us.",
     "cta": "Apply Now"
   },
   "creatorApplication": {
