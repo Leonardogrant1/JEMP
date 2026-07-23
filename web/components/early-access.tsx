@@ -21,7 +21,7 @@ export async function EarlyAccess() {
         <div className="absolute inset-0 bg-gradient-to-tr from-brand-cyan/15 via-transparent to-blue-500/10 mix-blend-overlay" />
       </div>
 
-      <Reveal className="relative z-10 max-w-xl mx-auto text-center">
+      <Reveal className="relative z-10 max-w-3xl mx-auto text-center">
         <div className="inline-block px-3 py-1 rounded-full bg-white/10 text-sm text-white/60 mb-6 border border-white/10">
           {t("badge")}
         </div>

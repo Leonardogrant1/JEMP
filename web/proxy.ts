@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 
-const LANDING_ROUTES = /^\/(?!admin|api|sign-in|imprint|privacy-policy|terms-of-service|_next|.*\..*).*$/
+const LANDING_ROUTES = /^\/(?!admin|api|c\/|sign-in|imprint|privacy-policy|terms-of-service|_next|.*\..*).*$/
 
 
 export default async function proxy(req: NextRequest) {
