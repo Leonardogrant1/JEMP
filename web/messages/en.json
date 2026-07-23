@@ -97,8 +97,8 @@
     "headline2": "next level?",
     "subtitle": "Download JEMP and start with your first assessment.",
     "pricingNote": "Try free for 7 days — then full access with a subscription.",
-    "ctaAppStore": "Download on the App Store",
-    "ctaPlayStore": "Get it on Google Play"
+    "badgeAppStoreTop": "Download on the",
+    "badgePlayStoreTop": "Get it on"
   },
   "footer": {
     "copyright": "JEMP · studio.northbyte",
