@@ -164,6 +164,8 @@ const en = {
     'ui.plan_completed_show_less': 'Show less',
     'ui.plan_completed_levels_hint': 'Redo your assessments to see how your levels improved over the plan.',
     'ui.plan_completed_levels_cta': 'Go to assessments',
+    'ui.plan_completed_home_body': 'Your current plan is complete. Check your results and start your next one.',
+    'ui.plan_completed_home_cta': 'Go to plan',
     'ui.plan_generate_confirm_title': 'Generate new plan?',
     'ui.plan_generate_confirm_body': 'Your next plan will be created based on your current performance data.',
     'ui.today': 'TODAY',

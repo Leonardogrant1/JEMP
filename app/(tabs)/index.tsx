@@ -1,8 +1,10 @@
 import { DayVariant, RestDayCard } from '@/components/rest-day-card';
+import { PlanCompletedHomeCard } from '@/components/today-session/PlanCompletedHomeCard';
 import { PlanGenerating } from '@/components/today-session/PlanGenerating';
 import { TodayScreenHeader } from '@/components/today-session/TodayScreenHeader';
 import { TodaysSessionCard } from '@/components/today-session/TodaysSessionCard';
 import { Colors } from '@/constants/theme';
+import { toDateStr } from '@/helpers/date-helpers';
 import { getDayVariant, getNextScheduledSession, getTodaySession } from '@/helpers/session-helpers';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCurrentUser } from '@/providers/current-user-provider';
@@ -18,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
     const { profile } = useCurrentUser();
-    const { sessions } = usePlan();
+    const { plan, sessions } = usePlan();
     const router = useRouter();
     const { t } = useTranslation();
     const colorScheme = useColorScheme();
@@ -36,6 +38,10 @@ export default function HomeScreen() {
 
     const { isGenerating } = usePlanGenerationStore();
 
+    // Same condition as the plan tab: past the end date no sessions exist,
+    // so point to the plan tab's completion state instead of a rest day
+    const planExpired = !!plan?.end_date && plan.end_date < toDateStr(new Date());
+
 
     return (
         <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
@@ -45,7 +51,9 @@ export default function HomeScreen() {
                     {/* ── Header ── */}
                     <TodayScreenHeader profile={profile} />
 
-                    {nextSession ? (
+                    {planExpired ? (
+                        <PlanCompletedHomeCard />
+                    ) : nextSession ? (
                         <TodaysSessionCard
                             nextSession={nextSession}
                         />

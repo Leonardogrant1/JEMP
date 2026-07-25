@@ -14,6 +14,7 @@ import { useDevToolsStore } from '@/stores/dev-tools-store';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { usePlanGenerationStore } from '@/stores/plan-generation-store';
 import { useTutorialStore } from '@/stores/tutorial-store';
+import { devResetPlan } from '@/utils/dev-reset-plan';
 import { useQueryClient } from '@tanstack/react-query';
 import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
@@ -242,6 +243,24 @@ export default function TabLayout() {
                 }}
               >
                 <Text style={styles.debugButtonText}>🔁 Reset All</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={async () => {
+                  if (!session) return;
+                  try {
+                    const { sessionsCreated } = await devResetPlan(session.user.id);
+                    await queryClient.invalidateQueries({ queryKey: ['plan'] });
+                    await queryClient.invalidateQueries({ queryKey: ['session-detail'] });
+                    await queryClient.invalidateQueries({ queryKey: ['plan-exercise-progress'] });
+                    Alert.alert('Plan Reset', `${sessionsCreated} sessions rescheduled for the next 4 weeks`);
+                  } catch (e: any) {
+                    Alert.alert('Reset failed', e.message);
+                  }
+                }}
+              >
+                <Text style={styles.debugButtonText}>♻️ Reset Plan</Text>
               </TouchableOpacity>
 
               <TouchableOpacity

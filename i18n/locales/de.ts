@@ -166,6 +166,8 @@ const de: Record<TranslationKeys, string> = {
     'ui.plan_completed_show_less': 'Weniger anzeigen',
     'ui.plan_completed_levels_hint': 'Absolviere deine Assessments erneut, um zu sehen, wie sich deine Level durch den Plan verbessert haben.',
     'ui.plan_completed_levels_cta': 'Zu den Assessments',
+    'ui.plan_completed_home_body': 'Dein aktueller Plan ist abgeschlossen. Sieh dir deine Ergebnisse an und starte deinen nächsten Plan.',
+    'ui.plan_completed_home_cta': 'Zum Plan',
     'ui.plan_generate_confirm_title': 'Neuen Plan generieren?',
     'ui.plan_generate_confirm_body': 'Dein nächster Plan wird auf Basis deiner aktuellen Leistungsdaten erstellt.',
     'ui.today': 'HEUTE',
