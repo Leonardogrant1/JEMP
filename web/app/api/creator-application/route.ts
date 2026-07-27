@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
         phone,
         country,
         social_accounts,
-        video_link: video_link?.trim() || null,
+        video_link: video_link?.trim() || undefined,
         description,
       }),
     });
