@@ -1764,6 +1764,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      fn_dev_complete_active_plan: { Args: never; Returns: undefined }
       fn_dev_seed_category_history: {
         Args: { p_days?: number }
         Returns: undefined
