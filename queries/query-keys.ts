@@ -1,5 +1,6 @@
 export const queryKeys = {
     plan: (userId: string | undefined) => ['plan', userId] as const,
+    hasHadPlan: (userId: string | undefined) => ['has-had-plan', userId] as const,
     sessionDetail: (sessionId: string | undefined) => ['session-detail', sessionId] as const,
     allSessions: ['session-detail'] as const,
     exerciseDetail: (exerciseId: string | undefined) => ['exercise-detail', exerciseId] as const,

@@ -3,6 +3,7 @@ import { JempText } from '@/components/jemp-text';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCurrentUser } from '@/providers/current-user-provider';
+import { useHasHadPlanQuery } from '@/queries/use-has-had-plan-query';
 import { useUserAssessmentsQuery } from '@/queries/use-user-assessments-query';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,7 +20,9 @@ export default function AssessmentsScreen() {
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const { profile } = useCurrentUser();
 
-    const { data: userAssessments, isLoading } = useUserAssessmentsQuery(profile?.id);
+    const { data: userAssessments, isLoading: assessmentsLoading } = useUserAssessmentsQuery(profile?.id);
+    const { data: hasHadPlan, isLoading: hasHadPlanLoading } = useHasHadPlanQuery(profile?.id);
+    const isLoading = assessmentsLoading || hasHadPlanLoading;
 
     const pending = userAssessments ?? [];
 
@@ -51,8 +54,11 @@ export default function AssessmentsScreen() {
             ) : !hasAssessments ? (
                 <View style={styles.emptyWrap}>
                     <GradientClipboardIcon size={42} />
-                    <JempText type="body-l" style={styles.emptyText} color={theme.textMuted}>
-                        {t('ui.no_assessments')}
+                    <JempText type="body-l" color={theme.textMuted}>
+                        {t(hasHadPlan ? 'ui.no_assessments_all_done_title' : 'ui.no_assessments_title')}
+                    </JempText>
+                    <JempText type="body-sm" style={styles.emptyText} color={theme.textMuted}>
+                        {t(hasHadPlan ? 'ui.no_assessments_all_done_body' : 'ui.no_assessments_body')}
                     </JempText>
                 </View>
             ) : (
