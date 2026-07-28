@@ -219,6 +219,24 @@ export async function getUsers(
   return { users, total: count ?? 0 }
 }
 
+// ─── updateUserRole ───────────────────────────────────────────
+
+const USER_ROLES: UserListRow['role'][] = ['user', 'admin', 'tester', 'affiliate']
+
+export async function updateUserRole(
+  userId: string,
+  role: UserListRow['role'],
+): Promise<void> {
+  await requireAdmin()
+  if (!USER_ROLES.includes(role)) throw new Error('Invalid role')
+
+  const { error } = await supabase
+    .from('user_profiles')
+    .update({ role, updated_at: new Date().toISOString() })
+    .eq('id', userId)
+  if (error) throw new Error(error.message)
+}
+
 // ─── fetchUserProfile ─────────────────────────────────────────
 
 export async function fetchUserProfile(userId: string): Promise<UserProfile | null> {

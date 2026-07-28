@@ -3,8 +3,18 @@
 import { useRouter, usePathname } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { UserListRow } from '@/app/actions/users'
+import { updateUserRole } from '@/app/actions/users'
 
 const PAGE_SIZE = 25
+
+const ROLES: UserListRow['role'][] = ['user', 'admin', 'tester', 'affiliate']
+
+const ROLE_STYLES: Record<UserListRow['role'], string> = {
+  admin: 'bg-purple-900 text-purple-300',
+  tester: 'bg-yellow-900 text-yellow-300',
+  affiliate: 'bg-blue-900 text-blue-300',
+  user: 'bg-gray-800 text-gray-400',
+}
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
@@ -25,7 +35,22 @@ export function UserTable({
   const router = useRouter()
   const pathname = usePathname()
   const [searchValue, setSearchValue] = useState(currentSearch)
+  const [savingRoleId, setSavingRoleId] = useState<string | null>(null)
+  const [roleError, setRoleError] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  async function handleRoleChange(userId: string, role: UserListRow['role']) {
+    setSavingRoleId(userId)
+    setRoleError('')
+    try {
+      await updateUserRole(userId, role)
+      router.refresh()
+    } catch (e: any) {
+      setRoleError(e?.message ?? 'Fehler beim Ändern der Rolle')
+    } finally {
+      setSavingRoleId(null)
+    }
+  }
 
   const pushParams = useCallback((search: string, page: number) => {
     const params = new URLSearchParams()
@@ -58,7 +83,10 @@ export function UserTable({
           placeholder="Name oder E-Mail suchen…"
           className="w-72 bg-gray-900 border border-gray-800 rounded px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gray-600"
         />
-        <p className="text-sm text-gray-400">{total} User</p>
+        <div className="flex items-center gap-4">
+          {roleError && <span className="text-xs text-red-400">{roleError}</span>}
+          <p className="text-sm text-gray-400">{total} User</p>
+        </div>
       </div>
 
       {/* Table */}
@@ -95,15 +123,19 @@ export function UserTable({
               </td>
               <td className="py-3 pr-6 text-gray-400">{user.email}</td>
               <td className="py-3 pr-6 text-gray-400">{user.sport ?? '—'}</td>
-              <td className="py-3 pr-6">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  user.role === 'admin' ? 'bg-purple-900 text-purple-300' :
-                  user.role === 'tester' ? 'bg-yellow-900 text-yellow-300' :
-                  user.role === 'affiliate' ? 'bg-blue-900 text-blue-300' :
-                  'bg-gray-800 text-gray-400'
-                }`}>
-                  {user.role}
-                </span>
+              <td className="py-3 pr-6" onClick={e => e.stopPropagation()}>
+                <select
+                  value={user.role}
+                  disabled={savingRoleId === user.id}
+                  onChange={e => handleRoleChange(user.id, e.target.value as UserListRow['role'])}
+                  className={`text-xs px-2 py-0.5 rounded-full border-0 cursor-pointer focus:outline-none disabled:opacity-50 disabled:cursor-wait ${ROLE_STYLES[user.role]}`}
+                >
+                  {ROLES.map(role => (
+                    <option key={role} value={role} className="bg-gray-900 text-white">
+                      {role}
+                    </option>
+                  ))}
+                </select>
               </td>
               <td className="py-3 pr-6">
                 <span className={user.has_onboarded ? 'text-green-400' : 'text-gray-500'}>
