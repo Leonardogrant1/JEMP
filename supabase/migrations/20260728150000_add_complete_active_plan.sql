@@ -4,8 +4,10 @@
 -- completed, seeds performed sets derived from the target values
 -- with a weekly progression (so first→last session shows gains),
 -- and writes start/end category-level snapshots. Idempotent:
--- exercises that already have performed sets are skipped, as are
--- snapshot dates that already exist.
+-- exercises that already have performed sets are skipped; existing
+-- history rows on the two snapshot dates are replaced (a daily cron
+-- may have written rows on those dates that would otherwise mask the
+-- seeded start-dip and end values).
 -- ─────────────────────────────────────────────────────────────
 
 CREATE OR REPLACE FUNCTION fn_dev_complete_active_plan()
@@ -133,56 +135,38 @@ BEGIN
           WHERE p.workout_session_block_exercise_id = wsbe.id
       );
 
-    -- 4) Category-level snapshots at plan start (levels - 8) and plan end (current levels)
+    -- 4) Category-level snapshots at plan start (levels - 8) and plan end (current levels).
+    --    Delete any existing rows on both snapshot dates first so that daily-cron entries
+    --    written by fn_take_category_level_snapshot cannot mask the seeded deltas.
+    DELETE FROM user_category_level_history
+    WHERE user_id = v_user_id
+      AND recorded_at::date IN (v_start_date, v_end_date);
+
     INSERT INTO user_category_level_history (user_id, category_id, level_score, recorded_at)
     SELECT v_user_id, ucl.category_id, GREATEST(1, ucl.level_score - 8),
            v_start_date::timestamptz + interval '8 hours'
     FROM user_category_levels ucl
-    WHERE ucl.user_id = v_user_id
-      AND NOT EXISTS (
-          SELECT 1 FROM user_category_level_history h
-          WHERE h.user_id = v_user_id
-            AND h.category_id = ucl.category_id
-            AND h.recorded_at::date = v_start_date
-      );
+    WHERE ucl.user_id = v_user_id;
 
     INSERT INTO user_category_level_history (user_id, category_id, level_score, recorded_at)
     SELECT v_user_id, NULL, GREATEST(1, ROUND(AVG(ucl.level_score))::integer - 8),
            v_start_date::timestamptz + interval '8 hours'
     FROM user_category_levels ucl
     WHERE ucl.user_id = v_user_id
-    HAVING COUNT(*) > 0
-       AND NOT EXISTS (
-           SELECT 1 FROM user_category_level_history h
-           WHERE h.user_id = v_user_id
-             AND h.category_id IS NULL
-             AND h.recorded_at::date = v_start_date
-       );
+    HAVING COUNT(*) > 0;
 
     INSERT INTO user_category_level_history (user_id, category_id, level_score, recorded_at)
     SELECT v_user_id, ucl.category_id, ucl.level_score,
            v_end_date::timestamptz + interval '8 hours'
     FROM user_category_levels ucl
-    WHERE ucl.user_id = v_user_id
-      AND NOT EXISTS (
-          SELECT 1 FROM user_category_level_history h
-          WHERE h.user_id = v_user_id
-            AND h.category_id = ucl.category_id
-            AND h.recorded_at::date = v_end_date
-      );
+    WHERE ucl.user_id = v_user_id;
 
     INSERT INTO user_category_level_history (user_id, category_id, level_score, recorded_at)
     SELECT v_user_id, NULL, ROUND(AVG(ucl.level_score))::integer,
            v_end_date::timestamptz + interval '8 hours'
     FROM user_category_levels ucl
     WHERE ucl.user_id = v_user_id
-    HAVING COUNT(*) > 0
-       AND NOT EXISTS (
-           SELECT 1 FROM user_category_level_history h
-           WHERE h.user_id = v_user_id
-             AND h.category_id IS NULL
-             AND h.recorded_at::date = v_end_date
-       );
+    HAVING COUNT(*) > 0;
 END;
 $$;
 
