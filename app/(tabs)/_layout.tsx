@@ -15,6 +15,7 @@ import { useOnboardingStore } from '@/stores/onboarding-store';
 import { usePlanGenerationStore } from '@/stores/plan-generation-store';
 import { useTutorialStore } from '@/stores/tutorial-store';
 import { devResetPlan } from '@/utils/dev-reset-plan';
+import { resetOnboardingProfile } from '@/utils/reset-onboarding';
 import { useQueryClient } from '@tanstack/react-query';
 import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
@@ -187,24 +188,13 @@ export default function TabLayout() {
                 style={styles.debugButton}
                 onPress={async () => {
                   if (!session) return;
-                  await supabase
-                    .from('user_profiles')
-                    .update({
-                      has_onboarded: false,
-                      first_name: null,
-                      last_name: null,
-                      birth_date: null,
-                      gender: null,
-                      sport_id: null,
-                      height_in_cm: null,
-                      weight_in_kg: null,
-                      preferred_workout_days: [],
-                      preferred_session_duration: null,
-                      timezone: null,
-                    })
-                    .eq('id', session.user.id);
-                  resetOnboardingStore();
-                  await refreshProfile();
+                  try {
+                    await resetOnboardingProfile(session.user.id);
+                    resetOnboardingStore();
+                    await refreshProfile();
+                  } catch (e: any) {
+                    Alert.alert('Reset failed', e.message);
+                  }
                 }}
               >
                 <Text style={styles.debugButtonText}>🔄 Reset Onboarding</Text>
@@ -295,7 +285,6 @@ export default function TabLayout() {
                 onPress={async () => {
                   if (!session) return;
                   const { error } = await supabase.rpc('fn_dev_seed_category_history', {
-                    p_user_id: session.user.id,
                     p_days: 10,
                   });
                   if (error) Alert.alert('Seed failed', error.message);

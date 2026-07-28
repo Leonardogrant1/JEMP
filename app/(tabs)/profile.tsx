@@ -9,6 +9,7 @@ import RocketIcon from '@/assets/icons/rocket.svg';
 import ShieldIcon from '@/assets/icons/shield.svg';
 import UserIcon from '@/assets/icons/user.svg';
 import WeightIcon from '@/assets/icons/weight.svg';
+import { CreatorToolsSection } from '@/components/creator-tools-section';
 import { JempText } from '@/components/jemp-text';
 import { SectionLabel } from '@/components/profile/SectionLabel';
 import { SettingsRow } from '@/components/profile/SettingRow';
@@ -193,6 +194,9 @@ export default function ProfileScreen() {
                         />
                     </View>
                 </View>
+
+                {/* ── Creator tools (affiliate/admin only) ── */}
+                <CreatorToolsSection />
 
                 {/* ── Developer (DEV builds only) ── */}
                 {__DEV__ && (

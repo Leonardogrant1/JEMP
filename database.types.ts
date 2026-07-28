@@ -1765,9 +1765,10 @@ export type Database = {
         Returns: undefined
       }
       fn_dev_seed_category_history: {
-        Args: { p_days?: number; p_user_id: string }
+        Args: { p_days?: number }
         Returns: undefined
       }
+      fn_refill_user_assessments: { Args: never; Returns: undefined }
       fn_renew_assessments_for_all_users: { Args: never; Returns: string[] }
       fn_take_category_level_snapshot: { Args: never; Returns: undefined }
       fn_take_user_category_level_snapshot: {
