@@ -14,7 +14,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, View } from 'react-native';
 
-type CreatorAction = 'refill' | 'resetOnboarding' | 'resetPlan' | 'seedHistory';
+type CreatorAction = 'refill' | 'resetOnboarding' | 'resetPlan' | 'seedHistory' | 'completePlan';
 
 export function CreatorToolsSection() {
     const { t } = useTranslation();
@@ -94,6 +94,27 @@ export function CreatorToolsSection() {
         return t('ui.creator_seed_history_done');
     });
 
+    const completePlan = () => Alert.alert(
+        t('ui.creator_confirm_title'),
+        t('ui.creator_confirm_complete_plan'),
+        [
+            { text: t('ui.cancel'), style: 'cancel' },
+            {
+                text: t('ui.creator_complete_plan'),
+                style: 'destructive',
+                onPress: () => run('completePlan', async () => {
+                    const { error } = await supabase.rpc('fn_dev_complete_active_plan');
+                    if (error) throw new Error(error.message);
+                    await queryClient.invalidateQueries({ queryKey: ['plan'] });
+                    await queryClient.invalidateQueries({ queryKey: ['session-detail'] });
+                    await queryClient.invalidateQueries({ queryKey: ['plan-exercise-progress'] });
+                    await queryClient.invalidateQueries({ queryKey: ['category-history'] });
+                    return t('ui.creator_complete_plan_done');
+                }),
+            },
+        ],
+    );
+
     return (
         <View style={styles.section}>
             <SettingsRow
@@ -127,6 +148,12 @@ export function CreatorToolsSection() {
                         label={t('ui.creator_seed_history')}
                         onPress={seedHistory}
                         loading={busy === 'seedHistory'}
+                    />
+                    <SettingsRow
+                        icon={<Ionicons name="trophy-outline" size={20} color="#fff" />}
+                        label={t('ui.creator_complete_plan')}
+                        onPress={completePlan}
+                        loading={busy === 'completePlan'}
                     />
                     {status && (
                         <JempText type="caption" color={status.ok ? '#22c55e' : '#ef4444'} style={styles.status}>
