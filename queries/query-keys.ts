@@ -13,4 +13,6 @@ export const queryKeys = {
     previousExerciseSets: (exerciseId: string | undefined, sessionId: string | undefined) =>
         ['previous-exercise-sets', exerciseId, sessionId] as const,
     planExerciseProgress: (planId: string | undefined) => ['plan-exercise-progress', planId] as const,
+    sportGroupBanner: (groupName: string | undefined) => ['sport-group-banner', groupName] as const,
+    sessionThumbnails: ['session-thumbnails'] as const,
 };

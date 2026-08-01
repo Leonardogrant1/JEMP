@@ -152,6 +152,7 @@ function MainStack({ languageReady }: { languageReady: boolean }) {
         <Stack.Screen name="session-summary/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="assessment/[id]" options={{ animation: 'slide_from_right', headerShown: false }} />
         <Stack.Screen name="support-ticket" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+        <Stack.Screen name="edit-profile" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="delete-account" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="sign-out-confirm" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="assessment-confirm" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
@@ -166,6 +167,7 @@ function MainStack({ languageReady }: { languageReady: boolean }) {
 
 
       <Stack.Screen name="language" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+      <Stack.Screen name="units" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
     </Stack>
   )
 }

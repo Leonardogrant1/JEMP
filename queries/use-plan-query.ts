@@ -18,7 +18,7 @@ async function fetchActivePlan(userId: string) {
         supabase
             .from('workout_sessions')
             .select(`
-                id, name, description, session_type, scheduled_at, status,
+                id, name, description, session_type, scheduled_at, original_scheduled_at, status,
                 estimated_duration_minutes, workout_plan_session_id, rest_adjust_seconds,
                 workout_session_blocks(
                     block_type:block_types(slug),

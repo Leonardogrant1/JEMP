@@ -15,6 +15,7 @@ type ProfileData = Pick<
     | 'preferred_session_duration'
     | 'schedule_notes'
     | 'timezone'
+    | 'unit_system'
 >;
 
 export type TargetedCategory = {
@@ -77,6 +78,7 @@ const initialState: Omit<OnboardingStore, 'set' | 'reset'> = {
     preferred_session_duration: null,
     schedule_notes: null,
     timezone: null,
+    unit_system: 'metric',
     targetedCategories: [],
     categoryLevels: [],
     equipmentIds: [],

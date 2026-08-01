@@ -22,6 +22,15 @@ async function rescheduleSession({
     // Combine new date with original time + timezone
     const newScheduledAt = `${newDate}${timeSuffix}`;
 
+    // Preserve the first-planned slot — only the first reschedule sets it
+    const { error: originalError } = await supabase
+        .from('workout_sessions')
+        .update({ original_scheduled_at: originalScheduledAt })
+        .eq('id', sessionId)
+        .is('original_scheduled_at', null);
+
+    if (originalError) throw originalError;
+
     const { data, error } = await supabase
         .from('workout_sessions')
         .update({ scheduled_at: newScheduledAt })

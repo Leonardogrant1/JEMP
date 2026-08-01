@@ -14,7 +14,6 @@ import { EquipmentEnvironmentStep } from '@/components/onboarding/steps/equipmen
 import { GenderStep } from '@/components/onboarding/steps/gender-step';
 import { NameStep } from '@/components/onboarding/steps/name-step';
 import { NotificationSetupStep } from '@/components/onboarding/steps/notification-setup-step';
-import { PlanGenerationStep } from '@/components/onboarding/steps/plan-generation-step';
 import { PersonalizationStep } from '@/components/onboarding/steps/personalization-step';
 import { RatingStep } from '@/components/onboarding/steps/rating-step';
 import { ReferralCodeStep } from '@/components/onboarding/steps/referral-code-step';

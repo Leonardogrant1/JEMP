@@ -15,10 +15,11 @@ export function BodyStep() {
     const storedWeight = useOnboardingStore((s) => s.weight_in_kg);
     const storedHeight = useOnboardingStore((s) => s.height_in_cm);
     const setStore = useOnboardingStore((s) => s.set);
+    const storedUnitSystem = useOnboardingStore((s) => s.unit_system);
     const [weightKg, setWeightKg] = useState(storedWeight ?? 75);
     const [heightCm, setHeightCm] = useState(storedHeight ?? 175);
-    const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg');
-    const [heightUnit, setHeightUnit] = useState<'cm' | 'ft'>('cm');
+    // One system for both sliders — persisted as the app-wide display preference
+    const imperial = storedUnitSystem === 'imperial';
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
@@ -56,16 +57,16 @@ export function BodyStep() {
                 <WeightSlider
                     valueKg={weightKg}
                     onChange={handleWeight}
-                    unit={weightUnit}
-                    onToggleUnit={() => setWeightUnit(u => u === 'kg' ? 'lbs' : 'kg')}
+                    unit={imperial ? 'lbs' : 'kg'}
+                    onToggleUnit={() => setStore({ unit_system: imperial ? 'metric' : 'imperial' })}
                 />
             </Animated.View>
             <Animated.View entering={FadeInDown.delay(480).duration(500).springify()}>
                 <HeightSlider
                     valueCm={heightCm}
                     onChange={handleHeight}
-                    unit={heightUnit}
-                    onToggleUnit={() => setHeightUnit(u => u === 'cm' ? 'ft' : 'cm')}
+                    unit={imperial ? 'ft' : 'cm'}
+                    onToggleUnit={() => setStore({ unit_system: imperial ? 'metric' : 'imperial' })}
                 />
             </Animated.View>
         </ScrollView>

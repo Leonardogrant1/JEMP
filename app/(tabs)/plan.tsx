@@ -6,6 +6,7 @@ import { PlanSessionCard } from '@/components/plan/PlanSessionCard';
 import { SessionCard } from '@/components/plan/SessionCard';
 import { StatsCard } from '@/components/plan/StatsCard';
 import { WeekStrip } from '@/components/plan/WeekStrip';
+import { useTabBarInset } from '@/components/tab-bar';
 import { type DayVariant, RestDayCard } from '@/components/rest-day-card';
 import { MONTHS } from '@/constants/date-constants';
 import { Colors, Cyan, Electric } from '@/constants/theme';
@@ -14,6 +15,7 @@ import { getDayVariant, toDatabaseDow } from '@/helpers/session-helpers';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { type PlanSession, usePlan } from '@/providers/plan-provider';
+import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { supabase } from '@/services/supabase/client';
 import { usePlanGenerationStore } from '@/stores/plan-generation-store';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,6 +33,7 @@ export default function PlanScreen() {
 
     const { plan, sessions, planSessions, isLoading, streak, refresh } = usePlan();
     const { profile } = useCurrentUser();
+    const { openWithPlacement } = useSuperwallFunctions();
 
     const subscribe = usePlanGenerationStore(s => s.subscribe);
     const unsubscribe = usePlanGenerationStore(s => s.unsubscribe);
@@ -170,7 +173,7 @@ export default function PlanScreen() {
             );
         }
 
-        return <RestDayCard variant={selectedDayVariant} />;
+        return <RestDayCard variant={selectedDayVariant} sportSlug={profile?.sport?.slug} />;
     }
 
     const generatingRef = useRef(false);
@@ -203,10 +206,11 @@ export default function PlanScreen() {
 
     function handleConfirmGeneration() {
         setShowGenerateConfirm(false);
-        startGeneration();
+        openWithPlacement('generate_plan', startGeneration);
     }
 
     const showGenerationScreen = isGenerating || isError;
+    const tabBarInset = useTabBarInset();
 
     return (
         <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
@@ -214,25 +218,28 @@ export default function PlanScreen() {
             {showGenerationScreen ? (
                 <PlanGenerationScreen />
             ) : (
-                <View style={styles.content} >
+                // Completed-State scrollt selbst hinter die Bar (eigener Inset in PlanCompletedCard)
+                <View style={[styles.content, { paddingBottom: planExpired ? 0 : tabBarInset }]} >
 
-                    {/* Header */}
-                    <View style={styles.headerRow}>
-                        <JempText type="h1" style={styles.title}>{t('ui.plan')}</JempText>
-                        <View style={styles.weekInfo}>
-                            <JempText type="body-sm" color={theme.textMuted}>{month} {today.getFullYear()}</JempText>
-                            <JempText type="body-sm" gradient color={theme.primary}>Week {weekNumber}</JempText>
+                    {/* Header — the completed state brings its own collapsing title */}
+                    {!planExpired && (
+                        <View style={styles.headerRow}>
+                            <JempText type="h1" style={styles.title}>{t('ui.plan')}</JempText>
+                            <View style={styles.weekInfo}>
+                                <JempText type="body-sm" color={theme.textMuted}>{month} {today.getFullYear()}</JempText>
+                                <JempText type="body-sm" gradient color={theme.primary}>Week {weekNumber}</JempText>
+                            </View>
                         </View>
-                    </View>
+                    )}
 
                     {isLoading ? (
                         <View style={styles.centered}>
                             <ActivityIndicator color={theme.primary} />
                         </View>
                     ) : !plan ? (
-                        <EmptyPlanCard onGenerate={startGeneration} />
+                        <EmptyPlanCard onGenerate={() => openWithPlacement('generate_plan', startGeneration)} />
                     ) : planExpired ? (
-                        <PlanCompletedCard planId={plan.id} planName={plan.name} planStartDate={plan.start_date} onGenerate={() => setShowGenerateConfirm(true)} />
+                        <PlanCompletedCard onGenerate={() => setShowGenerateConfirm(true)} />
                     ) : (
                         <>
                             <StatsCard />
@@ -290,7 +297,7 @@ export default function PlanScreen() {
 
 const styles = StyleSheet.create({
     root: { flex: 1 },
-    content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32, gap: 20, height: "100%" },
+    content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32, gap: 20, flex: 1 },
 
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
     title: { letterSpacing: -0.5 },

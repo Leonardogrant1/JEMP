@@ -1,5 +1,5 @@
+import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/web/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { JempText } from "../jemp-text";
@@ -21,16 +21,13 @@ export function SettingsRow({ icon, label, onPress, loading, destructive, rightE
 
     return (
         <Pressable
-            style={({ pressed }) => [
-                styles.settingsRow,
-                { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },
-            ]}
+            style={({ pressed }) => [styles.settingsRow, pressed && { opacity: 0.6 }]}
             onPress={onPress}
             disabled={loading}
         >
-            <View style={[styles.settingsIconBox, { backgroundColor: theme.background }, destructive && styles.settingsIconBoxDestructive]}>
+            <View style={styles.iconWrap}>
                 {loading
-                    ? <ActivityIndicator size="small" color={destructive ? '#ef4444' : '#fff'} />
+                    ? <ActivityIndicator size="small" color={destructive ? '#ef4444' : theme.textMuted} />
                     : icon
                 }
             </View>
@@ -44,20 +41,15 @@ const styles = StyleSheet.create({
     settingsRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 12,
         paddingHorizontal: 16,
-        paddingVertical: 14,
-        borderRadius: 16,
-        gap: 14,
+        paddingVertical: 15,
     },
-    settingsIconBox: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
+    iconWrap: {
+        width: 24,
         alignItems: 'center',
-        justifyContent: 'center',
     },
-    settingsIconBoxDestructive: {
-        backgroundColor: '#ef444418',
+    settingsLabel: {
+        flex: 1,
     },
-    settingsLabel: { flex: 1 },
-})
+});

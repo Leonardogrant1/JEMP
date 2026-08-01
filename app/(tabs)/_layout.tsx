@@ -1,5 +1,5 @@
-import { Confetti } from '@/components/confetti';
 import Logo from '@/assets/icons/logo.svg';
+import { Confetti } from '@/components/confetti';
 import { TabBar } from '@/components/tab-bar';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -7,8 +7,8 @@ import { acquireBackgroundAudio, addBackgroundTickListener, releaseBackgroundAud
 import { useAuth } from '@/providers/auth-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { useNotifications } from '@/providers/notification-provider';
-import { useRevenueCat } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
 import { PREMIUM_IDENTIFIER } from '@/services/purchases/revenuecat/constants';
+import { useRevenueCat } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
 import { supabase } from '@/services/supabase/client';
 import { useDevToolsStore } from '@/stores/dev-tools-store';
 import { useOnboardingStore } from '@/stores/onboarding-store';
@@ -16,6 +16,7 @@ import { usePlanGenerationStore } from '@/stores/plan-generation-store';
 import { useTutorialStore } from '@/stores/tutorial-store';
 import { devResetPlan } from '@/utils/dev-reset-plan';
 import { resetOnboardingProfile } from '@/utils/reset-onboarding';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueryClient } from '@tanstack/react-query';
 import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
@@ -23,7 +24,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, Tabs } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function TabLayout() {
@@ -36,6 +36,7 @@ export default function TabLayout() {
   const queryClient = useQueryClient();
   const [devOpen, setDevOpen] = useState(false);
   const devButtonsVisible = useDevToolsStore(s => s.devButtonsVisible);
+  const hideSparklineData = useDevToolsStore(s => s.hideSparklineData);
   const [showDevCongrats, setShowDevCongrats] = useState(false);
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const hasSeenTutorial = useTutorialStore(s => s.hasSeenTutorial);
@@ -149,7 +150,10 @@ export default function TabLayout() {
     <View style={{ flex: 1 }}>
       <Tabs
         tabBar={props => <TabBar {...props} />}
-        screenOptions={{ headerShown: false }}
+        // Workaround für react-navigation#12755: mit Tab-Animation werden bei
+        // schnellem Wechsel Szenen von react-native-screens abgehängt → blank screen
+        detachInactiveScreens={false}
+        screenOptions={{ headerShown: false, animation: "shift" }}
       >
         <Tabs.Screen name="index" />
         <Tabs.Screen name="plan" />
@@ -278,6 +282,15 @@ export default function TabLayout() {
                 }}
               >
                 <Text style={styles.debugButtonText}>📸 Snapshot Levels</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.debugButton, hideSparklineData && { backgroundColor: 'rgba(34,197,94,0.85)' }]}
+                onPress={() => useDevToolsStore.getState().toggleHideSparklineData()}
+              >
+                <Text style={styles.debugButtonText}>
+                  {hideSparklineData ? '📉 Charts: empty state ON' : '📉 Charts: empty state'}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity

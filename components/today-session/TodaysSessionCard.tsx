@@ -7,6 +7,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
 import { usePlan, WorkoutSession } from '@/providers/plan-provider';
+import { useSessionThumbnailsQuery } from '@/queries/use-session-thumbnails-query';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -28,6 +29,7 @@ export function TodaysSessionCard({ nextSession }: TodaysSessionCardProps) {
     const { planSessions } = usePlan();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+    const { data: remoteThumbnails } = useSessionThumbnailsQuery();
 
     const todayModeSlug = useMemo(() => {
         return getSessionModeSlug(nextSession, planSessions);
@@ -66,7 +68,7 @@ export function TodaysSessionCard({ nextSession }: TodaysSessionCardProps) {
                 disabled={nextSession.status !== 'completed'}
             >
                 <Image
-                    source={getSessionImage(nextSession.primary_exercise_slug, nextSession.primary_image_group)}
+                    source={getSessionImage(nextSession.primary_exercise_slug, nextSession.primary_image_group, remoteThumbnails)}
                     style={StyleSheet.absoluteFill}
                     contentFit="cover"
                     contentPosition="top center"

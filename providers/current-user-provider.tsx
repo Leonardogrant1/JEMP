@@ -44,7 +44,7 @@ export function CurrentUserProvider({ children }: { children: React.ReactNode })
 
         const { data } = await supabase
             .from('user_profiles')
-            .select('*, sport:sports(id, slug, name_i18n)')
+            .select('*, sport:sports(id, slug, name_i18n, banner_storage_path, group_name)')
             .eq('id', user.id)
             .single();
 

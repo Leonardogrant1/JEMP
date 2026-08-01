@@ -1,6 +1,7 @@
 import { getSessionImage } from "@/constants/session-images";
 import { Cyan, Electric } from "@/constants/theme";
 import { getSessionModeSlug } from "@/helpers/session-helpers";
+import { useSessionThumbnailsQuery } from "@/queries/use-session-thumbnails-query";
 import { usePlan, WorkoutSession } from "@/providers/plan-provider";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -18,11 +19,12 @@ export function SessionCard({ session, modeSlug: propModeSlug, theme }: { sessio
     const { planSessions } = usePlan();
 
     const modeSlug = propModeSlug !== undefined ? propModeSlug : getSessionModeSlug(session, planSessions);
+    const { data: remoteThumbnails } = useSessionThumbnailsQuery();
 
     return (
         <View style={styles.sessionCard}>
             <Image
-                source={getSessionImage(session.primary_exercise_slug, session.primary_image_group)}
+                source={getSessionImage(session.primary_exercise_slug, session.primary_image_group, remoteThumbnails)}
                 style={StyleSheet.absoluteFill}
                 contentFit="cover"
                 contentPosition="center"

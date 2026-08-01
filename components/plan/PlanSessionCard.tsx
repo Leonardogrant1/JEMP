@@ -1,6 +1,7 @@
 import { getSessionImage } from "@/constants/session-images";
 import { Cyan, Electric, GradientMid } from "@/constants/theme";
 import { toDateStr } from "@/helpers/date-helpers";
+import { useSessionThumbnailsQuery } from "@/queries/use-session-thumbnails-query";
 import { PlanSession, usePlan, WorkoutSession } from "@/providers/plan-provider";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -22,6 +23,7 @@ export function PlanSessionCard({ planSession, nextSession: propNextSession, the
     const router = useRouter();
     const { t } = useTranslation();
     const { sessions } = usePlan();
+    const { data: remoteThumbnails } = useSessionThumbnailsQuery();
 
     const nextSession = propNextSession !== undefined ? propNextSession : useMemo(() => {
         const todayStr = toDateStr(new Date());
@@ -35,7 +37,7 @@ export function PlanSessionCard({ planSession, nextSession: propNextSession, the
     return (
         <View style={styles.sessionCard}>
             <Image
-                source={getSessionImage(planSession.primary_exercise_slug, planSession.primary_image_group)}
+                source={getSessionImage(planSession.primary_exercise_slug, planSession.primary_image_group, remoteThumbnails)}
                 style={StyleSheet.absoluteFill}
                 contentFit="cover"
                 contentPosition="center"

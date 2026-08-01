@@ -42,7 +42,7 @@ const VARIANT_TITLE: Record<DayVariant, string> = {
     tournament: 'ui.tournament_day',
 };
 
-function DayIcon({ variant, size = 42 }: { variant: DayVariant; size?: number }) {
+function DayIcon({ variant, sportSlug, size = 42 }: { variant: DayVariant; sportSlug?: string | null; size?: number }) {
     switch (variant) {
         case 'training':   return <WhistleIcon width={size} height={size} />;
         case 'game':       return <GameIcon width={size} height={size} />;
@@ -56,12 +56,13 @@ function DayIcon({ variant, size = 42 }: { variant: DayVariant; size?: number })
 
 type Props = {
     variant?: DayVariant;
+    sportSlug?: string | null;
     nextSessionDate?: Date;
     nextSessionLabel?: string;
     onViewInPlan?: () => void;
 };
 
-export function RestDayCard({ variant = 'rest', nextSessionDate, nextSessionLabel, onViewInPlan }: Props = {}) {
+export function RestDayCard({ variant = 'rest', sportSlug, nextSessionDate, nextSessionLabel, onViewInPlan }: Props = {}) {
     const { t, i18n } = useTranslation();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
@@ -72,7 +73,7 @@ export function RestDayCard({ variant = 'rest', nextSessionDate, nextSessionLabe
 
     return (
         <View style={styles.root}>
-            <DayIcon variant={variant} size={42} />
+            <DayIcon variant={variant} sportSlug={sportSlug} size={42} />
             <JempText type="body-l" color={theme.textMuted}>{t(VARIANT_TITLE[variant] as any)}</JempText>
 
             {dayLabel && (

@@ -1,4 +1,5 @@
 import { DayVariant, RestDayCard } from '@/components/rest-day-card';
+import { useTabBarInset } from '@/components/tab-bar';
 import { PlanCompletedHomeCard } from '@/components/today-session/PlanCompletedHomeCard';
 import { PlanGenerating } from '@/components/today-session/PlanGenerating';
 import { TodayScreenHeader } from '@/components/today-session/TodayScreenHeader';
@@ -37,6 +38,7 @@ export default function HomeScreen() {
     }, [profile]);
 
     const { isGenerating } = usePlanGenerationStore();
+    const tabBarInset = useTabBarInset();
 
     // Same condition as the plan tab: past the end date no sessions exist,
     // so point to the plan tab's completion state instead of a rest day
@@ -46,10 +48,10 @@ export default function HomeScreen() {
     return (
         <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
             {isGenerating ? <PlanGenerating /> :
-                <View style={styles.content}>
+                <View style={[styles.content, { paddingBottom: tabBarInset }]}>
 
                     {/* ── Header ── */}
-                    <TodayScreenHeader profile={profile} />
+                    <TodayScreenHeader />
 
                     {planExpired ? (
                         <PlanCompletedHomeCard />
@@ -60,6 +62,7 @@ export default function HomeScreen() {
                     ) : (
                         <RestDayCard
                             variant={todayVariant}
+                            sportSlug={profile?.sport?.slug}
                             nextSessionDate={nextScheduledSession ? new Date(nextScheduledSession.scheduled_at!) : undefined}
                             onViewInPlan={nextScheduledSession ? () => {
                                 const dateStr = new Date(nextScheduledSession.scheduled_at!).toISOString().split('T')[0];
