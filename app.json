@@ -57,6 +57,13 @@
         }
       ],
       [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "JEMP benötigt Zugriff auf deine Kamera, um deine Sprunghöhe per Video zu messen.",
+          "enableMicrophonePermission": false
+        }
+      ],
+      [
         "expo-audio",
         {
           "microphonePermission": false,

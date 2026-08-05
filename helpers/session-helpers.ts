@@ -29,7 +29,9 @@ function getNextScheduledSession(sessions: WorkoutSession[]): WorkoutSession | n
 }
 
 
-function getTodaySession(sessions: WorkoutSession[]) {
+// Alle für heute relevanten Sessions, sortiert: laufende zuerst (auch von
+// anderen Tagen), dann heute geplante, dann heute abgeschlossene
+function getTodaySessions(sessions: WorkoutSession[]): WorkoutSession[] {
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const tomorrowStart = new Date(todayStart);
@@ -40,15 +42,13 @@ function getTodaySession(sessions: WorkoutSession[]) {
         return d >= todayStart && d < tomorrowStart;
     };
 
-    // Priority: in_progress > completed today > scheduled today
-    const inProgress = sessions.find(s => s.status === 'in_progress');
-    if (inProgress) return inProgress;
+    const rank = (s: WorkoutSession) =>
+        s.status === 'in_progress' ? 0 : s.status === 'scheduled' ? 1 : 2;
 
-    const completedToday = sessions.find(s => s.status === 'completed' && isToday(s));
-    if (completedToday) return completedToday;
-
-    const scheduledToday = sessions.find(s => s.status === 'scheduled' && isToday(s));
-    return scheduledToday ?? null;
+    return sessions
+        .filter(s => s.status === 'in_progress' || ((s.status === 'scheduled' || s.status === 'completed') && isToday(s)))
+        .sort((a, b) => rank(a) - rank(b) ||
+            new Date(a.scheduled_at!).getTime() - new Date(b.scheduled_at!).getTime());
 }
 
 
@@ -67,4 +67,4 @@ function getDayVariant(date: Date, weeklySchedule: WeeklySchedule | null | undef
 }
 
 
-export { getNextScheduledSession, getTodaySession, getDayVariant, toDatabaseDow, getSessionModeSlug };
+export { getNextScheduledSession, getTodaySessions, getDayVariant, toDatabaseDow, getSessionModeSlug };

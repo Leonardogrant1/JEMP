@@ -19,17 +19,19 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
+// Kraftsport (strength) bewusst NICHT wählbar — deren Sport IST das Krafttraining,
+// JEMPs "Athletik um den Sport herum"-Modell greift dort nicht. DB-Rows bleiben
+// für Bestandsprofile erhalten.
 const GROUP_TITLE_KEYS: Record<string, string> = {
     combat_sports: 'sport_group.martial_arts',
     team_sports: 'sport_group.team',
     athletics: 'sport_group.athletics',
-    strength: 'sport_group.strength',
     endurance: 'sport_group.endurance',
     racket_sports: 'sport_group.racket',
     other: 'sport_group.other',
 };
 
-const GROUP_ORDER = ['combat_sports', 'team_sports', 'athletics', 'strength', 'endurance', 'racket_sports', 'other'];
+const GROUP_ORDER = ['combat_sports', 'team_sports', 'athletics', 'endurance', 'racket_sports', 'other'];
 
 type Sport = { id: string; slug: string; group_name: string; name_i18n: Record<string, string> | null };
 
@@ -44,8 +46,11 @@ export default function SportScreen() {
     const currentSportId = profile?.sport_id ?? null;
 
     const [sports, setSports] = useState<Sport[]>([]);
-    const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+    // Auswahl abgeleitet aus dem Profil, optimistisch überschrieben beim Tap
+    const [overrideSlug, setOverrideSlug] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    const selectedSlug = overrideSlug
+        ?? (currentSportId ? sports.find(s => s.id === currentSportId)?.slug ?? null : null);
 
     useEffect(() => {
         supabase
@@ -56,17 +61,8 @@ export default function SportScreen() {
             });
     }, []);
 
-    useEffect(() => {
-        if (currentSportId && sports.length > 0) {
-            const current = sports.find(s => s.id === currentSportId);
-            setSelectedSlug(current?.slug ?? null);
-        } else {
-            setSelectedSlug(null);
-        }
-    }, [currentSportId, sports]);
-
     async function handleSelect(sport: Sport) {
-        setSelectedSlug(sport.slug);
+        setOverrideSlug(sport.slug);
         setSaving(true);
         await supabase.from('user_profiles').update({ sport_id: sport.id }).eq('id', userId);
         setSaving(false);

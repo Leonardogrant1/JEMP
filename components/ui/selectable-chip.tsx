@@ -1,6 +1,7 @@
 import { JempText } from '@/components/jemp-text';
 import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import * as Haptics from 'expo-haptics';
 import { StyleSheet, TouchableOpacity } from 'react-native';
 
 interface Props {
@@ -19,12 +20,17 @@ export function SelectableChip({ label, selected, onPress, color, size = 'md', s
 
     return (
         <TouchableOpacity
-            onPress={onPress}
+            onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onPress();
+            }}
             activeOpacity={0.7}
             style={[
                 styles.chip,
                 size === 'sm' && styles.chipSm,
-                { backgroundColor: theme.surface, borderColor: selected ? activeColor : theme.surface },
+                selected
+                    ? { backgroundColor: `${activeColor}18`, borderColor: activeColor }
+                    : { backgroundColor: theme.surface, borderColor: theme.surface },
                 style,
             ]}
         >

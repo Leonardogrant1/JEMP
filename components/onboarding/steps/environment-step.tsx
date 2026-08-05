@@ -1,6 +1,7 @@
 import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
 import { SelectableRow } from '@/components/ui/selectable-row';
+import { ENV_ICONS } from '@/constants/environment-icons';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
@@ -39,15 +40,15 @@ export function EnvironmentStep() {
         });
     }, []);
 
+    // Side-Effects außerhalb des Updaters — React verbietet setState-Aufrufe
+    // fremder Komponenten innerhalb der Updater-Funktion
     function toggle(env: EnvItem) {
-        setSelected((prev) => {
-            const next = new Set(prev);
-            next.has(env.id) ? next.delete(env.id) : next.add(env.id);
-            const ids = Array.from(next);
-            setStore({ environmentIds: ids });
-            setCanContinue(ids.length > 0);
-            return next;
-        });
+        const next = new Set(selected);
+        next.has(env.id) ? next.delete(env.id) : next.add(env.id);
+        setSelected(next);
+        const ids = Array.from(next);
+        setStore({ environmentIds: ids });
+        setCanContinue(ids.length > 0);
     }
 
     return (
@@ -66,6 +67,8 @@ export function EnvironmentStep() {
                         <SelectableRow
                             label={env.name_i18n?.[locale] ?? env.slug}
                             description={env.description_i18n?.[locale] ?? undefined}
+                            icon={ENV_ICONS[env.slug] ?? 'location-outline'}
+                            size="lg"
                             selected={selected.has(env.id)}
                             onPress={() => toggle(env)}
                         />

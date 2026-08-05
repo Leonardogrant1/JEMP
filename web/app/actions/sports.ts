@@ -10,6 +10,7 @@ export type Sport = {
   slug: string
   name_i18n: Json | null
   banner_storage_path: string | null
+  animation_storage_path: string | null
 }
 
 async function requireUser() {
@@ -43,13 +44,14 @@ async function requireAdmin() {
 export type SportGroup = {
   group_name: string
   banner_storage_path: string | null
+  animation_storage_path: string | null
 }
 
 export async function getSports(): Promise<Sport[]> {
   await requireUser()
   const { data, error } = await supabase
     .from('sports')
-    .select('id, slug, name_i18n, banner_storage_path')
+    .select('id, slug, name_i18n, banner_storage_path, animation_storage_path')
     .order('slug')
   if (error) throw new Error(error.message)
   return data
@@ -68,11 +70,18 @@ export async function getSportGroups(): Promise<SportGroup[]> {
     .select('group_name, banner_storage_path')
   if (bannersError) throw new Error(bannersError.message)
 
+  const { data: animations, error: animationsError } = await supabase
+    .from('sport_group_animations')
+    .select('group_name, animation_storage_path')
+  if (animationsError) throw new Error(animationsError.message)
+
   const bannerByGroup = new Map(banners.map(b => [b.group_name, b.banner_storage_path]))
+  const animationByGroup = new Map(animations.map(a => [a.group_name, a.animation_storage_path]))
   const groups = [...new Set(sports.map(s => s.group_name))]
   return groups.map(group_name => ({
     group_name,
     banner_storage_path: bannerByGroup.get(group_name) ?? null,
+    animation_storage_path: animationByGroup.get(group_name) ?? null,
   }))
 }
 
@@ -151,5 +160,81 @@ export async function updateSportGroupBanner(
 
   if (old?.banner_storage_path && old.banner_storage_path !== banner_storage_path) {
     await supabase.storage.from('sport-banners').remove([old.banner_storage_path])
+  }
+}
+
+// ── Training-day Lottie animations (same pattern as banners) ──────────────
+
+export async function getSportAnimationUploadUrl(
+  sportId: string
+): Promise<{ signedUrl: string; path: string }> {
+  await requireAdmin()
+
+  // Timestamped path so a new upload gets a fresh URL (no stale CDN/app caches)
+  const path = `animations/${sportId}-${Date.now()}.json`
+  const { data, error } = await supabase.storage
+    .from('sport-animations')
+    .createSignedUploadUrl(path)
+
+  if (error) throw new Error(error.message)
+  return { signedUrl: data.signedUrl, path }
+}
+
+export async function updateSportAnimation(
+  id: string,
+  animation_storage_path: string | null
+): Promise<void> {
+  await requireAdmin()
+
+  const { data: old } = await supabase
+    .from('sports')
+    .select('animation_storage_path')
+    .eq('id', id)
+    .single()
+
+  const { error } = await supabase
+    .from('sports')
+    .update({ animation_storage_path })
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+
+  if (old?.animation_storage_path && old.animation_storage_path !== animation_storage_path) {
+    await supabase.storage.from('sport-animations').remove([old.animation_storage_path])
+  }
+}
+
+export async function getSportGroupAnimationUploadUrl(
+  groupName: string
+): Promise<{ signedUrl: string; path: string }> {
+  await requireAdmin()
+
+  const path = `groups/${groupName}-${Date.now()}.json`
+  const { data, error } = await supabase.storage
+    .from('sport-animations')
+    .createSignedUploadUrl(path)
+
+  if (error) throw new Error(error.message)
+  return { signedUrl: data.signedUrl, path }
+}
+
+export async function updateSportGroupAnimation(
+  groupName: string,
+  animation_storage_path: string | null
+): Promise<void> {
+  await requireAdmin()
+
+  const { data: old } = await supabase
+    .from('sport_group_animations')
+    .select('animation_storage_path')
+    .eq('group_name', groupName)
+    .maybeSingle()
+
+  const { error } = await supabase
+    .from('sport_group_animations')
+    .upsert({ group_name: groupName, animation_storage_path, updated_at: new Date().toISOString() })
+  if (error) throw new Error(error.message)
+
+  if (old?.animation_storage_path && old.animation_storage_path !== animation_storage_path) {
+    await supabase.storage.from('sport-animations').remove([old.animation_storage_path])
   }
 }

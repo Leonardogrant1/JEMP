@@ -1,12 +1,14 @@
 import { BottomBar } from '@/components/active-session/BottomBar';
 import { ExerciseCard } from '@/components/active-session/ExerciseCard';
+import { ExerciseCompleteOverlay } from '@/components/active-session/ExerciseCompleteOverlay';
 import { LogSetSection } from '@/components/active-session/LogSetSection';
-import { RestTimerCard } from '@/components/active-session/RestTimerCard';
+import { LogSetSheet } from '@/components/active-session/LogSetSheet';
+import { RestOverlay } from '@/components/active-session/RestOverlay';
+import { SessionCongrats } from '@/components/active-session/SessionCongrats';
 import { SessionHeader } from '@/components/active-session/SessionHeader';
 import { TimerAutoStopper } from '@/components/active-session/timer-auto-stopper';
-import { Confetti } from '@/components/confetti';
 import { JempText } from '@/components/jemp-text';
-import { Colors, Cyan, Electric } from '@/constants/theme';
+import { Colors } from '@/constants/theme';
 import { loadUnit } from '@/helpers/format';
 import { calculateProgression } from '@/helpers/progression-suggestion';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -19,14 +21,11 @@ import { useActiveSessionStore } from '@/stores/active-session-store';
 import type { FlatExercise } from '@/stores/active-session-ui-store';
 import { useActiveSessionUIStore } from '@/stores/active-session-ui-store';
 import { useKeepAwake } from 'expo-keep-awake';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator,
-    Modal,
-    Pressable,
     ScrollView,
     StyleSheet,
     View,
@@ -192,34 +191,14 @@ function ActiveSessionContent({ id, session }: { id: string; session: SessionDet
 
     if (!current) return null;
 
-    // ── Congrats dialog ──
+    // ── Finish screen: Trophy + gestaffelte Texte direkt auf dem Background ──
     if (showCongrats) {
         return (
-            <Modal transparent animationType="fade" visible statusBarTranslucent>
-                <View style={styles.congratsOverlay}>
-                    <Confetti />
-                    <View style={[styles.congratsCard, { backgroundColor: theme.surface }]}>
-                        <JempText type="body-l" style={styles.congratsEmoji}>🏆</JempText>
-                        <JempText type="h1" style={{ textAlign: 'center' }}>{t('ui.congrats_title')}</JempText>
-                        <JempText type="body-l" color={theme.textMuted} style={{ textAlign: 'center' }}>
-                            {session.name}
-                        </JempText>
-                        <Pressable
-                            onPress={() => router.replace(`/session-summary/${id}` as any)}
-                            style={styles.congratsBtn}
-                        >
-                            <LinearGradient
-                                colors={[Cyan[500], Electric[500]]}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 0 }}
-                                style={styles.congratsBtnGradient}
-                            >
-                                <JempText type="button" color="#fff">{t('ui.view_summary')}</JempText>
-                            </LinearGradient>
-                        </Pressable>
-                    </View>
-                </View>
-            </Modal>
+            <SessionCongrats
+                sessionName={session.name}
+                buttonLabel={t('ui.view_summary')}
+                onPress={() => router.replace(`/session-summary/${id}` as any)}
+            />
         );
     }
 
@@ -230,12 +209,17 @@ function ActiveSessionContent({ id, session }: { id: string; session: SessionDet
             <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                     <ExerciseCard />
-                    <RestTimerCard />
                     <LogSetSection />
                 </ScrollView>
 
                 <BottomBar />
             </KeyboardAvoidingView>
+
+            {/* Satz-Eingabe als Sheet, Pause als Vollbild-Overlay,
+                Check-Moment beim Übungsabschluss obendrauf */}
+            <LogSetSheet />
+            <RestOverlay />
+            <ExerciseCompleteOverlay />
         </SafeAreaView>
     );
 }
@@ -245,35 +229,7 @@ function ActiveSessionContent({ id, session }: { id: string; session: SessionDet
 const styles = StyleSheet.create({
     root: { flex: 1 },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24, gap: 20 },
+    // Extra-Bottom-Padding, damit die Inputs nicht hinter den Floating-Buttons liegen
+    content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 110, gap: 20 },
 
-    congratsOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.75)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-    },
-    congratsCard: {
-        width: '100%',
-        borderRadius: 24,
-        padding: 32,
-        alignItems: 'center',
-        gap: 16,
-    },
-    congratsEmoji: {
-        fontSize: 64,
-        lineHeight: 72,
-    },
-    congratsBtn: {
-        borderRadius: 100,
-        overflow: 'hidden',
-        width: '100%',
-        marginTop: 8,
-    },
-    congratsBtnGradient: {
-        height: 52,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
 });

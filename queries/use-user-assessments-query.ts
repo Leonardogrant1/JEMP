@@ -24,7 +24,7 @@ async function fetchUserAssessments(userId: string) {
         .order('created_at', { ascending: false })
         .order('id', { ascending: true });
 
-    return (data ?? []).map((ua) => ({
+    const rows = (data ?? []).map((ua) => ({
         id: ua.id,
         status: ua.status,
         completed_at: ua.completed_at,
@@ -37,6 +37,22 @@ async function fetchUserAssessments(userId: string) {
                 .filter((s: any): s is string => !!s),
         },
     }));
+
+    // Pro Assessment darf nur EIN Eintrag erscheinen: die offene Row des neuen
+    // Zyklus verdrängt alte Completed-Ergebnisse, und unter mehreren Completed-
+    // Rows im 28-Tage-Fenster gewinnt die neueste (rows sind created_at desc)
+    const openAssessmentIds = new Set(
+        rows.filter(r => r.status !== 'completed').map(r => r.assessment.id),
+    );
+    const seenCompleted = new Set<string>();
+    return rows.filter(r => {
+        if (r.status !== 'completed') return true;
+        const assessmentId = r.assessment.id;
+        if (openAssessmentIds.has(assessmentId)) return false;
+        if (seenCompleted.has(assessmentId)) return false;
+        seenCompleted.add(assessmentId);
+        return true;
+    });
 }
 
 export type UserAssessment = Awaited<ReturnType<typeof fetchUserAssessments>>[number];

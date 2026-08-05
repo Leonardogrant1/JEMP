@@ -813,6 +813,24 @@ export type Database = {
           },
         ]
       }
+      sport_group_animations: {
+        Row: {
+          animation_storage_path: string | null
+          group_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          animation_storage_path?: string | null
+          group_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          animation_storage_path?: string | null
+          group_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       sport_group_banners: {
         Row: {
           banner_storage_path: string | null
@@ -833,6 +851,7 @@ export type Database = {
       }
       sports: {
         Row: {
+          animation_storage_path: string | null
           banner_storage_path: string | null
           created_at: string | null
           group_name: string
@@ -842,6 +861,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          animation_storage_path?: string | null
           banner_storage_path?: string | null
           created_at?: string | null
           group_name: string
@@ -851,6 +871,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          animation_storage_path?: string | null
           banner_storage_path?: string | null
           created_at?: string | null
           group_name?: string

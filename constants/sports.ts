@@ -1,5 +1,8 @@
 export type SportItem = { slug: string; label: string };
 
+/** Kampfsport-Slugs — bestimmt u. a. „Kampf" statt „Spiel" im Wochenplan */
+export const COMBAT_SPORT_SLUGS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
+
 export const SPORT_GROUPS: { title: string; titleKey: string; sports: SportItem[] }[] = [
     {
         title: 'Kampfsport',
@@ -37,16 +40,9 @@ export const SPORT_GROUPS: { title: string; titleKey: string; sports: SportItem[
             { slug: 'throwing', label: 'Wurf' },
         ],
     },
-    {
-        title: 'Kraft',
-        titleKey: 'sport_group.strength',
-        sports: [
-            { slug: 'powerlifting', label: 'Powerlifting' },
-            { slug: 'weightlifting', label: 'Gewichtheben' },
-            { slug: 'crossfit', label: 'CrossFit' },
-            { slug: 'bodybuilding', label: 'Bodybuilding' },
-        ],
-    },
+    // Kraftsport bewusst entfernt (Powerlifting/Weightlifting/CrossFit/Bodybuilding):
+    // deren Sport IST das Krafttraining — JEMPs Ergänzungs-Modell greift dort nicht.
+    // DB-Rows bleiben für Bestandsprofile erhalten.
     {
         title: 'Ausdauer',
         titleKey: 'sport_group.endurance',

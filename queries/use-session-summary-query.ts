@@ -15,7 +15,7 @@ async function fetchSessionSummary(id: string) {
                     id, order_index,
                     target_sets, target_reps_min, target_reps_max,
                     target_load_type, target_load_value, target_rest_seconds,
-                    exercise:exercises ( id, name, body_region ),
+                    exercise:exercises ( id, name, body_region, slug, image_group, thumbnail_storage_path ),
                     workout_session_performed_sets (
                         set_number, side, performed_reps, performed_load_value,
                         performed_rpe, performed_duration_seconds

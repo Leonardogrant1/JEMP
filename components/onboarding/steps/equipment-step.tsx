@@ -42,7 +42,8 @@ export function EquipmentStep() {
     const storedEquipmentIds = useOnboardingStore((s) => s.equipmentIds);
     const [equipments, setEquipments] = useState<EquipmentItem[]>([]);
     const [deselected, setDeselected] = useState<Set<string>>(new Set());
-    const [loading, setLoading] = useState(true);
+    // Ohne Environments gibt es nichts zu laden — direkt fertig starten
+    const [loading, setLoading] = useState(environmentIds.length > 0);
 
     useEffect(() => {
         async function load() {
@@ -76,18 +77,17 @@ export function EquipmentStep() {
             setLoading(false);
         }
         if (environmentIds.length > 0) load();
-        else setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Side-Effects außerhalb des Updaters — React verbietet setState-Aufrufe
+    // fremder Komponenten innerhalb der Updater-Funktion
     function toggle(id: string) {
-        setDeselected((prev) => {
-            const next = new Set(prev);
-            next.has(id) ? next.delete(id) : next.add(id);
-            const active = equipments.filter((e) => !next.has(e.id)).map((e) => e.id);
-            setStore({ equipmentIds: active });
-            return next;
-        });
+        const next = new Set(deselected);
+        next.has(id) ? next.delete(id) : next.add(id);
+        setDeselected(next);
+        const active = equipments.filter((e) => !next.has(e.id)).map((e) => e.id);
+        setStore({ equipmentIds: active });
     }
 
     function getLabel(eq: EquipmentItem) {
@@ -114,7 +114,7 @@ export function EquipmentStep() {
             </Animated.View>
             <Animated.View entering={FadeInDown.delay(360).duration(500).springify()}>
                 <View style={styles.chipGrid}>
-                    {equipments.map((eq) => (
+                    {[...equipments].sort((a, b) => getLabel(a).localeCompare(getLabel(b), locale)).map((eq) => (
                         <SelectableChip
                             key={eq.id}
                             label={getLabel(eq)}

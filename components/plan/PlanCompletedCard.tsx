@@ -29,6 +29,7 @@ import Reanimated, {
 } from "react-native-reanimated";
 import { JempText } from "../jemp-text";
 import { StatsStrip, type StatStripItem } from "../profile/stats-strip";
+import { SectionHeader } from "./SectionHeader";
 import { AssessmentRow } from "../progress/assessment-row";
 import { useTabBarInset } from "../tab-bar";
 
@@ -41,21 +42,6 @@ const sectionEnter = (delay: number) => FadeInUp.duration(450).delay(delay).easi
 
 interface PlanCompletedCardProps {
     onGenerate: () => void;
-}
-
-/** Section header: gradient accent bar + gradient uppercase label */
-function SectionHeader({ label }: { label: string }) {
-    return (
-        <View style={styles.sectionHeaderRow}>
-            <LinearGradient
-                colors={[Cyan[500], Electric[500]]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={styles.sectionAccentBar}
-            />
-            <JempText type="button" gradient>{label.toUpperCase()}</JempText>
-        </View>
-    );
 }
 
 /** Segmented bar: completed (gradient) / skipped (muted) / cancelled (red), clip-wipe reveal */
@@ -391,8 +377,6 @@ const styles = StyleSheet.create({
     centeredText: { textAlign: 'center' },
 
     section: { gap: 8, marginTop: 10 },
-    sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    sectionAccentBar: { width: 3, height: 24, borderRadius: 2 },
 
     adherenceSection: { gap: 8, marginTop: 10 },
     adherenceRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },

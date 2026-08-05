@@ -64,7 +64,7 @@ export default function AssessmentScreen() {
     const completeAssessment = useCompleteAssessment();
     const { openWithPlacement } = useSuperwallFunctions();
     const [rating, setRating] = useState(5);
-    const [mode, setMode] = useState<'manual' | 'timer'>('manual');
+    const [mode, setMode] = useState<'manual' | 'timer' | 'video'>('manual');
     const [repMode, setRepMode] = useState<'1rm' | '5rm'>('5rm');
     const [tapeCm, setTapeCm] = useState(0);
     const [repCount, setRepCount] = useState(0);
@@ -79,7 +79,7 @@ export default function AssessmentScreen() {
     const [showInfo, setShowInfo] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const [showVideo, setShowVideo] = useState(false);
-    const { assessmentConfirmed, setAssessmentConfirmed } = useModalResultStore();
+    const { assessmentConfirmed, setAssessmentConfirmed, measuredJumpCm, setMeasuredJumpCm } = useModalResultStore();
 
     useFocusEffect(useCallback(() => {
         if (assessmentConfirmed) {
@@ -87,6 +87,15 @@ export default function AssessmentScreen() {
             openWithPlacement('log_assessment', handleSubmit);
         }
     }, [assessmentConfirmed]));
+
+    // Ergebnis der Video-Sprungmessung (/jump-measure) übernehmen
+    useFocusEffect(useCallback(() => {
+        if (measuredJumpCm != null) {
+            setMeasuredJumpCm(null);
+            setTapeCm(measuredJumpCm);
+            setMode('video');
+        }
+    }, [measuredJumpCm]));
     const stopwatch = useStopwatch();
 
     if (isLoading) {
@@ -141,6 +150,8 @@ export default function AssessmentScreen() {
     const isRatingBased = unitKey === 'rating';
     const isCmBased = unitKey === 'cm';
     const isCountBased = unitKey === 'count';
+    // Vertical Jump lässt sich per Video über die Flugzeit messen
+    const isVideoMeasurable = assessment.slug === 'vertical_jump';
     const repMax = REP_RAIL_MAX[assessment.slug] ?? REP_RAIL_DEFAULT_MAX;
 
     const localeUnit = locale === 'de' ? 'de' : 'en';
@@ -355,11 +366,15 @@ export default function AssessmentScreen() {
                     </View>
                 )}
 
-                {/* Mode toggle — only for time-based */}
-                {isTimeBased && (
+                {/* Mode toggle — time-based: manual/timer, vertical jump: manual/video */}
+                {(isTimeBased || isVideoMeasurable) && (
                     <View style={[styles.modeToggle, { backgroundColor: theme.surface }]}>
-                        {(['manual', 'timer'] as const).map(m => {
+                        {(isTimeBased ? (['manual', 'timer'] as const) : (['manual', 'video'] as const)).map(m => {
                             const active = mode === m;
+                            const icon = m === 'manual' ? 'create-outline' : m === 'timer' ? 'timer-outline' : 'videocam-outline';
+                            const label = m === 'manual'
+                                ? t('ui.assessment_mode_manual')
+                                : m === 'timer' ? t('ui.assessment_mode_timer') : t('ui.assessment_mode_video');
                             return (
                                 <Pressable
                                     key={m}
@@ -374,13 +389,9 @@ export default function AssessmentScreen() {
                                             style={StyleSheet.absoluteFill}
                                         />
                                     )}
-                                    <Ionicons
-                                        name={m === 'manual' ? 'create-outline' : 'timer-outline'}
-                                        size={14}
-                                        color={active ? '#fff' : theme.textMuted}
-                                    />
+                                    <Ionicons name={icon} size={14} color={active ? '#fff' : theme.textMuted} />
                                     <JempText type="button" color={active ? '#fff' : theme.textMuted}>
-                                        {m === 'manual' ? t('ui.assessment_mode_manual') : t('ui.assessment_mode_timer')}
+                                        {label}
                                     </JempText>
                                 </Pressable>
                             );
@@ -418,7 +429,47 @@ export default function AssessmentScreen() {
                 )}
 
                 {/* Input section */}
-                {!isRatingBased && mode === 'manual' && isCountBased ? (
+                {!isRatingBased && mode === 'video' ? (
+                    <View style={styles.inputSection}>
+                        {tapeCm > 0 ? (
+                            <>
+                                <JempText type="caption" color={theme.textMuted}>
+                                    {t('jump.measured_label').toUpperCase()}
+                                </JempText>
+                                <JempText type="hero" gradient style={styles.heroReadout}>
+                                    {formatMetricValue(tapeCm)}
+                                </JempText>
+                                <Pressable
+                                    style={[styles.remeasureBtn, { backgroundColor: theme.surface }]}
+                                    onPress={() => router.push('/jump-measure')}
+                                >
+                                    <Ionicons name="videocam-outline" size={18} color={theme.text} />
+                                    <JempText type="button" color={theme.text}>{t('jump.remeasure')}</JempText>
+                                </Pressable>
+                            </>
+                        ) : (
+                            <>
+                                <View style={[styles.videoExplainer, { backgroundColor: theme.surface }]}>
+                                    <Ionicons name="videocam-outline" size={30} color={GradientMid} />
+                                    <JempText type="body-l" color={theme.textMuted} style={styles.videoExplainerText}>
+                                        {t('jump.video_explainer')}
+                                    </JempText>
+                                </View>
+                                <Pressable style={styles.measureCta} onPress={() => router.push('/jump-measure')}>
+                                    <LinearGradient
+                                        colors={[Cyan[500], Electric[500]]}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 0 }}
+                                        style={styles.measureCtaGradient}
+                                    >
+                                        <Ionicons name="videocam" size={20} color="#fff" />
+                                        <JempText type="button" color="#fff">{t('jump.measure_cta')}</JempText>
+                                    </LinearGradient>
+                                </Pressable>
+                            </>
+                        )}
+                    </View>
+                ) : !isRatingBased && mode === 'manual' && isCountBased ? (
                     <View style={styles.inputSection}>
                         <JempText type="h2">{t('ui.enter_result')}</JempText>
                         <JempText type="caption" color={theme.textMuted}>
@@ -790,6 +841,34 @@ const styles = StyleSheet.create({
 
     // Manual input
     inputSection: { alignItems: 'center', gap: 8, paddingTop: 12 },
+
+    // Video measurement (vertical jump)
+    videoExplainer: {
+        alignItems: 'center',
+        gap: 10,
+        borderRadius: 16,
+        paddingHorizontal: 20,
+        paddingVertical: 22,
+        width: '100%',
+    },
+    videoExplainerText: { textAlign: 'center', lineHeight: 22 },
+    measureCta: { borderRadius: 100, overflow: 'hidden', width: '100%', marginTop: 4 },
+    measureCtaGradient: {
+        height: 52,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+    },
+    remeasureBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 100,
+        marginTop: 8,
+    },
     wheelRow: {
         flexDirection: 'row',
         justifyContent: 'center',

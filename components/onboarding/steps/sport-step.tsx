@@ -10,17 +10,18 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
+// Kraftsport (strength) bewusst NICHT wählbar — deren Sport IST das Krafttraining,
+// JEMPs "Athletik um den Sport herum"-Modell greift dort nicht.
 const GROUP_TITLE_KEYS: Record<string, string> = {
     combat_sports: 'sport_group.martial_arts',
     team_sports: 'sport_group.team',
     athletics: 'sport_group.athletics',
-    strength: 'sport_group.strength',
     endurance: 'sport_group.endurance',
     racket_sports: 'sport_group.racket',
     other: 'sport_group.other',
 };
 
-const GROUP_ORDER = ['combat_sports', 'team_sports', 'athletics', 'strength', 'endurance', 'racket_sports', 'other'];
+const GROUP_ORDER = ['combat_sports', 'team_sports', 'athletics', 'endurance', 'racket_sports', 'other'];
 
 type Sport = { id: string; slug: string; group_name: string; name_i18n: Record<string, string> | null };
 

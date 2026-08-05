@@ -13,6 +13,10 @@ export function EquipmentStep() {
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const { allEquipment, selectedEquipmentIds, toggleEquipment } = usePlanWizardStore();
 
+    // Nach sichtbarem Label sortieren — die Slug-Reihenfolge wirkt für den User zufällig
+    const label = (eq: (typeof allEquipment)[number]) => eq.name_i18n?.[locale] ?? eq.slug;
+    const sorted = [...allEquipment].sort((a, b) => label(a).localeCompare(label(b), locale));
+
     return (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('plan.equipment_title')}</JempText>
@@ -20,10 +24,10 @@ export function EquipmentStep() {
                 {t('plan.equipment_subtitle')}
             </JempText>
             <View style={styles.chipGrid}>
-                {allEquipment.map(eq => (
+                {sorted.map(eq => (
                     <SelectableChip
                         key={eq.id}
-                        label={eq.name_i18n?.[locale] ?? eq.slug}
+                        label={label(eq)}
                         selected={selectedEquipmentIds.has(eq.id)}
                         onPress={() => toggleEquipment(eq.id)}
                     />

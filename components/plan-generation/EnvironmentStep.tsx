@@ -4,7 +4,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { usePlanWizardStore } from '@/stores/plan-wizard-store';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 export function EnvironmentStep() {
     const { t, i18n } = useTranslation();
@@ -14,7 +14,7 @@ export function EnvironmentStep() {
     const { allEnvs, selectedEnvIds, toggleEnv } = usePlanWizardStore();
 
     return (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.root}>
             <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('plan.environment_title')}</JempText>
             <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
                 {t('plan.environment_subtitle')}
@@ -26,18 +26,25 @@ export function EnvironmentStep() {
                         label={env.name_i18n?.[locale] ?? env.slug}
                         description={env.description_i18n?.[locale]}
                         icon={env.icon}
+                        size="lg"
                         selected={selectedEnvIds.has(env.id)}
                         onPress={() => toggleEnv(env.id)}
                     />
                 ))}
             </View>
-        </ScrollView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 120 },
+    root: { flex: 1, paddingHorizontal: 20, paddingTop: 24 },
     bodyTitle: { marginBottom: 6 },
-    subtitle: { lineHeight: 20, marginBottom: 24 },
-    envList: { gap: 12 },
+    subtitle: { lineHeight: 20 },
+    envList: {
+        flex: 1,
+        justifyContent: 'center',
+        gap: 12,
+        // Optischer Ausgleich für die Bottom-Bar
+        paddingBottom: 90,
+    },
 });

@@ -5,12 +5,16 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAdjustRestTimes } from '@/mutations/use-adjust-rest-times';
 import { usePlan } from '@/providers/plan-provider';
 import { useSessionDetailQuery } from '@/queries/use-session-detail-query';
+import { useToastStore } from '@/stores/toast-store';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import Reanimated, {
+    FadeInDown,
+    LinearTransition,
     runOnJS,
     useAnimatedStyle,
     useSharedValue,
@@ -21,6 +25,44 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const STEP = 15;
 const MIN_ADJUST = -60;
 const MAX_ADJUST = 120;
+
+// Stepper-Button mit Press-Feedback: GradientMid-Tint fadet beim Drücken ein
+// und beim Loslassen wieder aus. Animiert wird nur die Opacity einer statischen
+// Overlay-Fläche — backgroundColor-Interpolation flackert bei Re-Renders,
+// weil der Worklet dabei neu erzeugt wird.
+function StepButton({ icon, disabled, theme, onPress }: {
+    icon: keyof typeof Ionicons.glyphMap;
+    disabled: boolean;
+    theme: (typeof Colors)['light'];
+    onPress: () => void;
+}) {
+    const pressed = useSharedValue(0);
+
+    function handlePressIn() {
+        pressed.value = withTiming(1, { duration: 100 });
+    }
+
+    function handlePressOut() {
+        pressed.value = withTiming(0, { duration: 250 });
+    }
+
+    const overlayStyle = useAnimatedStyle(() => ({
+        opacity: pressed.value,
+    }));
+
+    return (
+        <Pressable
+            style={[styles.stepBtn, { backgroundColor: theme.background, opacity: disabled ? 0.35 : 1 }]}
+            disabled={disabled}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            onPress={onPress}
+        >
+            <Reanimated.View pointerEvents="none" style={[styles.stepBtnOverlay, overlayStyle]} />
+            <Ionicons name={icon} size={24} color={theme.text} />
+        </Pressable>
+    );
+}
 
 export default function SessionRestAdjustScreen() {
     const { t } = useTranslation();
@@ -49,10 +91,15 @@ export default function SessionRestAdjustScreen() {
     const slideValue = useSharedValue(600);
     const overlayValue = useSharedValue(0);
 
-    useEffect(() => {
+    // Eintritts-Animation über onLayout statt useEffect — die Lint-Regel
+    // react-hooks/immutability verbietet Shared-Value-Mutation im useEffect
+    const entered = useRef(false);
+    function handleSheetLayout() {
+        if (entered.current) return;
+        entered.current = true;
         overlayValue.value = withTiming(1, { duration: 250 });
         slideValue.value = withTiming(0, { duration: 300 });
-    }, []);
+    }
 
     function goBack() {
         router.back();
@@ -67,12 +114,15 @@ export default function SessionRestAdjustScreen() {
 
     function handleConfirm() {
         if (!session) return;
-        adjustRestTimes({
-            sessionId,
-            workoutPlanSessionId: session.workout_plan_session_id ?? null,
-            restAdjustSeconds: adjust === 0 ? null : adjust,
-            scope,
-        });
+        adjustRestTimes(
+            {
+                sessionId,
+                workoutPlanSessionId: session.workout_plan_session_id ?? null,
+                restAdjustSeconds: adjust === 0 ? null : adjust,
+                scope,
+            },
+            { onSuccess: () => useToastStore.getState().show(t('ui.rest_adjusted')) },
+        );
         handleClose();
     }
 
@@ -86,10 +136,24 @@ export default function SessionRestAdjustScreen() {
 
     const adjustLabel = adjust > 0 ? `+${adjust}s` : adjust < 0 ? `${adjust}s` : '±0s';
 
+    // Kompakte Spannen-Vorschau statt Übungsliste: alle Pausen ändern sich ums
+    // gleiche Delta, interessant ist nur die resultierende Spanne + der 15s-Clamp
+    const baseRests = sessionDetail
+        ? sessionDetail.blocks.flatMap((b) => b.exercises.map((ex) => ex.target_rest_seconds || restFallback))
+        : [];
+    const formatRange = (values: number[]) => {
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        return min === max ? `${min}s` : `${min}–${max}s`;
+    };
+    const nextRests = baseRests.map((base) => Math.max(15, base + adjust));
+    const restsClamped = baseRests.some((base) => base + adjust < 15);
+
     return (
         <Reanimated.View style={[styles.backdrop, backdropStyle]}>
             <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
             <Reanimated.View
+                onLayout={handleSheetLayout}
                 style={[styles.sheet, { backgroundColor: theme.surface, maxHeight: windowHeight * 0.85 }, sheetStyle]}
             >
                 <View style={[styles.content, { paddingBottom: insets.bottom + 8 }]}>
@@ -109,13 +173,15 @@ export default function SessionRestAdjustScreen() {
                     </JempText>
 
                     <View style={styles.stepper}>
-                        <Pressable
-                            style={[styles.stepBtn, { backgroundColor: theme.background, opacity: adjust <= MIN_ADJUST ? 0.35 : 1 }]}
+                        <StepButton
+                            icon="remove"
                             disabled={adjust <= MIN_ADJUST}
-                            onPress={() => setAdjust((v) => Math.max(MIN_ADJUST, v - STEP))}
-                        >
-                            <Ionicons name="remove" size={24} color={theme.text} />
-                        </Pressable>
+                            theme={theme}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                setAdjust((v) => Math.max(MIN_ADJUST, v - STEP));
+                            }}
+                        />
                         <View style={styles.stepValue}>
                             <JempText type="h1" color={adjust === 0 ? theme.text : GradientMid}>
                                 {adjustLabel}
@@ -124,60 +190,51 @@ export default function SessionRestAdjustScreen() {
                                 {adjust === 0 ? t('ui.session_rest_recommended') : t('ui.session_rest_per_pause')}
                             </JempText>
                         </View>
-                        <Pressable
-                            style={[styles.stepBtn, { backgroundColor: theme.background, opacity: adjust >= MAX_ADJUST ? 0.35 : 1 }]}
+                        <StepButton
+                            icon="add"
                             disabled={adjust >= MAX_ADJUST}
-                            onPress={() => setAdjust((v) => Math.min(MAX_ADJUST, v + STEP))}
-                        >
-                            <Ionicons name="add" size={24} color={theme.text} />
-                        </Pressable>
+                            theme={theme}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                setAdjust((v) => Math.min(MAX_ADJUST, v + STEP));
+                            }}
+                        />
                     </View>
 
-                    {sessionDetail && sessionDetail.blocks.length > 0 && (
-                        <View style={[styles.preview, { backgroundColor: theme.background }]}>
+                    {baseRests.length > 0 && (
+                        <View style={styles.preview}>
                             <JempText type="caption" color={theme.textMuted}>
                                 {t('ui.session_rest_preview')}
                             </JempText>
-                            <ScrollView
-                                style={styles.previewScroll}
-                                showsVerticalScrollIndicator
-                                nestedScrollEnabled
+                            <Reanimated.View
+                                layout={LinearTransition.duration(200)}
+                                style={styles.previewRow}
                             >
-                                {sessionDetail.blocks.map((block) => (
-                                    <View key={block.id} style={styles.previewBlock}>
-                                        {block.block_type && (
-                                            <JempText type="caption" color={theme.textMuted} style={styles.previewBlockTitle}>
-                                                {t(`block_type.${block.block_type.slug}` as any)}
+                                <View style={[styles.previewChip, { backgroundColor: theme.background }]}>
+                                    <JempText type="body-l" color={adjust === 0 ? theme.text : theme.textMuted}>
+                                        {formatRange(baseRests)}
+                                    </JempText>
+                                </View>
+                                {adjust !== 0 && (
+                                    <>
+                                        <Ionicons name="arrow-forward" size={16} color={theme.textMuted} />
+                                        <Reanimated.View
+                                            key={formatRange(nextRests)}
+                                            entering={FadeInDown.duration(180)}
+                                            style={[styles.previewChip, { backgroundColor: `${GradientMid}18` }]}
+                                        >
+                                            <JempText type="body-l" color={GradientMid}>
+                                                {formatRange(nextRests)}
                                             </JempText>
-                                        )}
-                                        {block.exercises.map((ex) => {
-                                            const base = ex.target_rest_seconds || restFallback;
-                                            const next = Math.max(15, base + adjust);
-                                            return (
-                                                <View key={ex.id} style={styles.previewRow}>
-                                                    <JempText
-                                                        type="body-sm"
-                                                        color={theme.text}
-                                                        numberOfLines={1}
-                                                        style={styles.previewName}
-                                                    >
-                                                        {ex.exercise?.name}
-                                                    </JempText>
-                                                    <JempText type="body-sm" color={next === base ? theme.text : theme.textMuted}>
-                                                        {base}s
-                                                    </JempText>
-                                                    {next !== base && (
-                                                        <>
-                                                            <Ionicons name="arrow-forward" size={12} color={theme.textMuted} />
-                                                            <JempText type="body-sm" color={GradientMid}>{next}s</JempText>
-                                                        </>
-                                                    )}
-                                                </View>
-                                            );
-                                        })}
-                                    </View>
-                                ))}
-                            </ScrollView>
+                                        </Reanimated.View>
+                                    </>
+                                )}
+                            </Reanimated.View>
+                            {restsClamped && (
+                                <JempText type="caption" color={theme.textMuted}>
+                                    {t('ui.session_rest_min_hint')}
+                                </JempText>
+                            )}
                         </View>
                     )}
 
@@ -267,6 +324,15 @@ const styles = StyleSheet.create({
         borderRadius: 26,
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden',
+    },
+    stepBtnOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: `${GradientMid}40`,
     },
     stepValue: {
         alignItems: 'center',
@@ -274,32 +340,18 @@ const styles = StyleSheet.create({
         gap: 2,
     },
     preview: {
-        borderRadius: 14,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
+        alignItems: 'center',
         gap: 8,
-        flexShrink: 1,
-    },
-    previewScroll: {
-        flexGrow: 0,
-        flexShrink: 1,
-    },
-    previewBlock: {
-        gap: 4,
-        marginBottom: 10,
-    },
-    previewBlockTitle: {
-        letterSpacing: 1,
-        textTransform: 'uppercase',
     },
     previewRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        gap: 10,
     },
-    previewName: {
-        flex: 1,
-        marginRight: 8,
+    previewChip: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 100,
     },
     scopeOptions: {
         gap: 10,

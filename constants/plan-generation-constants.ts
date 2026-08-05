@@ -18,7 +18,9 @@ const WEEK_DAYS: { dow: number; key: string }[] = [
     { dow: 7, key: 'onboarding.workout_prefs_day_sun' },
 ];
 
-const PHASES: Phase[] = ['sport', 'environment', 'equipment', 'equipment-env', 'goals', 'body', 'schedule', 'weekly'];
+// Sport-Woche VOR den JEMP-Trainingstagen — die Sport-Termine sind Fixpunkte,
+// um die herum die JEMP-Tage gelegt werden (und in deren Rows sie gehintet sind)
+const PHASES: Phase[] = ['environment', 'equipment', 'equipment-env', 'goals', 'body', 'weekly', 'schedule', 'schedule-detail'];
 
 
 export { DURATIONS, PHASES, WEEK_DAYS };

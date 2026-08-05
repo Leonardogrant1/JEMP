@@ -21,9 +21,10 @@ type Props = {
     youtubeUrl: string | null | undefined;
     thumbnailStoragePath: string | null | undefined;
     exerciseId: string;
+    height?: number;
 };
 
-function StorageVideoPlayer({ uri }: { uri: string }) {
+function StorageVideoPlayer({ uri, height }: { uri: string; height: number }) {
     const player = useVideoPlayer(uri, p => {
         p.loop = false;
     });
@@ -31,7 +32,7 @@ function StorageVideoPlayer({ uri }: { uri: string }) {
     return (
         <VideoView
             player={player}
-            style={styles.hero}
+            style={[styles.hero, { height }]}
             allowsFullscreen
             allowsPictureInPicture
             nativeControls
@@ -39,11 +40,11 @@ function StorageVideoPlayer({ uri }: { uri: string }) {
     );
 }
 
-function YoutubePlayer({ videoId }: { videoId: string }) {
+function YoutubePlayer({ videoId, height }: { videoId: string; height: number }) {
     const { width } = Dimensions.get('window');
     return (
-        <View style={styles.hero}>
-            <YoutubeIframe height={HERO_HEIGHT} width={width} videoId={videoId} play={false} />
+        <View style={[styles.hero, { height }]}>
+            <YoutubeIframe height={height} width={width} videoId={videoId} play={false} />
         </View>
     );
 }
@@ -52,17 +53,19 @@ function StaticHero({
     thumbnailStoragePath,
     youtubeUrl,
     exerciseId,
+    height,
 }: {
     thumbnailStoragePath: string | null | undefined;
     youtubeUrl: string | null | undefined;
     exerciseId: string;
+    height: number;
 }) {
     const thumbUrl = exerciseThumbnailUrl(thumbnailStoragePath);
     const source = thumbUrl ? { uri: thumbUrl } : PLACEHOLDER;
 
     return (
         <Pressable
-            style={styles.hero}
+            style={[styles.hero, { height }]}
             onPress={() => {
                 if (youtubeUrl) {
                     trackerManager.track('exercise_video_started', { exercise_id: exerciseId });
@@ -86,16 +89,16 @@ function StaticHero({
     );
 }
 
-export function ExerciseVideoHero({ videoStoragePath, youtubeUrl, thumbnailStoragePath, exerciseId }: Props) {
+export function ExerciseVideoHero({ videoStoragePath, youtubeUrl, thumbnailStoragePath, exerciseId, height = HERO_HEIGHT }: Props) {
     const videoUri = exerciseVideoUrl(videoStoragePath);
 
     if (videoUri) {
-        return <StorageVideoPlayer uri={videoUri} />;
+        return <StorageVideoPlayer uri={videoUri} height={height} />;
     }
 
     const youtubeId = youtubeUrl ? extractYoutubeId(youtubeUrl) : null;
     if (youtubeId) {
-        return <YoutubePlayer videoId={youtubeId} />;
+        return <YoutubePlayer videoId={youtubeId} height={height} />;
     }
 
     return (
@@ -103,13 +106,13 @@ export function ExerciseVideoHero({ videoStoragePath, youtubeUrl, thumbnailStora
             thumbnailStoragePath={thumbnailStoragePath}
             youtubeUrl={youtubeUrl}
             exerciseId={exerciseId}
+            height={height}
         />
     );
 }
 
 const styles = StyleSheet.create({
     hero: {
-        height: HERO_HEIGHT,
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',

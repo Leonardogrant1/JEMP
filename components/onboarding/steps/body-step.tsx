@@ -1,13 +1,41 @@
 import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
-import { HeightSlider, WeightSlider } from '@/components/ui/measurement-slider';
-import { Colors } from '@/constants/theme';
+import { HeightTape, WeightTape } from '@/components/ui/measurement-tape';
+import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
+import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
+
+function UnitSegment({ label, active, onPress, theme }: {
+    label: string;
+    active: boolean;
+    onPress: () => void;
+    theme: typeof Colors.dark;
+}) {
+    return (
+        <Pressable
+            onPress={() => {
+                if (active) return;
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onPress();
+            }}
+            style={[
+                styles.unitSegment,
+                active
+                    ? { backgroundColor: `${GradientMid}18`, borderColor: GradientMid }
+                    : { backgroundColor: 'transparent', borderColor: 'transparent' },
+            ]}
+        >
+            <JempText type="caption" color={active ? GradientMid : theme.textMuted} style={styles.unitSegmentText}>
+                {label}
+            </JempText>
+        </Pressable>
+    );
+}
 
 export function BodyStep() {
     const { t } = useTranslation();
@@ -18,7 +46,7 @@ export function BodyStep() {
     const storedUnitSystem = useOnboardingStore((s) => s.unit_system);
     const [weightKg, setWeightKg] = useState(storedWeight ?? 75);
     const [heightCm, setHeightCm] = useState(storedHeight ?? 175);
-    // One system for both sliders — persisted as the app-wide display preference
+    // One system for both tapes — persisted as the app-wide display preference
     const imperial = storedUnitSystem === 'imperial';
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
@@ -40,11 +68,7 @@ export function BodyStep() {
     }
 
     return (
-        <ScrollView
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-        >
+        <View style={styles.container}>
             <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
                 <JempText type="h1" style={styles.headline}>{t('onboarding.body_title')}</JempText>
             </Animated.View>
@@ -53,37 +77,77 @@ export function BodyStep() {
                     {t('onboarding.body_subtitle')}
                 </JempText>
             </Animated.View>
-            <Animated.View entering={FadeInDown.delay(360).duration(500).springify()}>
-                <WeightSlider
-                    valueKg={weightKg}
-                    onChange={handleWeight}
-                    unit={imperial ? 'lbs' : 'kg'}
-                    onToggleUnit={() => setStore({ unit_system: imperial ? 'metric' : 'imperial' })}
-                />
-            </Animated.View>
-            <Animated.View entering={FadeInDown.delay(480).duration(500).springify()}>
-                <HeightSlider
-                    valueCm={heightCm}
-                    onChange={handleHeight}
-                    unit={imperial ? 'ft' : 'cm'}
-                    onToggleUnit={() => setStore({ unit_system: imperial ? 'metric' : 'imperial' })}
-                />
-            </Animated.View>
-        </ScrollView>
+            <View style={styles.tapes}>
+                <Animated.View entering={FadeInDown.delay(360).duration(500).springify()}>
+                    <WeightTape
+                        valueKg={weightKg}
+                        onChange={handleWeight}
+                        unit={imperial ? 'lbs' : 'kg'}
+                    />
+                </Animated.View>
+                <Animated.View entering={FadeInDown.delay(480).duration(500).springify()}>
+                    <HeightTape
+                        valueCm={heightCm}
+                        onChange={handleHeight}
+                        unit={imperial ? 'in' : 'cm'}
+                    />
+                </Animated.View>
+                <Animated.View entering={FadeInDown.delay(600).duration(500).springify()} style={styles.unitToggleWrap}>
+                    <View style={[styles.unitToggle, { backgroundColor: theme.surface }]}>
+                        <UnitSegment
+                            label="kg · cm"
+                            active={!imperial}
+                            onPress={() => setStore({ unit_system: 'metric' })}
+                            theme={theme}
+                        />
+                        <UnitSegment
+                            label="lbs · in"
+                            active={imperial}
+                            onPress={() => setStore({ unit_system: 'imperial' })}
+                            theme={theme}
+                        />
+                    </View>
+                </Animated.View>
+            </View>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    content: {
-        flexGrow: 1,
-        justifyContent: 'center',
+    container: {
+        flex: 1,
         paddingHorizontal: 28,
-        paddingVertical: 32,
+        paddingTop: 32,
     },
     headline: {
         marginBottom: 10,
     },
     subtitle: {
-        marginBottom: 8,
+        lineHeight: 20,
+    },
+    tapes: {
+        flex: 1,
+        justifyContent: 'center',
+        gap: 40,
+        // Optischer Ausgleich für den Continue-Button
+        paddingBottom: 60,
+    },
+    unitToggleWrap: {
+        alignItems: 'center',
+    },
+    unitToggle: {
+        flexDirection: 'row',
+        borderRadius: 100,
+        padding: 3,
+        gap: 3,
+    },
+    unitSegment: {
+        borderRadius: 100,
+        borderWidth: 1,
+        paddingVertical: 7,
+        paddingHorizontal: 16,
+    },
+    unitSegmentText: {
+        fontWeight: '600',
     },
 });

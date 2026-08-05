@@ -61,6 +61,8 @@ type ActiveSessionUIState = {
     initialized: boolean;
     isCompleting: boolean;
     showCongrats: boolean;
+    showLogSheet: boolean;
+    showExerciseComplete: boolean;
 };
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -85,6 +87,8 @@ type ActiveSessionUIActions = {
     setInitialized: (v: boolean) => void;
     setIsCompleting: (v: boolean) => void;
     setShowCongrats: (v: boolean) => void;
+    setShowLogSheet: (v: boolean) => void;
+    setShowExerciseComplete: (v: boolean) => void;
 
     resetInputs: () => void;
     reset: () => void;
@@ -109,6 +113,8 @@ const INITIAL: ActiveSessionUIState = {
     initialized: false,
     isCompleting: false,
     showCongrats: false,
+    showLogSheet: false,
+    showExerciseComplete: false,
 };
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -140,6 +146,8 @@ export const useActiveSessionUIStore = create<ActiveSessionUIState & ActiveSessi
         setInitialized: (initialized) => set({ initialized }),
         setIsCompleting: (isCompleting) => set({ isCompleting }),
         setShowCongrats: (showCongrats) => set({ showCongrats }),
+        setShowLogSheet: (showLogSheet) => set({ showLogSheet }),
+        setShowExerciseComplete: (showExerciseComplete) => set({ showExerciseComplete }),
 
         resetInputs: () => set({
             reps: '', load: '', repsLeft: '', repsRight: '', loadLeft: '', loadRight: '',

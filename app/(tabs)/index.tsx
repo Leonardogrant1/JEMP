@@ -3,18 +3,18 @@ import { useTabBarInset } from '@/components/tab-bar';
 import { PlanCompletedHomeCard } from '@/components/today-session/PlanCompletedHomeCard';
 import { PlanGenerating } from '@/components/today-session/PlanGenerating';
 import { TodayScreenHeader } from '@/components/today-session/TodayScreenHeader';
-import { TodaysSessionCard } from '@/components/today-session/TodaysSessionCard';
+import { TodaysSessionCta, TodaysSessionHero } from '@/components/today-session/TodaysSessionCard';
+import { SessionPager } from '@/components/plan/SessionPager';
 import { Colors } from '@/constants/theme';
 import { toDateStr } from '@/helpers/date-helpers';
-import { getDayVariant, getNextScheduledSession, getTodaySession } from '@/helpers/session-helpers';
+import { getDayVariant, getNextScheduledSession, getTodaySessions } from '@/helpers/session-helpers';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlan } from '@/providers/plan-provider';
 import { usePlanGenerationStore } from '@/stores/plan-generation-store';
-import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
@@ -22,15 +22,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function HomeScreen() {
     const { profile } = useCurrentUser();
     const { plan, sessions } = usePlan();
-    const router = useRouter();
-    const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
-    const nextSession = useMemo(() => getTodaySession(sessions), [sessions]);
+    const todaySessions = useMemo(() => getTodaySessions(sessions), [sessions]);
     const nextScheduledSession = useMemo(
-        () => (nextSession ? null : getNextScheduledSession(sessions)),
-        [nextSession, sessions],
+        () => (todaySessions.length > 0 ? null : getNextScheduledSession(sessions)),
+        [todaySessions, sessions],
     );
 
     const todayVariant = useMemo((): DayVariant => {
@@ -55,19 +53,18 @@ export default function HomeScreen() {
 
                     {planExpired ? (
                         <PlanCompletedHomeCard />
-                    ) : nextSession ? (
-                        <TodaysSessionCard
-                            nextSession={nextSession}
+                    ) : todaySessions.length > 0 ? (
+                        <SessionPager
+                            sessions={todaySessions}
+                            theme={theme}
+                            renderCard={(s) => <TodaysSessionHero session={s} />}
+                            renderActions={(s) => <TodaysSessionCta session={s} />}
                         />
                     ) : (
                         <RestDayCard
                             variant={todayVariant}
-                            sportSlug={profile?.sport?.slug}
+                            sport={profile?.sport}
                             nextSessionDate={nextScheduledSession ? new Date(nextScheduledSession.scheduled_at!) : undefined}
-                            onViewInPlan={nextScheduledSession ? () => {
-                                const dateStr = new Date(nextScheduledSession.scheduled_at!).toISOString().split('T')[0];
-                                router.push(`/(tabs)/plan?date=${dateStr}`);
-                            } : undefined}
                         />
                     )}
 

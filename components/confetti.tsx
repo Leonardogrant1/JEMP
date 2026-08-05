@@ -73,19 +73,19 @@ function ConfettiParticle({ p }: { p: Particle }) {
     );
 }
 
-export function Confetti() {
+export function Confetti({ colors = COLORS }: { colors?: string[] } = {}) {
     const particles = useMemo<Particle[]>(() =>
         Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
             id: i,
-            color: COLORS[i % COLORS.length],
+            color: colors[i % colors.length],
             startX: rand(0, W),
             endX: rand(-80, W + 80),
             size: rand(8, 18),
-            rotation: rand(180, 720) * (Math.random() > 0.5 ? 1 : -1),
+            rotation: rand(180, 720) * (rand(0, 1) > 0.5 ? 1 : -1),
             delay: rand(0, 600),
             duration: rand(2200, 3600),
         })),
-    []);
+    [colors]);
 
     return (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">

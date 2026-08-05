@@ -8,7 +8,7 @@ export default async function SportsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <p className="text-sm text-gray-400">
-          {sports.length} Sportarten, {groups.length} Gruppen — Banner-Bilder für den Profil-Header
+          {sports.length} Sportarten, {groups.length} Gruppen — Banner für den Profil-Header, Lottie-Animationen für die Training-Day-Card
         </p>
       </div>
       <SportBannerGrid sports={sports} groups={groups} />

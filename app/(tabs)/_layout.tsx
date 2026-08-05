@@ -1,5 +1,5 @@
 import Logo from '@/assets/icons/logo.svg';
-import { Confetti } from '@/components/confetti';
+import { SessionCongrats } from '@/components/active-session/SessionCongrats';
 import { TabBar } from '@/components/tab-bar';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -37,6 +37,7 @@ export default function TabLayout() {
   const [devOpen, setDevOpen] = useState(false);
   const devButtonsVisible = useDevToolsStore(s => s.devButtonsVisible);
   const hideSparklineData = useDevToolsStore(s => s.hideSparklineData);
+  const forcePlanEmpty = useDevToolsStore(s => s.forcePlanEmpty);
   const [showDevCongrats, setShowDevCongrats] = useState(false);
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const hasSeenTutorial = useTutorialStore(s => s.hasSeenTutorial);
@@ -294,6 +295,15 @@ export default function TabLayout() {
               </TouchableOpacity>
 
               <TouchableOpacity
+                style={[styles.debugButton, forcePlanEmpty && { backgroundColor: 'rgba(34,197,94,0.85)' }]}
+                onPress={() => useDevToolsStore.getState().toggleForcePlanEmpty()}
+              >
+                <Text style={styles.debugButtonText}>
+                  {forcePlanEmpty ? '🗓 Plan: empty state ON' : '🗓 Plan: empty state'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
                 style={styles.debugButton}
                 onPress={async () => {
                   if (!session) return;
@@ -368,25 +378,14 @@ export default function TabLayout() {
         </View>
       )}
 
-      <Modal transparent animationType="fade" visible={showDevCongrats} statusBarTranslucent>
-        <View style={styles.congratsOverlay}>
-          <Confetti />
-          <View style={[styles.congratsCard, { backgroundColor: theme.surface }]}>
-            <Text style={styles.congratsEmoji}>🏆</Text>
-            <Text style={[styles.congratsTitle, { color: theme.text }]}>{t('ui.congrats_title')}</Text>
-            <Text style={[styles.congratsSubtitle, { color: theme.textMuted }]}>DEV — Test Session</Text>
-            <Pressable onPress={() => setShowDevCongrats(false)} style={styles.congratsBtn}>
-              <LinearGradient
-                colors={[Cyan[500], Electric[500]]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.congratsBtnGradient}
-              >
-                <Text style={styles.congratsBtnText}>{t('ui.cancel')}</Text>
-              </LinearGradient>
-            </Pressable>
-          </View>
-        </View>
+      {/* DEV-Preview des echten Finish-Screens der Active Session — Dummy-Daten,
+          exakt wie nach einer echten Session; der Summary-Button schließt hier nur */}
+      <Modal animationType="fade" visible={showDevCongrats} statusBarTranslucent>
+        <SessionCongrats
+          sessionName="Unterkörper Power — Woche 3"
+          buttonLabel={t('ui.view_summary')}
+          onPress={() => setShowDevCongrats(false)}
+        />
       </Modal>
 
       <Modal transparent animationType="fade" visible={showWelcomeDialog} statusBarTranslucent>

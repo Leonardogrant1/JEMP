@@ -6,12 +6,12 @@ import { BirthdayStep } from '@/components/onboarding/steps/birthday-step';
 import { BodyStep } from '@/components/onboarding/steps/body-step';
 import { CategoryFocusStep } from '@/components/onboarding/steps/category-focus-step';
 import { CategoryLevelStep } from '@/components/onboarding/steps/category-level-step';
-import { CategoryPriorityStep } from '@/components/onboarding/steps/category-priority-step';
 import { CompleteStep } from '@/components/onboarding/steps/complete-step';
 import { EnvironmentStep } from '@/components/onboarding/steps/environment-step';
 import { EquipmentStep } from '@/components/onboarding/steps/equipment-step';
 import { EquipmentEnvironmentStep } from '@/components/onboarding/steps/equipment-environment-step';
 import { GenderStep } from '@/components/onboarding/steps/gender-step';
+import { InjuriesStep } from '@/components/onboarding/steps/injuries-step';
 import { NameStep } from '@/components/onboarding/steps/name-step';
 import { NotificationSetupStep } from '@/components/onboarding/steps/notification-setup-step';
 import { PersonalizationStep } from '@/components/onboarding/steps/personalization-step';
@@ -26,12 +26,10 @@ import { WorkoutPrefsStep } from '@/components/onboarding/steps/workout-prefs-st
 import { WeeklyScheduleStep } from '@/components/onboarding/steps/weekly-schedule-step';
 import { OnboardingStep } from '@/components/onboarding/types';
 import * as Notifications from 'expo-notifications';
-import * as StoreReview from 'expo-store-review';
 import { useTranslation } from 'react-i18next';
 
 export default function OnboardingScreen() {
     const { t } = useTranslation();
-    const targetedCategories = useOnboardingStore((s) => s.targetedCategories);
     const environmentIds = useOnboardingStore((s) => s.environmentIds);
     const equipmentIds = useOnboardingStore((s) => s.equipmentIds);
 
@@ -52,15 +50,17 @@ export default function OnboardingScreen() {
         { component: BirthdayStep, theme: 'dark', initialCanContinue: false },
         { component: GenderStep, theme: 'dark', initialCanContinue: false },
         { component: BodyStep, theme: 'dark', initialCanContinue: false },
+        // Config-Reihenfolge spiegelt den Plan-Wizard: Orte → Equipment →
+        // Zuordnung → Ziele → Sport-Woche → Trainingstage (mit Sport-Hints) → Verletzungen
         { component: SportStep, theme: 'dark', initialCanContinue: false },
         { component: CategoryLevelStep, theme: 'dark', initialCanContinue: true },
-        { component: CategoryFocusStep, theme: 'dark', initialCanContinue: false },
-        { component: CategoryPriorityStep, theme: 'dark', initialCanContinue: true, shouldSkip: () => targetedCategories.length <= 1 },
         { component: EnvironmentStep, theme: 'dark', initialCanContinue: false },
         { component: EquipmentStep, theme: 'dark', initialCanContinue: true },
         { component: EquipmentEnvironmentStep, theme: 'dark', initialCanContinue: true, shouldSkip: () => environmentIds.length <= 1 || equipmentIds.length === 0 },
-        { component: WorkoutPrefsStep, theme: 'dark', initialCanContinue: false },
+        { component: CategoryFocusStep, theme: 'dark', initialCanContinue: false },
         { component: WeeklyScheduleStep, theme: 'dark', initialCanContinue: true },
+        { component: WorkoutPrefsStep, theme: 'dark', initialCanContinue: false },
+        { component: InjuriesStep, theme: 'dark', initialCanContinue: true },
         { component: CompleteStep, theme: 'dark', continueButtonText: t('onboarding.btn_create_plan') },
         { component: PersonalizationStep, theme: 'dark', showProgressIndicator: false, showContinueButton: false },
         {

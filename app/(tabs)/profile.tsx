@@ -1,8 +1,8 @@
 import BugIcon from '@/assets/icons/bug.svg';
-import CalendarIcon from '@/assets/icons/calendar.svg';
 import HeadsetIcon from '@/assets/icons/headset.svg';
 import LogoutIcon from '@/assets/icons/logout.svg';
 import RocketIcon from '@/assets/icons/rocket.svg';
+import BasketballIcon from '@/assets/icons/basketball.svg';
 import GlobeIcon from '@/assets/icons/globe.svg';
 import ShieldIcon from '@/assets/icons/shield.svg';
 import UnitIcon from '@/assets/icons/unit.svg';
@@ -24,7 +24,6 @@ import { useSportGroupBannerQuery } from '@/queries/use-sport-group-banner-query
 import { supabase } from '@/services/supabase/client';
 import { useDevToolsStore } from '@/stores/dev-tools-store';
 import { useProfileBannerStore } from '@/stores/profile-banner-store';
-import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { calculateAge } from '@/types/user-data';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -52,7 +51,6 @@ export default function ProfileScreen() {
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const { profile, refreshProfile } = useCurrentUser();
-    const { openWithPlacement } = useSuperwallFunctions();
     const devButtonsVisible = useDevToolsStore(s => s.devButtonsVisible);
     const setDevButtonsVisible = useDevToolsStore(s => s.setDevButtonsVisible);
 
@@ -244,6 +242,21 @@ export default function ProfileScreen() {
                             onPress={() => router.push('/edit-profile')}
                         />
                         <SettingsRow
+                            icon={<BasketballIcon width={20} height={20} />}
+                            label={t('ui.sport')}
+                            onPress={() => router.push('/sport')}
+                            rightElement={
+                                <View style={styles.settingsValueRow}>
+                                    {sportLabel && (
+                                        <JempText type="caption" color={theme.textMuted}>
+                                            {sportLabel}
+                                        </JempText>
+                                    )}
+                                    <Ionicons name="chevron-forward" size={16} color={theme.textSubtle} />
+                                </View>
+                            }
+                        />
+                        <SettingsRow
                             icon={<UnitIcon width={20} height={20} />}
                             label={t('ui.unit_system')}
                             onPress={() => router.push('/units')}
@@ -270,18 +283,6 @@ export default function ProfileScreen() {
                                     <Ionicons name="chevron-forward" size={16} color={theme.textSubtle} />
                                 </View>
                             }
-                        />
-                    </SettingsGroup>
-                </View>
-
-                {/* ── Training ── */}
-                <View style={styles.settingsSection}>
-                    <SectionLabel label={t('ui.section_training')} />
-                    <SettingsGroup>
-                        <SettingsRow
-                            icon={<CalendarIcon width={20} height={20} color={theme.textMuted} />}
-                            label={t('ui.new_plan')}
-                            onPress={() => openWithPlacement('generate_plan', () => router.push('/generate-plan'))}
                         />
                     </SettingsGroup>
                 </View>
