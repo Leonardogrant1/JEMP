@@ -3,19 +3,20 @@ import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
 import { SelectableChip } from '@/components/ui/selectable-chip';
 import { ENV_ICONS } from '@/constants/environment-icons';
-import { COMBAT_SPORT_SLUGS } from '@/constants/sports';
+import { getSportKind } from '@/constants/sports';
 import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTrainingAnimationBySlug } from '@/hooks/use-training-animation';
 import { supabase } from '@/services/supabase/client';
-import { DayEnvironment, useOnboardingStore } from '@/stores/onboarding-store';
+import { useOnboardingStore } from '@/stores/onboarding-store';
 import { SessionDuration } from '@/types/database';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 const DURATIONS: { value: SessionDuration; label: string }[] = [
@@ -38,7 +39,7 @@ export function WorkoutPrefsStep() {
     const sportSlug = useOnboardingStore((s) => s.sport_slug);
     const setStore = useOnboardingStore((s) => s.set);
     const trainingAnimation = useTrainingAnimationBySlug(sportSlug);
-    const isCombat = COMBAT_SPORT_SLUGS.has(sportSlug ?? '');
+    const sportKind = getSportKind(sportSlug);
     const sportSessions = weeklySchedule?.sessions ?? [];
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
@@ -53,19 +54,20 @@ export function WorkoutPrefsStep() {
         { value: 7, label: t('onboarding.workout_prefs_day_sun') },
     ];
 
-    const [selectedDays, setSelectedDays] = useState<Set<number>>(() => new Set(storedDays ?? []));
     const [selectedDuration, setSelectedDuration] = useState<SessionDuration | null>(storedDuration ?? null);
     const [environments, setEnvironments] = useState<EnvItem[]>([]);
-    const [dayEnvMap, setDayEnvMap] = useState<Record<number, string>>(() => {
-        const map: Record<number, string> = {};
-        storedDayEnvironments.forEach((de) => { map[de.day_of_week] = de.environment_id; });
-        return map;
-    });
+
+    // Tage + Env-Zuordnung leben direkt im Store — der training-day-editor-Sheet
+    // schreibt dorthin, die Rows spiegeln seine Änderungen live
+    const selectedDays = new Set(storedDays ?? []);
+    const dayEnvMap: Record<number, string> = {};
+    storedDayEnvironments.forEach((de) => { dayEnvMap[de.day_of_week] = de.environment_id; });
+    const multiEnv = environmentIds.length > 1;
 
     useEffect(() => {
-        validate(selectedDays, selectedDuration);
+        setCanContinue(selectedDays.size > 0 && selectedDuration !== null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [storedDays, selectedDuration]);
 
     useEffect(() => {
         if (environmentIds.length > 1) {
@@ -79,49 +81,30 @@ export function WorkoutPrefsStep() {
         }
     }, [environmentIds]);
 
-    function validate(days: Set<number>, duration: SessionDuration | null) {
-        setCanContinue(days.size > 0 && duration !== null);
-    }
-
-    function saveDayEnvironments(map: Record<number, string>) {
-        const dayEnvironments: DayEnvironment[] = Object.entries(map).map(([day, id]) => ({
-            day_of_week: Number(day),
-            environment_id: id,
-        }));
-        setStore({ dayEnvironments });
-    }
-
-    function toggleDay(value: number) {
+    // Wizard-Logik: neuer Tag → an + (bei mehreren Orten) Sheet zur Ort-Wahl;
+    // aktiver Tag → Sheet (dort „Tag leeren") bzw. bei einem Ort direkt abwählen
+    function handleDayPress(dow: number) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        const next = new Set(selectedDays);
-        next.has(value) ? next.delete(value) : next.add(value);
-        setSelectedDays(next);
-        setStore({ preferred_workout_days: Array.from(next) });
-        validate(next, selectedDuration);
-        // Env-Zuordnung eines abgewählten Tags mit aufräumen
-        if (!next.has(value) && dayEnvMap[value]) {
-            const { [value]: _removed, ...rest } = dayEnvMap;
-            setDayEnvMap(rest);
-            saveDayEnvironments(rest);
+        const active = selectedDays.has(dow);
+        if (!active) {
+            setStore({ preferred_workout_days: [...(storedDays ?? []), dow] });
+            if (multiEnv) router.push(`/training-day-editor?day=${dow}&source=onboarding`);
+            return;
         }
-    }
-
-    function toggleDayEnv(day: number, envId: string) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        const next = { ...dayEnvMap };
-        if (next[day] === envId) delete next[day];
-        else next[day] = envId;
-        setDayEnvMap(next);
-        saveDayEnvironments(next);
+        if (multiEnv) {
+            router.push(`/training-day-editor?day=${dow}&source=onboarding`);
+            return;
+        }
+        setStore({
+            preferred_workout_days: (storedDays ?? []).filter((d) => d !== dow),
+            dayEnvironments: storedDayEnvironments.filter((de) => de.day_of_week !== dow),
+        });
     }
 
     function selectDuration(value: SessionDuration) {
         setSelectedDuration(value);
         setStore({ preferred_session_duration: value });
-        validate(selectedDays, value);
     }
-
-    const multiEnv = environments.length > 1;
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -141,7 +124,7 @@ export function WorkoutPrefsStep() {
                         <TouchableOpacity
                             key={dow}
                             activeOpacity={0.7}
-                            onPress={() => toggleDay(dow)}
+                            onPress={() => handleDayPress(dow)}
                             style={[
                                 styles.dayRow,
                                 active
@@ -172,15 +155,19 @@ export function WorkoutPrefsStep() {
                                                     style={styles.sportHintLottie}
                                                 />
                                             )}
-                                            {sportSession.type === 'game' && (isCombat
-                                                ? <LottieView
+                                            {sportSession.type === 'game' && sportKind === 'combat' && (
+                                                <LottieView
                                                     source={require('@/assets/animations/fight.json')}
                                                     autoPlay
                                                     loop
                                                     style={styles.sportHintLottie}
                                                 />
-                                                : <GameIcon width={13} height={13} />)}
-                                            {sportSession.type === 'tournament' && (
+                                            )}
+                                            {sportSession.type === 'game' && sportKind === 'match' && (
+                                                <GameIcon width={13} height={13} />
+                                            )}
+                                            {/* Turnier bzw. Wettkampf (Individualsport) — beides Trophäe */}
+                                            {(sportSession.type === 'tournament' || (sportSession.type === 'game' && sportKind === 'individual')) && (
                                                 <LottieView
                                                     source={require('@/assets/animations/throphy.json')}
                                                     autoPlay
@@ -191,29 +178,18 @@ export function WorkoutPrefsStep() {
                                         </View>
                                     );
                                 })()}
-                                {/* Trainingsort direkt in der Row wählen — nur bei mehreren Orten */}
-                                {active && multiEnv && environments.map((env) => {
-                                    const envActive = dayEnvMap[dow] === env.id;
+                                {/* Zugewiesener Trainingsort (im Sheet gewählt) */}
+                                {active && (() => {
+                                    const env = environments.find((e) => e.id === dayEnvMap[dow]);
+                                    if (!env) return null;
                                     return (
-                                        <Pressable
-                                            key={env.id}
-                                            onPress={() => toggleDayEnv(dow, env.id)}
-                                            hitSlop={6}
-                                            style={[
-                                                styles.envToggle,
-                                                envActive
-                                                    ? { backgroundColor: `${GradientMid}18`, borderColor: GradientMid }
-                                                    : { backgroundColor: theme.surface, borderColor: 'transparent' },
-                                            ]}
-                                        >
-                                            <Ionicons
-                                                name={(ENV_ICONS[env.slug] ?? 'location-outline') as any}
-                                                size={15}
-                                                color={envActive ? GradientMid : theme.textMuted}
-                                            />
-                                        </Pressable>
+                                        <Ionicons
+                                            name={(ENV_ICONS[env.slug] ?? 'location-outline') as any}
+                                            size={15}
+                                            color={theme.textMuted}
+                                        />
                                     );
-                                })}
+                                })()}
                                 {active
                                     ? <Ionicons name="checkmark-circle" size={16} color={GradientMid} />
                                     : <Ionicons name="add" size={18} color={theme.textSubtle} />

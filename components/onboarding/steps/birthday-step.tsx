@@ -1,5 +1,6 @@
 import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
+import { StepScaffold } from '@/components/onboarding/step-scaffold';
 import { NumberWheel } from '@/components/ui/number-wheel';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -76,15 +77,7 @@ export function BirthdayStep() {
     }
 
     return (
-        <View style={styles.container}>
-            <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
-                <JempText type="h1" style={styles.headline}>{t('onboarding.birthday_title')}</JempText>
-            </Animated.View>
-            <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
-                <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
-                    {t('onboarding.birthday_subtitle')}
-                </JempText>
-            </Animated.View>
+        <StepScaffold title={t('onboarding.birthday_title')} subtitle={t('onboarding.birthday_subtitle')} centerContent>
             <Animated.View entering={FadeInDown.delay(360).duration(500).springify()} style={styles.row}>
                 <View style={styles.fieldWrap}>
                     <JempText type="caption" color={theme.textMuted} style={styles.label}>
@@ -124,22 +117,11 @@ export function BirthdayStep() {
                     />
                 </View>
             </Animated.View>
-        </View>
+        </StepScaffold>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        paddingHorizontal: 28,
-        paddingTop: 32,
-    },
-    headline: {
-        marginBottom: 10,
-    },
-    subtitle: {
-        marginBottom: 32,
-    },
     row: {
         flexDirection: 'row',
         gap: 10,

@@ -3,7 +3,7 @@ import { JempText } from '@/components/jemp-text';
 import { LOAD_COLORS } from '@/components/plan-generation/WeekLoadSummary';
 import { SegmentScale } from '@/components/ui/segment-scale';
 import { WEEK_DAYS } from '@/constants/plan-generation-constants';
-import { COMBAT_SPORT_SLUGS } from '@/constants/sports';
+import { getSportKind } from '@/constants/sports';
 import { Colors, GRADIENT, GradientMid } from '@/constants/theme';
 import { getSessionTypes } from '@/helpers/plan-generation-helpers';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -75,7 +75,6 @@ export default function SportDayEditorScreen() {
         ? obSchedule?.sessions ?? []
         : wizard.sportSessions;
     const sportSlug = isOnboarding ? obSportSlug : wizard.selectedSportSlug;
-    const combatSet = isOnboarding ? COMBAT_SPORT_SLUGS : wizard.combatSportSlugs;
     const preferredDaysArray = isOnboarding
         ? obPreferredDays ?? []
         : [...wizard.preferredDays];
@@ -85,7 +84,7 @@ export default function SportDayEditorScreen() {
     // Per Slug statt profile.sport — funktioniert auch im Onboarding, wo der
     // Sport noch nicht im Profil gespeichert ist
     const trainingAnimation = useTrainingAnimationBySlug(sportSlug);
-    const isCombat = combatSet.has(sportSlug ?? '');
+    const sportKind = getSportKind(sportSlug);
 
     function persistOnboarding(next: WeeklyScheduleSession[]) {
         obSet({ weekly_schedule: { sessions: next, notes: null } });
@@ -207,7 +206,7 @@ export default function SportDayEditorScreen() {
                             )}
 
                             <View>
-                                {getSessionTypes(sportSlug, combatSet).map((st, index) => {
+                                {getSessionTypes(sportSlug).map((st, index) => {
                                     const active = session?.type === st.key;
                                     return (
                                         <View key={st.key}>
@@ -227,15 +226,19 @@ export default function SportDayEditorScreen() {
                                                             style={styles.rowLottie}
                                                         />
                                                     )}
-                                                    {st.key === 'game' && (isCombat
-                                                        ? <LottieView
+                                                    {st.key === 'game' && sportKind === 'combat' && (
+                                                        <LottieView
                                                             source={require('@/assets/animations/fight.json')}
                                                             autoPlay
                                                             loop
                                                             style={styles.rowLottie}
                                                         />
-                                                        : <GameIcon width={16} height={16} />)}
-                                                    {st.key === 'tournament' && (
+                                                    )}
+                                                    {st.key === 'game' && sportKind === 'match' && (
+                                                        <GameIcon width={16} height={16} />
+                                                    )}
+                                                    {/* Turnier bzw. Wettkampf (Individualsport) — beides Trophäe */}
+                                                    {(st.key === 'tournament' || (st.key === 'game' && sportKind === 'individual')) && (
                                                         <LottieView
                                                             source={require('@/assets/animations/throphy.json')}
                                                             autoPlay

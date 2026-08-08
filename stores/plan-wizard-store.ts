@@ -56,7 +56,6 @@ export type PlanWizardState = {
 
     // Weekly sport schedule
     sportSessions: WeeklyScheduleSession[];
-    combatSportSlugs: Set<string>;
 
     // Actions
     initialize: (profile: UserProfile) => Promise<void>;
@@ -107,7 +106,6 @@ function getInitialState() {
         scheduleNotes: '',
         dayEnvMap: {} as Record<number, string>,
         sportSessions: [] as WeeklyScheduleSession[],
-        combatSportSlugs: new Set<string>(),
     };
 }
 
@@ -139,7 +137,7 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
             set({ dayEnvMap: {} });
         }
 
-        const [envsRes, userEquipRes, envEqRes, catsRes, targetedRes, userEnvsRes, userEqEnvRes, combatSportsRes] = await Promise.all([
+        const [envsRes, userEquipRes, envEqRes, catsRes, targetedRes, userEnvsRes, userEqEnvRes] = await Promise.all([
             supabase.from('environments').select('id, slug, name_i18n, description_i18n'),
             supabase.from('user_equipments').select('equipment_id').eq('user_id', profile.id),
             supabase.from('environment_equipments').select('environment_id, equipment:equipments(id, slug, name_i18n)'),
@@ -147,7 +145,6 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
             supabase.from('user_targeted_categories').select('category_id, priority').eq('user_id', profile.id).order('priority'),
             supabase.from('user_environments').select('environment_id').eq('user_id', profile.id),
             (supabase as any).from('user_equipment_environments').select('equipment_id, environment_id').eq('user_id', profile.id),
-            supabase.from('sports').select('slug').eq('group_name', 'combat_sports'),
         ]);
 
         const t = i18next.t.bind(i18next);
@@ -217,7 +214,6 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
                 rankedCategories,
                 selectedEquipmentIds: currentEquipIds,
                 savedEquipmentEnvMappings: userEqEnvRes.data ?? [],
-                combatSportSlugs: new Set((combatSportsRes.data ?? []).map(r => r.slug)),
                 loading: false,
             });
         }

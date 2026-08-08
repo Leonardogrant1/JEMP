@@ -173,14 +173,14 @@ function MainStack({ languageReady }: { languageReady: boolean }) {
         <Stack.Screen name="sport" options={{ animation: 'slide_from_bottom', headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="generate-plan" options={{ animation: 'slide_from_bottom', headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="new-plan" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
-        <Stack.Screen name="training-day-editor" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
       </Stack.Protected>
 
 
       <Stack.Screen name="language" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
       <Stack.Screen name="units" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
-      {/* Außerhalb des has_onboarded-Guards — der Sheet wird auch vom Onboarding gepusht (source=onboarding) */}
+      {/* Außerhalb des has_onboarded-Guards — die Sheets werden auch vom Onboarding gepusht (source=onboarding) */}
       <Stack.Screen name="sport-day-editor" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+      <Stack.Screen name="training-day-editor" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
     </Stack>
   )
 }

@@ -1,5 +1,7 @@
 import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
+import { StepScaffold } from '@/components/onboarding/step-scaffold';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ENV_ICONS } from '@/constants/environment-icons';
 import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -8,7 +10,7 @@ import { supabase } from '@/services/supabase/client';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
@@ -178,31 +180,27 @@ export function EquipmentEnvironmentStep() {
 
     if (loading) {
         return (
-            <View style={styles.loading}>
-                <ActivityIndicator color={theme.textMuted} />
-            </View>
+            <StepScaffold
+                title={t('onboarding.equipment_location_title')}
+                subtitle={t('onboarding.equipment_location_subtitle')}
+            >
+                <View style={styles.list}>
+                    {Array.from({ length: 4 }, (_, i) => (
+                        <Skeleton key={i} height={64} borderRadius={16} />
+                    ))}
+                </View>
+            </StepScaffold>
         );
     }
 
     if (ambiguousEquipment.length === 0) return null;
 
     return (
-        <ScrollView
-            style={styles.container}
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
+        <StepScaffold
+            title={t('onboarding.equipment_location_title')}
+            subtitle={t('onboarding.equipment_location_subtitle')}
         >
-            <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
-                <JempText type="h1" style={styles.title}>
-                    {t('onboarding.equipment_location_title')}
-                </JempText>
-            </Animated.View>
-            <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
-                <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
-                    {t('onboarding.equipment_location_subtitle')}
-                </JempText>
-            </Animated.View>
-
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             <View style={styles.list}>
                 {ambiguousEquipment.map((eq, i) => {
                     const eqSelections = selections.get(eq.id) ?? new Set();
@@ -248,20 +246,13 @@ export function EquipmentEnvironmentStep() {
                     );
                 })}
             </View>
-        </ScrollView>
+            </ScrollView>
+        </StepScaffold>
     );
 }
 
 const styles = StyleSheet.create({
-    loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    container: { flex: 1 },
-    content: {
-        paddingHorizontal: 28,
-        paddingTop: 32,
-        paddingBottom: 40,
-    },
-    title: { marginBottom: 10 },
-    subtitle: { marginBottom: 28 },
+    scrollContent: { paddingBottom: 40 },
     list: { gap: 10 },
     row: {
         flexDirection: 'row',

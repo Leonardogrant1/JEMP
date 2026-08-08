@@ -1,13 +1,16 @@
 import { JempText } from '@/components/jemp-text';
+import { ENV_ICONS } from '@/constants/environment-icons';
 import { WEEK_DAYS } from '@/constants/plan-generation-constants';
 import { Colors, GRADIENT, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { supabase } from '@/services/supabase/client';
+import { useOnboardingStore } from '@/stores/onboarding-store';
 import { usePlanWizardStore } from '@/stores/plan-wizard-store';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Reanimated, {
@@ -22,7 +25,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const sheetTransition = LinearTransition.duration(250).easing(Easing.out(Easing.cubic));
 
-/** Bottom sheet: environment for one JEMP training day in the plan wizard. */
+type SheetEnv = { id: string; slug: string; icon: string; name_i18n: Record<string, string> | null };
+
+/**
+ * Bottom sheet: environment for one JEMP training day.
+ * Default = Plan-Wizard-Store; mit ?source=onboarding = Onboarding-Store
+ * (gleicher Dual-Store-Adapter wie der sport-day-editor).
+ */
 export default function TrainingDayEditorScreen() {
     const { t, i18n } = useTranslation();
     const locale = i18n.language;
@@ -30,17 +39,44 @@ export default function TrainingDayEditorScreen() {
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const insets = useSafeAreaInsets();
     const router = useRouter();
-    const { day } = useLocalSearchParams<{ day: string }>();
+    const { day, source } = useLocalSearchParams<{ day: string; source?: string }>();
     const dayNum = Number(day);
+    const isOnboarding = source === 'onboarding';
 
     const {
         preferredDays, togglePreferredDay,
         selectedEnvIds, allEnvs,
         dayEnvMap, toggleDayEnv,
     } = usePlanWizardStore();
+    const obEnvIds = useOnboardingStore((s) => s.environmentIds);
+    const obDayEnvs = useOnboardingStore((s) => s.dayEnvironments);
+    const obDays = useOnboardingStore((s) => s.preferred_workout_days);
+    const obSet = useOnboardingStore((s) => s.set);
+
+    // Im Onboarding liegen nur Env-IDs im Store — Details (Name/Slug) nachladen
+    const [obEnvs, setObEnvs] = useState<{ id: string; slug: string; name_i18n: Record<string, string> | null }[]>([]);
+    useEffect(() => {
+        if (!isOnboarding || obEnvIds.length === 0) return;
+        supabase
+            .from('environments')
+            .select('id, slug, name_i18n')
+            .in('id', obEnvIds)
+            .then(({ data }) => {
+                if (data) setObEnvs(data as typeof obEnvs);
+            });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const dayKey = WEEK_DAYS.find(d => d.dow === dayNum)?.key;
-    const selectedEnvs = allEnvs.filter(e => selectedEnvIds.has(e.id));
-    const canClear = preferredDays.size > 2;
+    const selectedEnvs: SheetEnv[] = isOnboarding
+        ? obEnvs.map(e => ({ ...e, icon: ENV_ICONS[e.slug] ?? 'location-outline' }))
+        : allEnvs.filter(e => selectedEnvIds.has(e.id));
+    const dayActive = isOnboarding ? (obDays ?? []).includes(dayNum) : preferredDays.has(dayNum);
+    const dayCount = isOnboarding ? (obDays ?? []).length : preferredDays.size;
+    const canClear = dayCount > 2;
+    const activeEnvId = isOnboarding
+        ? obDayEnvs.find(de => de.day_of_week === dayNum)?.environment_id ?? null
+        : dayEnvMap[dayNum] ?? null;
 
     const translateY = useSharedValue(400);
     const overlayOpacity = useSharedValue(0);
@@ -67,13 +103,26 @@ export default function TrainingDayEditorScreen() {
 
     function handleSelectEnv(envId: string) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        toggleDayEnv(dayNum, envId);
+        if (!isOnboarding) { toggleDayEnv(dayNum, envId); return; }
+        const others = obDayEnvs.filter(de => de.day_of_week !== dayNum);
+        obSet({
+            dayEnvironments: activeEnvId === envId
+                ? others
+                : [...others, { day_of_week: dayNum, environment_id: envId }],
+        });
     }
 
     function handleClear() {
         if (!canClear) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        if (preferredDays.has(dayNum)) togglePreferredDay(dayNum);
+        if (isOnboarding) {
+            obSet({
+                preferred_workout_days: (obDays ?? []).filter(d => d !== dayNum),
+                dayEnvironments: obDayEnvs.filter(de => de.day_of_week !== dayNum),
+            });
+        } else if (preferredDays.has(dayNum)) {
+            togglePreferredDay(dayNum);
+        }
         handleClose();
     }
 
@@ -107,7 +156,7 @@ export default function TrainingDayEditorScreen() {
 
                         <View>
                             {selectedEnvs.map((env, index) => {
-                                const active = dayEnvMap[dayNum] === env.id;
+                                const active = activeEnvId === env.id;
                                 return (
                                     <View key={env.id}>
                                         {index > 0 && (
@@ -145,7 +194,7 @@ export default function TrainingDayEditorScreen() {
                             </LinearGradient>
                         </Pressable>
 
-                        {preferredDays.has(dayNum) && (
+                        {dayActive && (
                             <Pressable
                                 onPress={handleClear}
                                 style={[styles.clearBtn, !canClear && { opacity: 0.4 }]}

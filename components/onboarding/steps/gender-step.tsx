@@ -1,8 +1,6 @@
-import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
+import { StepScaffold } from '@/components/onboarding/step-scaffold';
 import { SelectableRow } from '@/components/ui/selectable-row';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { Gender } from '@/types/database';
 import { useEffect, useState } from 'react';
@@ -16,8 +14,6 @@ export function GenderStep() {
     const storedGender = useOnboardingStore((s) => s.gender);
     const setStore = useOnboardingStore((s) => s.set);
     const [selected, setSelected] = useState<Gender | null>(storedGender);
-    const colorScheme = useColorScheme();
-    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
     useEffect(() => {
         if (storedGender) setCanContinue(true);
@@ -36,15 +32,7 @@ export function GenderStep() {
     }
 
     return (
-        <View style={styles.container}>
-            <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
-                <JempText type="h1" style={styles.headline}>{t('onboarding.gender_title')}</JempText>
-            </Animated.View>
-            <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
-                <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
-                    {t('onboarding.gender_subtitle')}
-                </JempText>
-            </Animated.View>
+        <StepScaffold title={t('onboarding.gender_title')} subtitle={t('onboarding.gender_subtitle')} centerContent>
             <View style={styles.options}>
                 {OPTIONS.map((opt, i) => (
                     <Animated.View key={opt.value} entering={FadeInDown.delay(360 + i * 120).duration(500).springify()}>
@@ -57,23 +45,11 @@ export function GenderStep() {
                     </Animated.View>
                 ))}
             </View>
-        </View>
+        </StepScaffold>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        paddingHorizontal: 28,
-        paddingVertical: 32,
-        justifyContent: 'center',
-    },
-    headline: {
-        marginBottom: 10,
-    },
-    subtitle: {
-        marginBottom: 40,
-    },
     options: {
         gap: 12,
     },

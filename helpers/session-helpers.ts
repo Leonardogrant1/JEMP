@@ -1,4 +1,5 @@
 import { type DayVariant } from '@/components/rest-day-card';
+import { getSportKind } from '@/constants/sports';
 import { type WorkoutSession, type PlanSession } from '@/providers/plan-provider';
 import { type WeeklySchedule } from '@/types/database';
 
@@ -58,11 +59,13 @@ function getDayVariant(date: Date, weeklySchedule: WeeklySchedule | null | undef
     const sportSession = weeklySchedule.sessions.find(s => s.day_of_week === dow);
     if (!sportSession) return 'rest';
 
-    const COMBAT_SPORTS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
-    const isCombat = COMBAT_SPORTS.has(sportSlug ?? '');
+    const kind = getSportKind(sportSlug);
 
-    if (sportSession.type === 'tournament') return 'tournament';
-    if (sportSession.type === 'game') return isCombat ? 'fight' : 'game';
+    // Individualsport kennt weder Spiel noch Turnier — beides ist „Wettkampf"
+    if (sportSession.type === 'tournament') return kind === 'individual' ? 'competition' : 'tournament';
+    if (sportSession.type === 'game') {
+        return kind === 'combat' ? 'fight' : kind === 'match' ? 'game' : 'competition';
+    }
     return 'training';
 }
 

@@ -1,4 +1,4 @@
-import { getTrainingAnimation } from '@/constants/training-animations';
+import { DEFAULT_TRAINING_ANIMATION } from '@/constants/training-animations';
 import { queryKeys } from '@/queries/query-keys';
 import { useSportGroupAnimationQuery } from '@/queries/use-sport-group-animation-query';
 import { supabase } from '@/services/supabase/client';
@@ -19,7 +19,7 @@ function cacheFile(path: string): File {
 
 /**
  * Lottie source for the training-day card with the fallback chain
- * sport → sport group → bundled mapping. Remote JSONs are downloaded once
+ * sport → sport group → bundled default. Remote JSONs are downloaded once
  * into the cache directory; new uploads get fresh timestamped paths, so the
  * cache never goes stale.
  */
@@ -55,7 +55,7 @@ export function useTrainingAnimation(sport: AnimationSport): unknown {
     }, [path]);
 
     if (path && remote?.path === path) return remote.json;
-    return getTrainingAnimation(sport?.group_name);
+    return DEFAULT_TRAINING_ANIMATION;
 }
 
 /**

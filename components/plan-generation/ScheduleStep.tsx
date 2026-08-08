@@ -2,6 +2,7 @@ import GameIcon from '@/assets/icons/game.svg';
 import { JempText } from '@/components/jemp-text';
 import { SelectableChip } from '@/components/ui/selectable-chip';
 import { DURATIONS, WEEK_DAYS } from '@/constants/plan-generation-constants';
+import { getSportKind } from '@/constants/sports';
 import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTrainingAnimation } from '@/hooks/use-training-animation';
@@ -25,10 +26,10 @@ export function ScheduleStep() {
         preferredDuration, setPreferredDuration,
         selectedEnvIds, allEnvs,
         dayEnvMap,
-        sportSessions, selectedSportSlug, combatSportSlugs,
+        sportSessions, selectedSportSlug,
     } = usePlanWizardStore();
     const trainingAnimation = useTrainingAnimation(profile?.sport);
-    const isCombat = combatSportSlugs.has(selectedSportSlug ?? '');
+    const sportKind = getSportKind(selectedSportSlug);
 
     // Env-Auswahl pro Tag lohnt nur, wenn mehrere Trainingsorte gewählt sind
     const multiEnv = selectedEnvIds.size > 1;
@@ -95,15 +96,19 @@ export function ScheduleStep() {
                                                 style={styles.sportHintLottie}
                                             />
                                         )}
-                                        {sportSession.type === 'game' && (isCombat
-                                            ? <LottieView
+                                        {sportSession.type === 'game' && sportKind === 'combat' && (
+                                            <LottieView
                                                 source={require('@/assets/animations/fight.json')}
                                                 autoPlay
                                                 loop
                                                 style={styles.sportHintLottie}
                                             />
-                                            : <GameIcon width={13} height={13} />)}
-                                        {sportSession.type === 'tournament' && (
+                                        )}
+                                        {sportSession.type === 'game' && sportKind === 'match' && (
+                                            <GameIcon width={13} height={13} />
+                                        )}
+                                        {/* Turnier bzw. Wettkampf (Individualsport) — beides Trophäe */}
+                                        {(sportSession.type === 'tournament' || (sportSession.type === 'game' && sportKind === 'individual')) && (
                                             <LottieView
                                                 source={require('@/assets/animations/throphy.json')}
                                                 autoPlay

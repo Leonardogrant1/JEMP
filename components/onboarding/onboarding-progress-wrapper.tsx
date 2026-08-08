@@ -1,4 +1,4 @@
-import { Cyan, Electric, GradientMid } from '@/constants/theme';
+import { Colors, Cyan, Electric } from '@/constants/theme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useAuth } from '@/providers/auth-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
@@ -12,8 +12,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { Keyframe } from 'react-native-reanimated';
-import { OnboardingBackground } from './onboarding-background';
+import Animated, { Keyframe, LinearTransition } from 'react-native-reanimated';
 import { OnboardingControlContext } from './onboarding-control-context';
 import { OnboardingStep } from './types';
 
@@ -169,8 +168,7 @@ export function OnboardingProgressWrapper({ steps }: Props) {
 
     return (
         <OnboardingControlContext.Provider value={{ currentIndex, canContinue, finishOnboarding, setCanContinue, setOnDisabledPress, nextStep, visionDescription, setVisionDescription }}>
-            <View style={styles.container}>
-                <OnboardingBackground />
+            <View style={[styles.container, { backgroundColor: isLight ? Colors.light.background : Colors.dark.background }]}>
                 {showProgress && (
                     <View style={styles.progressBar}>
                         {currentIndex > 0 && (
@@ -178,16 +176,18 @@ export function OnboardingProgressWrapper({ steps }: Props) {
                                 <Text style={[styles.backArrow, isLight && styles.backArrowLight]}>‹</Text>
                             </TouchableOpacity>
                         )}
-                        <View style={styles.progressSegments}>
-                            {steps.map((_, i) => (
-                                <View
-                                    key={i}
-                                    style={[
-                                        styles.progressSegment,
-                                        { backgroundColor: i <= currentIndex ? GradientMid : (isLight ? '#bfbfbf' : '#595959') },
-                                    ]}
+                        <View style={[styles.progressTrack, { backgroundColor: isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.12)' }]}>
+                            <Animated.View
+                                layout={LinearTransition.duration(320)}
+                                style={[styles.progressFill, { width: `${((currentIndex + 1) / steps.length) * 100}%` }]}
+                            >
+                                <LinearGradient
+                                    colors={GRADIENT}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={StyleSheet.absoluteFill}
                                 />
-                            ))}
+                            </Animated.View>
                         </View>
                     </View>
                 )}
@@ -266,15 +266,16 @@ const styles = StyleSheet.create({
     backArrowLight: {
         color: '#1a1a1a',
     },
-    progressSegments: {
-        flex: 1,
-        flexDirection: 'row',
-        gap: 6,
-    },
-    progressSegment: {
+    progressTrack: {
         flex: 1,
         height: 3,
         borderRadius: 2,
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        borderRadius: 2,
+        overflow: 'hidden',
     },
     stepContainer: {
         flex: 1,

@@ -125,6 +125,7 @@ export function PersonalizationStep() {
                 equipmentEnvironments,
                 weekly_schedule,
                 name_source,
+                attribution_source,
                 ...profileData
             } = onboardingData;
 

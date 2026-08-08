@@ -32,14 +32,15 @@ function LottieIcon({ source, size = 56 }: { source: unknown; size?: number }) {
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
-export type DayVariant = 'rest' | 'training' | 'game' | 'fight' | 'tournament';
+export type DayVariant = 'rest' | 'training' | 'game' | 'fight' | 'tournament' | 'competition';
 
 const VARIANT_TITLE: Record<DayVariant, string> = {
-    rest:       'ui.rest_day',
-    training:   'ui.training_day',
-    game:       'ui.game_day',
-    fight:      'ui.fight_day',
-    tournament: 'ui.tournament_day',
+    rest:        'ui.rest_day',
+    training:    'ui.training_day',
+    game:        'ui.game_day',
+    fight:       'ui.fight_day',
+    tournament:  'ui.tournament_day',
+    competition: 'ui.competition_day',
 };
 
 function DayIcon({ variant, trainingSource, size = 42 }: { variant: DayVariant; trainingSource: unknown; size?: number }) {
@@ -48,7 +49,8 @@ function DayIcon({ variant, trainingSource, size = 42 }: { variant: DayVariant; 
         case 'training':   return <LottieIcon source={trainingSource} size={size * 2} />;
         case 'game':       return <GameIcon width={size} height={size} />;
         case 'fight':      return <LottieIcon source={require('@/assets/animations/fight.json')} size={size * 2} />;
-        case 'tournament': return <LottieIcon source={require('@/assets/animations/throphy.json')} size={size * 2} />;
+        case 'tournament':
+        case 'competition': return <LottieIcon source={require('@/assets/animations/throphy.json')} size={size * 2} />;
         default:           return <LottieIcon source={require('@/assets/animations/rest.json')} size={size * 2} />;
     }
 }

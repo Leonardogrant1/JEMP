@@ -49,6 +49,8 @@ type OnboardingStore = ProfileData & {
     dayEnvironments: DayEnvironment[];
     weekly_schedule: WeeklySchedule;
     referral_code: string | null;
+    // Nur fürs Tracking (PostHog) — wird nicht ins Profil geschrieben
+    attribution_source: string | null;
     name_source: 'apple' | 'google' | null;
     set: (data: Partial<ProfileData & {
         sport_slug: string | null;
@@ -60,6 +62,7 @@ type OnboardingStore = ProfileData & {
         dayEnvironments: DayEnvironment[];
         weekly_schedule: WeeklySchedule;
         referral_code: string | null;
+        attribution_source: string | null;
         name_source: 'apple' | 'google' | null;
     }>) => void;
     reset: () => void;
@@ -87,6 +90,7 @@ const initialState: Omit<OnboardingStore, 'set' | 'reset'> = {
     dayEnvironments: [],
     weekly_schedule: { sessions: [], notes: null },
     referral_code: null,
+    attribution_source: null,
     name_source: null,
 };
 

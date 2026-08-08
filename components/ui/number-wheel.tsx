@@ -6,6 +6,9 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { SharedValue, runOnJS, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
 const ITEM_HEIGHT = 44;
+// Gerenderte Zeilen ober-/unterhalb der Scroll-Position + Verschiebe-Raster
+const WINDOW = 22;
+const QUANT = 10;
 
 type NumberWheelProps = {
     initialValue: number;
@@ -54,12 +57,21 @@ export function NumberWheel({ initialValue, min, max, step = 1, extendable = tru
     const listRef = useRef<ScrollView>(null);
     const positioned = useRef(false);
     const lastHaptic = useRef(0);
+    // Unsichtbar bis zur Start-Position gescrollt wurde — sonst blitzt beim
+    // Mount ein Frame mit dem Minimalwert auf und das Rad „springt" sichtbar
+    const [revealed, setRevealed] = useState(false);
 
     const [maxValue, setMaxValue] = useState(extendable ? Math.max(max, initialValue + 10 * step) : max);
     const count = Math.floor((maxValue - min) / step) + 1;
     const initialIdx = Math.min(Math.max(Math.round((initialValue - min) / step), 0), count - 1);
     const scrollY = useSharedValue(initialIdx * ITEM_HEIGHT);
     const lastIdx = useSharedValue(initialIdx);
+
+    // Windowing: nur ~60 Zeilen um die Scroll-Position sind echte (animierte)
+    // Rows, der Rest sind zwei Spacer — große Ranges (z. B. 370 lb-Werte)
+    // mounten sonst hunderte Worklet-Views und ruckeln beim Einblenden
+    const [windowStart, setWindowStart] = useState(() => Math.max(0, initialIdx - WINDOW));
+    const windowStartSV = useSharedValue(Math.max(0, initialIdx - WINDOW));
 
     const emit = (value: number) => {
         onChange(value);
@@ -81,16 +93,27 @@ export function NumberWheel({ initialValue, min, max, step = 1, extendable = tru
             lastIdx.value = idx;
             runOnJS(emit)(min + idx * step);
         }
+        // Fenster nur in QUANT-Schritten verschieben — sonst re-rendert jede Zeile
+        const desiredStart = Math.max(0, Math.floor((idx - WINDOW) / QUANT) * QUANT);
+        if (desiredStart !== windowStartSV.value) {
+            windowStartSV.value = desiredStart;
+            runOnJS(setWindowStart)(desiredStart);
+        }
     });
 
     // Plain ScrollView statt FlatList: Wheels leben oft in vertikalen
     // ScrollViews (Active Session, Assessments) — eine VirtualizedList würde
-    // dort die Nested-Warnung werfen. Die Zeilenzahl ist begrenzt und die
-    // Rows sind billig, Virtualisierung bringt hier nichts.
-    const indices = useMemo(() => Array.from({ length: count }, (_, i) => i), [count]);
+    // dort die Nested-Warnung werfen. Das Windowing oben übernimmt die
+    // Virtualisierung stattdessen manuell über Spacer.
+    const windowEnd = Math.min(count - 1, windowStart + WINDOW * 2 + QUANT);
+    const indices = useMemo(() => {
+        const rows: number[] = [];
+        for (let i = windowStart; i <= windowEnd; i++) rows.push(i);
+        return rows;
+    }, [windowStart, windowEnd]);
 
     return (
-        <View style={[styles.root, { height: wheelHeight }]}>
+        <View style={[styles.root, { height: wheelHeight, opacity: revealed ? 1 : 0 }]}>
             <View style={[styles.centerBand, { top: bandOffset, backgroundColor: theme.surface }]} />
             <Animated.ScrollView
                 ref={listRef}
@@ -105,11 +128,14 @@ export function NumberWheel({ initialValue, min, max, step = 1, extendable = tru
                     if (positioned.current) return;
                     positioned.current = true;
                     listRef.current?.scrollTo({ y: initialIdx * ITEM_HEIGHT, animated: false });
+                    requestAnimationFrame(() => setRevealed(true));
                 }}
             >
+                <View style={{ height: windowStart * ITEM_HEIGHT }} />
                 {indices.map(i => (
                     <WheelNumber key={i} index={i} label={(formatLabel ?? formatStepValue)(min + i * step)} scrollY={scrollY} color={theme.text} />
                 ))}
+                <View style={{ height: (count - 1 - windowEnd) * ITEM_HEIGHT }} />
             </Animated.ScrollView>
         </View>
     );

@@ -117,11 +117,13 @@ export async function getSignedUploadUrl(
   await requireAdmin()
 
   const ext = fileType === 'thumbnail' ? 'jpg' : 'mp4'
-  const path = `${fileType}s/${exerciseId}.${ext}`
+  // Timestamped Pfad: jedes Update bekommt eine frische URL, damit CDN/App
+  // nie eine alte gecachte Version ausliefern (Konvention wie Sport-Banner)
+  const path = `${fileType}s/${exerciseId}-${Date.now()}.${ext}`
 
   const { data, error } = await supabase.storage
     .from('exercises')
-    .createSignedUploadUrl(path, { upsert: true })
+    .createSignedUploadUrl(path)
 
   if (error) throw new Error(error.message)
   return { signedUrl: data.signedUrl, path }
@@ -154,12 +156,42 @@ export async function updateExercise(
 ): Promise<void> {
   await requireAdmin()
   const { equipmentIds, environmentIds, blockTypeIds, ...dbFields } = fields
+
+  // Alte Storage-Dateien aufräumen, wenn ein neuer Pfad gesetzt wird —
+  // die timestamped Pfade würden sonst als Leichen liegen bleiben
+  const replacesMedia = dbFields.thumbnail_storage_path !== undefined || dbFields.video_storage_path !== undefined
+  let oldPaths: { thumbnail_storage_path: string | null; video_storage_path: string | null } | null = null
+  if (replacesMedia) {
+    const { data } = await supabase
+      .from('exercises')
+      .select('thumbnail_storage_path, video_storage_path')
+      .eq('id', id)
+      .single()
+    oldPaths = data
+  }
+
   if (Object.keys(dbFields).length > 0) {
     const { error } = await supabase
       .from('exercises')
       .update({ ...dbFields, updated_at: new Date().toISOString() })
       .eq('id', id)
     if (error) throw new Error(error.message)
+  }
+
+  if (oldPaths) {
+    const stale = [
+      dbFields.thumbnail_storage_path !== undefined
+        && oldPaths.thumbnail_storage_path
+        && oldPaths.thumbnail_storage_path !== dbFields.thumbnail_storage_path
+        ? oldPaths.thumbnail_storage_path : null,
+      dbFields.video_storage_path !== undefined
+        && oldPaths.video_storage_path
+        && oldPaths.video_storage_path !== dbFields.video_storage_path
+        ? oldPaths.video_storage_path : null,
+    ].filter((p): p is string => !!p)
+    if (stale.length > 0) {
+      await supabase.storage.from('exercises').remove(stale)
+    }
   }
   if (equipmentIds !== undefined) {
     await supabase.from('exercise_equipments').delete().eq('exercise_id', id)

@@ -1,52 +1,35 @@
 import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
-import { HeightTape, WeightTape } from '@/components/ui/measurement-tape';
+import { StepScaffold } from '@/components/onboarding/step-scaffold';
+import { NumberWheel } from '@/components/ui/number-wheel';
 import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
-function UnitSegment({ label, active, onPress, theme }: {
-    label: string;
-    active: boolean;
-    onPress: () => void;
-    theme: typeof Colors.dark;
-}) {
-    return (
-        <Pressable
-            onPress={() => {
-                if (active) return;
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onPress();
-            }}
-            style={[
-                styles.unitSegment,
-                active
-                    ? { backgroundColor: `${GradientMid}18`, borderColor: GradientMid }
-                    : { backgroundColor: 'transparent', borderColor: 'transparent' },
-            ]}
-        >
-            <JempText type="caption" color={active ? GradientMid : theme.textMuted} style={styles.unitSegmentText}>
-                {label}
-            </JempText>
-        </Pressable>
-    );
+// cm ↔ ft/in und kg ↔ lb — gespeichert wird immer metrisch
+function cmToFtIn(cm: number): { ft: number; inch: number } {
+    const totalIn = Math.round(cm / 2.54);
+    return { ft: Math.floor(totalIn / 12), inch: totalIn % 12 };
 }
+const ftInToCm = (ft: number, inch: number) => Math.round((ft * 12 + inch) * 2.54);
+const kgToLb = (kg: number) => Math.round(kg * 2.2046);
+const lbToKg = (lb: number) => Math.round(lb / 2.2046);
 
 export function BodyStep() {
     const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
     const storedWeight = useOnboardingStore((s) => s.weight_in_kg);
     const storedHeight = useOnboardingStore((s) => s.height_in_cm);
-    const setStore = useOnboardingStore((s) => s.set);
     const storedUnitSystem = useOnboardingStore((s) => s.unit_system);
+    const setStore = useOnboardingStore((s) => s.set);
     const [weightKg, setWeightKg] = useState(storedWeight ?? 75);
     const [heightCm, setHeightCm] = useState(storedHeight ?? 175);
-    // One system for both tapes — persisted as the app-wide display preference
+    // Ein System für alle Werte — persistiert als App-weite Anzeige-Präferenz
     const imperial = storedUnitSystem === 'imperial';
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
@@ -57,97 +40,156 @@ export function BodyStep() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    function handleWeight(kg: number) {
-        setWeightKg(kg);
-        setStore({ weight_in_kg: kg, height_in_cm: heightCm });
+    function setUnitSystem(system: 'metric' | 'imperial') {
+        if ((system === 'imperial') === imperial) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setStore({ unit_system: system });
     }
 
-    function handleHeight(cm: number) {
+    function updateHeight(cm: number) {
         setHeightCm(cm);
-        setStore({ weight_in_kg: weightKg, height_in_cm: cm });
+        setStore({ height_in_cm: cm });
     }
+
+    function updateWeight(kg: number) {
+        setWeightKg(kg);
+        setStore({ weight_in_kg: kg });
+    }
+
+    const { ft, inch } = cmToFtIn(heightCm);
 
     return (
-        <View style={styles.container}>
-            <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
-                <JempText type="h1" style={styles.headline}>{t('onboarding.body_title')}</JempText>
+        <StepScaffold title={t('onboarding.body_title')} subtitle={t('onboarding.body_subtitle')} centerContent>
+            <View style={styles.block}>
+            {/* ── Unit-Toggle: Imperial ⇄ Metric ── */}
+            <Animated.View entering={FadeInDown.delay(360).duration(500).springify()} style={styles.unitRow}>
+                <Pressable onPress={() => setUnitSystem('imperial')} hitSlop={8}>
+                    <JempText type="body-l" color={imperial ? theme.text : theme.textSubtle} style={styles.unitLabel}>
+                        {t('onboarding.body_unit_imperial')}
+                    </JempText>
+                </Pressable>
+                <Switch
+                    value={!imperial}
+                    onValueChange={(metric) => setUnitSystem(metric ? 'metric' : 'imperial')}
+                    trackColor={{ false: theme.borderStrong, true: GradientMid }}
+                    thumbColor="#fff"
+                />
+                <Pressable onPress={() => setUnitSystem('metric')} hitSlop={8}>
+                    <JempText type="body-l" color={imperial ? theme.textSubtle : theme.text} style={styles.unitLabel}>
+                        {t('onboarding.body_unit_metric')}
+                    </JempText>
+                </Pressable>
             </Animated.View>
-            <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
-                <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
-                    {t('onboarding.body_subtitle')}
-                </JempText>
+
+            {/* ── Wheels: Größe links, Gewicht rechts ── */}
+            <Animated.View entering={FadeInDown.delay(480).duration(500).springify()} style={styles.wheelRow}>
+                <View style={styles.wheelGroup}>
+                    <JempText type="button" color={theme.text}>{t('ui.height')}</JempText>
+                    {imperial ? (
+                        <View style={styles.wheelPair} key="imperial-height">
+                            <View style={styles.wheel}>
+                                <NumberWheel
+                                    initialValue={ft}
+                                    min={3}
+                                    max={7}
+                                    extendable={false}
+                                    formatLabel={(v) => `${v} ft`}
+                                    onChange={(v) => updateHeight(ftInToCm(v, inch))}
+                                />
+                            </View>
+                            <View style={styles.wheel}>
+                                <NumberWheel
+                                    initialValue={inch}
+                                    min={0}
+                                    max={11}
+                                    extendable={false}
+                                    formatLabel={(v) => `${v} in`}
+                                    onChange={(v) => updateHeight(ftInToCm(ft, v))}
+                                />
+                            </View>
+                        </View>
+                    ) : (
+                        <View style={styles.wheelFull} key="metric-height">
+                            <NumberWheel
+                                initialValue={heightCm}
+                                min={120}
+                                max={220}
+                                extendable={false}
+                                formatLabel={(v) => `${v} cm`}
+                                onChange={updateHeight}
+                            />
+                        </View>
+                    )}
+                </View>
+
+                <View style={styles.wheelGroup}>
+                    <JempText type="button" color={theme.text}>{t('ui.weight')}</JempText>
+                    {imperial ? (
+                        <View style={styles.wheelFull} key="imperial-weight">
+                            <NumberWheel
+                                initialValue={kgToLb(weightKg)}
+                                min={70}
+                                max={440}
+                                extendable={false}
+                                formatLabel={(v) => `${v} lb`}
+                                onChange={(v) => updateWeight(lbToKg(v))}
+                            />
+                        </View>
+                    ) : (
+                        <View style={styles.wheelFull} key="metric-weight">
+                            <NumberWheel
+                                initialValue={weightKg}
+                                min={35}
+                                max={200}
+                                extendable={false}
+                                formatLabel={(v) => `${v} kg`}
+                                onChange={updateWeight}
+                            />
+                        </View>
+                    )}
+                </View>
             </Animated.View>
-            <View style={styles.tapes}>
-                <Animated.View entering={FadeInDown.delay(360).duration(500).springify()}>
-                    <WeightTape
-                        valueKg={weightKg}
-                        onChange={handleWeight}
-                        unit={imperial ? 'lbs' : 'kg'}
-                    />
-                </Animated.View>
-                <Animated.View entering={FadeInDown.delay(480).duration(500).springify()}>
-                    <HeightTape
-                        valueCm={heightCm}
-                        onChange={handleHeight}
-                        unit={imperial ? 'in' : 'cm'}
-                    />
-                </Animated.View>
-                <Animated.View entering={FadeInDown.delay(600).duration(500).springify()} style={styles.unitToggleWrap}>
-                    <View style={[styles.unitToggle, { backgroundColor: theme.surface }]}>
-                        <UnitSegment
-                            label="kg · cm"
-                            active={!imperial}
-                            onPress={() => setStore({ unit_system: 'metric' })}
-                            theme={theme}
-                        />
-                        <UnitSegment
-                            label="lbs · in"
-                            active={imperial}
-                            onPress={() => setStore({ unit_system: 'imperial' })}
-                            theme={theme}
-                        />
-                    </View>
-                </Animated.View>
             </View>
-        </View>
+        </StepScaffold>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        paddingHorizontal: 28,
-        paddingTop: 32,
-    },
-    headline: {
-        marginBottom: 10,
-    },
-    subtitle: {
-        lineHeight: 20,
-    },
-    tapes: {
-        flex: 1,
-        justifyContent: 'center',
-        gap: 40,
-        // Optischer Ausgleich für den Continue-Button
-        paddingBottom: 60,
-    },
-    unitToggleWrap: {
-        alignItems: 'center',
-    },
-    unitToggle: {
+    block: {},
+    unitRow: {
         flexDirection: 'row',
-        borderRadius: 100,
-        padding: 3,
-        gap: 3,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 16,
+        marginBottom: 28,
     },
-    unitSegment: {
-        borderRadius: 100,
-        borderWidth: 1,
-        paddingVertical: 7,
-        paddingHorizontal: 16,
-    },
-    unitSegmentText: {
+    unitLabel: {
         fontWeight: '600',
+    },
+    wheelRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 24,
+    },
+    // Feste Breite in beiden Unit-Systemen — der Toggle darf nichts verschieben
+    wheelGroup: {
+        alignItems: 'center',
+        gap: 10,
+        flex: 1,
+        maxWidth: 170,
+    },
+    wheelPair: {
+        flexDirection: 'row',
+        gap: 8,
+        alignSelf: 'stretch',
+    },
+    // In der ft/in-Row regelt flex die BREITE — Höhe kommt vom Rad selbst
+    wheel: {
+        flex: 1,
+    },
+    // Einzelnes Rad in der Column: volle Breite, echte Content-Höhe
+    // (flex:1 würde hier auf Höhe 0 kollabieren → Layout-Sprung beim Toggle)
+    wheelFull: {
+        alignSelf: 'stretch',
     },
 });

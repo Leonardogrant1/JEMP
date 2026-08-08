@@ -220,7 +220,7 @@ export default function SessionRescheduleScreen() {
                                                                             style={styles.dayChipLottie}
                                                                         />
                                                                     )}
-                                                                    {dayVariant === 'tournament' && (
+                                                                    {(dayVariant === 'tournament' || dayVariant === 'competition') && (
                                                                         <LottieView
                                                                             source={require('@/assets/animations/throphy.json')}
                                                                             autoPlay
