@@ -1,14 +1,14 @@
-import { GradientClipboardIcon } from '@/components/gradient-clipboard';
+import { EmptyAssessmentsCard } from '@/components/assessments/EmptyAssessmentsCard';
 import { JempText } from '@/components/jemp-text';
 import { useTabBarInset } from '@/components/tab-bar';
 import { JempDialog } from '@/components/ui/jemp-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UNIT_LABELS } from '@/constants/assessment-constants';
 import { CATEGORY_SVG_ICONS } from '@/constants/category-icons';
-import { displayMetricValue } from '@/helpers/units';
-import { useUnitSystem } from '@/hooks/use-unit-system';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
+import { displayMetricValue } from '@/helpers/units';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useUnitSystem } from '@/hooks/use-unit-system';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { useHasHadPlanQuery } from '@/queries/use-has-had-plan-query';
 import { useUserAssessmentsQuery } from '@/queries/use-user-assessments-query';
@@ -187,15 +187,7 @@ export default function AssessmentsScreen() {
             ) : !hasAssessments ? (
                 <>
                     {header}
-                    <View style={styles.emptyWrap}>
-                        <GradientClipboardIcon size={42} />
-                        <JempText type="body-l" color={theme.textMuted}>
-                            {t(hasHadPlan ? 'ui.no_assessments_all_done_title' : 'ui.no_assessments_title')}
-                        </JempText>
-                        <JempText type="body-sm" style={styles.emptyText} color={theme.textMuted}>
-                            {t(hasHadPlan ? 'ui.no_assessments_all_done_body' : 'ui.no_assessments_body')}
-                        </JempText>
-                    </View>
+                    <EmptyAssessmentsCard allDone={!!hasHadPlan} />
                 </>
             ) : (
                 <Animated.ScrollView
@@ -237,43 +229,43 @@ export default function AssessmentsScreen() {
                             style={styles.chipScroll}
                         >
                             {categorySlugs.map((slug, index) => {
-                            const isActive = slug === activeSlug;
-                            const label = t(`category.${slug}_short`, {
-                                defaultValue: t(`category.${slug}`, { defaultValue: slug }),
-                            });
-                            const count = grouped.get(slug)!.length;
-                            const ChipIcon = CATEGORY_SVG_ICONS[slug];
-                            const content = (
-                                <>
-                                    {ChipIcon && <ChipIcon width={14} height={14} color={isActive ? '#fff' : theme.textMuted} />}
-                                    <JempText type="body-sm" color={isActive ? '#fff' : theme.textMuted} style={styles.chipLabel}>
-                                        {label}
-                                    </JempText>
-                                    <View style={[styles.chipCount, { backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : theme.background }]}>
-                                        <JempText type="body-sm" color={isActive ? '#fff' : theme.textMuted}>
-                                            {count}
+                                const isActive = slug === activeSlug;
+                                const label = t(`category.${slug}_short`, {
+                                    defaultValue: t(`category.${slug}`, { defaultValue: slug }),
+                                });
+                                const count = grouped.get(slug)!.length;
+                                const ChipIcon = CATEGORY_SVG_ICONS[slug];
+                                const content = (
+                                    <>
+                                        {ChipIcon && <ChipIcon width={14} height={14} color={isActive ? '#fff' : theme.textMuted} />}
+                                        <JempText type="body-sm" color={isActive ? '#fff' : theme.textMuted} style={styles.chipLabel}>
+                                            {label}
                                         </JempText>
-                                    </View>
-                                </>
-                            );
-                            return (
-                                <Pressable key={slug} onPress={() => setSelected({ slug, index })}>
-                                    {isActive ? (
-                                        <LinearGradient
-                                            colors={[Cyan[500], Electric[500]]}
-                                            start={{ x: 0, y: 0 }}
-                                            end={{ x: 1, y: 1 }}
-                                            style={styles.chip}
-                                        >
-                                            {content}
-                                        </LinearGradient>
-                                    ) : (
-                                        <View style={[styles.chip, { backgroundColor: theme.surface }]}>
-                                            {content}
+                                        <View style={[styles.chipCount, { backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : theme.background }]}>
+                                            <JempText type="body-sm" color={isActive ? '#fff' : theme.textMuted}>
+                                                {count}
+                                            </JempText>
                                         </View>
-                                    )}
-                                </Pressable>
-                            );
+                                    </>
+                                );
+                                return (
+                                    <Pressable key={slug} onPress={() => setSelected({ slug, index })}>
+                                        {isActive ? (
+                                            <LinearGradient
+                                                colors={[Cyan[500], Electric[500]]}
+                                                start={{ x: 0, y: 0 }}
+                                                end={{ x: 1, y: 1 }}
+                                                style={styles.chip}
+                                            >
+                                                {content}
+                                            </LinearGradient>
+                                        ) : (
+                                            <View style={[styles.chip, { backgroundColor: theme.surface }]}>
+                                                {content}
+                                            </View>
+                                        )}
+                                    </Pressable>
+                                );
                             })}
                         </ScrollView>
                         <Animated.View style={[styles.stickyEdge, { backgroundColor: theme.borderDivider }, stickyEdgeStyle]} />
@@ -281,49 +273,49 @@ export default function AssessmentsScreen() {
 
                     <View style={[styles.scroll, styles.section]}>
                         {activeItems.map(ua => (
-                                <Pressable
-                                    key={ua.id}
-                                    style={[styles.card, { backgroundColor: theme.surface }]}
-                                    onPress={() => router.push(`/assessment/${ua.id}`)}
-                                >
-                                    <View style={[styles.circle, { borderColor: theme.borderStrong }]} />
+                            <Pressable
+                                key={ua.id}
+                                style={[styles.card, { backgroundColor: theme.surface }]}
+                                onPress={() => router.push(`/assessment/${ua.id}`)}
+                            >
+                                <View style={[styles.circle, { borderColor: theme.borderStrong }]} />
+                                <View style={styles.cardText}>
+                                    <JempText type="body-l" color={theme.textMuted} style={styles.cardTitle}>
+                                        {(ua.assessment.name_i18n as Record<string, string> | null)?.[locale] ?? ua.assessment.name}
+                                    </JempText>
+                                    <JempText type="body-sm" color={theme.textSubtle}>
+                                        {t('ui.assessment_not_attempted')}
+                                    </JempText>
+                                </View>
+                                <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+                            </Pressable>
+                        ))}
+
+                        {activeCompleted.map(ua => {
+                            const result = formatResult(ua);
+                            return (
+                                <View key={ua.id} style={[styles.card, { backgroundColor: theme.surface }]}>
+                                    <LinearGradient
+                                        colors={[Cyan[500], Electric[500]]}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={styles.circleFilled}
+                                    >
+                                        <Ionicons name="checkmark" size={14} color="#fff" />
+                                    </LinearGradient>
                                     <View style={styles.cardText}>
-                                        <JempText type="body-l" color={theme.textMuted} style={styles.cardTitle}>
+                                        <JempText type="body-l" color={theme.text} style={styles.cardTitle}>
                                             {(ua.assessment.name_i18n as Record<string, string> | null)?.[locale] ?? ua.assessment.name}
                                         </JempText>
-                                        <JempText type="body-sm" color={theme.textSubtle}>
-                                            {t('ui.assessment_not_attempted')}
-                                        </JempText>
-                                    </View>
-                                    <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
-                                </Pressable>
-                            ))}
-
-                            {activeCompleted.map(ua => {
-                                const result = formatResult(ua);
-                                return (
-                                    <View key={ua.id} style={[styles.card, { backgroundColor: theme.surface }]}>
-                                        <LinearGradient
-                                            colors={[Cyan[500], Electric[500]]}
-                                            start={{ x: 0, y: 0 }}
-                                            end={{ x: 1, y: 1 }}
-                                            style={styles.circleFilled}
-                                        >
-                                            <Ionicons name="checkmark" size={14} color="#fff" />
-                                        </LinearGradient>
-                                        <View style={styles.cardText}>
-                                            <JempText type="body-l" color={theme.text} style={styles.cardTitle}>
-                                                {(ua.assessment.name_i18n as Record<string, string> | null)?.[locale] ?? ua.assessment.name}
+                                        {result != null && (
+                                            <JempText type="body-sm" color={theme.textSubtle}>
+                                                {t('ui.assessment_result', { value: result })}
                                             </JempText>
-                                            {result != null && (
-                                                <JempText type="body-sm" color={theme.textSubtle}>
-                                                    {t('ui.assessment_result', { value: result })}
-                                                </JempText>
-                                            )}
-                                        </View>
+                                        )}
                                     </View>
-                                );
-                            })}
+                                </View>
+                            );
+                        })}
                     </View>
                 </Animated.ScrollView>
             )}
@@ -355,8 +347,6 @@ const styles = StyleSheet.create({
     skeletonProgressHeader: { marginBottom: 10 },
     skeletonChipRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingVertical: 12 },
     skeletonCards: { paddingHorizontal: 20, paddingTop: 8, gap: 8 },
-    emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-    emptyText: { textAlign: 'center', width: '80%' },
 
     progressCard: {
         borderRadius: 14,

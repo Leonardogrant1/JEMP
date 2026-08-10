@@ -40,7 +40,7 @@ function StorageVideoPlayer({ uri, height }: { uri: string; height: number }) {
         <VideoView
             player={player}
             style={[styles.hero, { height }]}
-            allowsFullscreen
+            fullscreenOptions={{ enable: true }}
             allowsPictureInPicture
             nativeControls
         />
