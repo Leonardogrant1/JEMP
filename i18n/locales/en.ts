@@ -800,6 +800,10 @@ const en = {
     'achievements.exercise.sprint_30m': '30m Sprint',
     'achievements.exercise.sprint_10m_flying': 'Flying 10m Sprint',
     'achievements.exercise.agility_505': '5-0-5 Agility',
+    'achievements.celebration_title': 'Achievement unlocked!',
+    'achievements.celebration_also': 'Also unlocked',
+    'achievements.view_all': 'View all achievements',
+    'achievements.continue': 'Continue',
 
 } as const;
 

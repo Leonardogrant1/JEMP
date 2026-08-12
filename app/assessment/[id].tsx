@@ -1,4 +1,5 @@
 import InfoIcon from '@/assets/icons/info.svg';
+import { AchievementCelebration } from '@/components/achievements/achievement-celebration';
 import { JempText } from '@/components/jemp-text';
 import { JempDialog } from '@/components/ui/jemp-dialog';
 import { NumberWheel } from '@/components/ui/number-wheel';
@@ -8,9 +9,10 @@ import { VideoDialog } from '@/components/ui/video-dialog';
 import { assessmentVideoUrl } from '@/helpers/assessment-storage';
 import { TapeMeasure } from '@/components/ui/tape-measure';
 import { useModalResultStore } from '@/stores/modal-result-store';
+import { AchievementDef } from '@/constants/achievements';
 import { REP_RAIL_DEFAULT_MAX, REP_RAIL_MAX, TAPE_DEFAULT_MAX_CM, TAPE_MAX_CM, UNIT_LABELS } from '@/constants/assessment-constants';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
-import { displayMetricValue, estimateOneRepMax, kgToLbs } from '@/helpers/units';
+import { displayMetricValue, estimateOneRepMax, kgToLbs, UnitSystem } from '@/helpers/units';
 import { useUnitSystem } from '@/hooks/use-unit-system';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useStopwatch } from '@/hooks/use-stopwatch';
@@ -78,6 +80,7 @@ export default function AssessmentScreen() {
     const [showOneRmWarning, setShowOneRmWarning] = useState(false);
     const [showInfo, setShowInfo] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [celebrationUnlocks, setCelebrationUnlocks] = useState<AchievementDef[] | null>(null);
     const [showVideo, setShowVideo] = useState(false);
     const { assessmentConfirmed, setAssessmentConfirmed, measuredJumpCm, setMeasuredJumpCm } = useModalResultStore();
 
@@ -245,12 +248,13 @@ export default function AssessmentScreen() {
                     birth_date: profile.birth_date!,
                 },
             }, {
-                onSuccess: () => {
+                onSuccess: (result) => {
                     trackerManager.track('assessment_completed', {
                         assessment_slug: assessment.slug,
                         category_id: assessment.category_id,
                     });
-                    setShowSuccess(true);
+                    if (result.newUnlocks.length > 0) setCelebrationUnlocks(result.newUnlocks);
+                    else setShowSuccess(true);
                 },
             });
             return;
@@ -277,12 +281,13 @@ export default function AssessmentScreen() {
                 birth_date: profile.birth_date,
             },
         }, {
-            onSuccess: () => {
+            onSuccess: (result) => {
                 trackerManager.track('assessment_completed', {
                     assessment_slug: assessment.slug,
                     category_id: assessment.category_id,
                 });
-                setShowSuccess(true);
+                if (result.newUnlocks.length > 0) setCelebrationUnlocks(result.newUnlocks);
+                else setShowSuccess(true);
             },
         });
     };
@@ -691,6 +696,21 @@ export default function AssessmentScreen() {
                 onDone={() => {
                     setShowSuccess(false);
                     router.back();
+                }}
+            />
+
+            <AchievementCelebration
+                visible={celebrationUnlocks !== null}
+                unlocks={celebrationUnlocks ?? []}
+                unitSystem={(profile?.unit_system === 'imperial' ? 'imperial' : 'metric') as UnitSystem}
+                onDone={() => {
+                    setCelebrationUnlocks(null);
+                    router.back();
+                }}
+                onViewAll={() => {
+                    setCelebrationUnlocks(null);
+                    router.back();
+                    router.push('/achievements');
                 }}
             />
 

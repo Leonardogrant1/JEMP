@@ -802,6 +802,10 @@ const de: Record<TranslationKeys, string> = {
     'achievements.exercise.sprint_30m': '30m Sprint',
     'achievements.exercise.sprint_10m_flying': 'Fliegender 10m Sprint',
     'achievements.exercise.agility_505': '5-0-5 Agility',
+    'achievements.celebration_title': 'Achievement freigeschaltet!',
+    'achievements.celebration_also': 'Ebenfalls freigeschaltet',
+    'achievements.view_all': 'Alle Achievements ansehen',
+    'achievements.continue': 'Weiter',
 
 };
 
