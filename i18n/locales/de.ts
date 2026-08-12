@@ -482,11 +482,12 @@ const de: Record<TranslationKeys, string> = {
     // category-level-step
     'onboarding.category_level_title': 'Dein Level',
     'onboarding.category_level_subtitle': 'Schätze dich ehrlich ein — das bestimmt deinen Startpunkt.',
-    'onboarding.category_level_elite': 'Elite',
-    'onboarding.category_level_advanced': 'Fortgeschritten',
-    'onboarding.category_level_average': 'Durchschnitt',
-    'onboarding.category_level_beginner': 'Einsteiger',
-    'onboarding.category_level_novice': 'Anfänger',
+    'tiers.apex': 'Apex',
+    'tiers.elite': 'Elite',
+    'tiers.advanced': 'Advanced',
+    'tiers.average': 'Average',
+    'tiers.beginner': 'Beginner',
+    'tiers.novice': 'Novice',
 
     // category-focus-step
     'onboarding.category_focus_title': 'Deine Ziele',

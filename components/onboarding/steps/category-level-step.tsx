@@ -2,6 +2,7 @@ import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
 import { getCategoryLabel, getCategoryDescription, type CategoryI18n } from '@/constants/category-labels';
 import { CATEGORY_SVG_ICONS } from '@/constants/category-icons';
+import { tierForScore } from '@/constants/tiers';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -36,14 +37,6 @@ function scoreToColor(score: number): string {
     const t = score / 100;
     if (t <= 0.5) return lerpColor('#ef4444', '#f59e0b', t * 2);
     return lerpColor('#f59e0b', '#22c55e', (t - 0.5) * 2);
-}
-
-function scoreToLabelKey(score: number): 'onboarding.category_level_elite' | 'onboarding.category_level_advanced' | 'onboarding.category_level_average' | 'onboarding.category_level_beginner' | 'onboarding.category_level_novice' {
-    if (score >= 85) return 'onboarding.category_level_elite';
-    if (score >= 65) return 'onboarding.category_level_advanced';
-    if (score >= 45) return 'onboarding.category_level_average';
-    if (score >= 25) return 'onboarding.category_level_beginner';
-    return 'onboarding.category_level_novice';
 }
 
 export function CategoryLevelStep() {
@@ -132,7 +125,7 @@ export function CategoryLevelStep() {
                                     </Pressable>
                                 </View>
                                 <JempText type="caption" color={color} style={styles.levelLabel}>
-                                    {t(scoreToLabelKey(score)).toUpperCase()}
+                                    {t(tierForScore(score).i18nKey).toUpperCase()}
                                 </JempText>
                             </View>
                         </View>

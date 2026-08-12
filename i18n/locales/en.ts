@@ -480,11 +480,12 @@ const en = {
     // category-level-step
     'onboarding.category_level_title': 'Your level',
     'onboarding.category_level_subtitle': 'Rate yourself honestly — this determines your starting point.',
-    'onboarding.category_level_elite': 'Elite',
-    'onboarding.category_level_advanced': 'Advanced',
-    'onboarding.category_level_average': 'Average',
-    'onboarding.category_level_beginner': 'Beginner',
-    'onboarding.category_level_novice': 'Novice',
+    'tiers.apex': 'Apex',
+    'tiers.elite': 'Elite',
+    'tiers.advanced': 'Advanced',
+    'tiers.average': 'Average',
+    'tiers.beginner': 'Beginner',
+    'tiers.novice': 'Novice',
 
     // category-focus-step
     'onboarding.category_focus_title': 'Your goals',
