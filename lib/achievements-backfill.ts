@@ -6,7 +6,7 @@ import { supabase } from '@/services/supabase/client';
  * entries are walked oldest-first so each unlock keeps the timestamp of the
  * result that actually earned it. Idempotent via the (user_id, achievement_slug)
  * unique constraint + ignoreDuplicates.
- * Returns the number of inserted unlock rows.
+ * Returns the number of unlock rows actually inserted (duplicates skipped by the DB).
  */
 export async function backfillAchievements(userId: string, gender: 'male' | 'female'): Promise<number> {
     const { data, error } = await supabase
@@ -53,10 +53,11 @@ export async function backfillAchievements(userId: string, gender: 'male' | 'fem
 
     if (rows.length === 0) return 0;
 
-    const { error: insertError } = await supabase
+    const { data: upsertedRows, error: insertError } = await supabase
         .from('user_achievements')
-        .upsert(rows, { onConflict: 'user_id,achievement_slug', ignoreDuplicates: true });
+        .upsert(rows, { onConflict: 'user_id,achievement_slug', ignoreDuplicates: true })
+        .select('achievement_slug');
     if (insertError) throw insertError;
 
-    return rows.length;
+    return upsertedRows?.length ?? 0;
 }
