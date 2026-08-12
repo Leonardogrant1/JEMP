@@ -8,6 +8,8 @@ export const queryKeys = {
     userAssessments: (userId: string | undefined) => ['assessments', userId] as const,
     userCategoryLevels: (userId: string | undefined) => ['category-levels', userId] as const,
     userCategoryHistory: (userId: string | undefined, since: string | undefined) => ['category-history', userId, since] as const,
+    userAchievements: (userId: string | undefined) => ['user-achievements', userId] as const,
+    assessmentBestValues: (userId: string | undefined) => ['assessment-best-values', userId] as const,
     categoryAssessments: (userId: string | undefined, slug: string | undefined, since: string | undefined) =>
         ['category-assessments', userId, slug, since] as const,
     previousExerciseSets: (exerciseId: string | undefined, sessionId: string | undefined) =>
