@@ -18,9 +18,10 @@ interface ProgressHeroCardProps {
     emptyLabel: string;
     ctaLabel?: string;
     onCtaPress?: () => void; // shown inside the empty state instead of the chart
+    tier?: { label: string; color: string } | null; // overall tier subline, e.g. "Apex"
 }
 
-export function ProgressHeroCard({ label, score, trend, chartData, emptyLabel, ctaLabel, onCtaPress }: ProgressHeroCardProps) {
+export function ProgressHeroCard({ label, score, trend, chartData, emptyLabel, ctaLabel, onCtaPress, tier }: ProgressHeroCardProps) {
     const colorScheme = useColorScheme();
     const isDark = (colorScheme ?? 'dark') === 'dark';
     const theme = Colors[isDark ? 'dark' : 'light'];
@@ -48,6 +49,11 @@ export function ProgressHeroCard({ label, score, trend, chartData, emptyLabel, c
                     <JempText type="h1" style={styles.score}>
                         {displayScore !== null ? String(displayScore) : '—'}
                     </JempText>
+                    {tier && (
+                        <JempText type="body-sm" color={tier.color} style={styles.tierLabel}>
+                            {tier.label.toUpperCase()}
+                        </JempText>
+                    )}
                     {trend !== null && (
                         <View style={[styles.trendPill, { backgroundColor: trendPillBg }]}>
                             <Ionicons
@@ -135,6 +141,7 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
     },
     trendText: { fontWeight: '600' },
+    tierLabel: { letterSpacing: 1, fontWeight: '700' },
     emptyWrap: {
         height: CHART_HEIGHT,
         alignItems: 'center',

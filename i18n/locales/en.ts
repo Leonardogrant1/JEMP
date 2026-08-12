@@ -486,6 +486,7 @@ const en = {
     'tiers.average': 'Average',
     'tiers.beginner': 'Beginner',
     'tiers.novice': 'Novice',
+    'achievements.earn_title': 'Earn your title',
 
     // category-focus-step
     'onboarding.category_focus_title': 'Your goals',

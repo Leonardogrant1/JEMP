@@ -488,6 +488,7 @@ const de: Record<TranslationKeys, string> = {
     'tiers.average': 'Average',
     'tiers.beginner': 'Beginner',
     'tiers.novice': 'Novice',
+    'achievements.earn_title': 'Verdiene deinen Titel',
 
     // category-focus-step
     'onboarding.category_focus_title': 'Deine Ziele',
