@@ -771,6 +771,38 @@ const de: Record<TranslationKeys, string> = {
     'version.force_update_title': 'Update erforderlich',
     'version.force_update_body': 'Diese Version der App wird nicht mehr unterstützt. Bitte update die App um weiterzumachen.',
 
+    // ── Achievements screen ──────────────────────────────────────────────────────
+    'achievements.screen_title': 'Achievements',
+    'achievements.unlocked_count': '{{count}} / {{total}} freigeschaltet',
+    'achievements.points_to_next': 'Noch {{points}} Punkte bis {{tier}}',
+    'achievements.top_tier_reached': 'Höchste Stufe erreicht',
+    'achievements.next_up': 'Als Nächstes: noch {{amount}}',
+    'achievements.unlocked_on': 'Freigeschaltet am {{date}}',
+    'achievements.empty_hint': 'Schließe Assessments ab, um Achievements freizuschalten.',
+    'achievements.category_strength': 'Kraft',
+    'achievements.category_jumps': 'Sprünge',
+    'achievements.category_upper_body_plyometrics': 'Explosivkraft',
+    'achievements.category_lower_body_plyometrics': 'Speed & Agilität',
+    'achievements.exercise.bench_press_1rm': 'Bankdrücken',
+    'achievements.exercise.back_squat_1rm': 'Kniebeuge',
+    'achievements.exercise.romanian_deadlift_1rm': 'Rumänisches Kreuzheben',
+    'achievements.exercise.hip_thrust_1rm': 'Hip Thrust',
+    'achievements.exercise.weighted_pullups_1rm': 'Klimmzüge mit Gewicht',
+    'achievements.exercise.max_pullups': 'Klimmzüge',
+    'achievements.exercise.max_pushups': 'Liegestütze',
+    'achievements.exercise.max_dips': 'Dips',
+    'achievements.exercise.vertical_jump': 'Vertikalsprung',
+    'achievements.exercise.broad_jump': 'Standweitsprung',
+    'achievements.exercise.box_jump': 'Box Jump',
+    'achievements.exercise.mb_chest_throw': 'MB Brustwurf',
+    'achievements.exercise.mb_overhead_throw': 'MB Überkopfwurf',
+    'achievements.exercise.mb_rotational_throw': 'MB Rotationswurf',
+    'achievements.exercise.clap_pushups': 'Clap Push-ups',
+    'achievements.exercise.sprint_10m': '10m Sprint',
+    'achievements.exercise.sprint_30m': '30m Sprint',
+    'achievements.exercise.sprint_10m_flying': 'Fliegender 10m Sprint',
+    'achievements.exercise.agility_505': '5-0-5 Agility',
+
 };
 
 export default de;

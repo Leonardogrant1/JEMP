@@ -159,6 +159,7 @@ function MainStack({ languageReady }: { languageReady: boolean }) {
         <Stack.Screen name="active-session/[id]" options={{ animation: 'slide_from_bottom', headerShown: false }} />
         <Stack.Screen name="session-summary/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="assessment/[id]" options={{ animation: 'slide_from_right', headerShown: false }} />
+        <Stack.Screen name="achievements" options={{ animation: 'slide_from_right', headerShown: false }} />
         <Stack.Screen name="jump-measure" options={{ animation: 'slide_from_bottom', headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="support-ticket" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="edit-profile" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />

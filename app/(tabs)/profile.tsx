@@ -293,6 +293,11 @@ export default function ProfileScreen() {
                                 </View>
                             }
                         />
+                        <SettingsRow
+                            icon={<Ionicons name="trophy-outline" size={20} color={theme.textMuted} />}
+                            label={t('achievements.screen_title')}
+                            onPress={() => router.push('/achievements')}
+                        />
                     </SettingsGroup>
                 </View>
 

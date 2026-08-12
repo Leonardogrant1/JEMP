@@ -769,6 +769,38 @@ const en = {
     'version.force_update_title': 'Update Required',
     'version.force_update_body': 'This version of the app is no longer supported. Please update to continue.',
 
+    // ── Achievements screen ──────────────────────────────────────────────────────
+    'achievements.screen_title': 'Achievements',
+    'achievements.unlocked_count': '{{count}} / {{total}} unlocked',
+    'achievements.points_to_next': '{{points}} points to {{tier}}',
+    'achievements.top_tier_reached': 'Top tier reached',
+    'achievements.next_up': 'Next up: {{amount}} to go',
+    'achievements.unlocked_on': 'Unlocked {{date}}',
+    'achievements.empty_hint': 'Complete assessments to start unlocking achievements.',
+    'achievements.category_strength': 'Strength',
+    'achievements.category_jumps': 'Jumps',
+    'achievements.category_upper_body_plyometrics': 'Explosive Power',
+    'achievements.category_lower_body_plyometrics': 'Speed & Agility',
+    'achievements.exercise.bench_press_1rm': 'Bench Press',
+    'achievements.exercise.back_squat_1rm': 'Back Squat',
+    'achievements.exercise.romanian_deadlift_1rm': 'Romanian Deadlift',
+    'achievements.exercise.hip_thrust_1rm': 'Hip Thrust',
+    'achievements.exercise.weighted_pullups_1rm': 'Weighted Pull-ups',
+    'achievements.exercise.max_pullups': 'Pull-ups',
+    'achievements.exercise.max_pushups': 'Push-ups',
+    'achievements.exercise.max_dips': 'Dips',
+    'achievements.exercise.vertical_jump': 'Vertical Jump',
+    'achievements.exercise.broad_jump': 'Broad Jump',
+    'achievements.exercise.box_jump': 'Box Jump',
+    'achievements.exercise.mb_chest_throw': 'MB Chest Throw',
+    'achievements.exercise.mb_overhead_throw': 'MB Overhead Throw',
+    'achievements.exercise.mb_rotational_throw': 'MB Rotational Throw',
+    'achievements.exercise.clap_pushups': 'Clap Push-ups',
+    'achievements.exercise.sprint_10m': '10m Sprint',
+    'achievements.exercise.sprint_30m': '30m Sprint',
+    'achievements.exercise.sprint_10m_flying': 'Flying 10m Sprint',
+    'achievements.exercise.agility_505': '5-0-5 Agility',
+
 } as const;
 
 export type TranslationKeys = keyof typeof en;
