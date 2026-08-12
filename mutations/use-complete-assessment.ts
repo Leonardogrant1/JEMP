@@ -106,7 +106,7 @@ async function completeAssessment({
         newUnlocks = computeNewUnlocks({
             assessmentSlug,
             value,
-            gender: userProfile.gender,
+            gender: userProfile.gender === 'female' ? 'female' : 'male',
             alreadyUnlocked: new Set((existing ?? []).map(r => r.achievement_slug)),
         });
 

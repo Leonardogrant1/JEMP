@@ -28,7 +28,7 @@ function formatThreshold(def: AchievementDef, unitSystem: UnitSystem): string {
 }
 
 export default function AchievementsScreen() {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const router = useRouter();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
@@ -109,6 +109,10 @@ export default function AchievementsScreen() {
                                 const gap = next && bestValue !== null && !meetsThreshold(next, bestValue)
                                     ? Math.abs(next.direction === 'gte' ? next.threshold - bestValue : bestValue - next.threshold)
                                     : null;
+                                // defs are ordered ascending difficulty, so the last unlocked entry is the highest rung reached.
+                                const unlockedDefs = ladder.defs.filter(d => unlockedBySlug.has(d.slug));
+                                const highestUnlocked = unlockedDefs.length > 0 ? unlockedDefs[unlockedDefs.length - 1] : null;
+                                const highestUnlock = highestUnlocked ? unlockedBySlug.get(highestUnlocked.slug) : null;
                                 return (
                                     <View key={ladder.assessmentSlug} style={[styles.ladderCard, { backgroundColor: theme.surface }]}>
                                         <JempText type="body-l" style={styles.ladderTitle}>
@@ -144,6 +148,16 @@ export default function AchievementsScreen() {
                                                 {t('achievements.next_up', {
                                                     amount: formatThreshold({ ...next, threshold: Math.round(gap * 100) / 100 }, unitSystem),
                                                 })}
+                                            </JempText>
+                                        )}
+                                        {highestUnlocked && highestUnlock && (
+                                            <JempText type="caption" color={theme.textMuted} style={styles.nextUp}>
+                                                {t('achievements.unlocked_on', {
+                                                    date: new Date(highestUnlock.unlocked_at).toLocaleDateString(i18n.language),
+                                                })}
+                                                {highestUnlock.value !== null
+                                                    ? ` · ${formatThreshold({ ...highestUnlocked, threshold: highestUnlock.value }, unitSystem)}`
+                                                    : ''}
                                             </JempText>
                                         )}
                                     </View>
