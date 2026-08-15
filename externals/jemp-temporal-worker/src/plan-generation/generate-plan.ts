@@ -33,7 +33,9 @@ export type SessionBuildInput = {
     category_slug: string
     exercisesString: string
     slugs: string
-    availablePatterns?: string[]
+    bodyRegions: string[]
+    requiredPatterns?: string[]
+    mixedCore?: boolean
   }>
   bodyRegions: string[]
   warmupExercisesString: string
@@ -50,6 +52,7 @@ export type PrepareResult = {
   weekPlanSummary: string
   userContext: string
   exerciseSlugToMeasurementType: Record<string, string>
+  exerciseSlugToBodyRegion: Record<string, string>
   allExerciseSlugs: string[]
   environmentIds: string[]
 }
@@ -69,6 +72,34 @@ export const SESSION_MODE_DURATION: Record<SessionModeSlug, { min: number; max: 
 
 function lighterMode(a: SessionModeSlug, b: SessionModeSlug): SessionModeSlug {
   return MODE_WEIGHTS[a] <= MODE_WEIGHTS[b] ? a : b
+}
+
+// ─── Kraftmuster (movement patterns) ──────────────────────────
+
+export const BODY_REGION_TO_PATTERN: Record<string, string> = {
+  quad: 'squat',
+  hamstring: 'hinge', glute: 'hinge',
+  chest: 'push', shoulder: 'push', tricep: 'push',
+  upper_back: 'pull', bicep: 'pull',
+}
+
+export const PATTERN_TO_REGIONS: Record<string, string[]> = {
+  squat: ['quad'],
+  hinge: ['hamstring', 'glute'],
+  push: ['chest', 'shoulder'],
+  pull: ['upper_back'],
+}
+
+export const ALL_PATTERNS = ['squat', 'hinge', 'push', 'pull']
+
+export function patternsFromRegions(regions: string[]): string[] {
+  return [...new Set(regions.map((r) => BODY_REGION_TO_PATTERN[r]).filter(Boolean))]
+}
+
+// Wie viele unterschiedliche Muster ein Strength-Block realistisch tragen kann
+// (full: 2–3 Übungen pro Block, reduced: 1 Übung pro Block)
+const STRENGTH_PATTERN_CAPACITY: Record<SessionModeSlug, number> = {
+  full: 3, reduced: 1, activation: 0, recovery: 0,
 }
 
 export function determineSessionModes(
@@ -387,7 +418,7 @@ export async function prepareGeneration(
       }),
     }],
     reasoning_effort: 'low',
-    response_format: zodResponseFormat(dynamicWeekPlanSchema as any, 'data'),
+    response_format: zodResponseFormat(dynamicWeekPlanSchema, 'data'),
     max_completion_tokens: 8000,
   })
 
@@ -417,28 +448,57 @@ export async function prepareGeneration(
     }
   }
 
-  const weekPlanSummary = weekPlan.sessions.map((s) => {
-    const blocksText = s.blocks.map((b) => `${b.block_type}=${b.category_slug}`).join(', ')
+  // ── Kraftmuster-Bilanz: alle 4 Muster müssen über die Strength-Blöcke der
+  // Woche abgedeckt sein. Fehlende Muster werden deterministisch in Blöcke mit
+  // freier Kapazität gepatcht statt auf Prompt-Treue zu hoffen.
+  const strengthBlocks = weekPlan.sessions.flatMap((s) => {
     const spec = sessionSpecs.find((sp) => sp.day_of_week === s.day_of_week)
-    const regionsText = s.body_regions.length > 0 ? ` | regions: ${s.body_regions.join(', ')}` : ''
-    return `- ${DAY_NAMES[s.day_of_week] ?? `Tag ${s.day_of_week}`} [${spec?.mode_slug ?? '?'}]: ${blocksText || 'keine Hauptblöcke'}${regionsText}`
+    if (!spec) return []
+    return s.blocks
+      .filter((b) => b.category_slug === 'strength' && (b.block_type === 'primary' || b.block_type === 'secondary'))
+      .map((b) => ({ block: b, day: s.day_of_week, mode: spec.mode_slug, capacity: STRENGTH_PATTERN_CAPACITY[spec.mode_slug] }))
+  })
+
+  if (strengthBlocks.length > 0) {
+    const coveredPatterns = new Set(strengthBlocks.flatMap((sb) => patternsFromRegions(sb.block.body_regions)))
+    const missingPatterns = ALL_PATTERNS.filter((p) => !coveredPatterns.has(p))
+
+    for (const pattern of missingPatterns) {
+      // Block mit den wenigsten Mustern und freier Kapazität — primary bevorzugt
+      const candidates = strengthBlocks
+        .map((sb) => ({ ...sb, patternCount: patternsFromRegions(sb.block.body_regions).length }))
+        .filter((sb) => sb.patternCount < sb.capacity)
+        .sort((a, b) => a.patternCount - b.patternCount || (a.block.block_type === 'primary' ? -1 : 1))
+
+      const target = candidates[0]
+      if (!target) {
+        console.warn(`⚠️  Pattern balance: "${pattern}" fehlt und kein Strength-Block hat freie Kapazität — diese Woche nicht abdeckbar`)
+        continue
+      }
+      target.block.body_regions.push(...PATTERN_TO_REGIONS[pattern].filter((r) => !target.block.body_regions.includes(r as any)) as any)
+      console.log(`Pattern balance: "${pattern}" fehlte — gepatcht in day ${target.day} ${target.block.block_type}/strength (regions += ${PATTERN_TO_REGIONS[pattern].join(', ')})`)
+    }
+  }
+
+  const weekPlanSummary = weekPlan.sessions.map((s) => {
+    const blocksText = s.blocks.map((b) => {
+      const regions = b.body_regions.length > 0 ? `[${b.body_regions.join(',')}]` : ''
+      return `${b.block_type}=${b.category_slug}${regions}`
+    }).join(', ')
+    const spec = sessionSpecs.find((sp) => sp.day_of_week === s.day_of_week)
+    return `- ${DAY_NAMES[s.day_of_week] ?? `Tag ${s.day_of_week}`} [${spec?.mode_slug ?? '?'}]: ${blocksText || 'keine Hauptblöcke'}`
   }).join('\n')
 
   // ── 5. Phase B: Code builds all exercise pools per session ───
-
-  const BODY_REGION_TO_PATTERN: Record<string, string> = {
-    quad: 'squat',
-    hamstring: 'hinge', glute: 'hinge',
-    chest: 'push', shoulder: 'push', tricep: 'push',
-    upper_back: 'pull', bicep: 'pull',
-  }
 
   type BlockPool = {
     block_type: 'primary' | 'secondary' | 'accessory'
     category_slug: string
     exercisesString: string
     slugs: string
-    availablePatterns?: string[]
+    bodyRegions: string[]
+    requiredPatterns?: string[]
+    mixedCore?: boolean
   }
 
   const sessionBuildInputs: SessionBuildInput[] = sessionSpecs.map((spec) => {
@@ -457,7 +517,8 @@ export async function prepareGeneration(
       }
       return true
     })
-    const sessionBodyRegions = new Set(weekPlanSession?.body_regions ?? [])
+    // Session-Regionen = Union der Block-Regionen (für Warmup/Cooldown-Filterung)
+    const sessionBodyRegions = new Set((weekPlanSession?.blocks ?? []).flatMap((b) => b.body_regions))
 
     // Resolve session environment: user preset → Phase A LLM choice → null
     const sessionEnvSlug = (weekPlanSession as any)?.environment_slug
@@ -468,23 +529,58 @@ export async function prepareGeneration(
     console.log(`Phase B day ${spec.day_of_week}: environment=${sessionEnvSlug ?? 'none'} (id=${sessionEnvId ?? 'null'})`)
 
     const blockPools: BlockPool[] = plannedBlocks.map((block) => {
-      const pool = filterByCategoryForMode(block.category_slug, spec.mode_slug, sessionEnvId)
+      const blockRegions = new Set<string>(block.body_regions)
+      const fullPool = filterByCategoryForMode(block.category_slug, spec.mode_slug, sessionEnvId)
+      // Pool auf die Block-Regionen einengen (behält full_body/ohne Region); Fallback auf ungefiltert
+      const regionFiltered = filterByBodyRegion(fullPool, blockRegions)
+      const pool = regionFiltered.length > 0 ? regionFiltered : fullPool
+
+      // Accessory mit core-Region: Core-Übungen beimischen. core existiert nur als
+      // body_region (v.a. in strength: dead_bug, hollow_body_hold, …), nicht als
+      // Category — ohne Beimischung wäre der Slot auf mobility-Restbestände beschränkt.
+      let mixedCore = false
+      if (block.block_type === 'accessory' && blockRegions.has('core')) {
+        const inPool = new Set(pool.map((e: any) => e.id))
+        const coreExtras = (allExercises ?? []).filter((e: any) =>
+          e.body_region === 'core'
+          && !inPool.has(e.id)
+          && !e.is_sport_specific
+          && (e.intensity_score === null || e.intensity_score <= 5)
+          && passesEquipmentAndEnv(e, sessionEnvId),
+        )
+        if (coreExtras.length > 0) {
+          pool.push(...coreExtras)
+          mixedCore = true
+          console.log(`Phase B day ${spec.day_of_week} accessory: ${coreExtras.length} Core-Übungen beigemischt`)
+        }
+      }
 
       if (pool.length === 0) {
         console.warn(`Phase B day ${spec.day_of_week} [${spec.mode_slug}] ${block.block_type}/${block.category_slug}: EMPTY pool — no exercises for this category`)
       } else {
-        console.log(`Phase B day ${spec.day_of_week} [${spec.mode_slug}] ${block.block_type}/${block.category_slug}: ${pool.length} exercises`)
+        console.log(`Phase B day ${spec.day_of_week} [${spec.mode_slug}] ${block.block_type}/${block.category_slug}: ${pool.length} exercises (regions: ${[...blockRegions].join(',') || 'alle'})`)
       }
-      const availablePatterns = block.category_slug === 'strength'
-        ? [...new Set(pool.map((e: any) => BODY_REGION_TO_PATTERN[e.body_region]).filter(Boolean))]
-        : undefined
+
+      // Strength: geforderte Muster aus den Block-Regionen — aber nur, was der Pool hergibt
+      let requiredPatterns: string[] | undefined
+      if (block.category_slug === 'strength') {
+        const wanted = patternsFromRegions(block.body_regions)
+        const poolPatterns = new Set(pool.map((e: any) => BODY_REGION_TO_PATTERN[e.body_region]).filter(Boolean))
+        requiredPatterns = wanted.filter((p) => poolPatterns.has(p))
+        const unsupported = wanted.filter((p) => !poolPatterns.has(p))
+        if (unsupported.length > 0) {
+          console.warn(`Phase B day ${spec.day_of_week} ${block.block_type}/strength: Muster ohne Pool-Übungen entfernt: ${unsupported.join(', ')}`)
+        }
+      }
 
       return {
         block_type: block.block_type,
         category_slug: block.category_slug,
         exercisesString: exercisesToString(pool),
         slugs: pool.map((e: any) => e.slug).join(', '),
-        availablePatterns,
+        bodyRegions: block.body_regions,
+        requiredPatterns,
+        mixedCore,
       }
     })
 
@@ -561,11 +657,30 @@ export async function prepareGeneration(
     console.log(`  Pool Opt day ${si.spec.day_of_week}: switching env ${fromSlug} → ${toSlug} (score: ${currentScore} → ${bestScore})`)
     si.environment_id = bestEnvId
 
-    // Recompute block pools with new environment
+    // Recompute block pools with new environment (gleiche Region-Filterung + Core-Beimischung wie initial)
     for (const block of si.blockPools) {
-      const pool = filterByCategoryForMode(block.category_slug, si.spec.mode_slug, bestEnvId)
+      const fullPool = filterByCategoryForMode(block.category_slug, si.spec.mode_slug, bestEnvId)
+      const regionFiltered = filterByBodyRegion(fullPool, new Set(block.bodyRegions))
+      const pool = regionFiltered.length > 0 ? regionFiltered : fullPool
+      if (block.block_type === 'accessory' && block.bodyRegions.includes('core')) {
+        const inPool = new Set(pool.map((e: any) => e.id))
+        const coreExtras = (allExercises ?? []).filter((e: any) =>
+          e.body_region === 'core'
+          && !inPool.has(e.id)
+          && !e.is_sport_specific
+          && (e.intensity_score === null || e.intensity_score <= 5)
+          && passesEquipmentAndEnv(e, bestEnvId),
+        )
+        pool.push(...coreExtras)
+        block.mixedCore = coreExtras.length > 0 || block.mixedCore
+      }
       block.exercisesString = exercisesToString(pool)
       block.slugs = pool.map((e: any) => e.slug).join(', ')
+      if (block.category_slug === 'strength') {
+        const wanted = patternsFromRegions(block.bodyRegions)
+        const poolPatterns = new Set(pool.map((e: any) => BODY_REGION_TO_PATTERN[e.body_region]).filter(Boolean))
+        block.requiredPatterns = wanted.filter((p) => poolPatterns.has(p))
+      }
       console.log(`     ${block.block_type}/${block.category_slug}: → ${pool.length} exercises`)
     }
 
@@ -584,11 +699,15 @@ export async function prepareGeneration(
     si.cooldownCategorySlugs = uniqueSlugsOpt(cooldownPoolOpt)
   }
 
-  // Build compact measurement type lookup
+  // Build compact measurement type + body region lookups
   const exerciseSlugToMeasurementType: Record<string, string> = {}
+  const exerciseSlugToBodyRegion: Record<string, string> = {}
   for (const e of allExercises ?? []) {
     if (e.slug && e.measurement_type) {
       exerciseSlugToMeasurementType[e.slug] = e.measurement_type
+    }
+    if (e.slug && e.body_region) {
+      exerciseSlugToBodyRegion[e.slug] = e.body_region
     }
   }
 
@@ -600,6 +719,7 @@ export async function prepareGeneration(
     weekPlanSummary,
     userContext,
     exerciseSlugToMeasurementType,
+    exerciseSlugToBodyRegion,
     allExerciseSlugs,
     environmentIds: environment_ids,
   }
@@ -618,6 +738,7 @@ export async function runSessionCD(
     planDescription: string
     previousSessions: PreviousSessionSummary[]
     exerciseSlugToMeasurementType: Record<string, string>
+    exerciseSlugToBodyRegion: Record<string, string>
     allExerciseSlugs: string[]
   },
   openai: OpenAI,
@@ -625,7 +746,7 @@ export async function runSessionCD(
   const {
     sessionIndex, totalSessions, weekPlanSummary, userContext,
     planName, planDescription, previousSessions,
-    exerciseSlugToMeasurementType, allExerciseSlugs,
+    exerciseSlugToMeasurementType, exerciseSlugToBodyRegion, allExerciseSlugs,
   } = context
   const t0 = Date.now()
   const elapsed = (since: number) => `${((Date.now() - since) / 1000).toFixed(1)}s`
@@ -645,38 +766,87 @@ export async function runSessionCD(
   const effectiveExerciseSlugs = sessionExerciseSlugs.length > 0 ? sessionExerciseSlugs : allExerciseSlugs
   const sessionCategorySlugs = [...new Set(si.blockPools.map(p => p.category_slug))]
   const dynamicMainSchema = buildMainSessionSchema(effectiveExerciseSlugs, sessionCategorySlugs, si.blockPools.length)
-  const mainCompletion = await openai.chat.completions.create({
-    model: 'gpt-5-mini',
-    messages: [{
-      role: 'system',
-      content: GENERATE_MAIN_BLOCKS_PROMPT({
-        sessionIndex,
-        totalSessions,
-        spec: si.spec,
-        duration: si.duration,
-        blockPools: si.blockPools,
-        bodyRegions: si.bodyRegions,
-        weekPlanSummary,
-        userContext,
-        planName,
-        planDescription,
-        previousSessions,
-      }),
-    }],
-    response_format: zodResponseFormat(dynamicMainSchema as any, 'data'),
-    max_completion_tokens: 16000,
+  const basePrompt = GENERATE_MAIN_BLOCKS_PROMPT({
+    sessionIndex,
+    totalSessions,
+    spec: si.spec,
+    duration: si.duration,
+    blockPools: si.blockPools,
+    bodyRegions: si.bodyRegions,
+    weekPlanSummary,
+    userContext,
+    planName,
+    planDescription,
+    previousSessions,
   })
 
-  const mainChoice = mainCompletion.choices[0]
-  console.log(`Phase C Session ${sessionIndex + 1} (day ${si.spec.day_of_week}): finish_reason=${mainChoice.finish_reason}, tokens=${mainCompletion.usage?.completion_tokens} (${elapsed(tC)})`)
-  if (mainChoice.finish_reason === 'length') {
-    throw new Error(`Phase C Session ${sessionIndex + 1} (day ${si.spec.day_of_week}) cut off`)
+  // Prüft Strength-Muster-Abdeckung und doppelte Übungen innerhalb eines Blocks
+  function findPatternViolations(session: z.infer<typeof mainSessionSchema>): string[] {
+    const violations: string[] = []
+    for (const block of session.blocks) {
+      const seen = new Set<string>()
+      for (const e of block.exercises) {
+        if (seen.has(e.exercise_slug)) {
+          violations.push(`Block "${block.block_type}": Übung "${e.exercise_slug}" kommt doppelt vor — jede Übung nur einmal pro Block`)
+        }
+        seen.add(e.exercise_slug)
+      }
+
+      const pool = si.blockPools.find((p) => p.block_type === block.block_type)
+      if (!pool?.requiredPatterns?.length) continue
+      const covered = new Set(patternsFromRegions(
+        block.exercises.map((e) => exerciseSlugToBodyRegion[e.exercise_slug]).filter(Boolean),
+      ))
+      const missing = pool.requiredPatterns.filter((p) => !covered.has(p))
+      if (missing.length > 0) {
+        violations.push(`Block "${block.block_type}": Muster fehlen: ${missing.join(', ')} — gewählt waren: ${block.exercises.map((e) => e.exercise_slug).join(', ')}`)
+      }
+    }
+    return violations
   }
-  const mainSession = JSON.parse(mainChoice.message.content!) as z.infer<typeof mainSessionSchema>
+
+  let mainSession!: z.infer<typeof mainSessionSchema>
+  let patternFeedback: string | undefined
+  const MAX_PATTERN_ATTEMPTS = 2
+
+  for (let attempt = 1; attempt <= MAX_PATTERN_ATTEMPTS; attempt++) {
+    const prompt = patternFeedback
+      ? `${basePrompt}\n\n## KORREKTUR (vorheriger Versuch ungültig)\n${patternFeedback}\nWähle die Übungen neu, sodass jeder Block seine PFLICHT-Muster abdeckt.`
+      : basePrompt
+
+    const mainCompletion = await openai.chat.completions.create({
+      model: 'gpt-5-mini',
+      messages: [{ role: 'system', content: prompt }],
+      response_format: zodResponseFormat(dynamicMainSchema as any, 'data'),
+      max_completion_tokens: 16000,
+    })
+
+    const mainChoice = mainCompletion.choices[0]
+    console.log(`Phase C Session ${sessionIndex + 1} (day ${si.spec.day_of_week}) attempt ${attempt}: finish_reason=${mainChoice.finish_reason}, tokens=${mainCompletion.usage?.completion_tokens} (${elapsed(tC)})`)
+    if (mainChoice.finish_reason === 'length') {
+      throw new Error(`Phase C Session ${sessionIndex + 1} (day ${si.spec.day_of_week}) cut off`)
+    }
+    mainSession = JSON.parse(mainChoice.message.content!) as z.infer<typeof mainSessionSchema>
+
+    const violations = findPatternViolations(mainSession)
+    if (violations.length === 0) break
+    if (attempt < MAX_PATTERN_ATTEMPTS) {
+      console.warn(`Phase C Session ${sessionIndex + 1}: Muster-Verletzung, retry — ${violations.join(' | ')}`)
+      patternFeedback = violations.join('\n')
+    } else {
+      console.warn(`⚠️  Phase C Session ${sessionIndex + 1}: Muster-Verletzung nach ${MAX_PATTERN_ATTEMPTS} Versuchen akzeptiert — ${violations.join(' | ')}`)
+    }
+  }
+
   console.log(`Phase C Session ${sessionIndex + 1} (day ${si.spec.day_of_week}): ${mainSession.blocks.length} blocks — ${mainSession.blocks.map(b => `${b.block_type}(${b.exercises.length})`).join(', ')}`)
   mainSession.day_of_week = si.spec.day_of_week
   mainSession.mode_slug = si.spec.mode_slug
   mainSession.order_index = sessionIndex
+  // LLM-Schätzung auf das Session-Zeitfenster begrenzen
+  mainSession.estimated_duration_minutes = Math.min(
+    Math.max(mainSession.estimated_duration_minutes, si.duration.min),
+    si.duration.max,
+  )
 
   // Coerce measurement fields based on DB measurement_type (overrides LLM guesses)
   let coerceCount = 0

@@ -13,6 +13,7 @@ export async function runSessionPhasesCD(input: {
   planDescription: string
   previousSessionSummaries: PreviousSessionSummary[]
   exerciseSlugToMeasurementType: Record<string, string>
+  exerciseSlugToBodyRegion: Record<string, string>
   allExerciseSlugs: string[]
 }): Promise<PlannedSession> {
   const openai = getOpenAIClient()
@@ -27,6 +28,7 @@ export async function runSessionPhasesCD(input: {
       planDescription: input.planDescription,
       previousSessions: input.previousSessionSummaries,
       exerciseSlugToMeasurementType: input.exerciseSlugToMeasurementType,
+      exerciseSlugToBodyRegion: input.exerciseSlugToBodyRegion,
       allExerciseSlugs: input.allExerciseSlugs,
     },
     openai,

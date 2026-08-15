@@ -51,6 +51,7 @@ export async function generatePlanWorkflow(input: {
         planDescription: prepareResult.weekPlan.description,
         previousSessionSummaries,
         exerciseSlugToMeasurementType: prepareResult.exerciseSlugToMeasurementType,
+        exerciseSlugToBodyRegion: prepareResult.exerciseSlugToBodyRegion,
         allExerciseSlugs: prepareResult.allExerciseSlugs,
       })
 
