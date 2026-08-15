@@ -45,16 +45,16 @@ const bodyRegionEnum = z.enum([
   "shoulder", "tricep", "bicep", "full_body",
 ])
 
-// Phase A: week planner picks categories per block + body regions per session
+// Phase A: week planner picks categories + body regions per block
 const weekPlanSchema = z.object({
   name: z.string(),
   description: z.string(),
   sessions: z.array(z.object({
     day_of_week: z.number(),
-    body_regions: z.array(bodyRegionEnum),
     blocks: z.array(z.object({
       block_type: z.enum(["primary", "secondary", "accessory"]),
       category_slug: z.string(),
+      body_regions: z.array(bodyRegionEnum),
     })),
   })),
 })
@@ -111,10 +111,10 @@ export function buildWeekPlanSchema(categorySlugs: string[], environmentSlugs: s
     sessions: z.array(z.object({
       day_of_week: z.number(),
       environment_slug: environmentEnum,
-      body_regions: z.array(bodyRegionEnum),
       blocks: z.array(z.object({
         block_type: z.enum(["primary", "secondary", "accessory"]),
         category_slug: categoryEnum,
+        body_regions: z.array(bodyRegionEnum),
       })),
     })),
   })

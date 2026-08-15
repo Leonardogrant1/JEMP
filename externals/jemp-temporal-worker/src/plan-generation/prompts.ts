@@ -57,11 +57,10 @@ Erlaubte Category-Slugs: ${categorySlugs.map((s) => `\`${s}\``).join(", ")}
 - Sport-Pflicht-Categories (höchste Relevanz) müssen mindestens einmal als primary erscheinen
 - **Innerhalb einer Session müssen primary, secondary und accessory ALLE unterschiedliche Categories haben** — keine Category darf in derselben Session doppelt vorkommen
 - \`accessory\` optional — nur wenn ein klarer Ergänzungsfokus sinnvoll ist (z.B. mobility, core)
-- **body_regions müssen Sessions mit ähnlicher Kategoriestruktur voneinander unterscheiden**: Wenn zwei Sessions die gleiche primary-Category hätten (was verboten ist), oder ähnliche secondary-Categories, MÜSSEN die body_regions klar verschieden sein (z.B. Tag 1: upper_body-Fokus, Tag 5: lower_body-Fokus) — niemals \`full_body\` für alle Sessions gleichzeitig
 
 ### Wochenbilanz Bewegungsmuster (Pflicht bei Strength)
 
-Die 4 Grundmuster müssen über alle Strength-Blöcke der Woche zusammen abgedeckt sein:
+Die \`body_regions\` eines \`strength\`-Blocks legen fest, welche Kraftmuster dieser Block trainieren MUSS — sie sind eine Arbeitsanweisung, keine Beschreibung:
 
 | Muster | Ziel-body_regions |
 |--------|-------------------|
@@ -70,16 +69,13 @@ Die 4 Grundmuster müssen über alle Strength-Blöcke der Woche zusammen abgedec
 | Push (vertikal oder horizontal) | chest, shoulder, tricep |
 | Pull (vertikal oder horizontal) | upper_back, bicep |
 
-**Über alle Sessions mit \`strength\` als primary oder secondary MUSS jedes der 4 Muster mindestens einmal vorkommen.**
+**Über alle \`strength\`-Blöcke der Woche (primary oder secondary) MUSS jedes der 4 Muster mindestens einmal vorkommen.** Ein full-Block trägt max. 3 Muster, ein reduced-Block 1 Muster.
 
-Bei 2 Strength-Tagen: teile die Muster auf — ein Tag bekommt Squat + Push-Fokus, der andere Hinge + Pull-Fokus (oder ähnlich). Die \`body_regions\` dokumentieren das und müssen sich zwischen den beiden Tagen klar unterscheiden.
+Bei 2 Strength-Blöcken: teile die Muster auf — ein Block bekommt z.B. Squat + Push (body_regions=[quad, chest, shoulder]), der andere Hinge + Pull (body_regions=[hamstring, glute, upper_back]).
 
-Falsch: Tag1 body_regions=[hamstring, glute, upper_back], Tag5 body_regions=[hamstring, glute, upper_back] — identisch, Squat und Push fehlen komplett.
-Richtig: Tag1 body_regions=[quad, chest, shoulder], Tag5 body_regions=[hamstring, glute, upper_back, bicep]
+Falsch: beide Strength-Blöcke body_regions=[hamstring, glute, upper_back] — identisch, Squat und Push fehlen komplett.
 
 Bei sportartspezifischer Gewichtung (z.B. Boxen): Unterkörper und hintere Kette erhalten mehr Gewicht, aber Push (Druckkraft = Schlagkraft!) und Squat dürfen **nie komplett fehlen**.
-
-\`full_body\` nur verwenden wenn die Session wirklich gleichmäßig alle 4 Muster bedient — nie als Platzhalter für "weiß ich nicht".
 
 ### Erlaubte Block-Types pro Category-Typ
 
@@ -90,11 +86,15 @@ Bei sportartspezifischer Gewichtung (z.B. Boxen): Unterkörper und hintere Kette
 - Plyometrics, Jumps, Sprints, Strength, Power
 - \`mobility\` — wenn die Session explizit auf aktive Beweglichkeitsentwicklung ausgerichtet ist (z.B. Mobility-Fokus-Tag)
 
-## body_regions
+## body_regions (pro Block)
 
-Gib für jede Session die Körperregionen an, die durch die Hauptblöcke hauptsächlich belastet werden.
+Gib für JEDEN Block die Körperregionen an, die dieser Block trainieren soll. Der Übungspool des Blocks wird auf diese Regionen gefiltert — was hier nicht steht, kann später nicht gewählt werden.
 Erlaubte Werte: quad, hamstring, glute, calf, hip, lower_back, core, chest, upper_back, shoulder, tricep, bicep, full_body
-Sessions mit \`recovery\` oder keinen Blöcken → \`body_regions: []\`
+- \`strength\`-Blöcke: Regionen = geforderte Kraftmuster (siehe Wochenbilanz oben), 2–3 Muster pro full-Block
+- Plyo/Jumps/Sprint-Blöcke: die dominant belasteten Regionen (z.B. quad, calf)
+- \`mobility\`/\`core\`-Blöcke (accessory): Regionen, die zu den Hauptblöcken der Session passen
+- Blöcke mit gleichmäßiger Ganzkörperlast → \`["full_body"]\` — nie als Platzhalter für "weiß ich nicht"
+- Sessions mit ähnlicher Blockstruktur müssen sich über die body_regions klar unterscheiden (z.B. Tag 1 upper-body-lastig, Tag 5 lower-body-lastig)
 
 ## Environment pro Session
 
@@ -118,7 +118,9 @@ type BlockPool = {
   category_slug: string
   exercisesString: string
   slugs: string
-  availablePatterns?: string[]
+  bodyRegions: string[]
+  requiredPatterns?: string[]
+  mixedCore?: boolean
 }
 
 export type PreviousSessionSummary = {
@@ -202,19 +204,26 @@ export const GENERATE_MAIN_BLOCKS_PROMPT = (input: Omit<SessionPromptInput, "war
 
   const mainPoolsSection = blockPools.length > 0
     ? blockPools.map((pool) => {
-        const patternSection = pool.availablePatterns && pool.availablePatterns.length > 0
-          ? `Bewegungsmuster-PFLICHT: Diese Muster sind im Pool verfügbar und müssen alle abgedeckt werden: **${pool.availablePatterns.join(", ")}**
+        const patternSection = pool.requiredPatterns && pool.requiredPatterns.length > 0
+          ? `Bewegungsmuster-PFLICHT: Dieser Block MUSS jedes dieser Muster mit mindestens einer Übung abdecken: **${pool.requiredPatterns.join(", ")}**
 - squat → back_squat, front_squat, bulgarian_split_squat, lunge-Varianten, pistol_squat
 - hinge → romanian_deadlift, hip_thrust, nordic_curl, deadlift-Varianten, good_morning
 - push → bench_press, overhead_press, dumbbell_shoulder_press, dips, push_up-Varianten
 - pull → pull_up, chin_up, weighted_pull_up, row-Varianten
-Wähle mindestens eine Übung pro verfügbarem Muster. Kombiniere NICHT zwei Übungen desselben Musters im selben Block.
+Andere Muster haben in diesem Block KEINEN Platz. Kombiniere NICHT zwei Übungen desselben Musters im selben Block.
+WICHTIG: Für die Muster-PFLICHT zählen nur Übungen, deren \`body_region\` dem Muster zugeordnet ist — Übungen mit \`body_region: full_body\` (z.B. Cleans, Thruster) zählen NICHT als Muster-Abdeckung.
 `
           : ""
+        const regionsLine = pool.bodyRegions.length > 0
+          ? `Ziel-Regionen dieses Blocks: ${pool.bodyRegions.join(", ")}\n`
+          : ""
+        const categoryRule = pool.mixedCore
+          ? `Der Pool enthält \`${pool.category_slug}\`- und Core-Übungen — beide sind erlaubt, mische sinnvoll.`
+          : `PFLICHT: Wähle NUR Übungen, deren \`category\` = \`${pool.category_slug}\` ist.
+Nur wenn der Pool keine einzige Übung dieser Category enthält, darfst du ausweichen.`
         return `### ${pool.block_type} — Fokus-Category: **${pool.category_slug}**
-PFLICHT: Wähle NUR Übungen, deren \`category\` = \`${pool.category_slug}\` ist.
-Nur wenn der Pool keine einzige Übung dieser Category enthält, darfst du ausweichen.
-${patternSection}NUR diese Slugs sind erlaubt:
+${categoryRule}
+${regionsLine}${patternSection}NUR diese Slugs sind erlaubt:
 ${pool.exercisesString}
 Erlaubte Slugs: ${pool.slugs}
 `
@@ -273,8 +282,7 @@ ${getMainBlockStructure(spec.mode_slug).split("\n").filter(l => !l.startsWith("-
 
 ## Ziel-Körperregionen dieser Session
 ${bodyRegions.length > 0 ? bodyRegions.join(", ") : "nicht spezifiziert"}
-Wähle Übungen aus den Pools bevorzugt so, dass diese Regionen gezielt trainiert werden.
-Wenn \`strength\` im primary-Block ist: Stelle sicher, dass die gewählten Übungen die oben genannten Körperregionen abdecken — nicht einseitig nur Unterkörper oder nur Oberkörper, sofern die Ziel-Körperregionen beides enthalten.
+Die verbindlichen Ziel-Regionen stehen pro Block bei den Übungspools — sie haben Vorrang vor dieser Gesamtliste.
 
 ## Verfügbare Übungen pro Block
 ${mainPoolsSection}
@@ -283,18 +291,18 @@ ${mainPoolsSection}
 
 **primary** — Hauptreiz, höchste Intensität. focused_category_slug = category des Blocks.
 **secondary** — Komplementärer Reiz. focused_category_slug = category des Blocks.
-**accessory** — Mobility, Core, Stabilität, Injury Prevention. Wähle Übungen die die Körperregionen dieser spezifischen Session adressieren — nicht dieselben generischen Mobility-Drills wie in anderen Sessions der Woche. Der Übungspool ist bereits auf die Ziel-Körperregionen gefiltert.
+**accessory** — Mobility, Core, Stabilität, Injury Prevention. Wähle Übungen, die die Ziel-Regionen dieses Blocks adressieren — nicht dieselben generischen Mobility-Drills wie in anderen Sessions der Woche.
 
 ### Bewegungsmuster für \`strength\`-Blöcke
 
-Leite aus den Ziel-Körperregionen dieser Session das Bewegungsmuster ab und wähle Übungen entsprechend:
+Die PFLICHT-Muster stehen beim jeweiligen Block. Muster-Zuordnung der Übungen:
 
 - **quad** → Squat/Knee-dominant: Back Squat, Front Squat, Bulgarian Split Squat, Pistol Squat, Lunge-Varianten
 - **hamstring / glute** → Hinge/Hip-dominant: RDL, Hip Thrust, Nordic Curl, Good Morning, Deadlift-Varianten
 - **chest / shoulder / tricep** → Push: Bench Press, Overhead Press, Dumbbell Shoulder Press, Dips, Push-up-Varianten
 - **upper_back / bicep** → Pull: Pull-up, Chin-up, Row-Varianten
 
-**Kombiniere NIEMALS zwei Übungen desselben Musters in einem Strength-Block** — kein RDL + Hip Thrust im selben Block (beide Hinge), kein Pull-up + Chin-up (beide vertikaler Pull). Ein Block soll 2–3 unterschiedliche Muster kombinieren oder explizit auf eines fokussieren und das dann intensiv abdecken.
+**Kombiniere NIEMALS zwei Übungen desselben Musters in einem Strength-Block** — kein RDL + Hip Thrust im selben Block (beide Hinge), kein Pull-up + Chin-up (beide vertikaler Pull).
 
 ### Volumen (intensity_score)
 - 1–3: 1–2 Sätze | 4–5: 2–3 Sätze | 6–7: 3–4 Sätze, ≥90s Pause | 8–9: 5–6 Sätze, ≥2min Pause | 10: 3–5 Sätze, ≥3min Pause
