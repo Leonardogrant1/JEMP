@@ -882,6 +882,38 @@ export type Database = {
         }
         Relationships: []
       }
+      user_achievements: {
+        Row: {
+          achievement_slug: string
+          id: string
+          unlocked_at: string
+          user_id: string
+          value: number | null
+        }
+        Insert: {
+          achievement_slug: string
+          id?: string
+          unlocked_at?: string
+          user_id: string
+          value?: number | null
+        }
+        Update: {
+          achievement_slug?: string
+          id?: string
+          unlocked_at?: string
+          user_id?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_achievements_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_assessments: {
         Row: {
           assessment_id: string

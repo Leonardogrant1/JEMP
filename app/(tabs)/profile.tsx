@@ -14,10 +14,13 @@ import { SectionLabel } from '@/components/profile/SectionLabel';
 import { SettingsGroup } from '@/components/profile/SettingsGroup';
 import { SettingsRow } from '@/components/profile/SettingRow';
 import { StatsStrip } from '@/components/profile/stats-strip';
+import { TitleChip } from '@/components/profile/title-chip';
 import { FEATURE_REQUEST_URL, PRIVACY_POLICY_URL, REPORT_BUG_URL } from '@/constants/settings';
 import { displayHeight, displayWeight, UnitSystem } from '@/helpers/units';
 import { Colors, Cyan, GRADIENT } from '@/constants/theme';
+import { useAchievementsBackfill } from '@/hooks/use-achievements-backfill';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useOverallScore } from '@/hooks/use-overall-score';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { useSportGroupBannerQuery } from '@/queries/use-sport-group-banner-query';
@@ -51,6 +54,8 @@ export default function ProfileScreen() {
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const { profile, refreshProfile } = useCurrentUser();
+    const overallScore = useOverallScore(profile?.id);
+    useAchievementsBackfill();
     const devButtonsVisible = useDevToolsStore(s => s.devButtonsVisible);
     const setDevButtonsVisible = useDevToolsStore(s => s.setDevButtonsVisible);
 
@@ -202,6 +207,10 @@ export default function ProfileScreen() {
                             </View>
                         </LinearGradient>
                     )}
+                    <TitleChip
+                        score={overallScore}
+                        onPress={() => router.push(overallScore !== null ? '/achievements' : '/(tabs)/assessments')}
+                    />
                 </View>
 
                 {/* ── Stats strip (tap to edit) ── */}
@@ -283,6 +292,11 @@ export default function ProfileScreen() {
                                     <Ionicons name="chevron-forward" size={16} color={theme.textSubtle} />
                                 </View>
                             }
+                        />
+                        <SettingsRow
+                            icon={<Ionicons name="trophy-outline" size={20} color={theme.textMuted} />}
+                            label={t('achievements.screen_title')}
+                            onPress={() => router.push('/achievements')}
                         />
                     </SettingsGroup>
                 </View>

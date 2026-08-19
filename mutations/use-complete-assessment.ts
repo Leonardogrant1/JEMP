@@ -2,6 +2,9 @@ import { calculateAssessmentScore, AssessmentUserProfile } from '@/lib/score-cal
 import { queryKeys } from '@/queries/query-keys';
 import { supabase } from '@/services/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { AchievementDef, medalForDef } from '@/constants/achievements';
+import { computeNewUnlocks } from '@/lib/achievements';
+import { trackerManager } from '@/lib/tracking/tracker-manager';
 
 type CompleteAssessmentParams = {
     userAssessmentId: string;
@@ -17,7 +20,7 @@ type CompleteAssessmentParams = {
 async function completeAssessment({
     userAssessmentId, assessmentId, userId, metricId, value,
     assessmentSlug, categoryId, userProfile,
-}: CompleteAssessmentParams) {
+}: CompleteAssessmentParams): Promise<{ newUnlocks: AchievementDef[] }> {
     const score = calculateAssessmentScore(assessmentSlug, value, userProfile);
 
     // 1. Insert metric entry (with score if calculable)
@@ -91,6 +94,48 @@ async function completeAssessment({
         .update({ status: 'completed', completed_at: new Date().toISOString() })
         .eq('id', userAssessmentId);
     if (assessmentError) throw assessmentError;
+
+    // 4. Award achievements (non-fatal — never block completion on gamification)
+    let newUnlocks: AchievementDef[] = [];
+    try {
+        const { data: existing, error: existingError } = await supabase
+            .from('user_achievements')
+            .select('achievement_slug')
+            .eq('user_id', userId);
+        if (existingError) throw existingError;
+
+        newUnlocks = computeNewUnlocks({
+            assessmentSlug,
+            value,
+            gender: userProfile.gender === 'female' ? 'female' : 'male',
+            alreadyUnlocked: new Set((existing ?? []).map(r => r.achievement_slug)),
+        });
+
+        if (newUnlocks.length > 0) {
+            const { error: unlockError } = await supabase
+                .from('user_achievements')
+                .upsert(
+                    newUnlocks.map(def => ({ user_id: userId, achievement_slug: def.slug, value })),
+                    { onConflict: 'user_id,achievement_slug', ignoreDuplicates: true },
+                );
+            if (unlockError) throw unlockError;
+
+            for (const def of newUnlocks) {
+                trackerManager.track('achievement_unlocked', {
+                    achievement_slug: def.slug,
+                    assessment_slug: def.assessmentSlug,
+                    category: def.category,
+                    medal: medalForDef(def),
+                    threshold: def.threshold,
+                });
+            }
+        }
+    } catch (e) {
+        console.warn('[achievements] award check failed', e);
+        newUnlocks = [];
+    }
+
+    return { newUnlocks };
 }
 
 export function useCompleteAssessment() {
@@ -103,6 +148,8 @@ export function useCompleteAssessment() {
                 qc.invalidateQueries({ queryKey: queryKeys.userCategoryLevels(userId) }),
                 qc.invalidateQueries({ queryKey: ['category-history', userId] }),
                 qc.invalidateQueries({ queryKey: ['category-assessments', userId] }),
+                qc.invalidateQueries({ queryKey: queryKeys.userAchievements(userId) }),
+                qc.invalidateQueries({ queryKey: queryKeys.assessmentBestValues(userId) }),
             ]);
         },
     });

@@ -1,19 +1,21 @@
 import { JempText } from '@/components/jemp-text';
-import { useTabBarInset } from '@/components/tab-bar';
-import { Skeleton } from '@/components/ui/skeleton';
 import { AssessmentRow } from '@/components/progress/assessment-row';
 import { CategoryStatGrid } from '@/components/progress/category-stat-grid';
 import { ProgressHeroCard } from '@/components/progress/progress-hero-card';
+import { useTabBarInset } from '@/components/tab-bar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getCategoryLabelShort } from '@/constants/category-labels';
 import { ALL_STAT_SLUGS, TIME_FRAMES } from '@/constants/progress-constants';
 import { Colors, Cyan, Electric } from '@/constants/theme';
+import { tierForScore } from '@/constants/tiers';
 import { computeTrend, timeFrameToSince } from '@/helpers/progress-helpers';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useOverallScore } from '@/hooks/use-overall-score';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { useCategoryAssessmentsQuery } from '@/queries/use-category-assessments-query';
-import { useDevToolsStore } from '@/stores/dev-tools-store';
 import { useUserCategoryHistoryQuery } from '@/queries/use-user-category-history-query';
 import { useUserCategoryLevelsQuery } from '@/queries/use-user-category-levels-query';
+import { useDevToolsStore } from '@/stores/dev-tools-store';
 import { TimeFrame } from '@/types/progress-types';
 import { devLog } from '@/utils/dev-log';
 import { Ionicons } from '@expo/vector-icons';
@@ -80,12 +82,7 @@ export default function ProgressScreen() {
     const trend = useMemo(() => computeTrend(chartData), [chartData]);
     devLog('[progress] selectedCategory:', selectedCategory, '| chartData.length:', chartData.length, '| historyData keys:', Object.keys(historyData ?? {}));
 
-    const overallScore = useMemo(() => {
-        if (!categoryLevels) return null;
-        const scores = ALL_STAT_SLUGS.map(s => categoryLevels[s]).filter((v): v is number => v !== undefined);
-        if (!scores.length) return null;
-        return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-    }, [categoryLevels]);
+    const overallScore = useOverallScore(profile?.id);
 
     const categoryTrends = useMemo(() => {
         const result: Record<string, number | null> = {};
@@ -173,6 +170,9 @@ export default function ProgressScreen() {
                         emptyLabel={t('ui.progress_no_history')}
                         ctaLabel={t('ui.progress_empty_cta')}
                         onCtaPress={() => router.navigate('/(tabs)/assessments')}
+                        tier={selectedCategory === 'all' && heroScore !== null
+                            ? { label: t(tierForScore(heroScore).i18nKey), color: tierForScore(heroScore).color }
+                            : null}
                     />
 
                     {selectedCategory === 'all' && (

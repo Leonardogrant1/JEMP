@@ -7,6 +7,7 @@ import { acquireBackgroundAudio, addBackgroundTickListener, releaseBackgroundAud
 import { useAuth } from '@/providers/auth-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { useNotifications } from '@/providers/notification-provider';
+import { queryKeys } from '@/queries/query-keys';
 import { PREMIUM_IDENTIFIER } from '@/services/purchases/revenuecat/constants';
 import { useRevenueCat } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
 import { supabase } from '@/services/supabase/client';
@@ -256,6 +257,27 @@ export default function TabLayout() {
                 }}
               >
                 <Text style={styles.debugButtonText}>♻️ Reset Plan</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={async () => {
+                  if (!session) return;
+                  // Backfill-MMKV-Flag bleibt gesetzt, sonst stellt der Backfill
+                  // alle Unlocks sofort still wieder her (keine Celebration testbar)
+                  const { error } = await supabase
+                    .from('user_achievements')
+                    .delete()
+                    .eq('user_id', session.user.id);
+                  if (error) {
+                    Alert.alert('Reset failed', error.message);
+                    return;
+                  }
+                  await queryClient.invalidateQueries({ queryKey: queryKeys.userAchievements(session.user.id) });
+                  Alert.alert('Achievements', 'All unlocks deleted');
+                }}
+              >
+                <Text style={styles.debugButtonText}>🏅 Reset Achievements</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
