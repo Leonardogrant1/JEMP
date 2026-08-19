@@ -1,12 +1,14 @@
 import { Confetti } from '@/components/confetti';
 import { JempText } from '@/components/jemp-text';
-import { AchievementDef } from '@/constants/achievements';
+import { AchievementDef, AchievementMedal, MEDAL_COLORS, medalForDef } from '@/constants/achievements';
 import { Colors, GRADIENT } from '@/constants/theme';
 import { displayMetricValue, UnitSystem } from '@/helpers/units';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import LottieView from 'lottie-react-native';
-import { useMemo } from 'react';
+import LottieView, { AnimationObject } from 'lottie-react-native';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
@@ -17,6 +19,15 @@ type AchievementCelebrationProps = {
     onDone: () => void;     // dismiss (assessment screen navigates back)
     onViewAll: () => void;  // dismiss + open the achievements screen
 };
+
+const MEDAL_ANIMATIONS: Record<AchievementMedal, AnimationObject> = {
+    gold: require('@/assets/animations/achievement_gold.json'),
+    silver: require('@/assets/animations/achievement_silver.json'),
+    bronze: require('@/assets/animations/achievement_bronze.json'),
+    basic: require('@/assets/animations/achievement.json'),
+};
+
+const MEDAL_RANK: Record<AchievementMedal, number> = { gold: 3, silver: 2, bronze: 1, basic: 0 };
 
 function formatThreshold(def: AchievementDef, unitSystem: UnitSystem): string {
     const { value, unit } = displayMetricValue(def.threshold, def.unit === 'count' ? 'count' : def.unit, unitSystem);
@@ -34,16 +45,31 @@ export function AchievementCelebration({ visible, unlocks, unitSystem, onDone, o
 
     // Highest rung per assessment ladder (catalog order is ascending within a ladder,
     // so the last unlock per assessmentSlug is the highest one).
-    const { headline, rest } = useMemo(() => {
+    const { headline, rest, medal } = useMemo(() => {
         const bySlug = new Map<string, AchievementDef>();
         for (const def of unlocks) bySlug.set(def.assessmentSlug, def);
         const headliners = [...bySlug.values()];
         const headlineSlugs = new Set(headliners.map(d => d.slug));
+        const best = headliners
+            .map(medalForDef)
+            .reduce<AchievementMedal>((a, b) => (MEDAL_RANK[b] > MEDAL_RANK[a] ? b : a), 'basic');
         return {
             headline: headliners,
             rest: unlocks.filter(d => !headlineSlugs.has(d.slug)),
+            medal: best,
         };
     }, [unlocks]);
+
+    // Celebration burst in sync with confetti + medal animation
+    useEffect(() => {
+        if (!visible) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        const timers = [
+            setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 150),
+            setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success), 350),
+        ];
+        return () => timers.forEach(clearTimeout);
+    }, [visible]);
 
     if (!visible) return null;
 
@@ -55,18 +81,22 @@ export function AchievementCelebration({ visible, unlocks, unitSystem, onDone, o
                     <LottieView
                         autoPlay
                         loop={false}
-                        source={require('@/assets/animations/throphy.json')}
+                        source={MEDAL_ANIMATIONS[medal]}
                         style={styles.trophy}
                     />
                     <JempText type="h1" style={styles.title}>{t('achievements.celebration_title')}</JempText>
 
-                    {headline.map(def => (
-                        <View key={def.slug} style={[styles.badge, { borderColor: '#FFD700' }]}>
-                            <JempText type="h2" color="#FFD700">
-                                {formatThreshold(def, unitSystem)} {t(`achievements.exercise.${def.assessmentSlug}`)}
-                            </JempText>
-                        </View>
-                    ))}
+                    {headline.map(def => {
+                        const color = MEDAL_COLORS[medalForDef(def)];
+                        return (
+                            <View key={def.slug} style={[styles.badge, { borderColor: color }]}>
+                                <Ionicons name="medal-outline" size={16} color={color} />
+                                <JempText type="body-l" color={color}>
+                                    {formatThreshold(def, unitSystem)} {t(`achievements.exercise.${def.assessmentSlug}`)}
+                                </JempText>
+                            </View>
+                        );
+                    })}
 
                     {rest.length > 0 && (
                         <JempText type="caption" color={theme.textMuted} style={styles.also}>
@@ -112,10 +142,13 @@ const styles = StyleSheet.create({
     trophy: { width: 110, height: 110 },
     title: { textAlign: 'center' },
     badge: {
-        borderWidth: 1.5,
-        borderRadius: 16,
-        paddingHorizontal: 18,
-        paddingVertical: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        borderWidth: 1,
+        borderRadius: 100,
+        paddingHorizontal: 14,
+        paddingVertical: 7,
     },
     also: { textAlign: 'center' },
     viewAll: { paddingVertical: 4 },

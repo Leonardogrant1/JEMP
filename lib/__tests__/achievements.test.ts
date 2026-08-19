@@ -1,4 +1,4 @@
-import { ACHIEVEMENTS, laddersForGender } from '@/constants/achievements';
+import { ACHIEVEMENTS, laddersForGender, medalForDef } from '@/constants/achievements';
 import { computeNewUnlocks } from '../achievements';
 import { calculateAssessmentScore } from '@/lib/score-calculators/assessment-score';
 
@@ -74,5 +74,19 @@ describe('computeNewUnlocks', () => {
         const female = computeNewUnlocks({ assessmentSlug: 'max_pullups', value: 10, gender: 'female', alreadyUnlocked: new Set() });
         expect(male.map(u => u.slug)).toEqual(['max_pullups_5', 'max_pullups_10']);
         expect(female.map(u => u.slug)).toEqual(['max_pullups_5', 'max_pullups_10']);
+    });
+});
+
+describe('medalForDef', () => {
+    it('assigns gold/silver/bronze from the top of each ladder, basic below', () => {
+        const ladder = ACHIEVEMENTS.filter(a => a.assessmentSlug === 'bench_press_1rm' && a.gender === 'male');
+        expect(ladder.map(medalForDef)).toEqual(['basic', 'bronze', 'silver', 'gold']);
+        const threeStep = ACHIEVEMENTS.filter(a => a.assessmentSlug === 'sprint_30m');
+        expect(threeStep.map(medalForDef)).toEqual(['bronze', 'silver', 'gold']);
+    });
+
+    it('keeps gendered ladders separate (female top rung is gold too)', () => {
+        const femaleTop = ACHIEVEMENTS.filter(a => a.assessmentSlug === 'bench_press_1rm' && a.gender === 'female').at(-1)!;
+        expect(medalForDef(femaleTop)).toBe('gold');
     });
 });

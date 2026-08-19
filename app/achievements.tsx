@@ -1,7 +1,7 @@
 import { JempText } from '@/components/jemp-text';
-import { AchievementDef, laddersForGender } from '@/constants/achievements';
+import { AchievementDef, laddersForGender, MEDAL_COLORS, medalForDef } from '@/constants/achievements';
 import { Colors } from '@/constants/theme';
-import { nextTier, tierForScore } from '@/constants/tiers';
+import { nextTier, tierForScore, TierSlug } from '@/constants/tiers';
 import { displayMetricValue, UnitSystem } from '@/helpers/units';
 import { useAchievementsBackfill } from '@/hooks/use-achievements-backfill';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -12,12 +12,25 @@ import { useAssessmentBestValuesQuery } from '@/queries/use-assessment-best-valu
 import { useUserAchievementsQuery } from '@/queries/use-user-achievements-query';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import LottieView, { AnimationObject } from 'lottie-react-native';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const CATEGORY_ORDER = ['strength', 'jumps', 'upper_body_plyometrics', 'lower_body_plyometrics'] as const;
+
+// Hero animation per title — accent color matches the tier color
+// (elite/advanced/novice are recolored variants of the base achievement.json)
+const TIER_ANIMATIONS: Record<TierSlug, AnimationObject> = {
+    apex: require('@/assets/animations/achievement_gold.json'),
+    elite: require('@/assets/animations/achievement_elite.json'),
+    advanced: require('@/assets/animations/achievement_advanced.json'),
+    average: require('@/assets/animations/achievement_silver.json'),
+    beginner: require('@/assets/animations/achievement_bronze.json'),
+    novice: require('@/assets/animations/achievement_novice.json'),
+};
+const DEFAULT_ANIMATION: AnimationObject = require('@/assets/animations/achievement.json');
 
 function formatThreshold(def: AchievementDef, unitSystem: UnitSystem): string {
     const { value, unit } = displayMetricValue(def.threshold, def.unit === 'count' ? 'count' : def.unit, unitSystem);
@@ -73,7 +86,13 @@ export default function AchievementsScreen() {
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                 {/* ── Title hero ── */}
                 <View style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: tier?.color ?? theme.borderStrong }]}>
-                    <Ionicons name="trophy" size={28} color={tier?.color ?? theme.textMuted} />
+                    <LottieView
+                        key={tier?.slug ?? 'none'}
+                        autoPlay
+                        loop={false}
+                        source={tier ? TIER_ANIMATIONS[tier.slug] : DEFAULT_ANIMATION}
+                        style={styles.heroLottie}
+                    />
                     <JempText type="h1" color={tier?.color ?? theme.textMuted} style={styles.heroTier}>
                         {tier ? t(tier.i18nKey).toUpperCase() : '—'}
                     </JempText>
@@ -121,21 +140,20 @@ export default function AchievementsScreen() {
                                         <View style={styles.rungRow}>
                                             {ladder.defs.map(def => {
                                                 const unlock = unlockedBySlug.get(def.slug);
+                                                const medalColor = MEDAL_COLORS[medalForDef(def)];
                                                 return (
                                                     <View
                                                         key={def.slug}
                                                         style={[
                                                             styles.rung,
                                                             unlock
-                                                                ? { borderColor: '#FFD700', backgroundColor: 'rgba(255, 215, 0, 0.12)' }
+                                                                ? { borderColor: medalColor, backgroundColor: `${medalColor}20` }
                                                                 : { borderColor: theme.borderStrong },
                                                         ]}
                                                     >
-                                                        <Ionicons
-                                                            name={unlock ? 'trophy' : 'lock-closed-outline'}
-                                                            size={12}
-                                                            color={unlock ? '#FFD700' : theme.textSubtle}
-                                                        />
+                                                        {!unlock && (
+                                                            <Ionicons name="lock-closed-outline" size={12} color={theme.textSubtle} />
+                                                        )}
                                                         <JempText type="caption" color={unlock ? theme.text : theme.textSubtle}>
                                                             {formatThreshold(def, unitSystem)}
                                                         </JempText>
@@ -191,6 +209,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
     },
     heroTier: { letterSpacing: 2 },
+    heroLottie: { width: 90, height: 90, marginVertical: -8 },
     section: { gap: 10 },
     sectionLabel: { letterSpacing: 1 },
     ladderCard: { borderRadius: 16, padding: 14, gap: 10 },

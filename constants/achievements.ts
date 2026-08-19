@@ -1,4 +1,5 @@
 import type { CategorySlug } from '@/constants/categories';
+import { GradientMid } from '@/constants/theme';
 
 export type AchievementDef = {
     slug: string;               // unique, e.g. 'bench_press_1rm_100_m'
@@ -71,6 +72,24 @@ export type AchievementLadder = {
     category: CategorySlug;
     defs: AchievementDef[];
 };
+
+export type AchievementMedal = 'gold' | 'silver' | 'bronze' | 'basic';
+
+/** Accent colors of the medal Lottie animations (assets/animations/achievement*.json). */
+export const MEDAL_COLORS: Record<AchievementMedal, string> = {
+    gold: '#FFD700',
+    silver: '#C0C0C0',
+    bronze: '#CF9646',
+    basic: GradientMid,
+};
+
+/** Medal by position from the top of the def's ladder: top rung gold, then silver,
+ *  bronze; deeper rungs (only in 4-step ladders) are basic. */
+export function medalForDef(def: AchievementDef): AchievementMedal {
+    const ladder = ACHIEVEMENTS.filter(d => d.assessmentSlug === def.assessmentSlug && d.gender === def.gender);
+    const fromTop = ladder.length - 1 - ladder.findIndex(d => d.slug === def.slug);
+    return fromTop === 0 ? 'gold' : fromTop === 1 ? 'silver' : fromTop === 2 ? 'bronze' : 'basic';
+}
 
 /** Ladders applicable to a gender, in catalog order, grouped per assessment. */
 export function laddersForGender(gender: 'male' | 'female'): AchievementLadder[] {

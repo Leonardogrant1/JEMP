@@ -2,8 +2,9 @@ import { calculateAssessmentScore, AssessmentUserProfile } from '@/lib/score-cal
 import { queryKeys } from '@/queries/query-keys';
 import { supabase } from '@/services/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { AchievementDef } from '@/constants/achievements';
+import { AchievementDef, medalForDef } from '@/constants/achievements';
 import { computeNewUnlocks } from '@/lib/achievements';
+import { trackerManager } from '@/lib/tracking/tracker-manager';
 
 type CompleteAssessmentParams = {
     userAssessmentId: string;
@@ -118,6 +119,16 @@ async function completeAssessment({
                     { onConflict: 'user_id,achievement_slug', ignoreDuplicates: true },
                 );
             if (unlockError) throw unlockError;
+
+            for (const def of newUnlocks) {
+                trackerManager.track('achievement_unlocked', {
+                    achievement_slug: def.slug,
+                    assessment_slug: def.assessmentSlug,
+                    category: def.category,
+                    medal: medalForDef(def),
+                    threshold: def.threshold,
+                });
+            }
         }
     } catch (e) {
         console.warn('[achievements] award check failed', e);
