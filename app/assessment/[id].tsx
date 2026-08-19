@@ -540,7 +540,7 @@ export default function AssessmentScreen() {
                             }).toUpperCase()}
                         </JempText>
                         <View style={styles.toggleRow}>
-                            <View style={[styles.modeToggle, { backgroundColor: theme.surface }]}>
+                            <View style={[styles.modeToggle, styles.toggleHalf, { backgroundColor: theme.surface }]}>
                                 {(['5rm', '1rm'] as const).map(m => {
                                     const active = repMode === m;
                                     return (
