@@ -1,16 +1,22 @@
+import GameIcon from '@/assets/icons/game.svg';
 import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
-import { JempInput } from '@/components/ui/jemp-input';
 import { SelectableChip } from '@/components/ui/selectable-chip';
-import { Colors } from '@/constants/theme';
+import { ENV_ICONS } from '@/constants/environment-icons';
+import { getSportKind } from '@/constants/sports';
+import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTrainingAnimationBySlug } from '@/hooks/use-training-animation';
 import { supabase } from '@/services/supabase/client';
-import { DayEnvironment, useOnboardingStore } from '@/stores/onboarding-store';
+import { useOnboardingStore } from '@/stores/onboarding-store';
 import { SessionDuration } from '@/types/database';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
+import LottieView from 'lottie-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 const DURATIONS: { value: SessionDuration; label: string }[] = [
@@ -23,15 +29,18 @@ const DURATIONS: { value: SessionDuration; label: string }[] = [
 type EnvItem = { id: string; slug: string; name_i18n: Record<string, string> | null };
 
 export function WorkoutPrefsStep() {
-    const { t, i18n } = useTranslation();
-    const locale = i18n.language;
+    const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
     const storedDays = useOnboardingStore((s) => s.preferred_workout_days);
     const storedDuration = useOnboardingStore((s) => s.preferred_session_duration);
-    const storedNotes = useOnboardingStore((s) => s.schedule_notes);
     const storedDayEnvironments = useOnboardingStore((s) => s.dayEnvironments);
     const environmentIds = useOnboardingStore((s) => s.environmentIds);
+    const weeklySchedule = useOnboardingStore((s) => s.weekly_schedule);
+    const sportSlug = useOnboardingStore((s) => s.sport_slug);
     const setStore = useOnboardingStore((s) => s.set);
+    const trainingAnimation = useTrainingAnimationBySlug(sportSlug);
+    const sportKind = getSportKind(sportSlug);
+    const sportSessions = weeklySchedule?.sessions ?? [];
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
@@ -45,20 +54,20 @@ export function WorkoutPrefsStep() {
         { value: 7, label: t('onboarding.workout_prefs_day_sun') },
     ];
 
-    const [selectedDays, setSelectedDays] = useState<Set<number>>(() => new Set(storedDays ?? []));
     const [selectedDuration, setSelectedDuration] = useState<SessionDuration | null>(storedDuration ?? null);
-    const [notes, setNotes] = useState(storedNotes ?? '');
     const [environments, setEnvironments] = useState<EnvItem[]>([]);
-    const [dayEnvMap, setDayEnvMap] = useState<Record<number, string>>(() => {
-        const map: Record<number, string> = {};
-        storedDayEnvironments.forEach((de) => { map[de.day_of_week] = de.environment_id; });
-        return map;
-    });
+
+    // Tage + Env-Zuordnung leben direkt im Store — der training-day-editor-Sheet
+    // schreibt dorthin, die Rows spiegeln seine Änderungen live
+    const selectedDays = new Set(storedDays ?? []);
+    const dayEnvMap: Record<number, string> = {};
+    storedDayEnvironments.forEach((de) => { dayEnvMap[de.day_of_week] = de.environment_id; });
+    const multiEnv = environmentIds.length > 1;
 
     useEffect(() => {
-        validate(selectedDays, selectedDuration);
+        setCanContinue(selectedDays.size > 0 && selectedDuration !== null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [storedDays, selectedDuration]);
 
     useEffect(() => {
         if (environmentIds.length > 1) {
@@ -72,65 +81,33 @@ export function WorkoutPrefsStep() {
         }
     }, [environmentIds]);
 
-    function validate(days: Set<number>, duration: SessionDuration | null) {
-        setCanContinue(days.size > 0 && duration !== null);
-    }
-
-    function toggleDay(value: number) {
-        setSelectedDays((prev) => {
-            const next = new Set(prev);
-            next.has(value) ? next.delete(value) : next.add(value);
-            setStore({ preferred_workout_days: Array.from(next) });
-            validate(next, selectedDuration);
-            // Clean up day environment if day is deselected
-            if (!next.has(value)) {
-                setDayEnvMap((prevMap) => {
-                    const { [value]: _, ...rest } = prevMap;
-                    saveDayEnvironments(rest);
-                    return rest;
-                });
-            }
-            return next;
+    // Wizard-Logik: neuer Tag → an + (bei mehreren Orten) Sheet zur Ort-Wahl;
+    // aktiver Tag → Sheet (dort „Tag leeren") bzw. bei einem Ort direkt abwählen
+    function handleDayPress(dow: number) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        const active = selectedDays.has(dow);
+        if (!active) {
+            setStore({ preferred_workout_days: [...(storedDays ?? []), dow] });
+            if (multiEnv) router.push(`/training-day-editor?day=${dow}&source=onboarding`);
+            return;
+        }
+        if (multiEnv) {
+            router.push(`/training-day-editor?day=${dow}&source=onboarding`);
+            return;
+        }
+        setStore({
+            preferred_workout_days: (storedDays ?? []).filter((d) => d !== dow),
+            dayEnvironments: storedDayEnvironments.filter((de) => de.day_of_week !== dow),
         });
     }
 
     function selectDuration(value: SessionDuration) {
         setSelectedDuration(value);
         setStore({ preferred_session_duration: value });
-        validate(selectedDays, value);
     }
-
-    function handleNotesChange(text: string) {
-        setNotes(text);
-        setStore({ schedule_notes: text.trim() || null });
-    }
-
-    function toggleDayEnv(day: number, envId: string) {
-        setDayEnvMap((prev) => {
-            const next = { ...prev };
-            if (next[day] === envId) {
-                delete next[day];
-            } else {
-                next[day] = envId;
-            }
-            saveDayEnvironments(next);
-            return next;
-        });
-    }
-
-    function saveDayEnvironments(map: Record<number, string>) {
-        const dayEnvironments: DayEnvironment[] = Object.entries(map).map(([day, id]) => ({
-            day_of_week: Number(day),
-            environment_id: id,
-        }));
-        setStore({ dayEnvironments });
-    }
-
-    const sortedSelectedDays = [...selectedDays].sort((a, b) => a - b);
-    const showEnvPicker = environments.length > 1 && selectedDays.size > 0;
 
     return (
-        <KeyboardAwareScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
                 <JempText type="h1" style={styles.title}>{t('onboarding.workout_prefs_title')}</JempText>
             </Animated.View>
@@ -140,100 +117,107 @@ export function WorkoutPrefsStep() {
                 </JempText>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(360).duration(500).springify()}>
-                <View style={styles.section}>
-                    <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
-                        {t('onboarding.workout_prefs_days_label')}
-                    </JempText>
-                    <View style={styles.dayRow}>
-                        {DAYS.map((day) => (
-                            <SelectableChip
-                                key={day.value}
-                                label={day.label}
-                                selected={selectedDays.has(day.value)}
-                                onPress={() => toggleDay(day.value)}
-                                style={styles.dayChip}
-                            />
-                        ))}
-                    </View>
-                    {selectedDays.size > 0 && (
-                        <JempText type="body-sm" color={theme.textMuted} style={styles.daysCounter}>
-                            {selectedDays.size}× {t('onboarding.workout_prefs_days_counter')}
-                        </JempText>
-                    )}
-                </View>
-            </Animated.View>
+            <Animated.View entering={FadeInDown.delay(360).duration(500).springify()} style={styles.dayList}>
+                {DAYS.map(({ value: dow, label }) => {
+                    const active = selectedDays.has(dow);
+                    return (
+                        <TouchableOpacity
+                            key={dow}
+                            activeOpacity={0.7}
+                            onPress={() => handleDayPress(dow)}
+                            style={[
+                                styles.dayRow,
+                                active
+                                    ? { backgroundColor: `${GradientMid}18`, borderColor: GradientMid }
+                                    : { backgroundColor: 'transparent', borderColor: theme.borderDivider },
+                            ]}
+                        >
+                            <JempText
+                                type="body-l"
+                                color={active ? GradientMid : theme.text}
+                                style={styles.dayName}
+                            >
+                                {label.toUpperCase()}
+                            </JempText>
 
-            {showEnvPicker && (
-                <Animated.View entering={FadeInDown.delay(420).duration(500).springify()}>
-                    <View style={styles.section}>
-                        <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
-                            {t('onboarding.workout_prefs_env_label')}
-                        </JempText>
-                        <JempText type="body-sm" color={theme.textMuted} style={styles.envHint}>
-                            {t('onboarding.workout_prefs_env_hint')}
-                        </JempText>
-                        {sortedSelectedDays.map((day) => (
-                            <View key={day} style={styles.dayEnvRow}>
-                                <JempText type="body-m" style={styles.dayEnvLabel}>
-                                    {DAYS.find((d) => d.value === day)?.label}
-                                </JempText>
-                                <View style={styles.envChips}>
-                                    {environments.map((env) => (
-                                        <SelectableChip
-                                            key={env.id}
-                                            label={env.name_i18n?.[locale] ?? env.name_i18n?.['de'] ?? env.slug}
-                                            selected={dayEnvMap[day] === env.id}
-                                            onPress={() => toggleDayEnv(day, env.id)}
-                                            style={styles.envChip}
+                            <View style={styles.dayRight}>
+                                {/* Sport-Termin aus dem vorherigen Step als gedimmter Kontext-Hint */}
+                                {(() => {
+                                    const sportSession = sportSessions.find((s) => s.day_of_week === dow);
+                                    if (!sportSession) return null;
+                                    return (
+                                        <View style={styles.sportHint}>
+                                            {sportSession.type === 'team_training' && (
+                                                <LottieView
+                                                    source={trainingAnimation as never}
+                                                    autoPlay
+                                                    loop
+                                                    style={styles.sportHintLottie}
+                                                />
+                                            )}
+                                            {sportSession.type === 'game' && sportKind === 'combat' && (
+                                                <LottieView
+                                                    source={require('@/assets/animations/fight.json')}
+                                                    autoPlay
+                                                    loop
+                                                    style={styles.sportHintLottie}
+                                                />
+                                            )}
+                                            {sportSession.type === 'game' && sportKind === 'match' && (
+                                                <GameIcon width={13} height={13} />
+                                            )}
+                                            {/* Turnier bzw. Wettkampf (Individualsport) — beides Trophäe */}
+                                            {(sportSession.type === 'tournament' || (sportSession.type === 'game' && sportKind === 'individual')) && (
+                                                <LottieView
+                                                    source={require('@/assets/animations/throphy.json')}
+                                                    autoPlay
+                                                    loop
+                                                    style={styles.sportHintLottie}
+                                                />
+                                            )}
+                                        </View>
+                                    );
+                                })()}
+                                {/* Zugewiesener Trainingsort (im Sheet gewählt) */}
+                                {active && (() => {
+                                    const env = environments.find((e) => e.id === dayEnvMap[dow]);
+                                    if (!env) return null;
+                                    return (
+                                        <Ionicons
+                                            name={(ENV_ICONS[env.slug] ?? 'location-outline') as any}
+                                            size={15}
+                                            color={theme.textMuted}
                                         />
-                                    ))}
-                                </View>
+                                    );
+                                })()}
+                                {active
+                                    ? <Ionicons name="checkmark-circle" size={16} color={GradientMid} />
+                                    : <Ionicons name="add" size={18} color={theme.textSubtle} />
+                                }
                             </View>
-                        ))}
-                    </View>
-                </Animated.View>
-            )}
+                        </TouchableOpacity>
+                    );
+                })}
+            </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(480).duration(500).springify()}>
-                <View style={styles.section}>
-                    <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
-                        {t('onboarding.workout_prefs_duration_label')}
-                    </JempText>
-                    <View style={styles.durationRow}>
-                        {DURATIONS.map((d) => (
-                            <SelectableChip
-                                key={d.value}
-                                label={d.label}
-                                selected={selectedDuration === d.value}
-                                onPress={() => selectDuration(d.value)}
-                                style={styles.durationChip}
-                            />
-                        ))}
-                    </View>
+            <Animated.View entering={FadeInDown.delay(480).duration(500).springify()} style={styles.section}>
+                <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
+                    {t('onboarding.workout_prefs_duration_label')}
+                </JempText>
+                <View style={styles.durationRow}>
+                    {DURATIONS.map((d) => (
+                        <SelectableChip
+                            key={d.value}
+                            label={d.label}
+                            selected={selectedDuration === d.value}
+                            onPress={() => selectDuration(d.value)}
+                            style={styles.durationChip}
+                        />
+                    ))}
                 </View>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(600).duration(500).springify()}>
-                <View style={styles.section}>
-                    <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
-                        {t('onboarding.workout_prefs_notes_label')}
-                    </JempText>
-                    <JempText type="body-sm" color={theme.textMuted} style={styles.notesHint}>
-                        {t('onboarding.workout_prefs_notes_hint')}
-                    </JempText>
-                    <JempInput
-                        value={notes}
-                        onChangeText={handleNotesChange}
-                        placeholder={t('onboarding.workout_prefs_notes_placeholder')}
-                        multiline
-                        numberOfLines={4}
-                        textAlignVertical="top"
-                        style={styles.notesInput}
-                    />
-                </View>
-            </Animated.View>
-        </KeyboardAwareScrollView>
+        </ScrollView>
     );
 }
 
@@ -247,39 +231,52 @@ const styles = StyleSheet.create({
         paddingBottom: 24,
     },
     title: { marginBottom: 10 },
-    subtitle: { marginBottom: 36 },
-    section: { marginBottom: 32 },
+    subtitle: { marginBottom: 28 },
+    dayList: { gap: 8 },
+    dayRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        overflow: 'hidden',
+    },
+    dayName: {
+        fontWeight: '600',
+        minWidth: 36,
+    },
+    dayRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    envToggle: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    section: { marginTop: 32 },
     sectionLabel: {
         textTransform: 'uppercase',
         letterSpacing: 0.8,
         marginBottom: 14,
     },
-    dayRow: { flexDirection: 'row', gap: 6 },
-    daysCounter: { marginTop: 10 },
-    dayChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
     durationRow: { flexDirection: 'row', gap: 8 },
     durationChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
-    notesHint: { marginBottom: 12 },
-    notesInput: { minHeight: 100 },
-    envHint: { marginBottom: 16 },
-    dayEnvRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 12,
-        gap: 12,
+    sportHint: {
+        opacity: 0.55,
+        marginRight: 2,
     },
-    dayEnvLabel: {
-        width: 28,
-    },
-    envChips: {
-        flexDirection: 'row',
-        gap: 8,
-        flex: 1,
-    },
-    envChip: {
-        flex: 1,
-        alignItems: 'center',
-        paddingHorizontal: 0,
-        borderRadius: 12,
+    sportHintLottie: {
+        // Lottie-Icons haben eingebautes Padding — größer rendern und vertikal
+        // kompensieren, damit die Row nicht höher wird
+        width: 20,
+        height: 20,
+        marginVertical: -5,
     },
 });

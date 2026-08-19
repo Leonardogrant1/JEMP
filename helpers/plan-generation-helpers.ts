@@ -1,3 +1,4 @@
+import { getSportKind } from "@/constants/sports";
 import { WeeklyScheduleSession } from "@/types/user-data";
 
 const PLAN_FEATURES = [
@@ -34,11 +35,19 @@ function getStageLabel(t: (k: string, opts?: any) => string, status: string, pha
     return t('planGeneration.title');
 }
 
-function getSessionTypes(sportSlug: string | null | undefined, combatSportSlugs: Set<string>): { key: WeeklyScheduleSession['type']; labelKey: string }[] {
-    const isCombat = combatSportSlugs.has(sportSlug ?? '');
+function getSessionTypes(sportSlug: string | null | undefined): { key: WeeklyScheduleSession['type']; labelKey: string }[] {
+    const kind = getSportKind(sportSlug);
+    // Individualsport: „Wettkampf" und „Turnier" wären dieselbe Sache —
+    // eine Option reicht (gespeichert weiterhin als 'game')
+    if (kind === 'individual') {
+        return [
+            { key: 'team_training', labelKey: 'onboarding.weekly_schedule_type_training' },
+            { key: 'game', labelKey: 'onboarding.weekly_schedule_type_competition' },
+        ];
+    }
     return [
         { key: 'team_training', labelKey: 'onboarding.weekly_schedule_type_training' },
-        { key: 'game', labelKey: isCombat ? 'onboarding.weekly_schedule_type_fight' : 'onboarding.weekly_schedule_type_game' },
+        { key: 'game', labelKey: kind === 'combat' ? 'onboarding.weekly_schedule_type_fight' : 'onboarding.weekly_schedule_type_game' },
         { key: 'tournament', labelKey: 'onboarding.weekly_schedule_type_tournament' },
     ];
 }

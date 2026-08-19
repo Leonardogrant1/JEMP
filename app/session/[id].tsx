@@ -1,18 +1,33 @@
 import { JempText } from '@/components/jemp-text';
-import { Colors, Cyan, Electric, GradientMid, Neutral } from '@/constants/theme';
+import { SectionHeader } from '@/components/plan/SectionHeader';
+import { CATEGORY_SVG_ICONS } from '@/constants/category-icons';
+import { CategoryChip, ModeChip, SessionChip } from '@/components/plan/SessionChip';
+import { StatsStrip } from '@/components/profile/stats-strip';
+import { Skeleton } from '@/components/ui/skeleton';
+import { getSessionImage } from '@/constants/session-images';
+import { Colors, GradientMid, Neutral } from '@/constants/theme';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
 import { formatLoad, formatReps, formatRest } from '@/helpers/format';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
+import { usePlan } from '@/providers/plan-provider';
 import { useSessionDetailQuery, type SessionDetail } from '@/queries/use-session-detail-query';
+import { useSessionThumbnailsQuery } from '@/queries/use-session-thumbnails-query';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, {
+    Extrapolation,
+    interpolate,
+    useAnimatedScrollHandler,
+    useAnimatedStyle,
+    useSharedValue,
+} from 'react-native-reanimated';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function computeStats(session: SessionDetail) {
     let totalExercises = 0;
@@ -20,6 +35,32 @@ function computeStats(session: SessionDetail) {
         totalExercises += block.exercises.length;
     }
     return { totalExercises };
+}
+
+/** Layout-treuer Platzhalter: Foto-Hero, Stats-Card, zwei Blöcke mit Übungszeilen */
+function SessionDetailSkeleton() {
+    return (
+        <>
+            <Skeleton height={300} borderRadius={0} />
+            <View style={styles.body}>
+                <Skeleton height={92} borderRadius={16} />
+                {[0, 1].map(block => (
+                    <View key={block} style={styles.blockSection}>
+                        <Skeleton width={150} height={22} borderRadius={8} />
+                        {[0, 1, 2].map(row => (
+                            <View key={row} style={styles.skeletonRow}>
+                                <Skeleton width={52} height={52} borderRadius={10} />
+                                <View style={styles.skeletonRowText}>
+                                    <Skeleton width="65%" height={14} />
+                                    <Skeleton width="40%" height={10} />
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+                ))}
+            </View>
+        </>
+    );
 }
 
 // ── Screen ───────────────────────────────────────────────────────────────
@@ -34,6 +75,50 @@ export default function SessionDetailScreen() {
     const { data: session, isLoading } = useSessionDetailQuery(id);
     const stats = useMemo(() => session ? computeStats(session) : null, [session]);
 
+    const insets = useSafeAreaInsets();
+    const { planSessions } = usePlan();
+    const { data: remoteThumbnails } = useSessionThumbnailsQuery();
+
+    // Gleiche Bild-Logik wie die Session-Cards im Plan: erste Übung des
+    // wichtigsten Trainingsblocks bestimmt das Hero-Foto
+    const heroImage = useMemo(() => {
+        for (const type of ['primary', 'secondary', 'accessory']) {
+            const block = session?.blocks.find(b => b.block_type?.slug === type);
+            const first = block?.exercises[0]?.exercise;
+            if (first) return getSessionImage(first.slug, first.image_group, remoteThumbnails);
+        }
+        return getSessionImage(null, null, remoteThumbnails);
+    }, [session, remoteThumbnails]);
+
+    const modeSlug = session?.workout_plan_session_id
+        ? planSessions.find(ps => ps.id === session.workout_plan_session_id)?.mode_slug ?? null
+        : null;
+
+    // Fokus-Kategorien der Trainingsblöcke für die Hero-Chips (max. 2, dedupliziert)
+    const focusCategories = useMemo(() => {
+        const slugs: string[] = [];
+        for (const b of session?.blocks ?? []) {
+            if (!['primary', 'secondary'].includes(b.block_type?.slug ?? '')) continue;
+            const slug = b.focused_category?.slug;
+            if (slug && !slugs.includes(slug)) slugs.push(slug);
+        }
+        return slugs.slice(0, 2);
+    }, [session]);
+
+    // Parallax wie beim Profil-Banner: Pull-down zoomt (Oberkante bleibt fixiert),
+    // Hochscrollen bewegt das Banner mit halber Geschwindigkeit weg und fadet es aus
+    const bannerHeight = insets.top + 230;
+    const scrollY = useSharedValue(0);
+    const scrollHandler = useAnimatedScrollHandler(e => {
+        scrollY.value = e.contentOffset.y;
+    });
+    const bannerStyle = useAnimatedStyle(() => {
+        const y = scrollY.value;
+        const scale = interpolate(y, [-bannerHeight, 0], [2, 1], Extrapolation.CLAMP);
+        const opacity = interpolate(y, [0, bannerHeight * 0.55], [1, 0], Extrapolation.CLAMP);
+        return { opacity, transform: [{ translateY: -y / 2 }, { scale }] };
+    });
+
     useEffect(() => {
         trackerManager.track('session_details_opened', { session_id: id });
     }, []);
@@ -41,11 +126,14 @@ export default function SessionDetailScreen() {
 
     if (isLoading) {
         return (
-            <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>
-                <View style={styles.centered}>
-                    <ActivityIndicator color={theme.primary} />
-                </View>
-            </SafeAreaView>
+            <View style={[styles.root, { backgroundColor: theme.background }]}>
+                <ScrollView contentContainerStyle={styles.scroll} scrollEnabled={false}>
+                    <SessionDetailSkeleton />
+                </ScrollView>
+                <Pressable onPress={() => router.back()} hitSlop={12} style={[styles.backBtn, { top: insets.top + 8 }]}>
+                    <Ionicons name="chevron-back" size={22} color="#fff" />
+                </Pressable>
+            </View>
         );
     }
 
@@ -60,77 +148,98 @@ export default function SessionDetailScreen() {
     }
 
     return (
-        <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
-            <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={[styles.root, { backgroundColor: theme.background }]}>
+            {/* ── Fixes Banner hinter der ScrollView — Bild wie auf der Session-Card ── */}
+            <Animated.View style={[styles.fixedBanner, { height: bannerHeight }, bannerStyle]}>
+                <Image
+                    source={heroImage}
+                    style={StyleSheet.absoluteFill}
+                    contentFit="cover"
+                    contentPosition="center"
+                />
+                <LinearGradient
+                    colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0)']}
+                    locations={[0, 0.55]}
+                    style={StyleSheet.absoluteFill}
+                />
+                <LinearGradient
+                    colors={[`${theme.background}00`, theme.background]}
+                    style={styles.bannerFade}
+                    pointerEvents="none"
+                />
+            </Animated.View>
 
-                {/* ── Back button ── */}
-                <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-                    <Ionicons name="chevron-back" size={24} color={theme.text} />
-                </Pressable>
+            <Animated.ScrollView
+                onScroll={scrollHandler}
+                scrollEventThrottle={16}
+                contentContainerStyle={styles.scroll}
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Transparenter Spacer — hier scheint das fixe Banner durch */}
+                <View style={{ height: bannerHeight - 108 }} />
 
-                {/* ── Hero section ── */}
-                <View style={styles.heroSection}>
-                    <View style={[styles.heroLabel, { backgroundColor: `${GradientMid}20` }]}>
-                        <JempText type="caption" color={GradientMid} style={styles.heroLabelText}>
-                            {t(`session_type.${session.session_type}`).toUpperCase()}
-                        </JempText>
-                    </View>
-
-                    <JempText type="hero">{session.name}</JempText>
-
-                    {session.description && (
-                        <JempText type="body-sm" color={theme.textMuted} style={styles.heroDesc}>
-                            {session.description}
-                        </JempText>
-                    )}
-                </View>
-
-                {/* ── Stats grid ── */}
-                <View style={[styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.borderCard }]}>
-                    <View style={styles.statsGrid}>
-                        <View style={styles.statCell}>
-                            <JempText type="caption" color={theme.textMuted}>
-                                {t('ui.duration').toUpperCase()}
-                            </JempText>
-                            <View style={styles.statValueRow}>
-                                <JempText type="h1" gradient>
-                                    {session.estimated_duration_minutes ?? '–'}
-                                </JempText>
-                                <JempText type="body-sm" color={theme.textMuted}>{t('ui.min')}</JempText>
-                            </View>
-                        </View>
-
-                        <View style={styles.statCell}>
-                            <JempText type="caption" color={theme.textMuted}>
-                                {t('ui.exercises').toUpperCase()}
-                            </JempText>
-                            <View style={styles.statValueRow}>
-                                <JempText type="h1" gradient>
-                                    {stats?.totalExercises ?? 0}
-                                </JempText>
-                            </View>
-                        </View>
+                <View style={styles.heroTextBlock}>
+                    <JempText type="caption" color={GradientMid} style={styles.heroLabelText}>
+                        {t(`session_type.${session.session_type}`).toUpperCase()}
+                    </JempText>
+                    <JempText type="h1">{session.name}</JempText>
+                    <View style={styles.heroChips}>
+                        {session.estimated_duration_minutes ? (
+                            <SessionChip
+                                icon={<Ionicons name="time-outline" size={12} color={GradientMid} />}
+                                label={`${session.estimated_duration_minutes} min`}
+                            />
+                        ) : null}
+                        <ModeChip mode={modeSlug} />
+                        {focusCategories.map(slug => (
+                            <CategoryChip key={slug} slug={slug} />
+                        ))}
                     </View>
                 </View>
+
+                <View style={styles.body}>
+
+                {session.description && (
+                    <JempText type="body-sm" color={theme.textMuted} style={styles.heroDesc}>
+                        {session.description}
+                    </JempText>
+                )}
+
+                {/* ── Stats — Glass-Strip wie in profile.tsx ── */}
+                <StatsStrip
+                    items={[
+                        {
+                            label: t('ui.duration'),
+                            value: String(session.estimated_duration_minutes ?? '–'),
+                            unit: session.estimated_duration_minutes ? t('ui.min') : undefined,
+                        },
+                        {
+                            label: t('ui.exercises'),
+                            value: String(stats?.totalExercises ?? 0),
+                        },
+                    ]}
+                />
 
                 {/* ── Blocks ── */}
                 {session.blocks.map((block, blockIdx) => (
                     <View key={block.id} style={styles.blockSection}>
-                        {/* Block header */}
-                        <View style={styles.blockHeaderRow}>
-                            <View>
-                                <JempText type="h2">
-                                    {block.block_type
+                        {/* Block header — Kategorie (mit Icon) nur bei den Trainingsblöcken */}
+                        {(() => {
+                            const isMainBlock = ['primary', 'secondary', 'accessory'].includes(block.block_type?.slug ?? '');
+                            const categorySlug = isMainBlock ? block.focused_category?.slug : undefined;
+                            const CategoryIcon = categorySlug ? CATEGORY_SVG_ICONS[categorySlug] : undefined;
+                            return (
+                                <SectionHeader
+                                    label={block.block_type
                                         ? t(`block_type.${block.block_type.slug}`)
                                         : `Block ${blockIdx + 1}`}
-                                </JempText>
-                                {block.focused_category && (
-                                    <JempText type="caption" color={theme.textMuted}>
-                                        {t(`category.${block.focused_category.slug}`)}
-                                    </JempText>
-                                )}
-                            </View>
-                        </View>
+                                    caption={categorySlug ? t(`category.${categorySlug}`) : undefined}
+                                    captionIcon={CategoryIcon
+                                        ? <CategoryIcon width={14} height={14} color={theme.textMuted} />
+                                        : undefined}
+                                />
+                            );
+                        })()}
 
                         {/* Exercise rows */}
                         {block.exercises.map((ex, exIdx) => {
@@ -144,14 +253,6 @@ export default function SessionDetailScreen() {
                                     style={[styles.exerciseRow, { backgroundColor: theme.surface }]}
                                     onPress={() => router.push(`/exercise/${ex.exercise.id}`)}
                                 >
-                                    {/* Left: accent border */}
-                                    <LinearGradient
-                                        colors={[Cyan[500], Electric[500]]}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 0, y: 1 }}
-                                        style={styles.exerciseAccent}
-                                    />
-
                                     {/* Thumbnail */}
                                     <View style={styles.thumbWrap}>
                                         <Image
@@ -210,8 +311,14 @@ export default function SessionDetailScreen() {
                         })}
                     </View>
                 ))}
-            </ScrollView>
-        </SafeAreaView>
+                </View>
+            </Animated.ScrollView>
+
+            {/* ── Floating back button (Glass) ── */}
+            <Pressable onPress={() => router.back()} hitSlop={12} style={[styles.backBtn, { top: insets.top + 8 }]}>
+                <Ionicons name="chevron-back" size={22} color="#fff" />
+            </Pressable>
+        </View>
     );
 }
 
@@ -220,56 +327,32 @@ export default function SessionDetailScreen() {
 const styles = StyleSheet.create({
     root: { flex: 1 },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    scroll: { paddingHorizontal: 20, paddingBottom: 48, gap: 24 },
+    scroll: { paddingBottom: 48 },
+    body: { paddingHorizontal: 20, paddingTop: 20, gap: 24 },
 
     backBtn: {
+        position: 'absolute',
+        left: 16,
         width: 40,
         height: 40,
+        borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
-        marginLeft: -8,
-        marginTop: 4,
-    },
-
-    // Hero
-    heroSection: { gap: 8 },
-    heroLabel: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
-    heroLabelText: { letterSpacing: 1.5 },
-    heroDesc: { marginTop: 4 },
-
-    // Stats
-    statsCard: {
-        borderRadius: 16,
+        backgroundColor: 'rgba(0,0,0,0.35)',
         borderWidth: 1,
-        padding: 16,
+        borderColor: 'rgba(255,255,255,0.15)',
     },
-    statsGrid: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    statCell: {
-        flex: 1,
-        gap: 4,
-    },
-    statValueRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        gap: 4,
-    },
+
+    // Hero / Banner
+    fixedBanner: { position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' },
+    bannerFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 110 },
+    heroTextBlock: { paddingHorizontal: 20, gap: 6 },
+    heroChips: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+    heroLabelText: { letterSpacing: 1.5 },
+    heroDesc: { marginTop: -4 },
 
     // Block
     blockSection: { gap: 10 },
-    blockHeaderRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        marginBottom: 2,
-    },
-    blockAccentBar: {
-        width: 3,
-        height: 28,
-        borderRadius: 2,
-    },
 
     // Exercise row
     exerciseRow: {
@@ -279,15 +362,6 @@ const styles = StyleSheet.create({
         padding: 12,
         gap: 12,
         overflow: 'hidden',
-    },
-    exerciseAccent: {
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width: 3,
-        borderTopLeftRadius: 14,
-        borderBottomLeftRadius: 14,
     },
     thumbWrap: {
         width: 52,
@@ -317,4 +391,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: 2,
     },
+
+    // Skeleton
+    skeletonRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    skeletonRowText: { flex: 1, gap: 8 },
 });

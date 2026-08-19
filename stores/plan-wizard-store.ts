@@ -1,7 +1,7 @@
 import { getCategoryLabel, type CategoryI18n } from '@/constants/category-labels';
 import { ENV_ICONS } from '@/constants/environment-icons';
 import { computeLoadProfile } from '@/lib/load-profile';
-import { usePlanGenerationStore } from '@/stores/plan-generation-store';
+import { startPlanGeneration } from '@/lib/start-plan-generation';
 import { UserProfile } from '@/providers/current-user-provider';
 import { SessionDuration } from '@/types/database';
 import { AmbiguousItem, CategoryItem, EnvItem, EquipmentItem, Phase } from '@/types/plan-generation';
@@ -11,12 +11,9 @@ import i18next from 'i18next';
 import { create } from 'zustand';
 import { supabase } from '@/services/supabase/client';
 
-type GoalsSubPhase = 'select' | 'rank';
-
 export type PlanWizardState = {
     // Navigation
     phase: Phase;
-    goalsSubPhase: GoalsSubPhase;
 
     // UI status
     loading: boolean;
@@ -25,9 +22,7 @@ export type PlanWizardState = {
 
     // Stored profile context
     profileId: string | null;
-    originalSportSlug: string | null;
-
-    // Sport
+    // Profile sport (read-only here — changed via profile, not the wizard)
     selectedSportSlug: string | null;
 
     // Environment
@@ -52,8 +47,6 @@ export type PlanWizardState = {
     // Body
     weightKg: number;
     heightCm: number;
-    weightUnit: 'kg' | 'lbs';
-    heightUnit: 'cm' | 'ft';
 
     // Schedule
     preferredDays: Set<number>;
@@ -63,7 +56,6 @@ export type PlanWizardState = {
 
     // Weekly sport schedule
     sportSessions: WeeklyScheduleSession[];
-    combatSportSlugs: Set<string>;
 
     // Actions
     initialize: (profile: UserProfile) => Promise<void>;
@@ -73,17 +65,13 @@ export type PlanWizardState = {
     handleEquipmentNext: () => void;
     toggleEquipmentEnv: (equipmentId: string, envId: string) => void;
     toggleCategory: (id: string) => void;
-    setRankedCategories: (items: CategoryItem[]) => void;
     togglePreferredDay: (dow: number) => void;
     toggleDayEnv: (dow: number, envId: string) => void;
     toggleSportDay: (day: number) => void;
     setSportType: (day: number, type: WeeklyScheduleSession['type']) => void;
     setSportIntensity: (day: number, intensity: number) => void;
-    setSelectedSportSlug: (slug: string | null) => void;
     setWeightKg: (kg: number) => void;
     setHeightCm: (cm: number) => void;
-    setWeightUnit: (unit: 'kg' | 'lbs') => void;
-    setHeightUnit: (unit: 'cm' | 'ft') => void;
     setPreferredDuration: (duration: SessionDuration | null) => void;
     setScheduleNotes: (notes: string) => void;
     goBack: (router: ImperativeRouter) => void;
@@ -94,13 +82,11 @@ export type PlanWizardState = {
 
 function getInitialState() {
     return {
-        phase: 'sport' as Phase,
-        goalsSubPhase: 'select' as GoalsSubPhase,
+        phase: 'environment' as Phase,
         loading: true,
         isSaving: false,
         saveError: null,
         profileId: null,
-        originalSportSlug: null,
         selectedSportSlug: null,
         allEnvs: [],
         selectedEnvIds: new Set<string>(),
@@ -115,14 +101,11 @@ function getInitialState() {
         rankedCategories: [],
         weightKg: 75,
         heightCm: 175,
-        weightUnit: 'kg' as const,
-        heightUnit: 'cm' as const,
         preferredDays: new Set([1, 2, 3, 4, 5, 6, 7]),
         preferredDuration: null,
         scheduleNotes: '',
         dayEnvMap: {} as Record<number, string>,
         sportSessions: [] as WeeklyScheduleSession[],
-        combatSportSlugs: new Set<string>(),
     };
 }
 
@@ -131,10 +114,9 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
 
     initialize: async (profile) => {
         set({
-            phase: 'sport',
+            phase: 'environment',
             loading: true,
             profileId: profile.id,
-            originalSportSlug: profile.sport?.slug ?? null,
             selectedSportSlug: profile.sport?.slug ?? null,
             weightKg: profile.weight_in_kg ?? 75,
             heightCm: profile.height_in_cm ?? 175,
@@ -155,7 +137,7 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
             set({ dayEnvMap: {} });
         }
 
-        const [envsRes, userEquipRes, envEqRes, catsRes, targetedRes, userEnvsRes, userEqEnvRes, combatSportsRes] = await Promise.all([
+        const [envsRes, userEquipRes, envEqRes, catsRes, targetedRes, userEnvsRes, userEqEnvRes] = await Promise.all([
             supabase.from('environments').select('id, slug, name_i18n, description_i18n'),
             supabase.from('user_equipments').select('equipment_id').eq('user_id', profile.id),
             supabase.from('environment_equipments').select('environment_id, equipment:equipments(id, slug, name_i18n)'),
@@ -163,7 +145,6 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
             supabase.from('user_targeted_categories').select('category_id, priority').eq('user_id', profile.id).order('priority'),
             supabase.from('user_environments').select('environment_id').eq('user_id', profile.id),
             (supabase as any).from('user_equipment_environments').select('equipment_id, environment_id').eq('user_id', profile.id),
-            supabase.from('sports').select('slug').eq('group_name', 'combat_sports'),
         ]);
 
         const t = i18next.t.bind(i18next);
@@ -231,10 +212,8 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
                 allCategories: catItems,
                 selectedCategoryIds,
                 rankedCategories,
-                goalsSubPhase: 'select',
                 selectedEquipmentIds: currentEquipIds,
                 savedEquipmentEnvMappings: userEqEnvRes.data ?? [],
-                combatSportSlugs: new Set((combatSportsRes.data ?? []).map(r => r.slug)),
                 loading: false,
             });
         }
@@ -306,7 +285,7 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
         set({ equipmentEnvSelections: selections });
 
         if (ambiguous.length === 0) {
-            set({ goalsSubPhase: 'select', phase: 'goals' });
+            set({ phase: 'goals' });
         } else {
             set({ ambiguousEquipment: ambiguous, phase: 'equipment-env' });
         }
@@ -329,8 +308,6 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
             return { selectedCategoryIds: next };
         });
     },
-
-    setRankedCategories: (items) => set({ rankedCategories: items }),
 
     togglePreferredDay: (dow) => {
         set(state => {
@@ -377,61 +354,48 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
         }));
     },
 
-    setSelectedSportSlug: (slug) => set({ selectedSportSlug: slug }),
     setWeightKg: (kg) => set({ weightKg: kg }),
     setHeightCm: (cm) => set({ heightCm: cm }),
-    setWeightUnit: (unit) => set({ weightUnit: unit }),
-    setHeightUnit: (unit) => set({ heightUnit: unit }),
     setPreferredDuration: (duration) => set({ preferredDuration: duration }),
     setScheduleNotes: (notes) => set({ scheduleNotes: notes }),
     goBack: (router) => {
-        const { phase, goalsSubPhase, ambiguousEquipment, selectedCategoryIds } = get();
-        if (phase === 'sport') { router.back(); return; }
-        if (phase === 'environment') { set({ phase: 'sport' }); return; }
+        const { phase, ambiguousEquipment } = get();
+        if (phase === 'environment') { router.back(); return; }
         if (phase === 'equipment') { set({ phase: 'environment' }); return; }
         if (phase === 'equipment-env') { set({ phase: 'equipment' }); return; }
         if (phase === 'goals') {
-            if (goalsSubPhase === 'rank') { set({ goalsSubPhase: 'select' }); return; }
             set({ phase: ambiguousEquipment.length > 0 ? 'equipment-env' : 'equipment' });
             return;
         }
-        if (phase === 'body') {
-            if (selectedCategoryIds.size <= 1) set({ goalsSubPhase: 'select' });
-            set({ phase: 'goals' });
-            return;
-        }
-        if (phase === 'schedule') { set({ phase: 'body' }); return; }
-        if (phase === 'weekly') { set({ phase: 'schedule' }); return; }
+        if (phase === 'body') { set({ phase: 'goals' }); return; }
+        if (phase === 'weekly') { set({ phase: 'body' }); return; }
+        if (phase === 'schedule') { set({ phase: 'weekly' }); return; }
+        if (phase === 'schedule-detail') { set({ phase: 'schedule' }); return; }
     },
 
     goNext: () => {
-        const { phase, goalsSubPhase, allCategories, selectedCategoryIds } = get();
-        if (phase === 'sport') { set({ phase: 'environment' }); return; }
+        const { phase, allCategories, selectedCategoryIds } = get();
         if (phase === 'environment') { get().goToEquipment(); return; }
         if (phase === 'equipment') { get().handleEquipmentNext(); return; }
-        if (phase === 'equipment-env') { set({ goalsSubPhase: 'select', phase: 'goals' }); return; }
+        if (phase === 'equipment-env') { set({ phase: 'goals' }); return; }
         if (phase === 'goals') {
-            if (goalsSubPhase === 'select') {
-                const selected = allCategories.filter(c => selectedCategoryIds.has(c.id));
-                if (selected.length > 1) {
-                    set({ rankedCategories: selected, goalsSubPhase: 'rank' });
-                } else {
-                    set({ rankedCategories: selected, phase: 'body' });
-                }
-                return;
-            }
-            set({ phase: 'body' });
+            // Tap order in the Set = priority order
+            const ranked = [...selectedCategoryIds]
+                .map(id => allCategories.find(c => c.id === id))
+                .filter((c): c is CategoryItem => !!c);
+            set({ rankedCategories: ranked, phase: 'body' });
             return;
         }
-        if (phase === 'body') { set({ phase: 'schedule' }); return; }
-        if (phase === 'schedule') { set({ phase: 'weekly' }); return; }
+        if (phase === 'body') { set({ phase: 'weekly' }); return; }
+        if (phase === 'weekly') { set({ phase: 'schedule' }); return; }
+        if (phase === 'schedule') { set({ phase: 'schedule-detail' }); return; }
     },
 
     generate: async (router) => {
         if (get().isSaving) return;
 
         const {
-            profileId, originalSportSlug, selectedSportSlug,
+            profileId,
             selectedEnvIds, selectedEquipmentIds, equipmentEnvSelections,
             rankedCategories, preferredDays, preferredDuration,
             scheduleNotes, sportSessions, dayEnvMap,
@@ -443,25 +407,7 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
         try {
             set({ isSaving: true, saveError: null });
 
-            const { data: { session: authSession } } = await supabase.auth.getSession();
-            if (!authSession) throw new Error('No auth session');
-
-            if (authSession?.user?.id) {
-                usePlanGenerationStore.getState().subscribe(authSession.user.id);
-            }
-
-            // 1. Update sport if changed
-            if (selectedSportSlug && selectedSportSlug !== originalSportSlug) {
-                const { data: sportRow } = await supabase
-                    .from('sports').select('id').eq('slug', selectedSportSlug).single();
-                if (sportRow) {
-                    await supabase.from('user_profiles')
-                        .update({ sport_id: sportRow.id })
-                        .eq('id', profileId);
-                }
-            }
-
-            // 2. Update weight / height
+            // 1. Update weight / height
             await supabase.from('user_profiles').update({
                 ...(weightKg > 0 && { weight_in_kg: weightKg }),
                 ...(heightCm > 0 && { height_in_cm: heightCm }),
@@ -523,15 +469,7 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
                 .eq('id', profileId);
 
             // 7. Trigger plan generation
-            const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
-            const res = await fetch(`${backendUrl}/api/plan-generation/start`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${authSession?.access_token}` },
-            });
-            if (!res.ok) {
-                const body = await res.json().catch(() => ({}));
-                throw new Error(body?.error ?? `HTTP ${res.status}`);
-            }
+            await startPlanGeneration();
 
             set({ isSaving: false });
             router.back();

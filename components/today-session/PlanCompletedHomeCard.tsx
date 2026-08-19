@@ -1,8 +1,9 @@
-import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
+import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import LottieView from 'lottie-react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { JempText } from '../jemp-text';
@@ -13,9 +14,22 @@ export function PlanCompletedHomeCard() {
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const router = useRouter();
 
+    // autoPlay startet nicht zuverlässig, wenn der Screen beim Mount nicht
+    // sichtbar ist — deshalb bei jedem Fokus explizit von vorn abspielen
+    const checkRef = useRef<LottieView>(null);
+    useFocusEffect(useCallback(() => {
+        checkRef.current?.reset();
+        checkRef.current?.play();
+    }, []));
+
     return (
         <View style={styles.root}>
-            <Ionicons name="trophy" size={42} color={GradientMid} />
+            <LottieView
+                ref={checkRef}
+                source={require('@/assets/animations/check.json')}
+                loop={false}
+                style={styles.checkAnimation}
+            />
             <JempText type="h2" style={styles.centeredText}>
                 {t('ui.plan_completed_title')}
             </JempText>
@@ -46,6 +60,10 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 8,
         paddingHorizontal: 24,
+    },
+    checkAnimation: {
+        width: 56,
+        height: 56,
     },
     centeredText: {
         textAlign: 'center',

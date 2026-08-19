@@ -1,6 +1,7 @@
 import { JempText } from '@/components/jemp-text';
 import { JempInput } from '@/components/ui/jemp-input';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
+import { StepScaffold } from '@/components/onboarding/step-scaffold';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/providers/auth-provider';
@@ -16,7 +17,7 @@ import {
     StyleSheet,
     TouchableOpacity,
 } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Purchases from 'react-native-purchases';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -99,23 +100,10 @@ export function ReferralCodeStep() {
                 : 'onboarding.referral_error_network';
 
     return (
-        <KeyboardAwareScrollView
-            style={styles.container}
-            contentContainerStyle={styles.inner}
-            keyboardShouldPersistTaps="handled"
-        >
-            <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
-                <JempText type="h1" style={styles.headline}>
-                    {t('onboarding.referral_title')}
-                </JempText>
-            </Animated.View>
-
-            <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
-                <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
-                    {t('onboarding.referral_subtitle')}
-                </JempText>
-            </Animated.View>
-
+        // padding-Behavior schrumpft den Step um die Keyboard-Höhe — der
+        // zentrierte Content slidet dadurch weich nach oben
+        <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+            <StepScaffold title={t('onboarding.referral_title')} subtitle={t('onboarding.referral_subtitle')} centerContent>
             <Animated.View entering={FadeInDown.delay(360).duration(500).springify()} style={styles.inputRow}>
                 <JempInput
                     value={code}
@@ -157,23 +145,13 @@ export function ReferralCodeStep() {
                     </JempText>
                 </Animated.View>
             )}
-        </KeyboardAwareScrollView>
+            </StepScaffold>
+        </KeyboardAvoidingView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    inner: {
-        flex: 1,
-        paddingHorizontal: 28,
-        paddingTop: 32,
-    },
-    headline: {
-        marginBottom: 10,
-    },
-    subtitle: {
-        marginBottom: 40,
-    },
+    flex: { flex: 1 },
     inputRow: {
         flexDirection: 'row',
         alignItems: 'center',

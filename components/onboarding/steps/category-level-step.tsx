@@ -1,13 +1,16 @@
 import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
 import { getCategoryLabel, getCategoryDescription, type CategoryI18n } from '@/constants/category-labels';
+import { CATEGORY_SVG_ICONS } from '@/constants/category-icons';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { SegmentScale } from '@/components/ui/segment-scale';
 import { supabase } from '@/services/supabase/client';
 import { CategoryLevel, useOnboardingStore } from '@/stores/onboarding-store';
-import Slider from '@react-native-community/slider';
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
@@ -56,6 +59,9 @@ export function CategoryLevelStep() {
     });
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+    const [infoCategory, setInfoCategory] = useState<CategoryItem | null>(null);
+    // Während eines Skalen-Drags darf der Screen nicht mitscrollen
+    const [scrollLocked, setScrollLocked] = useState(false);
 
     useEffect(() => {
         supabase.from('categories').select('id, slug, name_i18n, description_i18n').then(({ data }) => {
@@ -96,6 +102,7 @@ export function CategoryLevelStep() {
             style={styles.container}
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
+            scrollEnabled={!scrollLocked}
         >
             <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
                 <JempText type="h1" style={styles.title}>{t('onboarding.category_level_title')}</JempText>
@@ -108,29 +115,47 @@ export function CategoryLevelStep() {
             {categories.map((cat, i) => {
                 const score = scores[cat.id] ?? DEFAULT_SCORE;
                 const color = scoreToColor(score);
+                const Icon = CATEGORY_SVG_ICONS[cat.slug];
                 return (
                     <Animated.View key={cat.id} entering={FadeInDown.delay(Math.min(360 + i * 120, 720)).duration(500).springify()} style={styles.card}>
                         <View style={styles.cardHeader}>
-                            <JempText type="h2">{getCategoryLabel(cat.slug, t, cat.name_i18n)}</JempText>
-                            <JempText type="body-sm" color={color}>{t(scoreToLabelKey(score))}</JempText>
+                            {Icon && (
+                                <View style={[styles.iconBox, { backgroundColor: theme.surface }]}>
+                                    <Icon width={19} height={19} color={theme.textMuted} />
+                                </View>
+                            )}
+                            <View style={styles.cardTitle}>
+                                <View style={styles.nameRow}>
+                                    <JempText type="h2">{getCategoryLabel(cat.slug, t, cat.name_i18n)}</JempText>
+                                    <Pressable onPress={() => setInfoCategory(cat)} hitSlop={10}>
+                                        <Ionicons name="information-circle-outline" size={16} color={theme.textSubtle} />
+                                    </Pressable>
+                                </View>
+                                <JempText type="caption" color={color} style={styles.levelLabel}>
+                                    {t(scoreToLabelKey(score)).toUpperCase()}
+                                </JempText>
+                            </View>
                         </View>
-                        <JempText type="caption" color={theme.textMuted} style={styles.cardDescription}>
-                            {getCategoryDescription(cat.slug, t, cat.description_i18n)}
-                        </JempText>
-                        <Slider
-                            style={styles.slider}
-                            minimumValue={1}
-                            maximumValue={100}
-                            step={1}
-                            value={score}
-                            onValueChange={(v) => handleChange(cat.id, v)}
-                            minimumTrackTintColor={color}
-                            maximumTrackTintColor={theme.borderStrong}
-                            thumbTintColor={color}
+                        <SegmentScale
+                            value={Math.min(10, Math.max(1, Math.round(score / 10)))}
+                            color={color}
+                            trackColor={theme.borderStrong}
+                            onSelect={(v) => handleChange(cat.id, v * 10)}
+                            onEngagedChange={setScrollLocked}
                         />
                     </Animated.View>
                 );
             })}
+
+            <ConfirmDialog
+                visible={infoCategory !== null}
+                title={infoCategory ? getCategoryLabel(infoCategory.slug, t, infoCategory.name_i18n) : ''}
+                message={infoCategory ? getCategoryDescription(infoCategory.slug, t, infoCategory.description_i18n) : undefined}
+                confirmLabel={t('ui.got_it')}
+                showCancel={false}
+                onConfirm={() => setInfoCategory(null)}
+                onClose={() => setInfoCategory(null)}
+            />
         </ScrollView>
     );
 }
@@ -149,20 +174,32 @@ const styles = StyleSheet.create({
         marginBottom: 32,
     },
     card: {
-        marginBottom: 28,
+        marginBottom: 24,
     },
     cardHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 4,
+        gap: 12,
+        marginBottom: 8,
     },
-    cardDescription: {
-        marginBottom: 4,
+    cardTitle: {
+        flex: 1,
+        gap: 2,
     },
-    slider: {
-        width: '100%',
-        height: 40,
-        marginHorizontal: -8,
+    nameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    levelLabel: {
+        letterSpacing: 0.8,
+        fontSize: 10,
+    },
+    iconBox: {
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });

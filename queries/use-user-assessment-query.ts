@@ -10,6 +10,7 @@ async function fetchUserAssessment(userAssessmentId: string) {
                 id, slug, name, name_i18n, description, description_i18n,
                 measured_metric_id,
                 category_id,
+                youtube_url, video_storage_path,
                 metric:metrics!measured_metric_id ( id, slug, unit, higher_is_better ),
                 category:categories ( slug ),
                 assessment_equipments ( equipment:equipments ( slug, name_i18n ) )

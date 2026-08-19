@@ -1,40 +1,47 @@
 import { JempText } from '@/components/jemp-text';
-import { AllCategoryStats } from '@/components/progress/all-category-stats';
+import { useTabBarInset } from '@/components/tab-bar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { AssessmentRow } from '@/components/progress/assessment-row';
-import { CategoryDropdown } from '@/components/progress/category-dropdown';
-import { GaugeCard } from '@/components/progress/gauge-card';
-import { TrajectoryChart } from '@/components/progress/trajectory-chart';
-import { ALL_STAT_SLUGS, CHART_HEIGHT, TIME_FRAMES } from '@/constants/progress-constants';
+import { CategoryStatGrid } from '@/components/progress/category-stat-grid';
+import { ProgressHeroCard } from '@/components/progress/progress-hero-card';
+import { getCategoryLabelShort } from '@/constants/category-labels';
+import { ALL_STAT_SLUGS, TIME_FRAMES } from '@/constants/progress-constants';
 import { Colors, Cyan, Electric } from '@/constants/theme';
 import { computeTrend, timeFrameToSince } from '@/helpers/progress-helpers';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { useCategoryAssessmentsQuery } from '@/queries/use-category-assessments-query';
+import { useDevToolsStore } from '@/stores/dev-tools-store';
 import { useUserCategoryHistoryQuery } from '@/queries/use-user-category-history-query';
 import { useUserCategoryLevelsQuery } from '@/queries/use-user-category-levels-query';
 import { TimeFrame } from '@/types/progress-types';
 import { devLog } from '@/utils/dev-log';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    ActivityIndicator,
     Pressable, ScrollView,
     StyleSheet,
     View
 } from 'react-native';
+import Reanimated, { FadeInLeft, FadeOutLeft } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 export default function ProgressScreen() {
     const { t } = useTranslation();
+    const router = useRouter();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const { profile } = useCurrentUser();
+    const tabBarInset = useTabBarInset();
 
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
     const [timeFrame, setTimeFrame] = useState<TimeFrame>('3M');
+    const hideSparklineData = useDevToolsStore(s => s.hideSparklineData);
+    const hideHistory = __DEV__ && hideSparklineData;
 
     const since = useMemo(() => timeFrameToSince(timeFrame), [timeFrame]);
 
@@ -45,7 +52,7 @@ export default function ProgressScreen() {
         selectedCategory !== 'all' ? selectedCategory : undefined,
         since,
     );
-    const isLoading = levelsLoading || historyLoading || (selectedCategory !== 'all' && assessmentsLoading);
+    const isLoading = levelsLoading || historyLoading;
 
     const chartData = useMemo(() => {
         if (!historyData) return [];
@@ -73,11 +80,6 @@ export default function ProgressScreen() {
     const trend = useMemo(() => computeTrend(chartData), [chartData]);
     devLog('[progress] selectedCategory:', selectedCategory, '| chartData.length:', chartData.length, '| historyData keys:', Object.keys(historyData ?? {}));
 
-    const visibleStats = useMemo(() => {
-        if (selectedCategory !== 'all') return ALL_STAT_SLUGS.filter(s => s === selectedCategory);
-        return ALL_STAT_SLUGS;
-    }, [selectedCategory]);
-
     const overallScore = useMemo(() => {
         if (!categoryLevels) return null;
         const scores = ALL_STAT_SLUGS.map(s => categoryLevels[s]).filter((v): v is number => v !== undefined);
@@ -93,15 +95,30 @@ export default function ProgressScreen() {
         return result;
     }, [historyData]);
 
-    const overallTrend = useMemo(() => computeTrend(historyData?.['all'] ?? []), [historyData]);
+    const heroLabel = selectedCategory === 'all'
+        ? t('category.overall')
+        : getCategoryLabelShort(selectedCategory, t);
+    const heroScore = selectedCategory === 'all'
+        ? overallScore
+        : categoryLevels?.[selectedCategory] ?? null;
 
     return (
         <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
             <View style={styles.headerSection}>
-                <JempText type="h1" style={styles.title}>{t('tab.progress')}</JempText>
-
-                <View style={styles.controlsRow}>
-                    <CategoryDropdown selected={selectedCategory} onSelect={setSelectedCategory} />
+                <View style={styles.headerRow}>
+                    <View style={styles.titleRow}>
+                        {selectedCategory !== 'all' ? (
+                            <Reanimated.View key="back" entering={FadeInLeft.duration(250)} exiting={FadeOutLeft.duration(150)}>
+                                <Pressable onPress={() => setSelectedCategory('all')} hitSlop={12} style={styles.backBtn}>
+                                    <Ionicons name="arrow-back" size={26} color={theme.text} />
+                                </Pressable>
+                            </Reanimated.View>
+                        ) : (
+                            <Reanimated.View key="title" entering={FadeInLeft.duration(250)} exiting={FadeOutLeft.duration(150)} style={styles.titleWrap}>
+                                <JempText type="h1" style={styles.title} numberOfLines={1}>{t('ui.progress_title')}</JempText>
+                            </Reanimated.View>
+                        )}
+                    </View>
                     <View style={[styles.timeToggle, { backgroundColor: theme.surface }]}>
                         {TIME_FRAMES.map(tf => {
                             const active = tf === timeFrame;
@@ -109,7 +126,7 @@ export default function ProgressScreen() {
                                 <Pressable
                                     key={tf}
                                     onPress={() => setTimeFrame(tf)}
-                                    style={[styles.timeBtn, active && styles.timeBtnActive]}
+                                    style={styles.timeBtn}
                                 >
                                     {active && (
                                         <LinearGradient
@@ -130,74 +147,61 @@ export default function ProgressScreen() {
             </View>
 
             {isLoading ? (
-                <View style={styles.centered}>
-                    <ActivityIndicator color={theme.primary} />
+                <View style={styles.scroll}>
+                    <Skeleton height={250} borderRadius={20} />
+                    {selectedCategory === 'all' ? (
+                        <View style={styles.skeletonGrid}>
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <Skeleton key={i} width="48.25%" height={116} borderRadius={16} />
+                            ))}
+                        </View>
+                    ) : (
+                        <View style={styles.assessSection}>
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <Skeleton key={i} height={92} borderRadius={14} />
+                            ))}
+                        </View>
+                    )}
                 </View>
             ) : (
-                <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-                    {/* Development chart */}
-                    <View style={[styles.trajCard, { backgroundColor: theme.surface }]}>
-                        <View style={styles.trajHeader}>
-                            <JempText type="h2">{t('ui.progress_development')}</JempText>
-                            {trend !== null && (
-                                <View style={styles.trendBadge}>
-                                    <Ionicons
-                                        name={trend >= 0 ? 'trending-up' : 'trending-down'}
-                                        size={14}
-                                        color={trend >= 0 ? Cyan[400] : '#ef4444'}
-                                    />
-                                    <JempText
-                                        type="caption"
-                                        color={trend >= 0 ? Cyan[400] : '#ef4444'}
-                                        style={styles.trendText}
-                                    >
-                                        {trend >= 0 ? '+' : ''}{trend}
-                                    </JempText>
-                                </View>
-                            )}
-                        </View>
-                        <TrajectoryChart data={chartData} emptyLabel={t('ui.progress_no_history')} />
-                    </View>
+                <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: tabBarInset }]} showsVerticalScrollIndicator={false}>
+                    <ProgressHeroCard
+                        label={heroLabel}
+                        score={heroScore}
+                        trend={hideHistory ? null : trend}
+                        chartData={hideHistory ? [] : chartData}
+                        emptyLabel={t('ui.progress_no_history')}
+                        ctaLabel={t('ui.progress_empty_cta')}
+                        onCtaPress={() => router.navigate('/(tabs)/assessments')}
+                    />
 
-                    {/* Category Stats */}
-                    {(visibleStats.length > 0 || overallScore !== null) && (
-                        <View style={styles.statsSection}>
-                            {selectedCategory === 'all' && (
-                                <JempText type="h2">{t('ui.progress_category_stats')}</JempText>
-                            )}
-                            {selectedCategory === 'all' ? (
-                                <AllCategoryStats
-                                    levels={categoryLevels ?? {}}
-                                    trends={categoryTrends}
-                                    overallScore={overallScore}
-                                    overallTrend={overallTrend}
-                                />
-                            ) : (
-                                <View style={styles.statsGrid}>
-                                    {visibleStats.map(slug => (
-                                        <GaugeCard
-                                            key={slug}
-                                            slug={slug}
-                                            value={categoryLevels?.[slug]}
-                                            trend={categoryTrends[slug] ?? null}
-                                            style={visibleStats.length === 1 ? { width: '100%' } : undefined}
-                                        />
-                                    ))}
-                                </View>
-                            )}
-                        </View>
+                    {selectedCategory === 'all' && (
+                        <CategoryStatGrid
+                            levels={categoryLevels ?? {}}
+                            trends={hideHistory ? {} : categoryTrends}
+                            history={hideHistory ? {} : historyData ?? {}}
+                            selected={selectedCategory}
+                            onSelect={setSelectedCategory}
+                        />
                     )}
 
                     {/* Assessments — only when a specific category is selected */}
                     {selectedCategory !== 'all' && (
                         <View style={styles.assessSection}>
                             <JempText type="h2">{t('ui.progress_assessments')}</JempText>
-                            {assessmentEntries && assessmentEntries.length > 0 ? (
-                                assessmentEntries.map(entry => (
+                            {assessmentsLoading ? (
+                                Array.from({ length: 3 }).map((_, i) => (
+                                    <Skeleton key={i} height={92} borderRadius={14} />
+                                ))
+                            ) : assessmentEntries && assessmentEntries.length > 0 ? (
+                                assessmentEntries.map((entry, index) => (
                                     <AssessmentRow
                                         key={entry.assessmentId}
-                                        entry={entry}
+                                        entry={hideHistory
+                                            ? { ...entry, history: [], percentChange: null, firstValue: null }
+                                            : entry}
                                         categorySlug={selectedCategory}
+                                        index={index}
                                     />
                                 ))
                             ) : (
@@ -219,23 +223,13 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
     root: { flex: 1 },
     headerSection: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
-    title: { letterSpacing: -0.5, marginBottom: 12 },
-    centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+    titleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 40 },
+    titleWrap: { flexShrink: 1 },
+    backBtn: { marginLeft: -4 },
+    title: { letterSpacing: -0.5, flexShrink: 1 },
     scroll: { paddingHorizontal: 20, paddingBottom: 32, gap: 20, paddingTop: 15 },
-
-    controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-
-    dropdownBtn: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderRadius: 100,
-        gap: 6,
-    },
-    dropdownLabel: { flex: 1 },
+    skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
 
     timeToggle: {
         flexDirection: 'row',
@@ -252,145 +246,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    timeBtnActive: {},
-
-    modalBackdrop: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        justifyContent: 'flex-end',
-    },
-    modalSheet: {
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        paddingTop: 12,
-        paddingHorizontal: 16,
-        gap: 2,
-    },
-    modalHandle: {
-        width: 36,
-        height: 4,
-        borderRadius: 2,
-        alignSelf: 'center',
-        marginBottom: 12,
-    },
-    modalOption: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 14,
-        paddingHorizontal: 12,
-        borderRadius: 12,
-    },
-
-    trajCard: {
-        borderRadius: 20,
-        padding: 16,
-        paddingBottom: 8,
-        gap: 4,
-    },
-    trajHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    trendBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    trendText: { fontWeight: '600' },
-    chartEmpty: {
-        height: CHART_HEIGHT,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    chartValueRow: {
-        position: 'absolute',
-        bottom: 4,
-        left: 0,
-        right: 0,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    chartValueLabel: { fontSize: 11, opacity: 0.7 },
-    chartValueLabelEnd: { opacity: 1 },
 
     assessSection: { gap: 10 },
-    assessRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderRadius: 14,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        gap: 8,
-    },
-    assessLeft: { flex: 1, gap: 2 },
-    assessName: { fontSize: 15 },
-    assessRight: { alignItems: 'flex-end', gap: 4 },
-    scorePill: {
-        paddingHorizontal: 10,
-        paddingVertical: 3,
-        borderRadius: 20,
-    },
-    scoreText: { fontWeight: '600', fontSize: 13 },
-    deltaText: { fontWeight: '500', fontSize: 12 },
     assessEmpty: { paddingVertical: 20, alignItems: 'center' },
-
-    // Gauge grid card
-    gaugeCard: {
-        width: '48.25%',
-        borderRadius: 16,
-        padding: 14,
-        paddingBottom: 14,
-        gap: 0,
-        overflow: 'hidden',
-    },
-    gaugeCardCircle: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingTop: 8,
-        paddingBottom: 4,
-    },
-    gaugeCenter: { alignItems: 'center', justifyContent: 'center' },
-    gaugeCardScore: { fontSize: 24, lineHeight: 28, fontWeight: '700', letterSpacing: -0.5 },
-    miniGaugeScore: { fontSize: 12, fontWeight: '700', letterSpacing: -0.3 },
-
-    overallCard: {
-        borderRadius: 16,
-        padding: 14,
-        gap: 8,
-        overflow: 'hidden',
-    },
-    overallCardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    overallGaugeWrap: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 8,
-    },
-    overallScore: { fontSize: 40, lineHeight: 46, letterSpacing: -1.5 },
-    overallLeft: { gap: 2 },
-    overallValueRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-
-    statCardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-
-    statsSection: { gap: 12 },
-    statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-    statCard: {
-        width: '48.25%',
-        borderRadius: 16,
-        padding: 14,
-        paddingBottom: 0,
-        gap: 6,
-        overflow: 'hidden',
-    },
-    statHeader: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-    statLabel: { fontSize: 11, letterSpacing: 0.3 },
-    statValue: { fontSize: 32, lineHeight: 38, letterSpacing: -1, paddingBottom: 10 },
-    progressTrack: { height: 4, borderRadius: 2, marginBottom: 14, overflow: 'hidden' },
-    progressFill: { height: '100%', borderRadius: 2 },
 });

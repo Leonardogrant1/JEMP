@@ -1,5 +1,5 @@
 import { JempText } from '@/components/jemp-text';
-import { Colors, Cyan, Electric } from '@/constants/theme';
+import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { computeLoadProfile } from '@/lib/load-profile';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
@@ -9,29 +9,23 @@ import { supabase } from '@/services/supabase/client';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
+import LottieView from 'lottie-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Animated, Easing, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown, FadeOut, ZoomIn } from 'react-native-reanimated';
 
-const GRADIENT_START = Cyan[500];
-const GRADIENT_END = Electric[500];
-
-const FEATURE_KEYS = [
-    'personalization.feature_0',
-    'personalization.feature_1',
-    'personalization.feature_2',
-    'personalization.feature_3',
+// Checklisten-Phasen — Fortschritt läuft zeitgesteuert, während save() im
+// Hintergrund die echten Writes macht (Optik wie PlanGenerationScreen)
+const PHASES = [
+    { threshold: 0, labelKey: 'personalization.stage_saving' },
+    { threshold: 30, labelKey: 'personalization.stage_goals' },
+    { threshold: 60, labelKey: 'personalization.stage_equipment' },
 ] as const;
 
-const STAGES = [
-    { threshold: 0, key: 'personalization.stage_saving' },
-    { threshold: 30, key: 'personalization.stage_goals' },
-    { threshold: 60, key: 'personalization.stage_equipment' },
-    { threshold: 90, key: 'personalization.stage_done' },
-] as const;
-
-const ITEM_START_DELAY_MS = 300;
-const ITEM_STAGGER_MS = 400;
+const MIN_DURATION_MS = 9000;
+const COMPLETED_HOLD_MS = 1400;
 
 export function PersonalizationStep() {
     const { t } = useTranslation();
@@ -44,19 +38,10 @@ export function PersonalizationStep() {
 
     const [progress, setProgress] = useState(0);
     const [isComplete, setIsComplete] = useState(false);
-    const [featureAnimsDone, setFeatureAnimsDone] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const hasStarted = useRef(false);
     const startedAt = useRef(Date.now());
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const MIN_DURATION_MS = 9000;
-
-    const itemAnims = useRef(
-        FEATURE_KEYS.map(() => ({
-            opacity: new Animated.Value(0),
-            translateY: new Animated.Value(10),
-        }))
-    ).current;
 
     // Progress tick — crawls to 85% over ~8s so the screen stays up
     useEffect(() => {
@@ -64,7 +49,6 @@ export function PersonalizationStep() {
             if (intervalRef.current) clearInterval(intervalRef.current);
             return;
         }
-        // 85% over 8s = ~1.06 per 100ms
         intervalRef.current = setInterval(() => {
             setProgress(prev => {
                 if (prev >= 85) return prev;
@@ -89,26 +73,32 @@ export function PersonalizationStep() {
         return () => clearTimeout(timeout);
     }, [isComplete]);
 
-    // Navigate when animation done
-    useEffect(() => {
-        if (progress >= 100 && featureAnimsDone) {
-            nextStep();
-        }
-    }, [progress, featureAnimsDone]);
+    const isCompleted = progress >= 100;
+    // Letzte Phase, deren Schwelle erreicht ist; completed hakt alles ab
+    const activeIndex = isCompleted
+        ? PHASES.length
+        : PHASES.reduce((acc, p, i) => (progress >= p.threshold ? i : acc), 0);
 
-    // Staggered pop-in
+    // Haptik rastet mit der Checkliste ein: Tick pro Phase, Success am Ende
+    const prevIndexRef = useRef(0);
     useEffect(() => {
-        itemAnims.forEach(({ opacity, translateY }, i) => {
-            const delay = ITEM_START_DELAY_MS + i * ITEM_STAGGER_MS;
-            Animated.parallel([
-                Animated.timing(opacity, { toValue: 1, duration: 350, delay, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-                Animated.timing(translateY, { toValue: 0, duration: 350, delay, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-            ]).start();
-        });
-        const lastEnd = ITEM_START_DELAY_MS + (FEATURE_KEYS.length - 1) * ITEM_STAGGER_MS + 350;
-        const timer = setTimeout(() => setFeatureAnimsDone(true), lastEnd);
+        const prev = prevIndexRef.current;
+        prevIndexRef.current = activeIndex;
+        if (activeIndex <= prev) return;
+        if (isCompleted) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } else {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+    }, [activeIndex, isCompleted]);
+
+    // Check-Moment kurz stehen lassen, dann weiter
+    useEffect(() => {
+        if (!isCompleted) return;
+        const timer = setTimeout(nextStep, COMPLETED_HOLD_MS);
         return () => clearTimeout(timer);
-    }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isCompleted]);
 
     // Run on mount
     useEffect(() => {
@@ -135,6 +125,7 @@ export function PersonalizationStep() {
                 equipmentEnvironments,
                 weekly_schedule,
                 name_source,
+                attribution_source,
                 ...profileData
             } = onboardingData;
 
@@ -206,14 +197,6 @@ export function PersonalizationStep() {
         }
     }
 
-    function getStageLabel(p: number): string {
-        let label = t(STAGES[0].key);
-        for (const s of STAGES) {
-            if (p >= s.threshold) label = t(s.key);
-        }
-        return label;
-    }
-
     if (error) {
         return (
             <View style={styles.center}>
@@ -230,65 +213,101 @@ export function PersonalizationStep() {
                     style={[styles.retryBtn, { backgroundColor: theme.surface }]}
                     onPress={() => { hasStarted.current = false; save(); }}
                 >
-                    <JempText type="body" color={theme.text}>{t('ui.retry')}</JempText>
+                    <JempText type="body-l" color={theme.text}>{t('ui.retry')}</JempText>
                 </TouchableOpacity>
             </View>
         );
     }
 
-    const barWidth = `${progress}%` as const;
-
     return (
-        <View style={styles.container}>
-            <View style={styles.content}>
-                <JempText type="h1" color={theme.text} style={styles.title}>
-                    {t('personalization.title')}
-                </JempText>
-
-                <JempText type="caption" color={theme.textMuted} style={styles.stage}>
-                    {getStageLabel(progress)}
-                </JempText>
-
-                {/* Progress bar */}
-                <View style={[styles.progressTrack, { backgroundColor: theme.surface }]}>
-                    <Animated.View
-                        style={[
-                            styles.progressBar,
-                            { width: barWidth, backgroundColor: progress >= 100 ? Cyan[500] : Electric[500] },
-                        ]}
+        <View style={styles.root}>
+            {/* ── Completed-Overlay: Rest fadet weg, Check-Animation fadet rein ── */}
+            {isCompleted && (
+                <Animated.View entering={FadeIn.delay(150).duration(350)} style={[StyleSheet.absoluteFill, styles.content]}>
+                    <LottieView
+                        source={require('@/assets/animations/check.json')}
+                        autoPlay
+                        loop={false}
+                        style={styles.animation}
                     />
-                </View>
+                    <JempText type="h1" color={theme.text} style={styles.title}>
+                        {t('personalization.stage_done')}
+                    </JempText>
+                </Animated.View>
+            )}
 
-                {/* Feature list */}
-                <View style={styles.features}>
-                    {FEATURE_KEYS.map((key, i) => (
-                        <Animated.View
-                            key={key}
-                            style={[
-                                styles.featureRow,
-                                { opacity: itemAnims[i].opacity, transform: [{ translateY: itemAnims[i].translateY }] },
-                            ]}
-                        >
-                            <View style={[styles.featureDot, { backgroundColor: GRADIENT_START }]} />
-                            <JempText type="body" color={theme.text}>{t(key)}</JempText>
-                        </Animated.View>
-                    ))}
-                </View>
-            </View>
+            {!isCompleted && (
+                <Animated.View exiting={FadeOut.duration(250)} style={[StyleSheet.absoluteFill, styles.content]}>
+                    <LottieView
+                        source={require('@/assets/animations/clipboard-loading.json')}
+                        autoPlay
+                        loop
+                        style={styles.animation}
+                    />
+
+                    <JempText type="h1" color={theme.text} style={styles.title}>
+                        {t('personalization.title')}
+                    </JempText>
+
+                    {/* ── Phasen-Checkliste: ✓ erledigt, Spinner aktiv, offen muted ── */}
+                    <View style={styles.phases}>
+                        {PHASES.map((phase, i) => {
+                            const state = i < activeIndex ? 'done' : i === activeIndex ? 'active' : 'pending';
+                            return (
+                                <Animated.View
+                                    key={phase.labelKey}
+                                    entering={FadeInDown.delay(i * 120 + 200).duration(400)}
+                                    style={styles.phaseRow}
+                                >
+                                    <View style={styles.phaseIcon}>
+                                        {/* key remountet beim Zustandswechsel → Icon poppt weich rein */}
+                                        <Animated.View key={state} entering={ZoomIn.duration(250)}>
+                                            {state === 'done' && (
+                                                <Ionicons name="checkmark-circle" size={26} color={GradientMid} />
+                                            )}
+                                            {state === 'active' && (
+                                                <LottieView
+                                                    source={require('@/assets/animations/spinner-arc.json')}
+                                                    autoPlay
+                                                    loop
+                                                    style={styles.spinner}
+                                                />
+                                            )}
+                                            {state === 'pending' && (
+                                                <Ionicons name="ellipse-outline" size={24} color={theme.textSubtle} />
+                                            )}
+                                        </Animated.View>
+                                    </View>
+                                    <Animated.View key={`label-${state}`} entering={FadeIn.duration(300)}>
+                                        <JempText
+                                            type="body-l"
+                                            color={state === 'active' ? theme.text : state === 'done' ? theme.textMuted : theme.textSubtle}
+                                            style={[styles.phaseLabel, state === 'done' && styles.phaseDone]}
+                                        >
+                                            {t(phase.labelKey)}
+                                        </JempText>
+                                    </Animated.View>
+                                </Animated.View>
+                            );
+                        })}
+                    </View>
+                </Animated.View>
+            )}
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
+    root: { flex: 1 },
     content: { flex: 1, justifyContent: 'center', paddingHorizontal: 32, gap: 20 },
+    animation: { width: 120, height: 120, alignSelf: 'center', marginBottom: -8 },
     title: { textAlign: 'center' },
-    stage: { textAlign: 'center' },
-    progressTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
-    progressBar: { height: '100%', borderRadius: 3 },
-    features: { gap: 14, marginTop: 8 },
-    featureRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    featureDot: { width: 8, height: 8, borderRadius: 4 },
+    phases: { gap: 22, marginTop: 12, alignSelf: 'center' },
+    phaseRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    phaseIcon: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+    spinner: { width: 30, height: 30 },
+    phaseLabel: { fontSize: 18, lineHeight: 26 },
+    phaseDone: { textDecorationLine: 'line-through', opacity: 0.6 },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 16 },
     errorIconBox: { borderRadius: 40, padding: 16 },
     textCenter: { textAlign: 'center' },

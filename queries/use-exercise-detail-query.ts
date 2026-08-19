@@ -19,7 +19,7 @@ async function fetchExerciseDetail(id: string) {
 
     const equipments = (data.exercise_equipments ?? [])
         .map((ee) => ee.equipment)
-        .filter((e): e is { slug: string; name_i18n: unknown } => !!e?.slug);
+        .filter((e): e is NonNullable<typeof e> => !!e?.slug);
 
     const block_types = (data.exercise_blocks ?? [])
         .map((eb) => eb.block_type?.slug)

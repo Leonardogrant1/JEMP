@@ -34,6 +34,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_leads: {
+        Row: {
+          code: string
+          country: string | null
+          created_at: string
+          id: string
+          platform: string | null
+          referer: string | null
+          session_id: string
+          status: Database["public"]["Enums"]["affiliate_lead_status"]
+          updated_at: string
+          view_count: number
+        }
+        Insert: {
+          code: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          platform?: string | null
+          referer?: string | null
+          session_id: string
+          status?: Database["public"]["Enums"]["affiliate_lead_status"]
+          updated_at?: string
+          view_count?: number
+        }
+        Update: {
+          code?: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          platform?: string | null
+          referer?: string | null
+          session_id?: string
+          status?: Database["public"]["Enums"]["affiliate_lead_status"]
+          updated_at?: string
+          view_count?: number
+        }
+        Relationships: []
+      }
       assessment_equipments: {
         Row: {
           assessment_id: string | null
@@ -87,6 +126,8 @@ export type Database = {
           name_i18n: Json | null
           slug: string
           updated_at: string | null
+          video_storage_path: string | null
+          youtube_url: string | null
         }
         Insert: {
           category_id?: string | null
@@ -101,6 +142,8 @@ export type Database = {
           name_i18n?: Json | null
           slug: string
           updated_at?: string | null
+          video_storage_path?: string | null
+          youtube_url?: string | null
         }
         Update: {
           category_id?: string | null
@@ -115,6 +158,8 @@ export type Database = {
           name_i18n?: Json | null
           slug?: string
           updated_at?: string | null
+          video_storage_path?: string | null
+          youtube_url?: string | null
         }
         Relationships: [
           {
@@ -708,6 +753,24 @@ export type Database = {
         }
         Relationships: []
       }
+      session_thumbnails: {
+        Row: {
+          image_group: string
+          storage_path: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          image_group: string
+          storage_path?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          image_group?: string
+          storage_path?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       sport_category_relevance: {
         Row: {
           category_id: string
@@ -750,8 +813,46 @@ export type Database = {
           },
         ]
       }
+      sport_group_animations: {
+        Row: {
+          animation_storage_path: string | null
+          group_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          animation_storage_path?: string | null
+          group_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          animation_storage_path?: string | null
+          group_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      sport_group_banners: {
+        Row: {
+          banner_storage_path: string | null
+          group_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          banner_storage_path?: string | null
+          group_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          banner_storage_path?: string | null
+          group_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       sports: {
         Row: {
+          animation_storage_path: string | null
+          banner_storage_path: string | null
           created_at: string | null
           group_name: string
           id: string
@@ -760,6 +861,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          animation_storage_path?: string | null
+          banner_storage_path?: string | null
           created_at?: string | null
           group_name: string
           id?: string
@@ -768,6 +871,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          animation_storage_path?: string | null
+          banner_storage_path?: string | null
           created_at?: string | null
           group_name?: string
           id?: string
@@ -1048,6 +1153,7 @@ export type Database = {
           schedule_notes: string | null
           sport_id: string | null
           timezone: string | null
+          unit_system: string
           updated_at: string | null
           weekly_schedule: Json
           weekly_schedule_updated_at: string | null
@@ -1078,6 +1184,7 @@ export type Database = {
           schedule_notes?: string | null
           sport_id?: string | null
           timezone?: string | null
+          unit_system?: string
           updated_at?: string | null
           weekly_schedule?: Json
           weekly_schedule_updated_at?: string | null
@@ -1108,6 +1215,7 @@ export type Database = {
           schedule_notes?: string | null
           sport_id?: string | null
           timezone?: string | null
+          unit_system?: string
           updated_at?: string | null
           weekly_schedule?: Json
           weekly_schedule_updated_at?: string | null
@@ -1670,6 +1778,7 @@ export type Database = {
           estimated_duration_minutes: number | null
           id: string
           name: string
+          original_scheduled_at: string | null
           pause_between_sets: number
           rest_adjust_seconds: number | null
           scheduled_at: string | null
@@ -1691,6 +1800,7 @@ export type Database = {
           estimated_duration_minutes?: number | null
           id?: string
           name: string
+          original_scheduled_at?: string | null
           pause_between_sets?: number
           rest_adjust_seconds?: number | null
           scheduled_at?: string | null
@@ -1712,6 +1822,7 @@ export type Database = {
           estimated_duration_minutes?: number | null
           id?: string
           name?: string
+          original_scheduled_at?: string | null
           pause_between_sets?: number
           rest_adjust_seconds?: number | null
           scheduled_at?: string | null
@@ -1759,6 +1870,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      fn_assert_creator_role: { Args: never; Returns: undefined }
       fn_auto_skip_missed_sessions: { Args: never; Returns: undefined }
       fn_create_user_assessments: {
         Args: { p_user_id: string }
@@ -1767,6 +1879,19 @@ export type Database = {
       fn_dev_complete_active_plan: { Args: never; Returns: undefined }
       fn_dev_seed_category_history: {
         Args: { p_days?: number }
+        Returns: undefined
+      }
+      fn_log_affiliate_lead_view: {
+        Args: {
+          p_code: string
+          p_country?: string
+          p_referer?: string
+          p_session_id: string
+        }
+        Returns: undefined
+      }
+      fn_mark_affiliate_lead_store_click: {
+        Args: { p_platform?: string; p_session_id: string }
         Returns: undefined
       }
       fn_refill_user_assessments: { Args: never; Returns: undefined }
@@ -1778,6 +1903,7 @@ export type Database = {
       }
     }
     Enums: {
+      affiliate_lead_status: "viewed" | "store_clicked"
       assessment_status: "pending" | "in_progress" | "completed"
       body_region:
         | "ankle"
@@ -1995,6 +2121,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      affiliate_lead_status: ["viewed", "store_clicked"],
       assessment_status: ["pending", "in_progress", "completed"],
       body_region: [
         "ankle",
@@ -2086,7 +2213,7 @@ export const Constants = {
         "cancelled",
       ],
       session_type: ["training", "recovery"],
-      user_role: ["user", "admin", "tester"],
+      user_role: ["user", "admin", "tester", "affiliate"],
     },
   },
 } as const

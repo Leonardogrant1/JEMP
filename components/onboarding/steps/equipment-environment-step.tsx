@@ -1,12 +1,16 @@
 import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
-import { SelectableChip } from '@/components/ui/selectable-chip';
-import { Colors } from '@/constants/theme';
+import { StepScaffold } from '@/components/onboarding/step-scaffold';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ENV_ICONS } from '@/constants/environment-icons';
+import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { supabase } from '@/services/supabase/client';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
@@ -41,7 +45,8 @@ export function EquipmentEnvironmentStep() {
     const [ambiguousEquipment, setAmbiguousEquipment] = useState<EquipmentItem[]>([]);
     // selected: equipmentId → Set<environmentId>
     const [selections, setSelections] = useState<Map<string, Set<string>>>(new Map());
-    const [loading, setLoading] = useState(true);
+    // Nur laden, wenn überhaupt mehrere Environments mit Equipment existieren
+    const [loading, setLoading] = useState(environmentIds.length > 1 && equipmentIds.length > 0);
 
     useEffect(() => {
         setCanContinue(true); // optional step
@@ -128,8 +133,6 @@ export function EquipmentEnvironmentStep() {
 
         if (environmentIds.length > 1 && equipmentIds.length > 0) {
             load();
-        } else {
-            setLoading(false);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -177,74 +180,100 @@ export function EquipmentEnvironmentStep() {
 
     if (loading) {
         return (
-            <View style={styles.loading}>
-                <ActivityIndicator color={theme.textMuted} />
-            </View>
+            <StepScaffold
+                title={t('onboarding.equipment_location_title')}
+                subtitle={t('onboarding.equipment_location_subtitle')}
+            >
+                <View style={styles.list}>
+                    {Array.from({ length: 4 }, (_, i) => (
+                        <Skeleton key={i} height={64} borderRadius={16} />
+                    ))}
+                </View>
+            </StepScaffold>
         );
     }
 
     if (ambiguousEquipment.length === 0) return null;
 
     return (
-        <ScrollView
-            style={styles.container}
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
+        <StepScaffold
+            title={t('onboarding.equipment_location_title')}
+            subtitle={t('onboarding.equipment_location_subtitle')}
         >
-            <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
-                <JempText type="h1" style={styles.title}>
-                    {t('onboarding.equipment_location_title')}
-                </JempText>
-            </Animated.View>
-            <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
-                <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
-                    {t('onboarding.equipment_location_subtitle')}
-                </JempText>
-            </Animated.View>
-
-            {ambiguousEquipment.map((eq, i) => {
-                const eqSelections = selections.get(eq.id) ?? new Set();
-                return (
-                    <Animated.View
-                        key={eq.id}
-                        entering={FadeInDown.delay(Math.min(360 + i * 120, 720)).duration(500).springify()}
-                        style={styles.equipmentRow}
-                    >
-                        <JempText type="body-l" color={theme.text} style={styles.equipmentLabel}>
-                            {eq.name_i18n?.[locale] ?? eq.slug}
-                        </JempText>
-                        <View style={styles.chipGrid}>
-                            {eq.compatibleEnvIds.map(envId => {
-                                const env = environments.get(envId);
-                                if (!env) return null;
-                                return (
-                                    <SelectableChip
-                                        key={envId}
-                                        label={env.name_i18n?.[locale] ?? env.slug}
-                                        selected={eqSelections.has(envId)}
-                                        onPress={() => toggle(eq.id, envId)}
-                                    />
-                                );
-                            })}
-                        </View>
-                    </Animated.View>
-                );
-            })}
-        </ScrollView>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            <View style={styles.list}>
+                {ambiguousEquipment.map((eq, i) => {
+                    const eqSelections = selections.get(eq.id) ?? new Set();
+                    return (
+                        <Animated.View
+                            key={eq.id}
+                            entering={FadeInDown.delay(Math.min(360 + i * 120, 720)).duration(500).springify()}
+                            style={[styles.row, { backgroundColor: theme.surface }]}
+                        >
+                            <JempText type="body-l" color={theme.text} style={styles.rowLabel}>
+                                {eq.name_i18n?.[locale] ?? eq.slug}
+                            </JempText>
+                            <View style={styles.envToggles}>
+                                {eq.compatibleEnvIds.map(envId => {
+                                    const env = environments.get(envId);
+                                    if (!env) return null;
+                                    const active = eqSelections.has(envId);
+                                    return (
+                                        <Pressable
+                                            key={envId}
+                                            onPress={() => {
+                                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                                toggle(eq.id, envId);
+                                            }}
+                                            hitSlop={6}
+                                            style={[
+                                                styles.envToggle,
+                                                active
+                                                    ? { backgroundColor: `${GradientMid}18`, borderColor: GradientMid }
+                                                    : { backgroundColor: theme.background, borderColor: 'transparent' },
+                                            ]}
+                                        >
+                                            <Ionicons
+                                                name={(ENV_ICONS[env.slug] ?? 'location-outline') as any}
+                                                size={17}
+                                                color={active ? GradientMid : theme.textMuted}
+                                            />
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
+                        </Animated.View>
+                    );
+                })}
+            </View>
+            </ScrollView>
+        </StepScaffold>
     );
 }
 
 const styles = StyleSheet.create({
-    loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    container: { flex: 1 },
-    content: {
-        paddingHorizontal: 28,
-        paddingTop: 32,
-        paddingBottom: 40,
+    scrollContent: { paddingBottom: 40 },
+    list: { gap: 10 },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        borderRadius: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
     },
-    title: { marginBottom: 10 },
-    subtitle: { marginBottom: 28 },
-    equipmentRow: { marginBottom: 24 },
-    equipmentLabel: { marginBottom: 10 },
-    chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    rowLabel: { flex: 1 },
+    envToggles: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    envToggle: {
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
 });

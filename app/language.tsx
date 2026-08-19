@@ -1,12 +1,12 @@
 import { JempText } from '@/components/jemp-text';
-import { Colors, Cyan } from '@/constants/theme';
+import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { saveLanguageLocally, type AppLanguage } from '@/i18n';
 import { useAuth } from '@/providers/auth-provider';
 import { supabase } from '@/services/supabase/client';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Reanimated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -18,7 +18,7 @@ const LANGUAGES = [
 ] as const;
 
 export default function LanguageScreen() {
-    const { i18n, t } = useTranslation();
+    const { i18n } = useTranslation();
     const { session } = useAuth();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
@@ -28,10 +28,15 @@ export default function LanguageScreen() {
     const translateY = useSharedValue(400);
     const overlayOpacity = useSharedValue(0);
 
-    useEffect(() => {
+    // Eintritts-Animation über onLayout statt useEffect — die Lint-Regel
+    // react-hooks/immutability verbietet Shared-Value-Mutation im useEffect
+    const entered = useRef(false);
+    function handleSheetLayout() {
+        if (entered.current) return;
+        entered.current = true;
         overlayOpacity.value = withTiming(1, { duration: 250 });
         translateY.value = withTiming(0, { duration: 300 });
-    }, []);
+    }
 
     function goBack() {
         router.back();
@@ -61,33 +66,35 @@ export default function LanguageScreen() {
         <Reanimated.View style={[styles.backdrop, backdropStyle]}>
             <Pressable style={styles.backdropPressable} onPress={handleClose}>
                 <Pressable onPress={(e) => e.stopPropagation()}>
-                    <Reanimated.View style={[styles.sheet, sheetStyle, { paddingBottom: insets.bottom + 12 }]}>
-                        <View style={styles.header}>
-                            <JempText type="h2">{t('ui.language')}</JempText>
-                            <Pressable style={styles.closeButton} onPress={handleClose}>
-                                <Ionicons name="close" size={20} color={theme.background} />
-                            </Pressable>
-                        </View>
-                        <View style={[styles.divider, { backgroundColor: theme.borderDivider }]} />
-                        <View style={styles.list}>
-                            {LANGUAGES.map((lang) => {
-                                const active = i18n.language === lang.code;
-                                return (
-                                    <Pressable
-                                        key={lang.code}
-                                        style={({ pressed }) => [
-                                            styles.row,
-                                            { backgroundColor: active ? theme.primarySubtle : theme.surface },
-                                            pressed && { opacity: 0.7 },
-                                        ]}
-                                        onPress={() => handleSelect(lang.code)}
-                                    >
-                                        <JempText type="h2" style={styles.flag}>{lang.flag}</JempText>
-                                        <JempText type="body-l" color={theme.text} style={styles.rowLabel}>{lang.label}</JempText>
-                                        {active && <Ionicons name="checkmark" size={20} color={Cyan[400]} />}
-                                    </Pressable>
-                                );
-                            })}
+                    <Reanimated.View
+                        onLayout={handleSheetLayout}
+                        style={[styles.sheet, { backgroundColor: theme.surface }, sheetStyle]}
+                    >
+                        <View style={[styles.content, { paddingBottom: insets.bottom + 8 }]}>
+                            <View style={[styles.handle, { backgroundColor: theme.borderDivider }]} />
+
+                            <View style={styles.list}>
+                                {LANGUAGES.map((lang, index) => {
+                                    const active = i18n.language === lang.code;
+                                    return (
+                                        <View key={lang.code}>
+                                            {index > 0 && (
+                                                <View style={[styles.divider, { backgroundColor: theme.borderDivider }]} />
+                                            )}
+                                            <Pressable
+                                                style={({ pressed }) => [styles.row, pressed && { backgroundColor: theme.background }]}
+                                                onPress={() => handleSelect(lang.code)}
+                                            >
+                                                <JempText type="body-l" style={styles.flag}>{lang.flag}</JempText>
+                                                <JempText type="body-l" color={theme.text} style={styles.rowLabel}>
+                                                    {lang.label}
+                                                </JempText>
+                                                {active && <Ionicons name="checkmark" size={20} color={GradientMid} />}
+                                            </Pressable>
+                                        </View>
+                                    );
+                                })}
+                            </View>
                         </View>
                     </Reanimated.View>
                 </Pressable>
@@ -97,14 +104,53 @@ export default function LanguageScreen() {
 }
 
 const styles = StyleSheet.create({
-    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-    backdropPressable: { flex: 1, justifyContent: 'flex-end' },
-    sheet: { backgroundColor: '#1c1c1e', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
-    header: { alignItems: 'center', justifyContent: 'center', paddingVertical: 22, position: 'relative' },
-    closeButton: { position: 'absolute', right: 20, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.65)', alignItems: 'center', justifyContent: 'center' },
-    divider: { height: 1 },
-    list: { padding: 16, gap: 10 },
-    row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 16 },
-    flag: { fontSize: 24, lineHeight: 30 },
-    rowLabel: { flex: 1 },
+    backdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+    },
+    backdropPressable: {
+        flex: 1,
+        justifyContent: 'flex-end',
+    },
+    sheet: {
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+    },
+    content: {
+        paddingTop: 12,
+        paddingHorizontal: 20,
+        gap: 16,
+    },
+    handle: {
+        width: 36,
+        height: 4,
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginBottom: 4,
+    },
+    list: {
+        marginTop: 4,
+    },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+        paddingVertical: 16,
+        paddingHorizontal: 4,
+        borderRadius: 12,
+    },
+    divider: {
+        height: StyleSheet.hairlineWidth,
+        // Einzug auf Texthöhe: row-padding 4 + Flagge 24 + gap 14
+        marginLeft: 42,
+    },
+    flag: {
+        fontSize: 22,
+        lineHeight: 28,
+        width: 24,
+        textAlign: 'center',
+    },
+    rowLabel: {
+        flex: 1,
+    },
 });

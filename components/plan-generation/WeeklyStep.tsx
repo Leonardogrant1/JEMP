@@ -1,38 +1,28 @@
+import GameIcon from '@/assets/icons/game.svg';
 import { JempText } from '@/components/jemp-text';
-import { SelectableChip } from '@/components/ui/selectable-chip';
+import { WeekLoadSummary } from '@/components/plan-generation/WeekLoadSummary';
 import { WEEK_DAYS } from '@/constants/plan-generation-constants';
+import { getSportKind } from '@/constants/sports';
 import { Colors, GradientMid } from '@/constants/theme';
-import { getSessionTypes } from '@/helpers/plan-generation-helpers';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTrainingAnimation } from '@/hooks/use-training-animation';
+import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlanWizardStore } from '@/stores/plan-wizard-store';
-import Slider from '@react-native-community/slider';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import LottieView from 'lottie-react-native';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-
-
-function getAffectedJempDays(sportDay: number, mode: 'adjacent' | 'same', preferredDaysArray: number[]): number[] {
-    if (mode === 'same') return preferredDaysArray.includes(sportDay) ? [sportDay] : [];
-    const prev = sportDay === 1 ? 7 : sportDay - 1;
-    const next = sportDay === 7 ? 1 : sportDay + 1;
-    return preferredDaysArray.filter(d => d === prev || d === next);
-}
-
-function formatDays(days: number[], t: (key: any) => string): string {
-    return days.map(d => t(WEEK_DAYS.find(x => x.dow === d)?.key as any ?? '')).join(', ');
-}
 
 export function WeeklyStep() {
     const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
-    const {
-        sportSessions, selectedSportSlug, preferredDays, combatSportSlugs,
-        toggleSportDay, setSportType, setSportIntensity,
-    } = usePlanWizardStore();
-
-    const selectedSportDays = new Set(sportSessions.map(s => s.day_of_week));
-    const sortedSportSessions = [...sportSessions].sort((a, b) => a.day_of_week - b.day_of_week);
-    const preferredDaysArray = [...preferredDays];
+    const router = useRouter();
+    const { profile } = useCurrentUser();
+    const { sportSessions, selectedSportSlug } = usePlanWizardStore();
+    const trainingAnimation = useTrainingAnimation(profile?.sport);
+    const sportKind = getSportKind(selectedSportSlug);
 
     return (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -43,114 +33,79 @@ export function WeeklyStep() {
                 {t('onboarding.weekly_schedule_subtitle')}
             </JempText>
 
-            <View style={styles.section}>
-                <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
-                    {t('onboarding.weekly_schedule_days_label')}
-                </JempText>
-                <View style={styles.dayChipRow}>
-                    {WEEK_DAYS.map(({ dow, key }) => (
-                        <SelectableChip
+            <View style={styles.dayList}>
+                {WEEK_DAYS.map(({ dow, key }) => {
+                    const session = sportSessions.find(s => s.day_of_week === dow);
+                    const configured = !!session;
+                    return (
+                        <TouchableOpacity
                             key={dow}
-                            label={t(key as any)}
-                            selected={selectedSportDays.has(dow)}
-                            onPress={() => toggleSportDay(dow)}
-                            style={styles.dayChip}
-                        />
-                    ))}
-                </View>
+                            activeOpacity={0.7}
+                            onPress={() => router.push(`/sport-day-editor?day=${dow}`)}
+                            style={[
+                                styles.dayRow,
+                                configured
+                                    ? { backgroundColor: `${GradientMid}18`, borderColor: GradientMid }
+                                    : { backgroundColor: 'transparent', borderColor: theme.borderDivider },
+                            ]}
+                        >
+                            <JempText
+                                type="body-l"
+                                color={configured ? GradientMid : theme.text}
+                                style={styles.dayName}
+                            >
+                                {t(key as any).toUpperCase()}
+                            </JempText>
+
+                            {configured
+                                ? (
+                                    <View style={styles.dayRight}>
+                                        {session.type === 'team_training' && (
+                                            <>
+                                                <View style={styles.intensityChip}>
+                                                    <Ionicons name="flash-outline" size={11} color={theme.textMuted} />
+                                                    <JempText type="caption" color={theme.textMuted}>
+                                                        {session.intensity}
+                                                    </JempText>
+                                                </View>
+                                                <LottieView
+                                                    source={trainingAnimation as never}
+                                                    autoPlay
+                                                    loop
+                                                    style={styles.dayLottie}
+                                                />
+                                            </>
+                                        )}
+                                        {session.type === 'game' && sportKind === 'combat' && (
+                                            <LottieView
+                                                source={require('@/assets/animations/fight.json')}
+                                                autoPlay
+                                                loop
+                                                style={styles.dayLottie}
+                                            />
+                                        )}
+                                        {session.type === 'game' && sportKind === 'match' && (
+                                            <GameIcon width={14} height={14} />
+                                        )}
+                                        {/* Turnier bzw. Wettkampf (Individualsport) — beides Trophäe */}
+                                        {(session.type === 'tournament' || (session.type === 'game' && sportKind === 'individual')) && (
+                                            <LottieView
+                                                source={require('@/assets/animations/throphy.json')}
+                                                autoPlay
+                                                loop
+                                                style={styles.dayLottie}
+                                            />
+                                        )}
+                                    </View>
+                                )
+                                : <Ionicons name="add" size={18} color={theme.textSubtle} />
+                            }
+                        </TouchableOpacity>
+                    );
+                })}
             </View>
 
-            {sortedSportSessions.map(session => {
-                const dayLabel = WEEK_DAYS.find(d => d.dow === session.day_of_week);
-                return (
-                    <View key={session.day_of_week} style={[styles.sportCard, { backgroundColor: theme.surface }]}>
-                        <View style={styles.sportCardHeader}>
-                            <JempText type="body-sm" style={{ fontWeight: '600' }}>
-                                {t(dayLabel?.key as any)}
-                            </JempText>
-                            <TouchableOpacity onPress={() => toggleSportDay(session.day_of_week)} hitSlop={12}>
-                                <JempText type="body-sm" color={theme.textMuted}>✕</JempText>
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.chipGrid}>
-                            {getSessionTypes(selectedSportSlug, combatSportSlugs).map(st => (
-                                <SelectableChip
-                                    key={st.key}
-                                    label={t(st.labelKey as any)}
-                                    selected={session.type === st.key}
-                                    onPress={() => setSportType(session.day_of_week, st.key)}
-                                    size="sm"
-                                />
-                            ))}
-                        </View>
-
-                        {(session.type === 'game' || session.type === 'tournament') && (() => {
-                            const prev = session.day_of_week === 1 ? 7 : session.day_of_week - 1;
-                            const next = session.day_of_week === 7 ? 1 : session.day_of_week + 1;
-                            const affected = preferredDaysArray.filter(d => d === prev || d === next);
-                            if (affected.length === 0) return null;
-                            return (
-                                <View style={styles.hintBox}>
-                                    <JempText type="body-sm" color={GradientMid}>
-                                        {t('onboarding.weekly_schedule_hint_game', { days: formatDays(affected, t) })}
-                                    </JempText>
-                                </View>
-                            );
-                        })()}
-
-                        {session.type !== 'game' && session.type !== 'tournament' && (
-                            <View style={styles.intensityRow}>
-                                <View style={styles.intensityHeader}>
-                                    <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
-                                        {t('onboarding.weekly_schedule_intensity_label')}
-                                    </JempText>
-                                    <JempText type="h2">{session.intensity}</JempText>
-                                </View>
-                                <Slider
-                                    style={styles.slider}
-                                    minimumValue={1}
-                                    maximumValue={10}
-                                    step={1}
-                                    value={session.intensity}
-                                    onValueChange={v => setSportIntensity(session.day_of_week, v)}
-                                    minimumTrackTintColor={GradientMid}
-                                    maximumTrackTintColor={theme.borderStrong}
-                                    thumbTintColor={theme.text}
-                                />
-                                {session.intensity === 7 && (() => {
-                                    const sameDay = getAffectedJempDays(session.day_of_week, 'same', preferredDaysArray);
-                                    if (sameDay.length === 0) return null;
-                                    return (
-                                        <View style={styles.hintBox}>
-                                            <JempText type="body-sm" color={GradientMid}>
-                                                {t('onboarding.weekly_schedule_hint_intensity_7', { days: formatDays(sameDay, t) })}
-                                            </JempText>
-                                        </View>
-                                    );
-                                })()}
-                                {session.intensity >= 8 && (() => {
-                                    const sameDay = getAffectedJempDays(session.day_of_week, 'same', preferredDaysArray);
-                                    const adjacent = getAffectedJempDays(session.day_of_week, 'adjacent', preferredDaysArray);
-                                    if (sameDay.length === 0 && adjacent.length === 0) return null;
-                                    const key = sameDay.length > 0 && adjacent.length > 0
-                                        ? 'onboarding.weekly_schedule_hint_intensity_8plus_both'
-                                        : sameDay.length > 0
-                                            ? 'onboarding.weekly_schedule_hint_intensity_8plus_same'
-                                            : 'onboarding.weekly_schedule_hint_intensity_8plus_adjacent';
-                                    return (
-                                        <View style={styles.hintBox}>
-                                            <JempText type="body-sm" color={GradientMid}>
-                                                {t(key, { sameDays: formatDays(sameDay, t), adjacentDays: formatDays(adjacent, t) })}
-                                            </JempText>
-                                        </View>
-                                    );
-                                })()}
-                            </View>
-                        )}
-                    </View>
-                );
-            })}
+            <WeekLoadSummary sessions={sportSessions} />
         </ScrollView>
     );
 }
@@ -159,21 +114,36 @@ const styles = StyleSheet.create({
     content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 120 },
     bodyTitle: { marginBottom: 6 },
     subtitle: { lineHeight: 20, marginBottom: 24 },
-    section: { marginBottom: 32 },
-    sectionLabel: { textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 },
-    dayChipRow: { flexDirection: 'row', gap: 6 },
-    dayChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
-    chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    sportCard: { borderRadius: 14, padding: 16, marginBottom: 12 },
-    sportCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-    intensityRow: { marginTop: 12 },
-    intensityHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-    slider: { width: '100%', height: 40, marginHorizontal: -8 },
-    hintBox: {
-        marginTop: 10,
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        backgroundColor: 'rgba(61, 158, 203, 0.15)',
+    dayList: { gap: 8 },
+    dayRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        overflow: 'hidden',
+    },
+    dayName: {
+        fontWeight: '600',
+        minWidth: 36,
+    },
+    dayRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    intensityChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+    },
+    dayLottie: {
+        // Lottie-Icons haben eingebautes Padding — größer rendern und vertikal
+        // kompensieren, damit die Row nicht höher wird
+        width: 22,
+        height: 22,
+        marginVertical: -5,
     },
 });

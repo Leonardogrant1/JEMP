@@ -1,7 +1,7 @@
 import { supabase } from '@/services/supabase/client';
 import { useInvalidate } from '@/queries/use-invalidate';
 import { useMutation } from '@tanstack/react-query';
-import type { Enums } from '@/database.types';
+import type { Enums, TablesUpdate } from '@/database.types';
 
 type SessionStatus = Enums<'session_status'>;
 
@@ -11,7 +11,7 @@ type UpdateSessionStatusParams = {
 };
 
 async function updateSessionStatus({ sessionId, status }: UpdateSessionStatusParams) {
-    const updates: Record<string, any> = { status };
+    const updates: TablesUpdate<'workout_sessions'> = { status };
 
     if (status === 'in_progress') {
         updates.started_at = new Date().toISOString();

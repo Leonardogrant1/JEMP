@@ -1,20 +1,45 @@
 import { JempText } from '@/components/jemp-text';
-import { Colors, Cyan, Electric } from '@/constants/theme';
+import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
+import { useToastStore } from '@/stores/toast-store';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Reanimated, {
+    Easing,
+    FadeInDown,
+    LinearTransition,
     useAnimatedStyle,
     useSharedValue,
     withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
+
+const DESTRUCTIVE = '#ef4444';
+
+function ActionRow({ icon, label, destructive, theme, onPress }: {
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+    destructive?: boolean;
+    theme: (typeof Colors)['light'];
+    onPress: () => void;
+}) {
+    return (
+        <Pressable
+            style={({ pressed }) => [styles.row, pressed && { backgroundColor: theme.background }]}
+            onPress={onPress}
+        >
+            <Ionicons name={icon} size={22} color={destructive ? DESTRUCTIVE : theme.text} />
+            <JempText type="body-l" color={destructive ? DESTRUCTIVE : theme.text}>
+                {label}
+            </JempText>
+        </Pressable>
+    );
+}
 
 export default function SessionManageScreen() {
     const { t } = useTranslation();
@@ -31,24 +56,36 @@ export default function SessionManageScreen() {
     const slideValue = useSharedValue(600);
     const overlayValue = useSharedValue(0);
 
-    useEffect(() => {
+    // Eintritts-Animation über onLayout statt useEffect — die Lint-Regel
+    // react-hooks/immutability verbietet Shared-Value-Mutation im useEffect
+    const entered = useRef(false);
+    function handleSheetLayout() {
+        if (entered.current) return;
+        entered.current = true;
         overlayValue.value = withTiming(1, { duration: 250 });
         slideValue.value = withTiming(0, { duration: 300 });
-    }, []);
+    }
 
     function goBack() {
         router.back();
     }
 
-    function handleClose() {
+    function closeThen(action: () => void) {
         overlayValue.value = withTiming(0, { duration: 200 });
         slideValue.value = withTiming(600, { duration: 200 }, (finished) => {
-            if (finished) scheduleOnRN(goBack);
+            if (finished) scheduleOnRN(action);
         });
     }
 
+    function handleClose() {
+        closeThen(goBack);
+    }
+
     function handleConfirmCancel() {
-        updateSessionStatus({ sessionId, status: 'cancelled' });
+        updateSessionStatus(
+            { sessionId, status: 'cancelled' },
+            { onSuccess: () => useToastStore.getState().show(t('ui.session_cancelled_toast')) },
+        );
         handleClose();
     }
 
@@ -56,22 +93,8 @@ export default function SessionManageScreen() {
         router.replace({ pathname: '/session-reschedule', params: { sessionId } });
     }
 
-    function handleReschedule() {
-        overlayValue.value = withTiming(0, { duration: 200 });
-        slideValue.value = withTiming(600, { duration: 200 }, (finished) => {
-            if (finished) scheduleOnRN(navigateToReschedule);
-        });
-    }
-
     function navigateToRestAdjust() {
         router.replace({ pathname: '/session-rest-adjust', params: { sessionId } });
-    }
-
-    function handleRestAdjust() {
-        overlayValue.value = withTiming(0, { duration: 200 });
-        slideValue.value = withTiming(600, { duration: 200 }, (finished) => {
-            if (finished) scheduleOnRN(navigateToRestAdjust);
-        });
     }
 
     const sheetStyle = useAnimatedStyle(() => ({
@@ -87,23 +110,19 @@ export default function SessionManageScreen() {
             <Pressable style={styles.backdropPressable} onPress={handleClose}>
                 <Pressable onPress={(e) => e.stopPropagation()}>
                     <Reanimated.View
+                        onLayout={handleSheetLayout}
+                        layout={LinearTransition.duration(250).easing(Easing.out(Easing.cubic))}
                         style={[styles.sheet, { backgroundColor: theme.surface }, sheetStyle]}
                     >
                         <View style={[styles.content, { paddingBottom: insets.bottom + 8 }]}>
                             <View style={[styles.handle, { backgroundColor: theme.borderDivider }]} />
 
                             {confirmMode ? (
-                                <>
-                                    {/* Confirm cancel header */}
-                                    <View style={styles.header}>
-                                        <View style={styles.iconCircleRed}>
-                                            <Ionicons name="warning-outline" size={22} color="#ef4444" />
-                                        </View>
-                                        <TouchableOpacity onPress={() => setConfirmMode(false)} hitSlop={8}>
-                                            <Ionicons name="arrow-back" size={22} color={theme.textMuted} />
-                                        </TouchableOpacity>
-                                    </View>
-
+                                <Reanimated.View
+                                    key="confirm"
+                                    entering={FadeInDown.duration(220).easing(Easing.out(Easing.cubic))}
+                                    style={styles.modeBlock}
+                                >
                                     <View style={styles.textBlock}>
                                         <JempText type="h2" color={theme.text}>
                                             {t('ui.session_cancel_confirm_title')}
@@ -113,76 +132,51 @@ export default function SessionManageScreen() {
                                         </JempText>
                                     </View>
 
-                                    <View style={styles.buttons}>
-                                        <Pressable
-                                            style={[styles.secondaryBtn, { backgroundColor: theme.surface }]}
-                                            onPress={() => setConfirmMode(false)}
-                                        >
-                                            <JempText type="body-l" color={theme.textMuted}>
-                                                {t('ui.cancel')}
-                                            </JempText>
-                                        </Pressable>
-                                        <Pressable
-                                            style={styles.destructiveBtn}
+                                    <View style={styles.actionList}>
+                                        <ActionRow
+                                            icon="close-circle-outline"
+                                            label={t('ui.session_cancel_confirm_submit')}
+                                            destructive
+                                            theme={theme}
                                             onPress={handleConfirmCancel}
-                                        >
-                                            <JempText type="body-l" color="#ef4444">
-                                                {t('ui.session_cancel_confirm_submit')}
-                                            </JempText>
-                                        </Pressable>
+                                        />
+                                        <View style={[styles.divider, { backgroundColor: theme.borderDivider }]} />
+                                        <ActionRow
+                                            icon="arrow-back-outline"
+                                            label={t('ui.session_cancel_confirm_back')}
+                                            theme={theme}
+                                            onPress={() => setConfirmMode(false)}
+                                        />
                                     </View>
-                                </>
+                                </Reanimated.View>
                             ) : (
-                                <>
-                                    {/* Main actions header */}
-                                    <View style={styles.header}>
-                                        <View style={styles.iconCircle}>
-                                            <Ionicons name="calendar-outline" size={22} color="#3b82f6" />
-                                        </View>
-                                        <TouchableOpacity onPress={handleClose} hitSlop={8}>
-                                            <Ionicons name="close" size={22} color={theme.textMuted} />
-                                        </TouchableOpacity>
-                                    </View>
-
-                                    <View style={styles.textBlock}>
-                                        <JempText type="h2" color={theme.text}>
-                                            {t('ui.session_manage_title')}
-                                        </JempText>
-                                    </View>
-
-                                    <View style={styles.buttons}>
-                                        <Pressable
-                                            style={styles.cancelBtn}
-                                            onPress={() => setConfirmMode(true)}
-                                        >
-                                            <JempText type="body-l" color="#ef4444">
-                                                {t('ui.session_manage_cancel')}
-                                            </JempText>
-                                        </Pressable>
-
-                                        <Pressable
-                                            style={[styles.secondaryBtn, { backgroundColor: theme.background }]}
-                                            onPress={handleRestAdjust}
-                                        >
-                                            <JempText type="body-l" color={theme.text}>
-                                                {t('ui.session_manage_rest')}
-                                            </JempText>
-                                        </Pressable>
-
-                                        <Pressable style={styles.rescheduleBtn} onPress={handleReschedule}>
-                                            <LinearGradient
-                                                colors={[Cyan[500], Electric[500]]}
-                                                start={{ x: 0, y: 0 }}
-                                                end={{ x: 1, y: 0 }}
-                                                style={styles.rescheduleBtnGradient}
-                                            >
-                                                <JempText type="body-l" color="#fff">
-                                                    {t('ui.session_manage_reschedule')}
-                                                </JempText>
-                                            </LinearGradient>
-                                        </Pressable>
-                                    </View>
-                                </>
+                                <Reanimated.View
+                                    key="actions"
+                                    entering={FadeInDown.duration(220).easing(Easing.out(Easing.cubic))}
+                                    style={styles.actionList}
+                                >
+                                    <ActionRow
+                                        icon="calendar-outline"
+                                        label={t('ui.session_manage_reschedule')}
+                                        theme={theme}
+                                        onPress={() => closeThen(navigateToReschedule)}
+                                    />
+                                    <View style={[styles.divider, { backgroundColor: theme.borderDivider }]} />
+                                    <ActionRow
+                                        icon="moon-outline"
+                                        label={t('ui.session_manage_rest')}
+                                        theme={theme}
+                                        onPress={() => closeThen(navigateToRestAdjust)}
+                                    />
+                                    <View style={[styles.divider, { backgroundColor: theme.borderDivider }]} />
+                                    <ActionRow
+                                        icon="close-circle-outline"
+                                        label={t('ui.session_manage_cancel')}
+                                        destructive
+                                        theme={theme}
+                                        onPress={() => setConfirmMode(true)}
+                                    />
+                                </Reanimated.View>
                             )}
                         </View>
                     </Reanimated.View>
@@ -217,60 +211,29 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
         marginBottom: 4,
     },
-    header: {
+    actionList: {
+        marginTop: 4,
+    },
+    modeBlock: {
+        gap: 16,
+    },
+    row: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        gap: 14,
+        paddingVertical: 16,
+        paddingHorizontal: 4,
+        borderRadius: 12,
     },
-    iconCircle: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(59,130,246,0.15)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    iconCircleRed: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(239,68,68,0.12)',
-        alignItems: 'center',
-        justifyContent: 'center',
+    divider: {
+        height: StyleSheet.hairlineWidth,
+        // Einzug auf Texthöhe: row-padding 4 + Icon 22 + gap 14
+        marginLeft: 40,
     },
     textBlock: {
         gap: 8,
     },
     description: {
         lineHeight: 22,
-    },
-    buttons: {
-        gap: 10,
-        marginTop: 4,
-    },
-    cancelBtn: {
-        borderRadius: 14,
-        paddingVertical: 16,
-        alignItems: 'center',
-        backgroundColor: 'rgba(239,68,68,0.12)',
-    },
-    destructiveBtn: {
-        borderRadius: 14,
-        paddingVertical: 16,
-        alignItems: 'center',
-        backgroundColor: 'rgba(239,68,68,0.12)',
-    },
-    secondaryBtn: {
-        borderRadius: 14,
-        paddingVertical: 16,
-        alignItems: 'center',
-    },
-    rescheduleBtn: {
-        borderRadius: 14,
-        overflow: 'hidden',
-    },
-    rescheduleBtnGradient: {
-        paddingVertical: 16,
-        alignItems: 'center',
     },
 });

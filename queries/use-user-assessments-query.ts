@@ -3,10 +3,14 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from './query-keys';
 
 async function fetchUserAssessments(userId: string) {
+    // Completions older than 28 days are outside the renewal cooldown and
+    // reappear as pending, so only the current cycle's completions are loaded.
+    const since = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString();
     const { data } = await supabase
         .from('user_assessments')
         .select(`
             id, status, completed_at,
+            metric_entries ( value, created_at ),
             assessment:assessments (
                 id, slug, name, name_i18n, description,
                 category:categories ( slug ),
@@ -15,13 +19,17 @@ async function fetchUserAssessments(userId: string) {
             )
         `)
         .eq('user_id', userId)
-        .in('status', ['pending', 'in_progress'])
-        .order('created_at', { ascending: false });
+        .or(`status.in.(pending,in_progress),and(status.eq.completed,completed_at.gt.${since})`)
+        // Batch-created rows share created_at, so tiebreak by id for a stable order across refetches
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: true });
 
-    return (data ?? []).map((ua) => ({
+    const rows = (data ?? []).map((ua) => ({
         id: ua.id,
         status: ua.status,
         completed_at: ua.completed_at,
+        result_value: ((ua.metric_entries as any[]) ?? [])
+            .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0]?.value ?? null,
         assessment: {
             ...(ua.assessment as any),
             equipments: ((ua.assessment as any).assessment_equipments ?? [])
@@ -29,6 +37,22 @@ async function fetchUserAssessments(userId: string) {
                 .filter((s: any): s is string => !!s),
         },
     }));
+
+    // Pro Assessment darf nur EIN Eintrag erscheinen: die offene Row des neuen
+    // Zyklus verdrängt alte Completed-Ergebnisse, und unter mehreren Completed-
+    // Rows im 28-Tage-Fenster gewinnt die neueste (rows sind created_at desc)
+    const openAssessmentIds = new Set(
+        rows.filter(r => r.status !== 'completed').map(r => r.assessment.id),
+    );
+    const seenCompleted = new Set<string>();
+    return rows.filter(r => {
+        if (r.status !== 'completed') return true;
+        const assessmentId = r.assessment.id;
+        if (openAssessmentIds.has(assessmentId)) return false;
+        if (seenCompleted.has(assessmentId)) return false;
+        seenCompleted.add(assessmentId);
+        return true;
+    });
 }
 
 export type UserAssessment = Awaited<ReturnType<typeof fetchUserAssessments>>[number];

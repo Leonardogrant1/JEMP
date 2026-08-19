@@ -1,3 +1,4 @@
+import { Toast } from '@/components/ui/toast';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { initI18n, loadAndApplyLanguage } from '@/i18n';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
@@ -86,6 +87,7 @@ export default function RootLayout() {
                           <PurchaseWrapper>
                             <PlanProvider>
                               <MainStack languageReady={languageReady} />
+                              <Toast />
                             </PlanProvider>
                           </PurchaseWrapper>
                         </RevenueCatProvider>
@@ -147,11 +149,19 @@ function MainStack({ languageReady }: { languageReady: boolean }) {
       <Stack.Protected guard={!!profile?.has_onboarded && hasSeenTutorial}>
         <Stack.Screen name="(tabs)" options={{ animation: 'slide_from_right', headerShown: false }} />
         <Stack.Screen name="session/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="exercise/[id]" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="exercise/[id]"
+          options={{
+            headerShown: false,
+            animation: 'fade',
+          }}
+        />
         <Stack.Screen name="active-session/[id]" options={{ animation: 'slide_from_bottom', headerShown: false }} />
         <Stack.Screen name="session-summary/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="assessment/[id]" options={{ animation: 'slide_from_right', headerShown: false }} />
+        <Stack.Screen name="jump-measure" options={{ animation: 'slide_from_bottom', headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="support-ticket" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+        <Stack.Screen name="edit-profile" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="delete-account" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="sign-out-confirm" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="assessment-confirm" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
@@ -162,10 +172,15 @@ function MainStack({ languageReady }: { languageReady: boolean }) {
         <Stack.Screen name="goals" options={{ animation: 'slide_from_bottom', headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="sport" options={{ animation: 'slide_from_bottom', headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="generate-plan" options={{ animation: 'slide_from_bottom', headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="new-plan" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
       </Stack.Protected>
 
 
       <Stack.Screen name="language" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+      <Stack.Screen name="units" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+      {/* Außerhalb des has_onboarded-Guards — die Sheets werden auch vom Onboarding gepusht (source=onboarding) */}
+      <Stack.Screen name="sport-day-editor" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+      <Stack.Screen name="training-day-editor" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
     </Stack>
   )
 }

@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { CategoryHistoryPoint } from './use-user-category-history-query';
 import { queryKeys } from './query-keys';
 
 export interface CategoryAssessmentEntry {
@@ -16,6 +17,8 @@ export interface CategoryAssessmentEntry {
      */
     percentChange: number | null;
     entryCount: number;
+    /** Score series within the timeframe (entries without a score are skipped). */
+    history: CategoryHistoryPoint[];
 }
 
 async function fetchCategoryAssessments(
@@ -63,13 +66,13 @@ async function fetchCategoryAssessments(
     if (entriesErr) throw entriesErr;
 
     // 4. Group by assessment_id, keep only entries belonging to this category
-    const groups = new Map<string, { value: number; score: number | null }[]>();
+    const groups = new Map<string, { value: number; score: number | null; createdAt: string | null }[]>();
 
     for (const e of entries ?? []) {
         const assessmentId = (e.user_assessment as any)?.assessment_id as string | undefined;
         if (!assessmentId || !assessmentIds.has(assessmentId)) continue;
         if (!groups.has(assessmentId)) groups.set(assessmentId, []);
-        groups.get(assessmentId)!.push({ value: e.value, score: e.score ?? null });
+        groups.get(assessmentId)!.push({ value: e.value, score: e.score ?? null, createdAt: e.created_at });
     }
 
     // 5. Build result rows — sorted by assessment name
@@ -96,6 +99,9 @@ async function fetchCategoryAssessments(
                 latestScore: last.score,
                 percentChange,
                 entryCount: pts.length,
+                history: pts
+                    .filter((p): p is { value: number; score: number; createdAt: string } => p.score !== null && p.createdAt !== null)
+                    .map(p => ({ score: p.score, recordedAt: p.createdAt })),
             };
         })
         .sort((a, b) => a.name.localeCompare(b.name));

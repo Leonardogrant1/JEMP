@@ -17,6 +17,8 @@ export type Assessment = {
   measured_metric_id: string | null
   min_level: number | null
   max_level: number | null
+  youtube_url: string | null
+  video_storage_path: string | null
   created_at: string | null
   updated_at: string | null
 }
@@ -61,7 +63,7 @@ export async function getAssessments(): Promise<AssessmentWithRelations[]> {
   const { data, error } = await supabase
     .from('assessments')
     .select(`
-      id, slug, name, name_i18n, description_i18n, category_id, measured_metric_id, min_level, max_level, created_at, updated_at,
+      id, slug, name, name_i18n, description_i18n, category_id, measured_metric_id, min_level, max_level, youtube_url, video_storage_path, created_at, updated_at,
       categories(slug),
       metrics(slug, unit)
     `)
@@ -79,6 +81,8 @@ export async function getAssessments(): Promise<AssessmentWithRelations[]> {
       measured_metric_id: r.measured_metric_id,
       min_level: r.min_level,
       max_level: r.max_level,
+      youtube_url: r.youtube_url,
+      video_storage_path: r.video_storage_path,
       created_at: r.created_at,
       updated_at: r.updated_at,
       category_slug: r.categories?.slug ?? '',
@@ -94,7 +98,7 @@ export async function getAssessment(id: string): Promise<AssessmentWithRelations
   const { data, error } = await supabase
     .from('assessments')
     .select(`
-      id, slug, name, name_i18n, description_i18n, category_id, measured_metric_id, min_level, max_level, created_at, updated_at,
+      id, slug, name, name_i18n, description_i18n, category_id, measured_metric_id, min_level, max_level, youtube_url, video_storage_path, created_at, updated_at,
       categories(slug),
       metrics(slug, unit),
       assessment_equipments(equipment_id)
@@ -113,6 +117,8 @@ export async function getAssessment(id: string): Promise<AssessmentWithRelations
     measured_metric_id: r.measured_metric_id,
     min_level: r.min_level,
     max_level: r.max_level,
+    youtube_url: r.youtube_url,
+    video_storage_path: r.video_storage_path,
     created_at: r.created_at,
     updated_at: r.updated_at,
     category_slug: r.categories?.slug ?? '',
@@ -158,6 +164,7 @@ export async function updateAssessment(id: string, fields: {
   measured_metric_id: string
   min_level: number
   max_level: number
+  youtube_url: string | null
   equipmentIds: string[]
 }): Promise<void> {
   await requireAdmin()
@@ -173,4 +180,30 @@ export async function updateAssessment(id: string, fields: {
     const { error: linkError } = await supabase.from('assessment_equipments').insert(links)
     if (linkError) throw new Error(linkError.message)
   }
+}
+
+export async function getAssessmentVideoUploadUrl(
+  assessmentId: string
+): Promise<{ signedUrl: string; path: string }> {
+  await requireAdmin()
+
+  const path = `videos/${assessmentId}.mp4`
+  const { data, error } = await supabase.storage
+    .from('assessments')
+    .createSignedUploadUrl(path, { upsert: true })
+
+  if (error) throw new Error(error.message)
+  return { signedUrl: data.signedUrl, path }
+}
+
+export async function updateAssessmentVideo(
+  id: string,
+  video_storage_path: string | null
+): Promise<void> {
+  await requireAdmin()
+  const { error } = await supabase
+    .from('assessments')
+    .update({ video_storage_path, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw new Error(error.message)
 }

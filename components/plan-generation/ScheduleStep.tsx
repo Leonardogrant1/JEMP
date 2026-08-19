@@ -1,57 +1,141 @@
+import GameIcon from '@/assets/icons/game.svg';
 import { JempText } from '@/components/jemp-text';
-import { JempInput } from '@/components/ui/jemp-input';
 import { SelectableChip } from '@/components/ui/selectable-chip';
 import { DURATIONS, WEEK_DAYS } from '@/constants/plan-generation-constants';
-import { Colors } from '@/constants/theme';
+import { getSportKind } from '@/constants/sports';
+import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTrainingAnimation } from '@/hooks/use-training-animation';
+import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlanWizardStore } from '@/stores/plan-wizard-store';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
+import LottieView from 'lottie-react-native';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export function ScheduleStep() {
-    const { t, i18n } = useTranslation();
-    const locale = i18n.language;
+    const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+    const router = useRouter();
+    const { profile } = useCurrentUser();
     const {
         preferredDays, togglePreferredDay,
         preferredDuration, setPreferredDuration,
         selectedEnvIds, allEnvs,
-        dayEnvMap, toggleDayEnv,
-        scheduleNotes, setScheduleNotes,
+        dayEnvMap,
+        sportSessions, selectedSportSlug,
     } = usePlanWizardStore();
+    const trainingAnimation = useTrainingAnimation(profile?.sport);
+    const sportKind = getSportKind(selectedSportSlug);
+
+    // Env-Auswahl pro Tag lohnt nur, wenn mehrere Trainingsorte gewählt sind
+    const multiEnv = selectedEnvIds.size > 1;
+
+    function handleDayPress(dow: number) {
+        const active = preferredDays.has(dow);
+        if (!active) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            togglePreferredDay(dow);
+            if (multiEnv) router.push(`/training-day-editor?day=${dow}`);
+            return;
+        }
+        if (multiEnv) {
+            router.push(`/training-day-editor?day=${dow}`);
+        } else {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            togglePreferredDay(dow);
+        }
+    }
 
     return (
-        <KeyboardAwareScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             <JempText type="h1" color={theme.text} style={styles.bodyTitle}>{t('plan.schedule_title')}</JempText>
             <JempText type="caption" color={theme.textMuted} style={styles.subtitle}>
                 {t('plan.schedule_subtitle')}
             </JempText>
 
-            <View style={styles.section}>
-                <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
-                    {t('onboarding.workout_prefs_days_label')}
-                </JempText>
-                <View style={styles.dayChipRow}>
-                    {WEEK_DAYS.map(({ dow, key }) => (
-                        <SelectableChip
+            <View style={styles.dayList}>
+                {WEEK_DAYS.map(({ dow, key }) => {
+                    const active = preferredDays.has(dow);
+                    const env = active && multiEnv
+                        ? allEnvs.find(e => e.id === dayEnvMap[dow])
+                        : undefined;
+                    const sportSession = sportSessions.find(s => s.day_of_week === dow);
+                    return (
+                        <TouchableOpacity
                             key={dow}
-                            label={t(key as any)}
-                            selected={preferredDays.has(dow)}
-                            onPress={() => togglePreferredDay(dow)}
-                            style={styles.dayChip}
-                        />
-                    ))}
-                </View>
-                {preferredDays.size > 0 && (
-                    <JempText type="body-sm" color={theme.textMuted} style={styles.daysCounter}>
-                        {preferredDays.size}× {t('onboarding.workout_prefs_days_counter')}
-                    </JempText>
-                )}
+                            activeOpacity={0.7}
+                            onPress={() => handleDayPress(dow)}
+                            style={[
+                                styles.dayRow,
+                                active
+                                    ? { backgroundColor: `${GradientMid}18`, borderColor: GradientMid }
+                                    : { backgroundColor: 'transparent', borderColor: theme.borderDivider },
+                            ]}
+                        >
+                            <JempText
+                                type="body-l"
+                                color={active ? GradientMid : theme.text}
+                                style={styles.dayName}
+                            >
+                                {t(key as any).toUpperCase()}
+                            </JempText>
+
+                            <View style={styles.dayRight}>
+                                {/* Sport-Termin aus dem vorherigen Step als gedimmter Kontext-Hint */}
+                                {sportSession && (
+                                    <View style={styles.sportHint}>
+                                        {sportSession.type === 'team_training' && (
+                                            <LottieView
+                                                source={trainingAnimation as never}
+                                                autoPlay
+                                                loop
+                                                style={styles.sportHintLottie}
+                                            />
+                                        )}
+                                        {sportSession.type === 'game' && sportKind === 'combat' && (
+                                            <LottieView
+                                                source={require('@/assets/animations/fight.json')}
+                                                autoPlay
+                                                loop
+                                                style={styles.sportHintLottie}
+                                            />
+                                        )}
+                                        {sportSession.type === 'game' && sportKind === 'match' && (
+                                            <GameIcon width={13} height={13} />
+                                        )}
+                                        {/* Turnier bzw. Wettkampf (Individualsport) — beides Trophäe */}
+                                        {(sportSession.type === 'tournament' || (sportSession.type === 'game' && sportKind === 'individual')) && (
+                                            <LottieView
+                                                source={require('@/assets/animations/throphy.json')}
+                                                autoPlay
+                                                loop
+                                                style={styles.sportHintLottie}
+                                            />
+                                        )}
+                                    </View>
+                                )}
+                                {active
+                                    ? (
+                                        <>
+                                            {env && (
+                                                <Ionicons name={env.icon as any} size={15} color={theme.textMuted} />
+                                            )}
+                                            <Ionicons name="checkmark-circle" size={16} color={GradientMid} />
+                                        </>
+                                    )
+                                    : <Ionicons name="add" size={18} color={theme.textSubtle} />
+                                }
+                            </View>
+                        </TouchableOpacity>
+                    );
+                })}
             </View>
 
-            <View style={styles.section}>
+            <View style={styles.durationSection}>
                 <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
                     {t('plan.schedule_duration_label')}
                 </JempText>
@@ -67,58 +151,7 @@ export function ScheduleStep() {
                     ))}
                 </View>
             </View>
-
-            {selectedEnvIds.size > 1 && preferredDays.size > 0 && (
-                <View style={styles.section}>
-                    <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
-                        {t('onboarding.workout_prefs_env_label')}
-                    </JempText>
-                    <JempText type="body-sm" color={theme.textMuted} style={styles.notesHint}>
-                        {t('onboarding.workout_prefs_env_hint')}
-                    </JempText>
-                    {[...preferredDays].sort((a, b) => a - b).map(dow => {
-                        const dayKey = WEEK_DAYS.find(d => d.dow === dow)?.key;
-                        const selectedEnvs = allEnvs.filter(e => selectedEnvIds.has(e.id));
-                        return (
-                            <View key={dow} style={styles.dayEnvRow}>
-                                <JempText type="body-l" style={styles.dayEnvLabel}>
-                                    {dayKey ? t(dayKey as any) : ''}
-                                </JempText>
-                                <View style={styles.dayEnvChips}>
-                                    {selectedEnvs.map(env => (
-                                        <SelectableChip
-                                            key={env.id}
-                                            label={env.name_i18n?.[locale] ?? env.slug}
-                                            selected={dayEnvMap[dow] === env.id}
-                                            onPress={() => toggleDayEnv(dow, env.id)}
-                                            style={styles.dayEnvChip}
-                                        />
-                                    ))}
-                                </View>
-                            </View>
-                        );
-                    })}
-                </View>
-            )}
-
-            <View style={styles.section}>
-                <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
-                    {t('plan.schedule_notes_label')}
-                </JempText>
-                <JempText type="body-sm" color={theme.textMuted} style={styles.notesHint}>
-                    {t('plan.schedule_notes_hint')}
-                </JempText>
-                <JempInput
-                    value={scheduleNotes}
-                    onChangeText={setScheduleNotes}
-                    placeholder={t('plan.schedule_notes_placeholder')}
-                    multiline
-                    numberOfLines={4}
-                    textAlignVertical="top"
-                    style={styles.notesInput}
-                />
-            </View>
-        </KeyboardAwareScrollView>
+        </ScrollView>
     );
 }
 
@@ -126,17 +159,39 @@ const styles = StyleSheet.create({
     content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 120 },
     bodyTitle: { marginBottom: 6 },
     subtitle: { lineHeight: 20, marginBottom: 24 },
-    section: { marginBottom: 32 },
+    dayList: { gap: 8 },
+    dayRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        overflow: 'hidden',
+    },
+    dayName: {
+        fontWeight: '600',
+        minWidth: 36,
+    },
+    dayRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    sportHint: {
+        opacity: 0.55,
+        marginRight: 2,
+    },
+    sportHintLottie: {
+        // Lottie-Icons haben eingebautes Padding — größer rendern und vertikal
+        // kompensieren, damit die Row nicht höher wird
+        width: 20,
+        height: 20,
+        marginVertical: -5,
+    },
+    durationSection: { marginTop: 32 },
     sectionLabel: { textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 },
-    dayChipRow: { flexDirection: 'row', gap: 6 },
-    daysCounter: { marginTop: 10 },
-    dayChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
     durationRow: { flexDirection: 'row', gap: 8 },
     durationChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
-    notesHint: { marginBottom: 12 },
-    notesInput: { minHeight: 100 },
-    dayEnvRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 12 },
-    dayEnvLabel: { width: 28 },
-    dayEnvChips: { flexDirection: 'row', gap: 8, flex: 1 },
-    dayEnvChip: { flex: 1, alignItems: 'center', paddingHorizontal: 0, borderRadius: 12 },
 });

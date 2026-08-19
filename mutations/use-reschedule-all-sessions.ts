@@ -17,7 +17,7 @@ async function rescheduleAllSessions({ originalScheduledAt, newDate }: Reschedul
 
     const { data: sessions, error } = await supabase
         .from('workout_sessions')
-        .select('id, scheduled_at')
+        .select('id, scheduled_at, original_scheduled_at')
         .eq('status', 'scheduled');
 
     if (error) throw error;
@@ -30,7 +30,11 @@ async function rescheduleAllSessions({ originalScheduledAt, newDate }: Reschedul
         toUpdate.map(s =>
             supabase
                 .from('workout_sessions')
-                .update({ scheduled_at: shiftDate(s.scheduled_at!, dayDiff) })
+                .update({
+                    scheduled_at: shiftDate(s.scheduled_at!, dayDiff),
+                    // Preserve the first-planned slot — only the first reschedule sets it
+                    original_scheduled_at: s.original_scheduled_at ?? s.scheduled_at,
+                })
                 .eq('id', s.id)
         )
     );

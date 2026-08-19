@@ -1,5 +1,27 @@
 export type SportItem = { slug: string; label: string };
 
+/** Kampfsport-Slugs — bestimmt u. a. „Kampf" statt „Spiel" im Wochenplan */
+export const COMBAT_SPORT_SLUGS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
+
+/** Sportarten mit Gegner-Paarungen — bekommen „Spiel" und „Turnier" im Wochenplan */
+export const MATCH_SPORT_SLUGS = new Set([
+    'football', 'basketball', 'volleyball', 'handball', 'rugby', 'hockey', 'soccer',
+    'tennis', 'badminton', 'squash',
+]);
+
+export type SportKind = 'combat' | 'match' | 'individual';
+
+/**
+ * Kampf / Spiel / Wettkampf — bestimmt Session-Typen, Labels und Icons.
+ * Individualsportarten (Ausdauer, Leichtathletik, Sonstiges) haben keine
+ * Gegner-Paarungen: statt Spiel+Turnier gibt es dort nur „Wettkampf".
+ */
+export function getSportKind(slug: string | null | undefined): SportKind {
+    if (COMBAT_SPORT_SLUGS.has(slug ?? '')) return 'combat';
+    if (MATCH_SPORT_SLUGS.has(slug ?? '')) return 'match';
+    return 'individual';
+}
+
 export const SPORT_GROUPS: { title: string; titleKey: string; sports: SportItem[] }[] = [
     {
         title: 'Kampfsport',
@@ -37,16 +59,9 @@ export const SPORT_GROUPS: { title: string; titleKey: string; sports: SportItem[
             { slug: 'throwing', label: 'Wurf' },
         ],
     },
-    {
-        title: 'Kraft',
-        titleKey: 'sport_group.strength',
-        sports: [
-            { slug: 'powerlifting', label: 'Powerlifting' },
-            { slug: 'weightlifting', label: 'Gewichtheben' },
-            { slug: 'crossfit', label: 'CrossFit' },
-            { slug: 'bodybuilding', label: 'Bodybuilding' },
-        ],
-    },
+    // Kraftsport bewusst entfernt (Powerlifting/Weightlifting/CrossFit/Bodybuilding):
+    // deren Sport IST das Krafttraining — JEMPs Ergänzungs-Modell greift dort nicht.
+    // DB-Rows bleiben für Bestandsprofile erhalten.
     {
         title: 'Ausdauer',
         titleKey: 'sport_group.endurance',

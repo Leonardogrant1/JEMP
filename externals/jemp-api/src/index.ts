@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
+import { checkPlanGenerationAccess, fetchRevenueCatSubscriber } from './plan-generation-route/check-access';
 import { versionCheckHandler } from './routes/version-check-route';
 import storeInfoRouter from './store-info-route';
 
@@ -45,7 +46,24 @@ app.post('/api/plan-generation/start', async (req, res) => {
         return;
     }
 
-    // 2. Create job row
+    // 2. Subscription gate — admin/affiliate bypass, otherwise RevenueCat entitlement
+    const { data: profileRow } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    const access = await checkPlanGenerationAccess({
+        role: (profileRow as { role?: string | null } | null)?.role ?? null,
+        fetchSubscriber: () => fetchRevenueCatSubscriber(user.id),
+    });
+    if (!access.allowed) {
+        console.warn(`plan-generation/start: denied for ${user.id} (${access.reason})`);
+        res.status(403).json({ error: 'subscription_required' });
+        return;
+    }
+
+    // 3. Create job row
     const { data: job, error: insertError } = await supabase
         .from('plan_generation_jobs')
         .insert({ user_id: user.id, status: 'pending' })
@@ -58,7 +76,7 @@ app.post('/api/plan-generation/start', async (req, res) => {
         return;
     }
 
-    // 3. Start Temporal workflow
+    // 4. Start Temporal workflow
     let connection: Connection | null = null;
     try {
         connection = await Connection.connect({ address: TEMPORAL_ADDRESS });

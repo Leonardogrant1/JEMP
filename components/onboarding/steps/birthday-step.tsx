@@ -1,16 +1,19 @@
 import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
-import { JempInput } from '@/components/ui/jemp-input';
+import { StepScaffold } from '@/components/onboarding/step-scaffold';
+import { NumberWheel } from '@/components/ui/number-wheel';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStore } from '@/stores/onboarding-store';
-import { useEffect, useRef, useState } from 'react';
-import { Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
+const MIN_YEAR = 1950;
+const MAX_YEAR = new Date().getFullYear();
+
 function isValidDate(day: number, month: number, year: number): boolean {
-    if (year < 1900 || year > new Date().getFullYear()) return false;
     const date = new Date(year, month - 1, day);
     return (
         date.getFullYear() === year &&
@@ -27,147 +30,112 @@ function isAtLeast13(day: number, month: number, year: number): boolean {
 }
 
 export function BirthdayStep() {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
+
+    // Lokalisierte Monats-Kurznamen fürs Rad — gespeichert wird weiter numerisch/ISO
+    function monthLabel(m: number): string {
+        return new Date(2000, m - 1, 1).toLocaleDateString(i18n.language, { month: 'short' });
+    }
     const storedBirthDate = useOnboardingStore((s) => s.birth_date);
     const setStore = useOnboardingStore((s) => s.set);
-    const [day, setDay] = useState(() => storedBirthDate ? String(parseInt(storedBirthDate.split('-')[2], 10)) : '');
-    const [month, setMonth] = useState(() => storedBirthDate ? String(parseInt(storedBirthDate.split('-')[1], 10)) : '');
-    const [year, setYear] = useState(() => storedBirthDate ? storedBirthDate.split('-')[0] : '');
-    const monthRef = useRef<TextInput>(null);
-    const yearRef = useRef<TextInput>(null);
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+
+    const [day, setDay] = useState(() => storedBirthDate ? parseInt(storedBirthDate.split('-')[2], 10) : 15);
+    const [month, setMonth] = useState(() => storedBirthDate ? parseInt(storedBirthDate.split('-')[1], 10) : 6);
+    const [year, setYear] = useState(() => storedBirthDate ? parseInt(storedBirthDate.split('-')[0], 10) : 2000);
+
+    function validate(d: number, m: number, y: number) {
+        if (!isValidDate(d, m, y) || !isAtLeast13(d, m, y)) {
+            setCanContinue(false);
+            return;
+        }
+        const iso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        setStore({ birth_date: iso });
+        setCanContinue(true);
+    }
 
     useEffect(() => {
         validate(day, month, year);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    function validate(d: string, m: string, y: string) {
-        const dd = parseInt(d, 10);
-        const mm = parseInt(m, 10);
-        const yy = parseInt(y, 10);
-        if (y.length < 4) { setCanContinue(false); return; }
-        if (!isValidDate(dd, mm, yy) || !isAtLeast13(dd, mm, yy)) {
-            setCanContinue(false);
-            return;
-        }
-        const iso = `${yy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
-        setStore({ birth_date: iso });
-        setCanContinue(true);
+    function handleDay(v: number) {
+        setDay(v);
+        validate(v, month, year);
     }
 
-    function handleDay(val: string) {
-        const cleaned = val.replace(/\D/g, '').slice(0, 2);
-        setDay(cleaned);
-        if (cleaned.length === 2) monthRef.current?.focus();
-        validate(cleaned, month, year);
+    function handleMonth(v: number) {
+        setMonth(v);
+        validate(day, v, year);
     }
 
-    function handleMonth(val: string) {
-        const cleaned = val.replace(/\D/g, '').slice(0, 2);
-        setMonth(cleaned);
-        if (cleaned.length === 2) yearRef.current?.focus();
-        validate(day, cleaned, year);
-    }
-
-    function handleYear(val: string) {
-        const cleaned = val.replace(/\D/g, '').slice(0, 4);
-        setYear(cleaned);
-        validate(day, month, cleaned);
+    function handleYear(v: number) {
+        setYear(v);
+        validate(day, month, v);
     }
 
     return (
-        <Pressable style={styles.container} onPress={Keyboard.dismiss}>
-            <View style={styles.inner}>
-                <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
-                    <JempText type="h1" style={styles.headline}>{t('onboarding.birthday_title')}</JempText>
-                </Animated.View>
-                <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
-                    <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
-                        {t('onboarding.birthday_subtitle')}
+        <StepScaffold title={t('onboarding.birthday_title')} subtitle={t('onboarding.birthday_subtitle')} centerContent>
+            <Animated.View entering={FadeInDown.delay(360).duration(500).springify()} style={styles.row}>
+                <View style={styles.fieldWrap}>
+                    <JempText type="caption" color={theme.textMuted} style={styles.label}>
+                        {t('onboarding.birthday_label_day')}
                     </JempText>
-                </Animated.View>
-                <Animated.View entering={FadeInDown.delay(360).duration(500).springify()} style={styles.row}>
-                    <View style={styles.fieldWrap}>
-                        <JempText type="caption" color={theme.textMuted} style={styles.label}>{t('onboarding.birthday_label_day')}</JempText>
-                        <JempInput
-                            value={day}
-                            onChangeText={handleDay}
-                            placeholder={t('onboarding.birthday_placeholder_day')}
-                            keyboardType="number-pad"
-                            maxLength={2}
-                            autoFocus
-                            textAlign="center"
-                            style={styles.input}
-                        />
-                    </View>
-                    <View style={styles.fieldWrap}>
-                        <JempText type="caption" color={theme.textMuted} style={styles.label}>{t('onboarding.birthday_label_month')}</JempText>
-                        <JempInput
-                            ref={monthRef}
-                            value={month}
-                            onChangeText={handleMonth}
-                            placeholder={t('onboarding.birthday_placeholder_month')}
-                            keyboardType="number-pad"
-                            maxLength={2}
-                            textAlign="center"
-                            style={styles.input}
-                        />
-                    </View>
-                    <View style={[styles.fieldWrap, styles.yearField]}>
-                        <JempText type="caption" color={theme.textMuted} style={styles.label}>{t('onboarding.birthday_label_year')}</JempText>
-                        <JempInput
-                            ref={yearRef}
-                            value={year}
-                            onChangeText={handleYear}
-                            placeholder={t('onboarding.birthday_placeholder_year')}
-                            keyboardType="number-pad"
-                            maxLength={4}
-                            returnKeyType="done"
-                            onSubmitEditing={Keyboard.dismiss}
-                            textAlign="center"
-                            style={styles.input}
-                        />
-                    </View>
-                </Animated.View>
-            </View>
-        </Pressable>
+                    <NumberWheel
+                        initialValue={day}
+                        min={1}
+                        max={31}
+                        extendable={false}
+                        onChange={handleDay}
+                    />
+                </View>
+                <View style={styles.fieldWrap}>
+                    <JempText type="caption" color={theme.textMuted} style={styles.label}>
+                        {t('onboarding.birthday_label_month')}
+                    </JempText>
+                    <NumberWheel
+                        initialValue={month}
+                        min={1}
+                        max={12}
+                        extendable={false}
+                        formatLabel={monthLabel}
+                        onChange={handleMonth}
+                    />
+                </View>
+                <View style={[styles.fieldWrap, styles.yearField]}>
+                    <JempText type="caption" color={theme.textMuted} style={styles.label}>
+                        {t('onboarding.birthday_label_year')}
+                    </JempText>
+                    <NumberWheel
+                        initialValue={year}
+                        min={MIN_YEAR}
+                        max={MAX_YEAR}
+                        extendable={false}
+                        onChange={handleYear}
+                    />
+                </View>
+            </Animated.View>
+        </StepScaffold>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    inner: {
-        flex: 1,
-        paddingHorizontal: 28,
-        paddingTop: 32,
-    },
-    headline: {
-        marginBottom: 10,
-    },
-    subtitle: {
-        marginBottom: 40,
-    },
     row: {
         flexDirection: 'row',
         gap: 10,
-        alignItems: 'flex-end',
     },
     fieldWrap: {
         flex: 1,
         gap: 6,
     },
     yearField: {
-        flex: 1.6,
+        flex: 1.3,
     },
     label: {
-        paddingLeft: 4,
-    },
-    input: {
-        fontSize: 22,
-        fontWeight: '700',
-        paddingVertical: 14,
+        textAlign: 'center',
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
     },
 });

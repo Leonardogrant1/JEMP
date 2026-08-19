@@ -1,4 +1,5 @@
 import { JempText } from '@/components/jemp-text';
+import { SettingsGroup } from '@/components/profile/SettingsGroup';
 import { SettingsRow } from '@/components/profile/SettingRow';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -117,50 +118,58 @@ export function CreatorToolsSection() {
 
     return (
         <View style={styles.section}>
-            <SettingsRow
-                icon={<Ionicons name="videocam-outline" size={20} color="#fff" />}
-                label={t('ui.creator_tools')}
-                onPress={() => setExpanded(e => !e)}
-                rightElement={<Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={theme.textSubtle} />}
-            />
-            {expanded && (
-                <>
+            <SettingsGroup>
+                <SettingsRow
+                    icon={<Ionicons name="videocam-outline" size={20} color={theme.textMuted} />}
+                    label={t('ui.creator_tools')}
+                    onPress={() => setExpanded(e => !e)}
+                    rightElement={<Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={theme.textSubtle} />}
+                />
+                {expanded && (
                     <SettingsRow
-                        icon={<Ionicons name="clipboard-outline" size={20} color="#fff" />}
+                        icon={<Ionicons name="clipboard-outline" size={20} color={theme.textMuted} />}
                         label={t('ui.creator_refill_assessments')}
                         onPress={refillAssessments}
                         loading={busy === 'refill'}
                     />
+                )}
+                {expanded && (
                     <SettingsRow
-                        icon={<Ionicons name="refresh-outline" size={20} color="#fff" />}
+                        icon={<Ionicons name="refresh-outline" size={20} color={theme.textMuted} />}
                         label={t('ui.creator_reset_onboarding')}
                         onPress={resetOnboarding}
                         loading={busy === 'resetOnboarding'}
                     />
+                )}
+                {expanded && (
                     <SettingsRow
-                        icon={<Ionicons name="repeat-outline" size={20} color="#fff" />}
+                        icon={<Ionicons name="repeat-outline" size={20} color={theme.textMuted} />}
                         label={t('ui.creator_reset_plan')}
                         onPress={resetPlan}
                         loading={busy === 'resetPlan'}
                     />
+                )}
+                {expanded && (
                     <SettingsRow
-                        icon={<Ionicons name="trending-up-outline" size={20} color="#fff" />}
+                        icon={<Ionicons name="trending-up-outline" size={20} color={theme.textMuted} />}
                         label={t('ui.creator_seed_history')}
                         onPress={seedHistory}
                         loading={busy === 'seedHistory'}
                     />
+                )}
+                {expanded && (
                     <SettingsRow
-                        icon={<Ionicons name="trophy-outline" size={20} color="#fff" />}
+                        icon={<Ionicons name="trophy-outline" size={20} color={theme.textMuted} />}
                         label={t('ui.creator_complete_plan')}
                         onPress={completePlan}
                         loading={busy === 'completePlan'}
                     />
-                    {status && (
-                        <JempText type="caption" color={status.ok ? '#22c55e' : '#ef4444'} style={styles.status}>
-                            {status.text}
-                        </JempText>
-                    )}
-                </>
+                )}
+            </SettingsGroup>
+            {expanded && status && (
+                <JempText type="caption" color={status.ok ? '#22c55e' : '#ef4444'} style={styles.status}>
+                    {status.text}
+                </JempText>
             )}
         </View>
     );

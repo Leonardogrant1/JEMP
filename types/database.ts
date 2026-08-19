@@ -32,6 +32,7 @@ export type UserProfile = {
   preferred_workout_days: number[]
   preferred_session_duration: SessionDuration | null
   schedule_notes: string | null
+  unit_system: 'metric' | 'imperial'
   preferred_language: 'en' | 'de' | null
   push_token: string | null
   timezone: string | null

@@ -75,16 +75,30 @@ export function RestTimerProvider({ children }: { children: React.ReactNode }) {
 
     const addTime = useCallback((seconds: number) => {
         if (endsAtRef.current !== null) {
-            endsAtRef.current += seconds * 1000;
+            // Beim Verkürzen nicht unter "jetzt" fallen — der nächste Tick
+            // beendet die Pause dann regulär (inkl. End-Sound)
+            endsAtRef.current = Math.max(Date.now(), endsAtRef.current + seconds * 1000);
         }
-        setRestSeconds(prev => prev + seconds);
-        setTotalRestSeconds(prev => prev + seconds);
+        setRestSeconds(prev => Math.max(0, prev + seconds));
+        setTotalRestSeconds(prev => Math.max(0, prev + seconds));
     }, [setRestSeconds, setTotalRestSeconds]);
 
-    useEffect(() => () => {
-        if (timerRef.current) clearInterval(timerRef.current);
-        if (removeTickListenerRef.current) removeTickListenerRef.current();
-        releaseBackgroundAudio('rest-timer');
+    useEffect(() => {
+        // Stale Rest-State aus einem früheren Mount verwerfen — wer den Screen
+        // WÄHREND einer Pause verlässt, hinterlässt sonst isResting=true im
+        // globalen Store und das Overlay öffnet beim Wiederbetreten sofort
+        const ui = useActiveSessionUIStore.getState();
+        ui.setIsResting(false);
+        ui.setRestSeconds(0);
+
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+            if (removeTickListenerRef.current) removeTickListenerRef.current();
+            releaseBackgroundAudio('rest-timer');
+            const uiAtEnd = useActiveSessionUIStore.getState();
+            uiAtEnd.setIsResting(false);
+            uiAtEnd.setRestSeconds(0);
+        };
     }, []);
 
     return (

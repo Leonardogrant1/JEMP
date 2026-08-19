@@ -11,6 +11,14 @@ export type ExerciseProgress = {
     first: number;
     last: number;
     percent: number | null; // null when first === 0
+    /** Session-best values over the plan, sparkline-compatible shape */
+    points: { score: number; recordedAt: string }[];
+};
+
+export type PlanProgress = {
+    exercises: ExerciseProgress[];
+    /** Σ load × reps over all kg-loaded sets of the plan (bodyweight/%1RM/RPE sets can't be summed) */
+    totalVolumeKg: number;
 };
 
 type SessionBest = {
@@ -29,7 +37,7 @@ const PROGRESS_BLOCK_TYPES = new Set(['primary', 'secondary', 'accessory']);
  * best set of the first session vs. best set of the last session the
  * exercise was performed in. Only exercises trained in ≥2 sessions count.
  */
-async function fetchPlanExerciseProgress(planId: string): Promise<ExerciseProgress[]> {
+async function fetchPlanExerciseProgress(planId: string): Promise<PlanProgress> {
     const { data, error } = await supabase
         .from('workout_session_performed_sets')
         .select(`
@@ -52,11 +60,24 @@ async function fetchPlanExerciseProgress(planId: string): Promise<ExerciseProgre
         sessions: Map<string, SessionBest>;
     }>();
 
+    // Volume counts every kg-loaded set of the plan, warmup included —
+    // volume is work done, not progress, so no block-type filter here
+    let totalVolumeKg = 0;
+
     for (const row of data ?? []) {
         const session = row.workout_sessions;
         const exercise = row.workout_session_block_exercises?.exercise;
         const blockType = row.workout_session_block_exercises?.workout_session_blocks?.block_type?.slug;
         if (!session?.scheduled_at || !exercise) continue;
+
+        if (
+            row.workout_session_block_exercises.target_load_type === 'kg'
+            && row.performed_load_value !== null && row.performed_load_value > 0
+            && row.performed_reps !== null && row.performed_reps > 0
+        ) {
+            totalVolumeKg += row.performed_load_value * row.performed_reps;
+        }
+
         if (!blockType || !PROGRESS_BLOCK_TYPES.has(blockType)) continue;
 
         let entry = byExercise.get(exercise.id);
@@ -106,11 +127,17 @@ async function fetchPlanExerciseProgress(planId: string): Promise<ExerciseProgre
             first,
             last,
             percent: first > 0 ? Math.round(((last - first) / first) * 100) : null,
+            points: ordered
+                .filter(s => valueOf(s) !== null)
+                .map(s => ({ score: valueOf(s)!, recordedAt: s.date })),
         });
     }
 
     // Biggest improvements first
-    return results.sort((a, b) => (b.percent ?? 0) - (a.percent ?? 0));
+    return {
+        exercises: results.sort((a, b) => (b.percent ?? 0) - (a.percent ?? 0)),
+        totalVolumeKg: Math.round(totalVolumeKg),
+    };
 }
 
 export function usePlanExerciseProgressQuery(planId: string | undefined) {

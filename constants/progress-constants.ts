@@ -36,15 +36,6 @@ const RADAR_LABELS: Record<string, string> = {
     mobility: 'Mobility',
 };
 
-const DROPDOWN_OPTIONS = [
-    { key: 'all', labelKey: 'ui.progress_all_categories' },
-    { key: 'strength', labelKey: 'category.strength' },
-    { key: 'jumps', labelKey: 'category.jumps' },
-    { key: 'lower_body_plyometrics', labelKey: 'category.lower_body_plyometrics' },
-    { key: 'upper_body_plyometrics', labelKey: 'category.upper_body_plyometrics' },
-    { key: 'mobility', labelKey: 'category.mobility' },
-] as const;
-
 const TIME_FRAMES = ['3M', '6M', '1Y'] as const;
 
 const CHART_HEIGHT = 150;
@@ -71,4 +62,4 @@ const OVERALL_R = (OVERALL_SIZE - OVERALL_STROKE) / 2;
 const OVERALL_CX = OVERALL_SIZE / 2;
 const OVERALL_CY = OVERALL_SIZE / 2; 
 
-export { ALL_STAT_SLUGS, CATEGORY_ICONS, CHART_HEIGHT, CHART_PAD_BOTTOM, CHART_PAD_TOP, DROPDOWN_OPTIONS, GAUGE_CX, GAUGE_CY, GAUGE_R, GAUGE_SIZE, GAUGE_START, GAUGE_STROKE, GAUGE_SWEEP, MINI_CX, MINI_CY, MINI_R, MINI_SIZE, MINI_STROKE, OVERALL_CX, OVERALL_CY, OVERALL_R, OVERALL_SIZE, OVERALL_STROKE, RADAR_LABELS, RADAR_SLUGS, STAT_LABELS, TIME_FRAMES };
+export { ALL_STAT_SLUGS, CATEGORY_ICONS, CHART_HEIGHT, CHART_PAD_BOTTOM, CHART_PAD_TOP, GAUGE_CX, GAUGE_CY, GAUGE_R, GAUGE_SIZE, GAUGE_START, GAUGE_STROKE, GAUGE_SWEEP, MINI_CX, MINI_CY, MINI_R, MINI_SIZE, MINI_STROKE, OVERALL_CX, OVERALL_CY, OVERALL_R, OVERALL_SIZE, OVERALL_STROKE, RADAR_LABELS, RADAR_SLUGS, STAT_LABELS, TIME_FRAMES };

@@ -1,4 +1,5 @@
 import { type DayVariant } from '@/components/rest-day-card';
+import { getSportKind } from '@/constants/sports';
 import { type WorkoutSession, type PlanSession } from '@/providers/plan-provider';
 import { type WeeklySchedule } from '@/types/database';
 
@@ -29,7 +30,9 @@ function getNextScheduledSession(sessions: WorkoutSession[]): WorkoutSession | n
 }
 
 
-function getTodaySession(sessions: WorkoutSession[]) {
+// Alle für heute relevanten Sessions, sortiert: laufende zuerst (auch von
+// anderen Tagen), dann heute geplante, dann heute abgeschlossene
+function getTodaySessions(sessions: WorkoutSession[]): WorkoutSession[] {
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const tomorrowStart = new Date(todayStart);
@@ -40,15 +43,13 @@ function getTodaySession(sessions: WorkoutSession[]) {
         return d >= todayStart && d < tomorrowStart;
     };
 
-    // Priority: in_progress > completed today > scheduled today
-    const inProgress = sessions.find(s => s.status === 'in_progress');
-    if (inProgress) return inProgress;
+    const rank = (s: WorkoutSession) =>
+        s.status === 'in_progress' ? 0 : s.status === 'scheduled' ? 1 : 2;
 
-    const completedToday = sessions.find(s => s.status === 'completed' && isToday(s));
-    if (completedToday) return completedToday;
-
-    const scheduledToday = sessions.find(s => s.status === 'scheduled' && isToday(s));
-    return scheduledToday ?? null;
+    return sessions
+        .filter(s => s.status === 'in_progress' || ((s.status === 'scheduled' || s.status === 'completed') && isToday(s)))
+        .sort((a, b) => rank(a) - rank(b) ||
+            new Date(a.scheduled_at!).getTime() - new Date(b.scheduled_at!).getTime());
 }
 
 
@@ -58,13 +59,15 @@ function getDayVariant(date: Date, weeklySchedule: WeeklySchedule | null | undef
     const sportSession = weeklySchedule.sessions.find(s => s.day_of_week === dow);
     if (!sportSession) return 'rest';
 
-    const COMBAT_SPORTS = new Set(['boxing', 'mma', 'wrestling', 'judo', 'bjj', 'kickboxing', 'karate', 'taekwondo']);
-    const isCombat = COMBAT_SPORTS.has(sportSlug ?? '');
+    const kind = getSportKind(sportSlug);
 
-    if (sportSession.type === 'tournament') return 'tournament';
-    if (sportSession.type === 'game') return isCombat ? 'fight' : 'game';
+    // Individualsport kennt weder Spiel noch Turnier — beides ist „Wettkampf"
+    if (sportSession.type === 'tournament') return kind === 'individual' ? 'competition' : 'tournament';
+    if (sportSession.type === 'game') {
+        return kind === 'combat' ? 'fight' : kind === 'match' ? 'game' : 'competition';
+    }
     return 'training';
 }
 
 
-export { getNextScheduledSession, getTodaySession, getDayVariant, toDatabaseDow, getSessionModeSlug };
+export { getNextScheduledSession, getTodaySessions, getDayVariant, toDatabaseDow, getSessionModeSlug };

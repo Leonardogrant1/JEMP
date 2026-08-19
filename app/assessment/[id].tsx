@@ -1,14 +1,23 @@
 import InfoIcon from '@/assets/icons/info.svg';
 import { JempText } from '@/components/jemp-text';
+import { JempDialog } from '@/components/ui/jemp-dialog';
+import { NumberWheel } from '@/components/ui/number-wheel';
+import { Skeleton } from '@/components/ui/skeleton';
+import { SuccessOverlay } from '@/components/ui/success-overlay';
+import { VideoDialog } from '@/components/ui/video-dialog';
+import { assessmentVideoUrl } from '@/helpers/assessment-storage';
+import { TapeMeasure } from '@/components/ui/tape-measure';
 import { useModalResultStore } from '@/stores/modal-result-store';
-import { UNIT_LABELS } from '@/constants/assessment-constants';
+import { REP_RAIL_DEFAULT_MAX, REP_RAIL_MAX, TAPE_DEFAULT_MAX_CM, TAPE_MAX_CM, UNIT_LABELS } from '@/constants/assessment-constants';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
-import { estimateOneRepMax } from '@/helpers/units';
+import { displayMetricValue, estimateOneRepMax, kgToLbs } from '@/helpers/units';
+import { useUnitSystem } from '@/hooks/use-unit-system';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useStopwatch } from '@/hooks/use-stopwatch';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useCompleteAssessment } from '@/mutations/use-complete-assessment';
 import { useCurrentUser } from '@/providers/current-user-provider';
+import { useLastAssessmentResultQuery } from '@/queries/use-last-assessment-result-query';
 import { useUserAssessmentQuery } from '@/queries/use-user-assessment-query';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,8 +27,8 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    ActivityIndicator, Pressable, ScrollView,
-    StyleSheet, TextInput, View,
+    ActivityIndicator, Pressable,
+    StyleSheet, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -51,13 +60,26 @@ export default function AssessmentScreen() {
     const { profile } = useCurrentUser();
 
     const { data, isLoading } = useUserAssessmentQuery(id);
+    const { data: lastResult } = useLastAssessmentResultQuery(profile?.id, data?.assessment?.id);
     const completeAssessment = useCompleteAssessment();
     const { openWithPlacement } = useSuperwallFunctions();
-    const [value, setValue] = useState('');
     const [rating, setRating] = useState(5);
-    const [mode, setMode] = useState<'manual' | 'timer'>('manual');
+    const [mode, setMode] = useState<'manual' | 'timer' | 'video'>('manual');
     const [repMode, setRepMode] = useState<'1rm' | '5rm'>('5rm');
-    const { assessmentConfirmed, setAssessmentConfirmed } = useModalResultStore();
+    const [tapeCm, setTapeCm] = useState(0);
+    const [repCount, setRepCount] = useState(0);
+    const [secInt, setSecInt] = useState(0);
+    const [secTenth, setSecTenth] = useState(0);
+    const [weightMain, setWeightMain] = useState(0);
+    const [weightTenth, setWeightTenth] = useState(0);
+    const unitSystem = useUnitSystem();
+    // Units follow the profile preference — no in-screen toggles
+    const weightUnit: 'kg' | 'lbs' = unitSystem === 'imperial' ? 'lbs' : 'kg';
+    const [showOneRmWarning, setShowOneRmWarning] = useState(false);
+    const [showInfo, setShowInfo] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [showVideo, setShowVideo] = useState(false);
+    const { assessmentConfirmed, setAssessmentConfirmed, measuredJumpCm, setMeasuredJumpCm } = useModalResultStore();
 
     useFocusEffect(useCallback(() => {
         if (assessmentConfirmed) {
@@ -65,12 +87,41 @@ export default function AssessmentScreen() {
             openWithPlacement('log_assessment', handleSubmit);
         }
     }, [assessmentConfirmed]));
+
+    // Ergebnis der Video-Sprungmessung (/jump-measure) übernehmen
+    useFocusEffect(useCallback(() => {
+        if (measuredJumpCm != null) {
+            setMeasuredJumpCm(null);
+            setTapeCm(measuredJumpCm);
+            setMode('video');
+        }
+    }, [measuredJumpCm]));
     const stopwatch = useStopwatch();
 
     if (isLoading) {
         return (
-            <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>
-                <View style={styles.centered}><ActivityIndicator color={theme.primary} /></View>
+            <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
+                <View style={styles.scroll}>
+                    <View style={styles.header}>
+                        <Pressable onPress={() => router.back()} hitSlop={12}>
+                            <Ionicons name="chevron-back" size={24} color={theme.text} />
+                        </Pressable>
+                        <Skeleton width={150} height={20} borderRadius={10} />
+                        <Skeleton width={22} height={22} borderRadius={11} />
+                    </View>
+                    <View style={styles.content}>
+                        <View style={styles.skeletonRow}>
+                            <Skeleton width={96} height={30} borderRadius={100} />
+                            <Skeleton width={120} height={30} borderRadius={100} />
+                        </View>
+                        <Skeleton height={46} borderRadius={12} />
+                        <Skeleton height={44} borderRadius={100} />
+                        <Skeleton height={220} borderRadius={14} />
+                    </View>
+                </View>
+                <View style={[styles.bottomBar, { backgroundColor: theme.background }]}>
+                    <Skeleton height={52} borderRadius={100} />
+                </View>
             </SafeAreaView>
         );
     }
@@ -87,7 +138,6 @@ export default function AssessmentScreen() {
 
 
     const { assessment } = data;
-    console.log(assessment)
     const locale = i18n.language;
     const assessmentName = (assessment.name_i18n as Record<string, string> | null)?.[locale] ?? assessment.name;
     const description = (assessment.description_i18n as Record<string, string> | null)?.[locale]
@@ -95,22 +145,77 @@ export default function AssessmentScreen() {
         ?? '';
     const metric = assessment.metric;
     const unitKey = metric?.unit ?? 'count';
-    const unitLabel = UNIT_LABELS[unitKey]?.en ?? unitKey;
     const isTimeBased = unitKey === 's';
     const isKgBased = unitKey === 'kg';
     const isRatingBased = unitKey === 'rating';
+    const isCmBased = unitKey === 'cm';
+    const isCountBased = unitKey === 'count';
+    // Vertical Jump lässt sich per Video über die Flugzeit messen
+    const isVideoMeasurable = assessment.slug === 'vertical_jump';
+    const repMax = REP_RAIL_MAX[assessment.slug] ?? REP_RAIL_DEFAULT_MAX;
+
+    const localeUnit = locale === 'de' ? 'de' : 'en';
+    const formatMetricValue = (v: number) => {
+        if (isRatingBased) return `${v}/10`;
+        const converted = displayMetricValue(v, unitKey, unitSystem);
+        return `${converted.value} ${UNIT_LABELS[converted.unit ?? '']?.[localeUnit] ?? converted.unit ?? ''}`;
+    };
+
+    const weightDisplay = weightMain + weightTenth / 10;
+    const weightKgValue = weightUnit === 'kg' ? weightDisplay : Math.round((weightDisplay / 2.2046) * 10) / 10;
+
+    // Long tapes (med ball throws) measure in m/ft, short ones (jumps) in cm/inch.
+    // The unit follows the profile preference.
+    const tapeMaxCm = TAPE_MAX_CM[assessment.slug] ?? TAPE_DEFAULT_MAX_CM;
+    const isLongTape = tapeMaxCm > 500;
+    const tapeUnit: 'cm' | 'm' | 'in' | 'ft' = isLongTape
+        ? (unitSystem === 'imperial' ? 'ft' : 'm')
+        : (unitSystem === 'imperial' ? 'in' : 'cm');
+    const tape = tapeUnit === 'cm'
+        ? { min: 0, max: tapeMaxCm, step: 1, majorEvery: 5, labelEvery: 10 }
+        : tapeUnit === 'm'
+            ? { min: 0, max: tapeMaxCm / 100, step: 0.1, majorEvery: 5, labelEvery: 10 }
+            : tapeUnit === 'in'
+                ? { min: 0, max: Math.ceil(tapeMaxCm / 2.54 / 10) * 10, step: 0.5, majorEvery: 2, labelEvery: 10 }
+                : { min: 0, max: Math.ceil(tapeMaxCm / 30.48 / 5) * 5, step: 0.1, majorEvery: 5, labelEvery: 10 };
+    const tapeInitial = tapeUnit === 'cm'
+        ? Math.round(tapeCm)
+        : tapeUnit === 'm'
+            ? Math.round(tapeCm / 10) / 10
+            : tapeUnit === 'in'
+                ? Math.round(tapeCm / 2.54 / 0.5) * 0.5
+                : Math.round(tapeCm / 3.048) / 10;
 
     const rawSubmitValue = mode === 'timer'
         ? stopwatch.bestTime !== null ? String(stopwatch.bestTime) : ''
-        : value;
+        : isCmBased
+            ? tapeCm > 0 ? String(tapeCm) : ''
+            : isCountBased
+                ? repCount > 0 ? String(repCount) : ''
+                : isTimeBased
+                    ? secInt + secTenth > 0 ? (secInt + secTenth / 10).toFixed(1) : ''
+                    : weightKgValue > 0 ? String(weightKgValue) : '';
+
+    // Weighted pull-ups: convert over total load (incl. bodyweight), not just the added plates
+    const pullupBodyweight = assessment.slug === 'weighted_pullups_1rm' ? profile?.weight_in_kg ?? undefined : undefined;
 
     const submitValue = isKgBased && repMode === '5rm' && rawSubmitValue
-        ? String(estimateOneRepMax(parseFloat(rawSubmitValue.replace(',', '.')), 5))
+        ? String(estimateOneRepMax(parseFloat(rawSubmitValue.replace(',', '.')), 5, pullupBodyweight))
         : rawSubmitValue;
 
     const estimated1RM = isKgBased && repMode === '5rm' && rawSubmitValue && !isNaN(parseFloat(rawSubmitValue.replace(',', '.')))
-        ? estimateOneRepMax(parseFloat(rawSubmitValue.replace(',', '.')), 5)
+        ? estimateOneRepMax(parseFloat(rawSubmitValue.replace(',', '.')), 5, pullupBodyweight)
         : null;
+
+    const canSubmit = (isRatingBased || !!submitValue) && !completeAssessment.isPending;
+
+    // Live diff vs the previous result for this assessment (if there is one)
+    const currentValue = isRatingBased ? rating : rawSubmitValue ? parseFloat(rawSubmitValue) : null;
+    const higherIsBetter = metric?.higher_is_better ?? true;
+    const resultDiff = lastResult != null && currentValue != null && currentValue > 0
+        ? Number((currentValue - lastResult).toFixed(1))
+        : null;
+    const diffImproved = resultDiff != null && (higherIsBetter ? resultDiff > 0 : resultDiff < 0);
 
     const ratingColor = ratingToColor(rating);
     const ratingLabelKey = rating <= 3
@@ -145,7 +250,7 @@ export default function AssessmentScreen() {
                         assessment_slug: assessment.slug,
                         category_id: assessment.category_id,
                     });
-                    router.back();
+                    setShowSuccess(true);
                 },
             });
             return;
@@ -177,7 +282,7 @@ export default function AssessmentScreen() {
                     assessment_slug: assessment.slug,
                     category_id: assessment.category_id,
                 });
-                router.back();
+                setShowSuccess(true);
             },
         });
     };
@@ -191,28 +296,37 @@ export default function AssessmentScreen() {
 
     return (
         <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
-            <ScrollView
-                contentContainerStyle={styles.scroll}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-            >
+            <View style={styles.scroll}>
                 {/* Header */}
                 <View style={styles.header}>
                     <Pressable onPress={() => router.back()} hitSlop={12}>
                         <Ionicons name="chevron-back" size={24} color={theme.text} />
                     </Pressable>
                     <JempText type="body-l" color={theme.text}>{assessmentName}</JempText>
-                    <View style={{ width: 24 }} />
+                    {description ? (
+                        <Pressable onPress={() => setShowInfo(true)} hitSlop={12}>
+                            <InfoIcon width={22} height={22} color={Cyan[500]} />
+                        </Pressable>
+                    ) : (
+                        <View style={{ width: 24 }} />
+                    )}
                 </View>
 
-                {/* Description */}
-                <View style={[styles.descCard, { backgroundColor: theme.surface }]}>
-                    <InfoIcon width={18} height={18} color={Cyan[500]} />
-                    <JempText type="body-sm" color={theme.textMuted} style={styles.descText}>
-                        {description}
-                    </JempText>
-                </View>
+                {/* Explainer video — pinned below the header, outside the centered content */}
+                {(assessment.video_storage_path || assessment.youtube_url) && (
+                    <Pressable
+                        style={[styles.videoBtn, { backgroundColor: theme.surface }]}
+                        onPress={() => setShowVideo(true)}
+                    >
+                        <Ionicons name="play-circle" size={22} color={GradientMid} />
+                        <JempText type="body-l" color={theme.text} style={styles.videoBtnLabel}>
+                            {t('ui.explainer_video')}
+                        </JempText>
+                        <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+                    </Pressable>
+                )}
 
+                <View style={styles.content}>
                 {/* Equipment */}
                 {assessment.equipments.length > 0 && (
                     <View style={styles.equipSection}>
@@ -231,53 +345,40 @@ export default function AssessmentScreen() {
                     </View>
                 )}
 
-                {/* Rep mode toggle — only for kg-based */}
-                {isKgBased && (
-                    <View style={[styles.modeToggle, { backgroundColor: theme.surface }]}>
-                        {(['5rm', '1rm'] as const).map(m => {
-                            const active = repMode === m;
-                            return (
-                                <Pressable
-                                    key={m}
-                                    onPress={() => { setRepMode(m); setValue(''); }}
-                                    style={[styles.modeBtn, active && styles.modeBtnActive]}
-                                >
-                                    {active && (
-                                        <LinearGradient
-                                            colors={[Cyan[500], Electric[500]]}
-                                            start={{ x: 0, y: 0 }}
-                                            end={{ x: 1, y: 0 }}
-                                            style={StyleSheet.absoluteFill}
-                                        />
-                                    )}
-                                    <JempText type="button" color={active ? '#fff' : theme.textMuted}>
-                                        {m === '5rm' ? t('ui.rep_mode_5rm') : t('ui.rep_mode_1rm')}
-                                    </JempText>
-                                </Pressable>
-                            );
-                        })}
-                    </View>
-                )}
-
-                {/* 1RM safety warning */}
-                {isKgBased && repMode === '1rm' && (
-                    <View style={[styles.warningCard, { backgroundColor: `${'#f59e0b'}15` }]}>
-                        <Ionicons name="warning-outline" size={18} color="#f59e0b" />
-                        <JempText type="body-sm" color="#f59e0b" style={styles.warningText}>
-                            {t('ui.rep_mode_1rm_warning')}
+                {/* Previous result + live diff */}
+                {lastResult != null && (
+                    <View style={[styles.lastResultRow, { backgroundColor: theme.surface }]}>
+                        <JempText type="caption" color={theme.textMuted}>
+                            {t('ui.last_result').toUpperCase()}
                         </JempText>
+                        <View style={styles.lastResultRight}>
+                            <JempText type="body-l" color={GradientMid}>
+                                {formatMetricValue(lastResult)}
+                            </JempText>
+                            {resultDiff != null && resultDiff !== 0 && (
+                                <View style={[styles.diffChip, { backgroundColor: `${diffImproved ? '#22c55e' : '#ef4444'}20` }]}>
+                                    <JempText type="caption" color={diffImproved ? '#22c55e' : '#ef4444'}>
+                                        {`${resultDiff > 0 ? '+' : ''}${resultDiff}`}
+                                    </JempText>
+                                </View>
+                            )}
+                        </View>
                     </View>
                 )}
 
-                {/* Mode toggle — only for time-based */}
-                {isTimeBased && (
+                {/* Mode toggle — time-based: manual/timer, vertical jump: manual/video */}
+                {(isTimeBased || isVideoMeasurable) && (
                     <View style={[styles.modeToggle, { backgroundColor: theme.surface }]}>
-                        {(['manual', 'timer'] as const).map(m => {
+                        {(isTimeBased ? (['manual', 'timer'] as const) : (['manual', 'video'] as const)).map(m => {
                             const active = mode === m;
+                            const icon = m === 'manual' ? 'create-outline' : m === 'timer' ? 'timer-outline' : 'videocam-outline';
+                            const label = m === 'manual'
+                                ? t('ui.assessment_mode_manual')
+                                : m === 'timer' ? t('ui.assessment_mode_timer') : t('ui.assessment_mode_video');
                             return (
                                 <Pressable
                                     key={m}
-                                    onPress={() => { setMode(m); stopwatch.reset(); setValue(''); }}
+                                    onPress={() => { setMode(m); stopwatch.reset(); }}
                                     style={[styles.modeBtn, active && styles.modeBtnActive]}
                                 >
                                     {active && (
@@ -288,13 +389,9 @@ export default function AssessmentScreen() {
                                             style={StyleSheet.absoluteFill}
                                         />
                                     )}
-                                    <Ionicons
-                                        name={m === 'manual' ? 'create-outline' : 'timer-outline'}
-                                        size={14}
-                                        color={active ? '#fff' : theme.textMuted}
-                                    />
+                                    <Ionicons name={icon} size={14} color={active ? '#fff' : theme.textMuted} />
                                     <JempText type="button" color={active ? '#fff' : theme.textMuted}>
-                                        {m === 'manual' ? t('ui.assessment_mode_manual') : t('ui.assessment_mode_timer')}
+                                        {label}
                                     </JempText>
                                 </Pressable>
                             );
@@ -332,28 +429,175 @@ export default function AssessmentScreen() {
                 )}
 
                 {/* Input section */}
-                {!isRatingBased && mode === 'manual' ? (
+                {!isRatingBased && mode === 'video' ? (
+                    <View style={styles.inputSection}>
+                        {tapeCm > 0 ? (
+                            <>
+                                <JempText type="caption" color={theme.textMuted}>
+                                    {t('jump.measured_label').toUpperCase()}
+                                </JempText>
+                                <JempText type="hero" gradient style={styles.heroReadout}>
+                                    {formatMetricValue(tapeCm)}
+                                </JempText>
+                                <Pressable
+                                    style={[styles.remeasureBtn, { backgroundColor: theme.surface }]}
+                                    onPress={() => router.push('/jump-measure')}
+                                >
+                                    <Ionicons name="videocam-outline" size={18} color={theme.text} />
+                                    <JempText type="button" color={theme.text}>{t('jump.remeasure')}</JempText>
+                                </Pressable>
+                            </>
+                        ) : (
+                            <>
+                                <View style={[styles.videoExplainer, { backgroundColor: theme.surface }]}>
+                                    <Ionicons name="videocam-outline" size={30} color={GradientMid} />
+                                    <JempText type="body-l" color={theme.textMuted} style={styles.videoExplainerText}>
+                                        {t('jump.video_explainer')}
+                                    </JempText>
+                                </View>
+                                <Pressable style={styles.measureCta} onPress={() => router.push('/jump-measure')}>
+                                    <LinearGradient
+                                        colors={[Cyan[500], Electric[500]]}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 0 }}
+                                        style={styles.measureCtaGradient}
+                                    >
+                                        <Ionicons name="videocam" size={20} color="#fff" />
+                                        <JempText type="button" color="#fff">{t('jump.measure_cta')}</JempText>
+                                    </LinearGradient>
+                                </Pressable>
+                            </>
+                        )}
+                    </View>
+                ) : !isRatingBased && mode === 'manual' && isCountBased ? (
                     <View style={styles.inputSection}>
                         <JempText type="h2">{t('ui.enter_result')}</JempText>
                         <JempText type="caption" color={theme.textMuted}>
-                            {isKgBased && repMode === '5rm' ? t('ui.rep_mode_5rm_label') : unitLabel.toUpperCase()}
+                            {(UNIT_LABELS.count[locale === 'de' ? 'de' : 'en']).toUpperCase()}
                         </JempText>
-                        <View style={[styles.pillInput, { backgroundColor: theme.surface }]}>
-                            <TextInput
-                                style={[styles.pillTextInput, { color: theme.text }]}
-                                value={value}
-                                onChangeText={setValue}
-                                keyboardType="decimal-pad"
-                                placeholder="–"
-                                placeholderTextColor={theme.textPlaceholder}
+                        <View style={styles.wheelColWide}>
+                            <NumberWheel
+                                initialValue={repCount}
+                                min={0}
+                                max={repMax}
+                                onChange={setRepCount}
                             />
                         </View>
-                        {estimated1RM !== null && (
-                            <View style={[styles.estimateRow, { backgroundColor: theme.surface }]}>
-                                <JempText type="caption" color={theme.textMuted}>{t('ui.estimated_1rm')}</JempText>
-                                <JempText type="body-l" color={GradientMid}>≈ {estimated1RM} kg</JempText>
+                    </View>
+                ) : !isRatingBased && mode === 'manual' && isTimeBased ? (
+                    <View style={styles.inputSection}>
+                        <JempText type="h2">{t('ui.enter_result')}</JempText>
+                        <View style={styles.wheelRow}>
+                            <View style={styles.wheelCol}>
+                                <JempText type="caption" color={theme.textMuted}>
+                                    {t('ui.timer_seconds').toUpperCase()}
+                                </JempText>
+                                <NumberWheel initialValue={secInt} min={0} max={30} onChange={setSecInt} />
                             </View>
-                        )}
+                            <View style={styles.wheelCol}>
+                                <JempText type="caption" color={theme.textMuted}>
+                                    {t('ui.time_tenths').toUpperCase()}
+                                </JempText>
+                                <NumberWheel initialValue={secTenth} min={0} max={9} extendable={false} onChange={setSecTenth} />
+                            </View>
+                        </View>
+                        <JempText type="hero" gradient style={styles.heroReadout}>
+                            {`${(secInt + secTenth / 10).toFixed(1)} s`}
+                        </JempText>
+                    </View>
+                ) : !isRatingBased && mode === 'manual' && isCmBased ? (
+                    <View style={styles.inputSection}>
+                        <JempText type="h2">{t('ui.enter_result')}</JempText>
+                        <TapeMeasure
+                            key={tapeUnit}
+                            initialValue={tapeInitial}
+                            min={tape.min}
+                            max={tape.max}
+                            step={tape.step}
+                            majorEvery={tape.majorEvery}
+                            labelEvery={tape.labelEvery}
+                            unitLabel={tapeUnit}
+                            onChange={v => setTapeCm(
+                                tapeUnit === 'cm' ? v
+                                    : tapeUnit === 'm' ? Math.round(v * 100)
+                                        : tapeUnit === 'in' ? Math.round(v * 2.54 * 10) / 10
+                                            : Math.round(v * 30.48),
+                            )}
+                        />
+                    </View>
+                ) : !isRatingBased && mode === 'manual' ? (
+                    <View style={styles.inputSection}>
+                        <JempText type="h2">{t('ui.enter_result')}</JempText>
+                        <JempText type="caption" color={theme.textMuted}>
+                            {t('ui.rep_mode_label', {
+                                mode: repMode === '5rm' ? '5RM' : '1RM',
+                                unit: weightUnit.toUpperCase(),
+                            }).toUpperCase()}
+                        </JempText>
+                        <View style={styles.toggleRow}>
+                            <View style={[styles.modeToggle, { backgroundColor: theme.surface }]}>
+                                {(['5rm', '1rm'] as const).map(m => {
+                                    const active = repMode === m;
+                                    return (
+                                        <Pressable
+                                            key={m}
+                                            onPress={() => {
+                                                if (m === '1rm' && repMode !== '1rm') setShowOneRmWarning(true);
+                                                setRepMode(m);
+                                            }}
+                                            style={[styles.modeBtn, active && styles.modeBtnActive]}
+                                        >
+                                            {active && (
+                                                <LinearGradient
+                                                    colors={[Cyan[500], Electric[500]]}
+                                                    start={{ x: 0, y: 0 }}
+                                                    end={{ x: 1, y: 0 }}
+                                                    style={StyleSheet.absoluteFill}
+                                                />
+                                            )}
+                                            <JempText type="button" color={active ? '#fff' : theme.textMuted}>
+                                                {m === '5rm' ? '5RM' : '1RM'}
+                                            </JempText>
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
+                        </View>
+                        <View style={styles.weightRow}>
+                            <View style={styles.weightWheel}>
+                                <NumberWheel
+                                    key={`wm-${weightUnit}`}
+                                    initialValue={weightMain}
+                                    min={0}
+                                    max={weightUnit === 'kg' ? 200 : 440}
+                                    onChange={setWeightMain}
+                                />
+                            </View>
+                            <JempText type="h1">.</JempText>
+                            <View style={styles.weightWheelSmall}>
+                                <NumberWheel
+                                    key={`wt-${weightUnit}`}
+                                    initialValue={weightTenth}
+                                    min={0}
+                                    max={9}
+                                    extendable={false}
+                                    onChange={setWeightTenth}
+                                />
+                            </View>
+                            <JempText type="h2" color={theme.textMuted}>{weightUnit}</JempText>
+                        </View>
+                        {/* Always rendered so the layout never shifts — invisible until a value is set */}
+                        <View style={[styles.estimateRow, { backgroundColor: theme.surface, opacity: estimated1RM !== null ? 1 : 0 }]}>
+                            <JempText type="caption" color={theme.textMuted}>{t('ui.estimated_1rm')}</JempText>
+                            <View style={styles.estimateValues}>
+                                <JempText type="body-l" color={theme.textMuted}>
+                                    {`${weightDisplay.toFixed(1)} ${weightUnit}`}
+                                </JempText>
+                                <JempText type="body-l" color={GradientMid}>
+                                    ≈ {unitSystem === 'imperial' ? `${kgToLbs(estimated1RM ?? 0)} lbs` : `${estimated1RM ?? 0} kg`}
+                                </JempText>
+                            </View>
+                        </View>
                     </View>
                 ) : !isRatingBased ? (
                     <View style={styles.timerSection}>
@@ -430,17 +674,55 @@ export default function AssessmentScreen() {
                         )}
                     </View>
                 ) : null}
-            </ScrollView>
+                </View>
+            </View>
+
+            <VideoDialog
+                visible={showVideo}
+                title={t('ui.explainer_video')}
+                videoUrl={assessmentVideoUrl(assessment.video_storage_path)}
+                youtubeUrl={assessment.youtube_url}
+                buttonLabel={t('ui.close')}
+                onDismiss={() => setShowVideo(false)}
+            />
+
+            <SuccessOverlay
+                visible={showSuccess}
+                onDone={() => {
+                    setShowSuccess(false);
+                    router.back();
+                }}
+            />
+
+            <JempDialog
+                visible={showInfo}
+                title={assessmentName}
+                message={description}
+                buttonLabel={t('ui.got_it')}
+                icon="information-circle-outline"
+                iconColor={Cyan[500]}
+                onDismiss={() => setShowInfo(false)}
+            />
+
+            <JempDialog
+                visible={showOneRmWarning}
+                title={t('ui.rep_mode_1rm')}
+                message={t('ui.rep_mode_1rm_warning')}
+                buttonLabel={t('ui.got_it')}
+                icon="warning-outline"
+                iconColor="#f59e0b"
+                onDismiss={() => setShowOneRmWarning(false)}
+            />
 
             {/* CTA */}
             <View style={[styles.bottomBar, { backgroundColor: theme.background }]}>
                 <Pressable
                     style={styles.submitBtn}
                     onPress={() => router.push('/assessment-confirm')}
-                    disabled={(!isRatingBased && !submitValue) || completeAssessment.isPending}
+                    disabled={!canSubmit}
                 >
                     <LinearGradient
-                        colors={submitValue ? [Cyan[500], Electric[500]] : [`${Cyan[500]}40`, `${Electric[500]}40`]}
+                        colors={canSubmit ? [Cyan[500], Electric[500]] : [`${Cyan[500]}40`, `${Electric[500]}40`]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={styles.submitBtnGradient}
@@ -462,7 +744,10 @@ export default function AssessmentScreen() {
 const styles = StyleSheet.create({
     root: { flex: 1 },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    scroll: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120, gap: 20 },
+    scroll: { flex: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120 },
+    content: { flex: 1, justifyContent: 'center', gap: 20 },
+    skeletonRow: { flexDirection: 'row', gap: 8 },
+    heroReadout: { alignSelf: 'center' },
 
     header: {
         flexDirection: 'row',
@@ -471,14 +756,16 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
 
-    descCard: {
+    videoBtn: {
         flexDirection: 'row',
-        borderRadius: 14,
-        padding: 14,
+        alignItems: 'center',
         gap: 10,
-        alignItems: 'flex-start',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        marginTop: 20,
     },
-    descText: { flex: 1 },
+    videoBtnLabel: { flex: 1 },
 
     equipSection: { gap: 8 },
     equipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -488,15 +775,30 @@ const styles = StyleSheet.create({
         borderRadius: 100,
     },
 
-    // Warning
-    warningCard: {
+    // Previous result
+    lastResultRow: {
         flexDirection: 'row',
-        borderRadius: 14,
-        padding: 14,
-        gap: 10,
-        alignItems: 'flex-start',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
     },
-    warningText: { flex: 1, lineHeight: 20 },
+    lastResultRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    diffChip: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 100,
+    },
+    estimateValues: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
 
     // Estimate preview
     estimateRow: {
@@ -528,6 +830,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     modeBtnActive: {},
+    unitToggle: { alignSelf: 'center', width: 180, marginVertical: 4 },
 
     // Rating slider
     ratingSection: { gap: 8, paddingTop: 12 },
@@ -538,21 +841,68 @@ const styles = StyleSheet.create({
 
     // Manual input
     inputSection: { alignItems: 'center', gap: 8, paddingTop: 12 },
-    pillInput: {
-        borderRadius: 16,
-        width: '100%',
-        height: 72,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    pillTextInput: {
-        fontSize: 32,
-        fontWeight: '700',
-        textAlign: 'center',
-        width: '100%',
-        height: '100%',
-    },
 
+    // Video measurement (vertical jump)
+    videoExplainer: {
+        alignItems: 'center',
+        gap: 10,
+        borderRadius: 16,
+        paddingHorizontal: 20,
+        paddingVertical: 22,
+        width: '100%',
+    },
+    videoExplainerText: { textAlign: 'center', lineHeight: 22 },
+    measureCta: { borderRadius: 100, overflow: 'hidden', width: '100%', marginTop: 4 },
+    measureCtaGradient: {
+        height: 52,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+    },
+    remeasureBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 100,
+        marginTop: 8,
+    },
+    wheelRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 16,
+        width: '100%',
+    },
+    wheelCol: {
+        flex: 1,
+        maxWidth: 140,
+        alignItems: 'center',
+        gap: 8,
+    },
+    wheelColWide: {
+        width: '100%',
+        maxWidth: 220,
+        alignSelf: 'center',
+    },
+    toggleRow: {
+        flexDirection: 'row',
+        gap: 10,
+        width: '100%',
+        marginVertical: 4,
+    },
+    toggleHalf: { flex: 1 },
+    weightRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        width: '100%',
+        paddingVertical: 4,
+    },
+    weightWheel: { width: 110 },
+    weightWheelSmall: { width: 72 },
     // Timer
     timerSection: { gap: 14 },
     timerDisplay: {

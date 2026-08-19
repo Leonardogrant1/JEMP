@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -29,6 +29,17 @@ export default function AuthScreen() {
 
     function goBack() {
         router.back();
+    }
+
+    // Apple-Login-Fehler waren bisher unsichtbar (throw ohne catch) — jetzt
+    // wird die echte Meldung angezeigt, Nutzer-Abbruch wird ignoriert
+    async function handleApple() {
+        try {
+            await signInWithApple();
+        } catch (err: any) {
+            if (err?.code === 'ERR_REQUEST_CANCELED') return;
+            Alert.alert(t('auth.apple'), err?.message ?? String(err));
+        }
     }
 
     function handleClose() {
@@ -65,7 +76,7 @@ export default function AuthScreen() {
                 <View style={styles.divider} />
                 <View style={styles.body}>
                     {Platform.OS === 'ios' && (
-                        <Pressable style={styles.appleBtn} onPress={signInWithApple}>
+                        <Pressable style={styles.appleBtn} onPress={handleApple}>
                             <Ionicons name="logo-apple" size={20} color={theme.background} />
                             <Text style={styles.appleBtnText}>{t('auth.apple')}</Text>
                         </Pressable>

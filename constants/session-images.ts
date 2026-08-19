@@ -28,16 +28,20 @@ const GROUP_IMAGES: Record<string, any> = {
 const FALLBACK = require('@/assets/images/splash-icon.png');
 
 /**
- * Returns a static stock image for a session card.
- * Prefers the DB-stored imageGroup value; falls back to deriving from exerciseSlug
- * via SLUG_TO_GROUP for exercises where image_group is not yet set.
+ * Returns the image source for a session card.
+ * Group resolution prefers the DB-stored imageGroup value, falling back to
+ * deriving from exerciseSlug via SLUG_TO_GROUP. If a remote thumbnail URL map
+ * (from useSessionThumbnailsQuery) contains the group, that URL wins over the
+ * bundled stock image.
  */
 export function getSessionImage(
     exerciseSlug?: string | null,
     imageGroup?: string | null,
+    remoteThumbnails?: Record<string, string>,
 ): any {
-    if (imageGroup) return GROUP_IMAGES[imageGroup] ?? FALLBACK;
-    if (!exerciseSlug) return FALLBACK;
-    const group = SLUG_TO_GROUP[exerciseSlug];
+    const group = imageGroup ?? (exerciseSlug ? SLUG_TO_GROUP[exerciseSlug] : undefined);
+    if (!group) return FALLBACK;
+    const remoteUrl = remoteThumbnails?.[group];
+    if (remoteUrl) return { uri: remoteUrl };
     return GROUP_IMAGES[group] ?? FALLBACK;
 }

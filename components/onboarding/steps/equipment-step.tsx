@@ -1,11 +1,10 @@
-import { JempText } from '@/components/jemp-text';
+import { StepScaffold } from '@/components/onboarding/step-scaffold';
 import { SelectableChip } from '@/components/ui/selectable-chip';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { supabase } from '@/services/supabase/client';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
@@ -34,15 +33,14 @@ const EQUIPMENT_LABELS: Record<string, string> = {
 export function EquipmentStep() {
     const environmentIds = useOnboardingStore((s) => s.environmentIds);
     const setStore = useOnboardingStore((s) => s.set);
-    const colorScheme = useColorScheme();
-    const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const { t, i18n } = useTranslation();
     const locale = i18n.language;
 
     const storedEquipmentIds = useOnboardingStore((s) => s.equipmentIds);
     const [equipments, setEquipments] = useState<EquipmentItem[]>([]);
     const [deselected, setDeselected] = useState<Set<string>>(new Set());
-    const [loading, setLoading] = useState(true);
+    // Ohne Environments gibt es nichts zu laden — direkt fertig starten
+    const [loading, setLoading] = useState(environmentIds.length > 0);
 
     useEffect(() => {
         async function load() {
@@ -76,67 +74,55 @@ export function EquipmentStep() {
             setLoading(false);
         }
         if (environmentIds.length > 0) load();
-        else setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Side-Effects außerhalb des Updaters — React verbietet setState-Aufrufe
+    // fremder Komponenten innerhalb der Updater-Funktion
     function toggle(id: string) {
-        setDeselected((prev) => {
-            const next = new Set(prev);
-            next.has(id) ? next.delete(id) : next.add(id);
-            const active = equipments.filter((e) => !next.has(e.id)).map((e) => e.id);
-            setStore({ equipmentIds: active });
-            return next;
-        });
+        const next = new Set(deselected);
+        next.has(id) ? next.delete(id) : next.add(id);
+        setDeselected(next);
+        const active = equipments.filter((e) => !next.has(e.id)).map((e) => e.id);
+        setStore({ equipmentIds: active });
     }
 
     function getLabel(eq: EquipmentItem) {
         return eq.name_i18n?.[locale] ?? EQUIPMENT_LABELS[eq.slug] ?? eq.slug;
     }
 
-    if (loading) {
-        return (
-            <View style={styles.loading}>
-                <ActivityIndicator color={theme.textMuted} />
-            </View>
-        );
-    }
-
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            <Animated.View entering={FadeInDown.delay(100).duration(500).springify()}>
-                <JempText type="h1" style={styles.title}>{t('onboarding.equipment_title')}</JempText>
-            </Animated.View>
-            <Animated.View entering={FadeInDown.delay(240).duration(500).springify()}>
-                <JempText type="body-l" color={theme.textMuted} style={styles.subtitle}>
-                    {t('onboarding.equipment_subtitle')}
-                </JempText>
-            </Animated.View>
-            <Animated.View entering={FadeInDown.delay(360).duration(500).springify()}>
+        <StepScaffold title={t('onboarding.equipment_title')} subtitle={t('onboarding.equipment_subtitle')}>
+            {loading ? (
                 <View style={styles.chipGrid}>
-                    {equipments.map((eq) => (
-                        <SelectableChip
-                            key={eq.id}
-                            label={getLabel(eq)}
-                            selected={!deselected.has(eq.id)}
-                            onPress={() => toggle(eq.id)}
-                        />
+                    {SKELETON_CHIP_WIDTHS.map((width, i) => (
+                        <Skeleton key={i} width={width} height={38} borderRadius={100} />
                     ))}
                 </View>
-            </Animated.View>
-        </ScrollView>
+            ) : (
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                    <Animated.View entering={FadeInDown.duration(400)}>
+                        <View style={styles.chipGrid}>
+                            {[...equipments].sort((a, b) => getLabel(a).localeCompare(getLabel(b), locale)).map((eq) => (
+                                <SelectableChip
+                                    key={eq.id}
+                                    label={getLabel(eq)}
+                                    selected={!deselected.has(eq.id)}
+                                    onPress={() => toggle(eq.id)}
+                                />
+                            ))}
+                        </View>
+                    </Animated.View>
+                </ScrollView>
+            )}
+        </StepScaffold>
     );
 }
 
+// Variierende Breiten, damit das Skeleton wie eine echte Chip-Wolke wirkt
+const SKELETON_CHIP_WIDTHS = [96, 120, 84, 132, 104, 90, 116, 100, 88, 124, 96, 110];
+
 const styles = StyleSheet.create({
-    loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    container: { flex: 1 },
-    content: {
-        paddingHorizontal: 28,
-        paddingTop: 32,
-        paddingBottom: 24,
-    },
-    title: { marginBottom: 10 },
-    subtitle: { marginBottom: 28 },
+    scrollContent: { paddingBottom: 24 },
     chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });
