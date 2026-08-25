@@ -5,6 +5,9 @@ const CODE_PATTERN = /^[a-zA-Z0-9_-]{2,32}$/;
 const BOT_PATTERN = /bot|crawler|spider|preview|facebookexternalhit|whatsapp|telegram|slack|discord|curl|wget/i;
 
 const LEAD_SESSION_COOKIE = "jemp_lead_session";
+// Client-lesbar (nicht httpOnly): der Download-Button legt daraus
+// "JEMP:<CODE>" ins Clipboard, damit die App das Referral zuordnen kann.
+const REF_CODE_COOKIE = "jemp_ref_code";
 const LEAD_VIEW_URL = "https://www.northbyte.studio/api/affiliate/lead/view";
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ code: string }> }) {
@@ -23,6 +26,11 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ code: strin
   }
   response.cookies.set(LEAD_SESSION_COOKIE, sessionId, {
     httpOnly: true,
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 30,
+    path: "/",
+  });
+  response.cookies.set(REF_CODE_COOKIE, code, {
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 30,
     path: "/",

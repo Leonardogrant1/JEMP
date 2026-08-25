@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import Image from "next/image";
+import { DownloadLink } from "@/components/download-link";
 import { HeroBackground } from "@/components/hero-background";
 import { Reveal } from "@/components/reveal";
 import { ScrollSlide } from "@/components/scroll-slide";
@@ -35,14 +36,9 @@ export async function Hero() {
         </Reveal>
 
         <Reveal delay={300}>
-          <a
-            href="/api/download"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-brand-gradient font-bold text-white text-base sm:text-lg hover:opacity-90 transition-opacity shadow-lg shadow-brand-cyan/20"
-          >
+          <DownloadLink className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-brand-gradient font-bold text-white text-base sm:text-lg hover:opacity-90 transition-opacity shadow-lg shadow-brand-cyan/20">
             {t("cta")}
-          </a>
+          </DownloadLink>
         </Reveal>
 
         <ScrollSlide className="relative w-96 sm:w-3xl aspect-square mx-auto mt-16">

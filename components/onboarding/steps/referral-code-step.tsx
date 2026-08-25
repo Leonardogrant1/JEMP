@@ -8,8 +8,10 @@ import { useAuth } from '@/providers/auth-provider';
 import { supabase } from '@/services/supabase/client';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { getBuildEnvironment } from '@/utils/build-environment';
+import { parseReferralClipboard } from '@/utils/referral-clipboard';
+import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator,
@@ -39,6 +41,7 @@ export function ReferralCodeStep() {
     const [status, setStatus] = useState<SubmitStatus>(alreadyRedeemed ? 'success' : 'idle');
 
     const canSubmit = code.trim().length > 0 && status === 'idle' && !alreadyRedeemed;
+    const clipboardChecked = useRef(false);
 
     function handleCodeChange(value: string) {
         setCode(value.toUpperCase());
@@ -47,9 +50,7 @@ export function ReferralCodeStep() {
         }
     }
 
-    async function handleSubmit() {
-        if (!canSubmit) return;
-        if (!session?.user?.id) { setStatus('error_network'); return; }
+    async function submitCode(trimmedCode: string) {
         setStatus('loading');
         try {
             const [revenueCatUserId, environment] = await Promise.all([
@@ -61,7 +62,7 @@ export function ReferralCodeStep() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     appSlug: 'jemp',
-                    affiliateCode: code.trim(),
+                    affiliateCode: trimmedCode,
                     appUserId: session?.user?.id ?? '',
                     revenueCatUserId,
                     environment,
@@ -69,11 +70,11 @@ export function ReferralCodeStep() {
             });
 
             if (response.status === 201) {
-                setStore({ referral_code: code.trim() });
+                setStore({ referral_code: trimmedCode });
                 if (session?.user?.id) {
                     const { error: dbError } = await supabase
                         .from('user_profiles')
-                        .update({ referral_code: code.trim() })
+                        .update({ referral_code: trimmedCode })
                         .eq('id', session.user.id);
                     if (dbError) console.error('[ReferralCodeStep] Failed to save referral_code:', dbError);
                 }
@@ -89,6 +90,31 @@ export function ReferralCodeStep() {
             setStatus('error_network');
         }
     }
+
+    async function handleSubmit() {
+        if (!canSubmit) return;
+        if (!session?.user?.id) { setStatus('error_network'); return; }
+        await submitCode(code.trim());
+    }
+
+    // Auto-Redeem: die Landingpage legt beim Download-Klick "JEMP:<CODE>"
+    // ins Clipboard — hier lesen wir es aus und lösen den Code direkt ein
+    useEffect(() => {
+        if (alreadyRedeemed || clipboardChecked.current) return;
+        clipboardChecked.current = true;
+        (async () => {
+            try {
+                const text = await Clipboard.getStringAsync();
+                const clipboardCode = parseReferralClipboard(text);
+                if (!clipboardCode || !session?.user?.id) return;
+                setCode(clipboardCode);
+                await submitCode(clipboardCode);
+            } catch {
+                // Clipboard verweigert (iOS-Paste-Prompt abgelehnt) — User tippt manuell
+            }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const showFeedback = status === 'success' || status === 'error_not_found' || status === 'error_network';
     const feedbackColor = status === 'success' ? theme.success : '#EF5350';

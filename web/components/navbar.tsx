@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { getLocale, getTranslations } from "next-intl/server";
+import { DownloadLink } from "@/components/download-link";
 import { LanguagePicker } from "./language-picker";
 
 export async function Navbar() {
@@ -19,9 +20,9 @@ export async function Navbar() {
           <a href="#features" className="text-sm font-medium text-white/60 hover:text-white transition-colors">
             {t("features")}
           </a>
-          <a href="/api/download" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-white/60 hover:text-white transition-colors">
+          <DownloadLink className="text-sm font-medium text-white/60 hover:text-white transition-colors">
             {t("earlyAccess")}
-          </a>
+          </DownloadLink>
           <a href={creatorHref} className="text-sm font-medium text-white/60 hover:text-white transition-colors">
             {t("creator")}
           </a>
@@ -29,14 +30,9 @@ export async function Navbar() {
 
         <div className="flex items-center gap-2">
           <LanguagePicker />
-          <a
-            href="/api/download"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 rounded-xl bg-brand-gradient font-bold text-sm text-white hover:opacity-90 transition-opacity"
-          >
+          <DownloadLink className="px-4 py-2 rounded-xl bg-brand-gradient font-bold text-sm text-white hover:opacity-90 transition-opacity">
             {t("cta")}
-          </a>
+          </DownloadLink>
         </div>
       </div>
     </header>
