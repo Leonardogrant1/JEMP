@@ -572,6 +572,11 @@ const de: Record<TranslationKeys, string> = {
     'onboarding.referral_success': 'Code erfolgreich eingelöst!',
     'onboarding.referral_error_not_found': 'Code nicht gefunden. Bitte prüfe deine Eingabe.',
     'onboarding.referral_error_network': 'Verbindungsfehler. Bitte versuche es erneut.',
+    'onboarding.referral_clipboard_title': 'Creator-Code einlösen',
+    'onboarding.referral_clipboard_message': 'Wenn du über einen Creator-Link hier bist, lösen wir deinen Code direkt aus der Zwischenablage ein.',
+    'onboarding.referral_clipboard_confirm': 'Code einlösen',
+    'onboarding.referral_clipboard_cancel': 'Manuell eingeben',
+    'onboarding.referral_clipboard_not_found': 'Kein Code gefunden — tipp ihn einfach ein.',
 
     // what-you-will-get-step
     'onboarding.wyg_title': 'Das bekommst du.',

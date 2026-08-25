@@ -12,11 +12,13 @@ const DESTRUCTIVE = '#ef4444';
  * Surface-Karte, Gradient-Confirm (bzw. Rot-Tint bei destructive), Abbrechen
  * als Link darunter und per Backdrop-Tap.
  */
-export function ConfirmDialog({ visible, title, message, confirmLabel, destructive, showCancel = true, onConfirm, onClose }: {
+export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLabel, destructive, showCancel = true, onConfirm, onClose }: {
     visible: boolean;
     title: string;
     message?: string;
     confirmLabel: string;
+    /** Default: ui.cancel */
+    cancelLabel?: string;
     destructive?: boolean;
     /** false für reine Info-Dialoge — nur der Confirm-Button, kein Abbrechen-Link */
     showCancel?: boolean;
@@ -59,7 +61,7 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, destructi
 
                         {showCancel && (
                             <Pressable onPress={onClose} style={styles.cancelLink} hitSlop={8}>
-                                <JempText type="body-sm" color={theme.textMuted}>{t('ui.cancel')}</JempText>
+                                <JempText type="body-sm" color={theme.textMuted}>{cancelLabel ?? t('ui.cancel')}</JempText>
                             </Pressable>
                         )}
                     </View>

@@ -570,6 +570,11 @@ const en = {
     'onboarding.referral_success': 'Code successfully applied!',
     'onboarding.referral_error_not_found': 'Code not found. Please check your input.',
     'onboarding.referral_error_network': 'Connection error. Please try again.',
+    'onboarding.referral_clipboard_title': 'Redeem creator code',
+    'onboarding.referral_clipboard_message': 'If you got here through a creator link, we can apply your code straight from your clipboard.',
+    'onboarding.referral_clipboard_confirm': 'Redeem code',
+    'onboarding.referral_clipboard_cancel': 'Enter manually',
+    'onboarding.referral_clipboard_not_found': 'No code found — just type it in.',
 
     // what-you-will-get-step
     'onboarding.wyg_title': 'What you will get.',

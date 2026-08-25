@@ -1,4 +1,5 @@
 import { JempText } from '@/components/jemp-text';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { JempInput } from '@/components/ui/jemp-input';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
 import { StepScaffold } from '@/components/onboarding/step-scaffold';
@@ -16,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator,
     Keyboard,
+    Platform,
     StyleSheet,
     TouchableOpacity,
 } from 'react-native';
@@ -42,9 +44,12 @@ export function ReferralCodeStep() {
 
     const canSubmit = code.trim().length > 0 && status === 'idle' && !alreadyRedeemed;
     const clipboardChecked = useRef(false);
+    const [promptVisible, setPromptVisible] = useState(false);
+    const [clipboardMiss, setClipboardMiss] = useState(false);
 
     function handleCodeChange(value: string) {
         setCode(value.toUpperCase());
+        setClipboardMiss(false);
         if (status === 'error_not_found' || status === 'error_network') {
             setStatus('idle');
         }
@@ -97,33 +102,66 @@ export function ReferralCodeStep() {
         await submitCode(code.trim());
     }
 
-    // Auto-Redeem: die Landingpage legt beim Download-Klick "JEMP:<CODE>"
-    // ins Clipboard — hier lesen wir es aus und lösen den Code direkt ein
+    // Clipboard lesen und bei "JEMP:<CODE>"-Payload direkt einlösen. Auf iOS
+    // erst nach dem Primer-Dialog aufrufen — der native Paste-Prompt wirkt
+    // dann angefordert statt aufgedrängt.
+    async function redeemFromClipboard(userInitiated: boolean) {
+        try {
+            const text = await Clipboard.getStringAsync();
+            const clipboardCode = parseReferralClipboard(text);
+            if (!clipboardCode) {
+                // Hinweis nur, wenn der User den Read angestoßen hat — beim
+                // stillen Android-Read wäre "Kein Code gefunden" kontextlos
+                if (userInitiated) setClipboardMiss(true);
+                return;
+            }
+            if (!session?.user?.id) return;
+            setCode(clipboardCode);
+            await submitCode(clipboardCode);
+        } catch {
+            // Clipboard verweigert (iOS-Paste-Prompt abgelehnt) — User tippt manuell
+        }
+    }
+
+    function handlePromptConfirm() {
+        setPromptVisible(false);
+        redeemFromClipboard(true);
+    }
+
+    function handlePromptClose() {
+        setPromptVisible(false);
+    }
+
+    // Auto-Redeem: die Landingpage legt beim Download-Klick "JEMP:<CODE>" ins
+    // Clipboard. Android liest still (kein Permission-Dialog, nur System-Toast);
+    // iOS zeigt vorher den Primer, weil der Paste-Prompt sonst abschreckt.
     useEffect(() => {
         if (alreadyRedeemed || clipboardChecked.current) return;
         clipboardChecked.current = true;
         (async () => {
-            try {
-                const text = await Clipboard.getStringAsync();
-                const clipboardCode = parseReferralClipboard(text);
-                if (!clipboardCode || !session?.user?.id) return;
-                setCode(clipboardCode);
-                await submitCode(clipboardCode);
-            } catch {
-                // Clipboard verweigert (iOS-Paste-Prompt abgelehnt) — User tippt manuell
+            if (Platform.OS === 'ios') {
+                // hasStringAsync triggert den Paste-Prompt nicht — sagt aber nur
+                // "irgendein Text liegt da", deshalb die konditionale Primer-Copy
+                const hasString = await Clipboard.hasStringAsync().catch(() => false);
+                if (hasString) setPromptVisible(true);
+                return;
             }
+            await redeemFromClipboard(false);
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const showFeedback = status === 'success' || status === 'error_not_found' || status === 'error_network';
-    const feedbackColor = status === 'success' ? theme.success : '#EF5350';
+    const showClipboardMiss = clipboardMiss && status === 'idle';
+    const showFeedback = showClipboardMiss || status === 'success' || status === 'error_not_found' || status === 'error_network';
+    const feedbackColor = status === 'success' ? theme.success : showClipboardMiss ? theme.textMuted : '#EF5350';
     const feedbackKey =
-        status === 'success'
-            ? 'onboarding.referral_success'
-            : status === 'error_not_found'
-                ? 'onboarding.referral_error_not_found'
-                : 'onboarding.referral_error_network';
+        showClipboardMiss
+            ? 'onboarding.referral_clipboard_not_found'
+            : status === 'success'
+                ? 'onboarding.referral_success'
+                : status === 'error_not_found'
+                    ? 'onboarding.referral_error_not_found'
+                    : 'onboarding.referral_error_network';
 
     return (
         // padding-Behavior schrumpft den Step um die Keyboard-Höhe — der
@@ -172,6 +210,16 @@ export function ReferralCodeStep() {
                 </Animated.View>
             )}
             </StepScaffold>
+
+            <ConfirmDialog
+                visible={promptVisible}
+                title={t('onboarding.referral_clipboard_title')}
+                message={t('onboarding.referral_clipboard_message')}
+                confirmLabel={t('onboarding.referral_clipboard_confirm')}
+                cancelLabel={t('onboarding.referral_clipboard_cancel')}
+                onConfirm={handlePromptConfirm}
+                onClose={handlePromptClose}
+            />
         </KeyboardAvoidingView>
     );
 }
