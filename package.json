@@ -71,6 +71,7 @@
     "react-native-keyboard-controller": "1.21.6",
     "react-native-mmkv": "^4.3.0",
     "react-native-nitro-modules": "^0.35.3",
+    "react-native-play-install-referrer": "^2.0.1",
     "react-native-purchases": "^9.15.1",
     "react-native-purchases-ui": "^9.15.0",
     "react-native-reanimated": "4.3.1",

@@ -9,8 +9,10 @@ import { useAuth } from '@/providers/auth-provider';
 import { supabase } from '@/services/supabase/client';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { getBuildEnvironment } from '@/utils/build-environment';
+import { parseInstallReferrer } from '@/utils/install-referrer';
 import { parseReferralClipboard } from '@/utils/referral-clipboard';
 import * as Clipboard from 'expo-clipboard';
+import { PlayInstallReferrer } from 'react-native-play-install-referrer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -132,9 +134,25 @@ export function ReferralCodeStep() {
         setPromptVisible(false);
     }
 
-    // Auto-Redeem: die Landingpage legt beim Download-Klick "JEMP:<CODE>" ins
-    // Clipboard. Android liest still (kein Permission-Dialog, nur System-Toast);
-    // iOS zeigt vorher den Primer, weil der Paste-Prompt sonst abschreckt.
+    // Der Play-Store-Link trägt referrer=code%3D<CODE> — Google reicht den
+    // String beim Install durch, komplett ohne Clipboard oder Permission-Dialog
+    function getInstallReferrerCode(): Promise<string | null> {
+        return new Promise((resolve) => {
+            try {
+                PlayInstallReferrer.getInstallReferrerInfo((info, error) => {
+                    if (error || !info) return resolve(null);
+                    resolve(parseInstallReferrer(info.installReferrer));
+                });
+            } catch {
+                resolve(null);
+            }
+        });
+    }
+
+    // Auto-Redeem: Android zuerst über den Play Install Referrer
+    // (deterministisch), Clipboard nur als Fallback für Alt-Links ohne
+    // referrer-Param. iOS zeigt vor dem Clipboard-Read den Primer, weil der
+    // native Paste-Prompt sonst abschreckt.
     useEffect(() => {
         if (alreadyRedeemed || clipboardChecked.current) return;
         clipboardChecked.current = true;
@@ -144,6 +162,12 @@ export function ReferralCodeStep() {
                 // "irgendein Text liegt da", deshalb die konditionale Primer-Copy
                 const hasString = await Clipboard.hasStringAsync().catch(() => false);
                 if (hasString) setPromptVisible(true);
+                return;
+            }
+            const referrerCode = await getInstallReferrerCode();
+            if (referrerCode && session?.user?.id) {
+                setCode(referrerCode);
+                await submitCode(referrerCode);
                 return;
             }
             await redeemFromClipboard(false);
