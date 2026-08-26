@@ -810,6 +810,19 @@ const en = {
     'achievements.view_all': 'View all achievements',
     'achievements.continue': 'Continue',
 
+    'profile.subscription_unlock': 'Unlock JEMP',
+    'profile.subscription_mine': 'My Subscription',
+    'profile.subscription_cancel': 'Cancel Subscription',
+    'profile.subscription_feedback_title': 'Sorry to see you go',
+    'profile.subscription_feedback_subtitle': 'Why couldn\'t we convince you?',
+    'profile.subscription_feedback_option_1': 'I don\'t like the plan',
+    'profile.subscription_feedback_option_2': 'Found another app',
+    'profile.subscription_feedback_option_3': 'Just wanted to look around',
+    'profile.subscription_feedback_option_4': 'I don\'t need the app anymore',
+    'profile.subscription_cancel_instructions': 'To cancel your subscription, please manage it in your App Store or Play Store account settings.',
+    'profile.subscription_manage': 'Manage Subscription',
+    'profile.subscription_modal_title': 'My Subscription',
+    'profile.subscription_modal_active': 'You have an active JEMP subscription. Thank you for your support!',
 } as const;
 
 export type TranslationKeys = keyof typeof en;

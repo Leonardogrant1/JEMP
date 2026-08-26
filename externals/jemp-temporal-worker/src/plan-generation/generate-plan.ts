@@ -96,6 +96,14 @@ export function patternsFromRegions(regions: string[]): string[] {
   return [...new Set(regions.map((r) => BODY_REGION_TO_PATTERN[r]).filter(Boolean))]
 }
 
+// Effektive Region einer Übung für Filter und Kraftmuster: full_body-Übungen
+// mit gepflegter dominant_region (z.B. power_clean → glute) werden über diese
+// sichtbar; ohne dominant_region bleiben sie bewusst allgemein.
+export function effectiveRegion(e: { body_region?: string | null; dominant_region?: string | null }): string | null {
+  if (e.body_region === 'full_body') return e.dominant_region ?? e.body_region ?? null
+  return e.body_region ?? null
+}
+
 // Wie viele unterschiedliche Muster ein Strength-Block realistisch tragen kann
 // (full: 2–3 Übungen pro Block, reduced: 1 Übung pro Block)
 const STRENGTH_PATTERN_CAPACITY: Record<SessionModeSlug, number> = {
@@ -356,9 +364,15 @@ export async function prepareGeneration(
 
   function filterByBodyRegion(exercises: any[], bodyRegions: Set<string>): any[] {
     if (bodyRegions.size === 0) return exercises
-    return exercises.filter((e: any) =>
-      !e.body_region || e.body_region === 'full_body' || bodyRegions.has(e.body_region)
-    )
+    return exercises.filter((e: any) => {
+      if (!e.body_region) return true
+      if (e.body_region === 'full_body') {
+        // Mit dominant_region matcht die Übung nur noch Blöcke, die diese Region
+        // (oder explizit full_body) wollen; ohne bleibt sie allgemein (wie bisher)
+        return !e.dominant_region || bodyRegions.has('full_body') || bodyRegions.has(e.dominant_region)
+      }
+      return bodyRegions.has(e.body_region)
+    })
   }
 
   // Primary/Secondary tragen nur Übungen, die dafür getaggt sind — Warmup-/
@@ -417,7 +431,9 @@ export async function prepareGeneration(
         : ''
       const intensityTag = e.intensity_score !== null && e.intensity_score !== undefined ? `, intensity: ${e.intensity_score}` : ''
       const typeTag = e.exercise_type ? `, type: ${e.exercise_type}` : ''
-      const regionTag = e.body_region ? `, body_region: ${e.body_region}` : ''
+      const regionTag = e.body_region
+        ? `, body_region: ${e.body_region}${e.body_region === 'full_body' && e.dominant_region ? ` (dominant: ${e.dominant_region})` : ''}`
+        : ''
       return `[${e.slug}]: ${e.name}, category: ${e.categories?.slug}, blocks: [${blocks}], measurement: ${e.measurement_type ?? 'reps_or_duration'}${intensityTag}${typeTag}${regionTag}${envTag}`
     }).join('\n')
   }
@@ -440,27 +456,56 @@ export async function prepareGeneration(
     user_focus_categories,
   }, null, 2)
 
+  const MIN_BLOCK_POOL = 3
+
+  // ── Capability-Matrix: was kann dieser User pro Category/Env überhaupt tragen? ──
+  // Wird Phase A in den Prompt gegeben, damit sie ausgehungerte Categories
+  // (z.B. upper_body_plyometrics ohne Medizinball) gar nicht erst wählt.
+  const availabilityEnvs: Array<{ id: string | null; slug: string }> = environment_ids.length > 0
+    ? environment_ids.map((id) => ({ id, slug: envIdToSlugMap.get(id) ?? id }))
+    : [{ id: null, slug: 'default' }]
+
+  const capableForEnv = (cat: string, envId: string | null, blockType: 'primary' | 'secondary'): number =>
+    countBlockCapable(filterByCategoryForMode(cat, 'full', envId), blockType)
+
+  const availabilityRows = categorySlugs.map((cat) => {
+    const cells = availabilityEnvs.map(({ id }) => {
+      const prim = capableForEnv(cat, id, 'primary')
+      const sec = capableForEnv(cat, id, 'secondary')
+      return `${prim}/${sec}${prim < MIN_BLOCK_POOL || sec < MIN_BLOCK_POOL ? ' ⚠️' : ''}`
+    })
+    return `| \`${cat}\` | ${cells.join(' | ')} |`
+  })
+  const categoryAvailability = [
+    `| Category | ${availabilityEnvs.map((e) => `\`${e.slug}\``).join(' | ')} |`,
+    `|---|${availabilityEnvs.map(() => '---').join('|')}|`,
+    ...availabilityRows,
+  ].join('\n')
+
+  console.log(`Phase A availability matrix:\n${categoryAvailability}`)
+
   const tPhaseA = Date.now()
   console.log(`[t=${elapsed(t0)}] Phase A — calling week planner: ${sessionSpecs.length} sessions, categorySlugs=[${categorySlugs.join(', ')}]`)
 
   const dynamicWeekPlanSchema = buildWeekPlanSchema(categorySlugs, environment_slugs)
 
+  const weekPlanSystemPrompt = GENERATE_WEEK_PLAN_PROMPT({
+    sessions: sessionSpecs.map((s) => ({
+      ...s,
+      ...targetDuration(s.mode_slug, min_session_duration, max_session_duration),
+    })),
+    userContext,
+    categorySlugs,
+    environmentSlugs: environment_slugs,
+    dayPresetEnvironments,
+    userFocusCategories: user_focus_categories,
+    categoryAvailability,
+    minBlockPool: MIN_BLOCK_POOL,
+  })
+
   const weekPlanCompletion = await openai.chat.completions.create({
     model: 'gpt-5-mini',
-    messages: [{
-      role: 'system',
-      content: GENERATE_WEEK_PLAN_PROMPT({
-        sessions: sessionSpecs.map((s) => ({
-          ...s,
-          ...targetDuration(s.mode_slug, min_session_duration, max_session_duration),
-        })),
-        userContext,
-        categorySlugs,
-        environmentSlugs: environment_slugs,
-        dayPresetEnvironments,
-        userFocusCategories: user_focus_categories,
-      }),
-    }],
+    messages: [{ role: 'system', content: weekPlanSystemPrompt }],
     reasoning_effort: 'low',
     response_format: zodResponseFormat(dynamicWeekPlanSchema, 'data'),
     max_completion_tokens: 8000,
@@ -469,9 +514,97 @@ export async function prepareGeneration(
   const weekPlanChoice = weekPlanCompletion.choices[0]
   console.log(`[t=${elapsed(t0)}] Phase A done (${elapsed(tPhaseA)}) — finish_reason=${weekPlanChoice.finish_reason}, tokens=${weekPlanCompletion.usage?.completion_tokens}`)
   if (weekPlanChoice.finish_reason === 'length') throw new Error('Week plan was cut off.')
-  const weekPlan = JSON.parse(weekPlanChoice.message.content!) as z.infer<typeof weekPlanSchema>
+  let weekPlan = JSON.parse(weekPlanChoice.message.content!) as z.infer<typeof weekPlanSchema>
 
   console.log('Phase A — week plan:', JSON.stringify(weekPlan, null, 2))
+
+  // Phase A legt Sessions gelegentlich auf die weekly_schedule-Tage (Team-
+  // Training) statt auf die Spec-Tage — ohne Korrektur entstehen Sessions ohne
+  // Hauptblöcke, weil Phase B pro Spec-Tag matcht. Deterministisch zurückmappen.
+  const remapSessionDays = (plan: z.infer<typeof weekPlanSchema>) => {
+    const specDays = sessionSpecs.map((s) => s.day_of_week)
+    const missingDays = specDays.filter((d) => !plan.sessions.some((s) => s.day_of_week === d))
+    for (const session of plan.sessions) {
+      if (specDays.includes(session.day_of_week)) continue
+      const target = missingDays.shift()
+      if (target === undefined) break
+      console.warn(`Phase A day remap: Session Tag ${session.day_of_week} → Tag ${target} (Spec-Tage: ${specDays.join(', ')})`)
+      session.day_of_week = target
+    }
+  }
+  remapSessionDays(weekPlan)
+
+  // ── Feasibility-Validierung: hat jeder Hauptblock einen tragfähigen Pool? ──
+  // Gleiche Rechnung wie der spätere Pool-Bau (inkl. Region-Filter) — die
+  // Matrix oben ist Category-Ebene, das hier fängt auch die Region-Dimension.
+  // Mobility als Hauptreiz nur bei bewusster User-Priorisierung (Prio ≤ 2)
+  const allowMobilityPrimary = user_focus_categories.some((f) => f.category === 'mobility' && f.priority <= 2)
+
+  const feasibilityIssues = (plan: z.infer<typeof weekPlanSchema>): string[] => {
+    const issues: string[] = []
+    const plannedDays = new Set(plan.sessions.map((s) => s.day_of_week))
+    for (const sp of sessionSpecs) {
+      if (!plannedDays.has(sp.day_of_week)) {
+        issues.push(`Tag ${sp.day_of_week}: Session fehlt komplett — plane genau eine Session pro Tag aus [${sessionSpecs.map((s) => s.day_of_week).join(', ')}], NICHT für die weekly_schedule-Tage`)
+      }
+    }
+    for (const s of plan.sessions) {
+      const spec = sessionSpecs.find((sp) => sp.day_of_week === s.day_of_week)
+      if (!spec) continue
+      const envSlug = (s as any).environment_slug
+      const envId = dayEnvMap.get(s.day_of_week)
+        ?? (envSlug ? envSlugToIdMap.get(envSlug) : undefined)
+        ?? null
+      for (const b of s.blocks) {
+        if (b.block_type !== 'primary' && b.block_type !== 'secondary') continue
+        if (b.block_type === 'primary' && b.category_slug === 'mobility' && !allowMobilityPrimary) {
+          issues.push(`Tag ${s.day_of_week}: primary=\`mobility\` ist für diesen User nicht erlaubt (Mobility nicht als Fokus priorisiert) — stattdessen eine tragfähige Category wiederholen, mit anderen body_regions als ihr erster Einsatz`)
+          continue
+        }
+        const { pool } = buildMainBlockPool(b.block_type, b.category_slug, b.body_regions, spec.mode_slug, envId)
+        const count = countBlockCapable(pool, b.block_type)
+        if (count < MIN_BLOCK_POOL) {
+          issues.push(`Tag ${s.day_of_week}: ${b.block_type}=\`${b.category_slug}\` (env \`${envSlug ?? envIdToSlugMap.get(envId ?? '') ?? 'default'}\`, regions [${b.body_regions.join(', ')}]) hat nur ${count} ${b.block_type}-fähige Übungen — Minimum ist ${MIN_BLOCK_POOL}`)
+        }
+      }
+    }
+    return issues
+  }
+
+  const initialIssues = feasibilityIssues(weekPlan)
+  if (initialIssues.length > 0) {
+    console.warn(`Phase A feasibility: ${initialIssues.length} Verstöße — Retry\n  ${initialIssues.join('\n  ')}`)
+    const tRetry = Date.now()
+    const retryCompletion = await openai.chat.completions.create({
+      model: 'gpt-5-mini',
+      messages: [
+        { role: 'system', content: weekPlanSystemPrompt },
+        { role: 'assistant', content: JSON.stringify(weekPlan) },
+        {
+          role: 'user',
+          content: `Dein Wochenplan verletzt die Übungsverfügbarkeits-Regel:\n${initialIssues.map((i) => `- ${i}`).join('\n')}\n\nErsetze die Categories der betroffenen Blöcke durch tragfähige (laut Verfügbarkeitstabelle ≥ ${MIN_BLOCK_POOL} Übungen) und passe die body_regions an. Bilde den ursprünglichen Trainingsreiz über die neue Category ab. Alle anderen Sessions unverändert lassen. Gib den vollständigen korrigierten Wochenplan zurück.`,
+        },
+      ],
+      reasoning_effort: 'low',
+      response_format: zodResponseFormat(dynamicWeekPlanSchema, 'data'),
+      max_completion_tokens: 8000,
+    })
+    const retryChoice = retryCompletion.choices[0]
+    if (retryChoice.finish_reason !== 'length' && retryChoice.message.content) {
+      const retryPlan = JSON.parse(retryChoice.message.content) as z.infer<typeof weekPlanSchema>
+      remapSessionDays(retryPlan)
+      const retryIssues = feasibilityIssues(retryPlan)
+      if (retryIssues.length < initialIssues.length) {
+        weekPlan = retryPlan
+        console.log(`[t=${elapsed(t0)}] Phase A feasibility retry übernommen (${elapsed(tRetry)}) — Verstöße ${initialIssues.length} → ${retryIssues.length}`)
+        if (retryIssues.length > 0) console.warn(`  verbleibend (Category-Fallback greift später):\n  ${retryIssues.join('\n  ')}`)
+      } else {
+        console.warn(`Phase A feasibility retry verworfen (${retryIssues.length} Verstöße) — Category-Fallback greift später`)
+      }
+    } else {
+      console.warn('Phase A feasibility retry unbrauchbar (cut off) — Category-Fallback greift später')
+    }
+  }
 
   const DAY_NAMES: Record<number, string> = {
     1: 'Montag', 2: 'Dienstag', 3: 'Mittwoch', 4: 'Donnerstag',
@@ -591,7 +724,7 @@ export async function prepareGeneration(
       let requiredPatterns: string[] | undefined
       if (block.category_slug === 'strength') {
         const wanted = patternsFromRegions(block.body_regions)
-        const poolPatterns = new Set(pool.map((e: any) => BODY_REGION_TO_PATTERN[e.body_region]).filter(Boolean))
+        const poolPatterns = new Set(pool.map((e: any) => BODY_REGION_TO_PATTERN[effectiveRegion(e) ?? '']).filter(Boolean))
         requiredPatterns = wanted.filter((p) => poolPatterns.has(p))
         const unsupported = wanted.filter((p) => !poolPatterns.has(p))
         if (unsupported.length > 0) {
@@ -642,7 +775,6 @@ export async function prepareGeneration(
   })
 
   // ── Pool Optimization: switch env if any block pool is too small ────────────
-  const MIN_BLOCK_POOL = 3
 
   // Wie viele Übungen können diesen Block wirklich tragen? (primary/secondary:
   // nur entsprechend getaggte, accessory: alle)
@@ -697,7 +829,7 @@ export async function prepareGeneration(
       block.slugs = pool.map((e: any) => e.slug).join(', ')
       if (block.category_slug === 'strength') {
         const wanted = patternsFromRegions(block.bodyRegions)
-        const poolPatterns = new Set(pool.map((e: any) => BODY_REGION_TO_PATTERN[e.body_region]).filter(Boolean))
+        const poolPatterns = new Set(pool.map((e: any) => BODY_REGION_TO_PATTERN[effectiveRegion(e) ?? '']).filter(Boolean))
         block.requiredPatterns = wanted.filter((p) => poolPatterns.has(p))
       }
       console.log(`     ${block.block_type}/${block.category_slug}: → ${pool.length} exercises (${countBlockCapable(pool, block.block_type)} ${block.block_type}-fähig)`)
@@ -766,7 +898,7 @@ export async function prepareGeneration(
       block.slugs = best.pool.map((e: any) => e.slug).join(', ')
       if (best.category === 'strength') {
         const wanted = patternsFromRegions(block.bodyRegions)
-        const poolPatterns = new Set(best.pool.map((e: any) => BODY_REGION_TO_PATTERN[e.body_region]).filter(Boolean))
+        const poolPatterns = new Set(best.pool.map((e: any) => BODY_REGION_TO_PATTERN[effectiveRegion(e) ?? '']).filter(Boolean))
         block.requiredPatterns = wanted.filter((p) => poolPatterns.has(p))
       } else {
         block.requiredPatterns = undefined
@@ -783,8 +915,9 @@ export async function prepareGeneration(
     if (e.slug && e.measurement_type) {
       exerciseSlugToMeasurementType[e.slug] = e.measurement_type
     }
-    if (e.slug && e.body_region) {
-      exerciseSlugToBodyRegion[e.slug] = e.body_region
+    const region = effectiveRegion(e)
+    if (e.slug && region) {
+      exerciseSlugToBodyRegion[e.slug] = region
     }
   }
 
@@ -1006,6 +1139,19 @@ export async function runSessionCD(
         }
       }
       if (wcCoerceCount > 0) console.log(`Phase D Session ${sessionIndex + 1}: coerced ${wcCoerceCount} measurement mismatch(es)`)
+      // Duplikate im selben Block (z.B. zweimal banded_good_morning im Warmup)
+      // deterministisch entfernen — die Hauptblöcke validiert Phase C, Phase D nicht
+      for (const block of parsed.blocks) {
+        const seenSlugs = new Set<string>()
+        block.exercises = block.exercises.filter((ex) => {
+          if (seenSlugs.has(ex.exercise_slug)) {
+            console.log(`Phase D Session ${sessionIndex + 1}: Duplikat "${ex.exercise_slug}" im ${block.block_type} entfernt`)
+            return false
+          }
+          seenSlugs.add(ex.exercise_slug)
+          return true
+        })
+      }
       wcBlocks.push(...parsed.blocks)
     } catch (err) {
       console.error(`Phase D Session ${sessionIndex + 1}: JSON parse error: ${err}`)

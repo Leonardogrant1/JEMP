@@ -11,6 +11,9 @@ type DevToolsStore = {
     /** DEV: force the empty-plan state on plan.tsx to preview/design it */
     forcePlanEmpty: boolean;
     toggleForcePlanEmpty: () => void;
+    /** DEV: when false, admin/affiliate users see the paywall instead of bypassing it */
+    bypassPaywall: boolean;
+    toggleBypassPaywall: () => void;
 };
 
 export const useDevToolsStore = create<DevToolsStore>()(
@@ -22,6 +25,8 @@ export const useDevToolsStore = create<DevToolsStore>()(
             toggleHideSparklineData: () => set((s) => ({ hideSparklineData: !s.hideSparklineData })),
             forcePlanEmpty: false,
             toggleForcePlanEmpty: () => set((s) => ({ forcePlanEmpty: !s.forcePlanEmpty })),
+            bypassPaywall: true,
+            toggleBypassPaywall: () => set((s) => ({ bypassPaywall: !s.bypassPaywall })),
         }),
         {
             name: 'dev-tools-store',

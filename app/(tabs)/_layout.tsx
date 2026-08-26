@@ -39,6 +39,7 @@ export default function TabLayout() {
   const devButtonsVisible = useDevToolsStore(s => s.devButtonsVisible);
   const hideSparklineData = useDevToolsStore(s => s.hideSparklineData);
   const forcePlanEmpty = useDevToolsStore(s => s.forcePlanEmpty);
+  const bypassPaywall = useDevToolsStore(s => s.bypassPaywall);
   const [showDevCongrats, setShowDevCongrats] = useState(false);
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const hasSeenTutorial = useTutorialStore(s => s.hasSeenTutorial);
@@ -322,6 +323,15 @@ export default function TabLayout() {
               >
                 <Text style={styles.debugButtonText}>
                   {forcePlanEmpty ? '🗓 Plan: empty state ON' : '🗓 Plan: empty state'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.debugButton, !bypassPaywall && { backgroundColor: 'rgba(234,179,8,0.85)' }]}
+                onPress={() => useDevToolsStore.getState().toggleBypassPaywall()}
+              >
+                <Text style={styles.debugButtonText}>
+                  {bypassPaywall ? '🔓 Paywall Bypass: ON' : '🔒 Paywall Bypass: OFF'}
                 </Text>
               </TouchableOpacity>
 

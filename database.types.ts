@@ -496,6 +496,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           description_i18n: Json | null
+          dominant_region: Database["public"]["Enums"]["body_region"] | null
           exercise_type: string | null
           id: string
           image_group:
@@ -524,6 +525,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           description_i18n?: Json | null
+          dominant_region?: Database["public"]["Enums"]["body_region"] | null
           exercise_type?: string | null
           id?: string
           image_group?:
@@ -552,6 +554,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           description_i18n?: Json | null
+          dominant_region?: Database["public"]["Enums"]["body_region"] | null
           exercise_type?: string | null
           id?: string
           image_group?:

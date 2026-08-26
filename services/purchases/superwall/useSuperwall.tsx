@@ -3,6 +3,7 @@ import { useCurrentUser } from '@/providers/current-user-provider';
 import { cancelPaywallAbandonNotification } from '@/services/notifications';
 import { useRevenueCat } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
 import { devError, devLog } from "@/utils/dev-log";
+import { useDevToolsStore } from '@/stores/dev-tools-store';
 import { type PaywallState, type SubscriptionStatus, type UserAttributes, usePlacement, useSuperwall, useUser } from "expo-superwall";
 import { createContext, useContext, useRef } from "react";
 import { PREMIUM_IDENTIFIER } from '../revenuecat/constants';
@@ -82,7 +83,8 @@ export const SuperwallFunctionsProvider = ({ children }: { children: React.React
         },
     });
     const openWithPlacement = async (placement: string, onFeature?: () => void, params?: Record<string, any>, onDismiss?: () => void) => {
-        if (profile?.role === 'admin' || profile?.role === 'affiliate') {
+        const shouldBypass = profile?.role === 'admin' || profile?.role === 'affiliate';
+        if (shouldBypass && (!__DEV__ || useDevToolsStore.getState().bypassPaywall)) {
             onFeature?.();
             return;
         }

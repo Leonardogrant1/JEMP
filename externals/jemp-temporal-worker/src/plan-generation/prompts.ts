@@ -8,6 +8,9 @@ type WeekPlanPromptInput = {
   environmentSlugs: string[]
   dayPresetEnvironments: Array<{ day_of_week: number; environment_slug: string }>
   userFocusCategories: Array<{ category: string; priority: number }>
+  /** Markdown-Tabelle: primary-/secondary-fähige Übungen pro Category × Environment */
+  categoryAvailability: string
+  minBlockPool: number
 }
 
 const DAY_NAMES: Record<number, string> = {
@@ -16,7 +19,11 @@ const DAY_NAMES: Record<number, string> = {
 }
 
 export const GENERATE_WEEK_PLAN_PROMPT = (input: WeekPlanPromptInput) => {
-  const { sessions, userContext, categorySlugs, environmentSlugs, dayPresetEnvironments, userFocusCategories } = input
+  const { sessions, userContext, categorySlugs, environmentSlugs, dayPresetEnvironments, userFocusCategories, categoryAvailability, minBlockPool } = input
+
+  // Mobility als Hauptreiz nur, wenn der User sie bewusst priorisiert hat —
+  // sonst ist sie Lückenfüller, wenn die no-repeat-Regel die Categories aufbraucht
+  const allowMobilityPrimary = userFocusCategories.some((f) => f.category === "mobility" && f.priority <= 2)
 
   const sessionsText = sessions
     .map((s) => `- Tag ${s.day_of_week} (${DAY_NAMES[s.day_of_week]}): mode=${s.mode_slug}, Dauer ${s.min}–${s.max} min`)
@@ -37,6 +44,8 @@ ${userContext}
 
 ## Sessions diese Woche
 ${sessionsText}
+
+**PFLICHT: Plane GENAU eine Session für jeden dieser Tage — day_of_week: ${sessions.map((s) => s.day_of_week).join(", ")}.** Die Termine aus \`weekly_schedule\` (Team-Training, Spiele) sind Belastungs-Kontext für deine Planung, aber KEINE Plan-Tage — dort trainiert der User bereits anderweitig.
 ${focusSection}
 ## Erlaubte Blöcke pro mode_slug
 
@@ -49,11 +58,22 @@ ${focusSection}
 
 Sessions mit mode_slug \`recovery\` → \`blocks: []\`.
 
+## Übungsverfügbarkeit (primary-fähig / secondary-fähig pro Environment)
+
+Für diesen User verfügbare Übungen — bereits nach Equipment, Level und Environment gefiltert:
+
+${categoryAvailability}
+
+- **HARTE REGEL (schlägt alle anderen Category-Regeln): Eine Category darf nur \`primary\`/\`secondary\` sein, wenn sie im Environment der Session mindestens ${minBlockPool} entsprechend fähige Übungen hat.** Zellen mit ⚠️ sind als Hauptblock tabu.
+- Den Trainingsreiz einer nicht tragfähigen Category über eine tragfähige mit passenden \`body_regions\` abbilden — z.B. Oberkörper-Explosivität über \`strength\` mit Push-Fokus statt \`upper_body_plyometrics\`.
+- Gilt auch für die Sport-Pflicht- und Focus-Regeln: eine nicht tragfähige Category wird NICHT eingeplant, egal wie hoch ihre Relevanz oder Priorität ist.
+
 ## Category-Regeln
 
 Erlaubte Category-Slugs: ${categorySlugs.map((s) => `\`${s}\``).join(", ")}
 
 - **KRITISCH: Jede Session MUSS eine andere \`primary\`-Category haben** — \`strength\` als primary an Tag 1 UND Tag 5 ist ein Fehler. Falsch: Tag1=strength, Tag3=lower_body_plyometrics, Tag5=strength. Richtig: Tag1=strength, Tag3=lower_body_plyometrics, Tag5=upper_body_plyometrics.
+  - Einzige Ausnahme: Wenn keine weitere als primary geeignete UND tragfähige Category übrig ist, darf eine primary-Category wiederholt werden — dann MÜSSEN sich die \`body_regions\` der beiden Blöcke deutlich unterscheiden (z.B. Tag 1 strength unten, Tag 5 strength oben). Diese Ausnahme geht vor: kein ungeeigneter Lückenfüller als primary.
 - Sport-Pflicht-Categories (höchste Relevanz) müssen mindestens einmal als primary erscheinen
 - **Innerhalb einer Session müssen primary, secondary und accessory ALLE unterschiedliche Categories haben** — keine Category darf in derselben Session doppelt vorkommen
 - \`accessory\` optional — nur wenn ein klarer Ergänzungsfokus sinnvoll ist (z.B. mobility, core)
@@ -80,11 +100,10 @@ Bei sportartspezifischer Gewichtung (z.B. Boxen): Unterkörper und hintere Kette
 ### Erlaubte Block-Types pro Category-Typ
 
 **NIEMALS als primary erlaubt** (nur secondary/accessory):
-- \`core\` — ist immer Ergänzung, nie Hauptreiz
+- \`core\` — ist immer Ergänzung, nie Hauptreiz${allowMobilityPrimary ? "" : "\n- \`mobility\` — dieser User hat Mobility nicht als Fokus priorisiert; lieber eine tragfähige primary-Category mit anderen body_regions wiederholen als Mobility zum Hauptreiz machen"}
 
 **Für primary geeignet** (klarer Trainingsreiz):
-- Plyometrics, Jumps, Sprints, Strength, Power
-- \`mobility\` — wenn die Session explizit auf aktive Beweglichkeitsentwicklung ausgerichtet ist (z.B. Mobility-Fokus-Tag)
+- Plyometrics, Jumps, Sprints, Strength, Power${allowMobilityPrimary ? "\n- \`mobility\` — der User hat Mobility hoch priorisiert; als primary erlaubt, wenn die Session explizit auf aktive Beweglichkeitsentwicklung ausgerichtet ist" : ""}
 
 ## body_regions (pro Block)
 
@@ -211,7 +230,7 @@ export const GENERATE_MAIN_BLOCKS_PROMPT = (input: Omit<SessionPromptInput, "war
 - push → bench_press, overhead_press, dumbbell_shoulder_press, dips, push_up-Varianten
 - pull → pull_up, chin_up, weighted_pull_up, row-Varianten
 Andere Muster haben in diesem Block KEINEN Platz. Kombiniere NICHT zwei Übungen desselben Musters im selben Block.
-WICHTIG: Für die Muster-PFLICHT zählen nur Übungen, deren \`body_region\` dem Muster zugeordnet ist — Übungen mit \`body_region: full_body\` (z.B. Cleans, Thruster) zählen NICHT als Muster-Abdeckung.
+WICHTIG: Für die Muster-PFLICHT zählt die \`body_region\` der Übung — bei \`full_body\`-Übungen die dominante Region, falls im Pool als \`(dominant: …)\` angegeben (z.B. Cleans mit dominant glute → hinge). \`full_body\`-Übungen OHNE dominante Region zählen NICHT als Muster-Abdeckung.
 `
           : ""
         const regionsLine = pool.bodyRegions.length > 0

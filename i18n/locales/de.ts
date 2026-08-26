@@ -812,6 +812,19 @@ const de: Record<TranslationKeys, string> = {
     'achievements.view_all': 'Alle Achievements ansehen',
     'achievements.continue': 'Weiter',
 
+    'profile.subscription_unlock': 'JEMP freischalten',
+    'profile.subscription_mine': 'Mein Abo',
+    'profile.subscription_cancel': 'Abo kündigen',
+    'profile.subscription_feedback_title': 'Schade, dass du gehst',
+    'profile.subscription_feedback_subtitle': 'Warum konnten wir dich nicht überzeugen?',
+    'profile.subscription_feedback_option_1': 'Mir gefällt der Plan nicht',
+    'profile.subscription_feedback_option_2': 'Hab eine andere App gefunden',
+    'profile.subscription_feedback_option_3': 'Wollte nur gucken',
+    'profile.subscription_feedback_option_4': 'Ich brauche die App nicht mehr',
+    'profile.subscription_cancel_instructions': 'Um dein Abo endgültig zu kündigen, musst du es in den Einstellungen deines App Store oder Play Store Accounts verwalten.',
+    'profile.subscription_manage': 'Abo verwalten',
+    'profile.subscription_modal_title': 'Mein Abonnement',
+    'profile.subscription_modal_active': 'Du hast ein aktives JEMP Abonnement. Vielen Dank für deine Unterstützung!',
 };
 
 export default de;

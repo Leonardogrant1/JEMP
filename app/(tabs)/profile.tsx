@@ -33,10 +33,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo } from 'react';
+import { PREMIUM_IDENTIFIER } from '@/services/purchases/revenuecat/constants';
+import { useRevenueCat } from '@/services/purchases/revenuecat/providers/RevenueCatProvider';
+import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Image as ExpoImage } from 'expo-image';
-import { AppState, Pressable, StyleSheet, Switch, View } from 'react-native';
+import { AppState, Linking, Modal, Platform, Pressable, StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
 import Animated, {
     Extrapolation,
     interpolate,
@@ -58,6 +61,27 @@ export default function ProfileScreen() {
     useAchievementsBackfill();
     const devButtonsVisible = useDevToolsStore(s => s.devButtonsVisible);
     const setDevButtonsVisible = useDevToolsStore(s => s.setDevButtonsVisible);
+
+    const { hasEntitlement } = useRevenueCat();
+    const isSubscribed = hasEntitlement(PREMIUM_IDENTIFIER);
+    const { openWithPlacement } = useSuperwallFunctions();
+
+    const [subModalVisible, setSubModalVisible] = useState(false);
+    const [subModalStep, setSubModalStep] = useState<'details' | 'feedback' | 'instructions'>('details');
+    const [selectedReason, setSelectedReason] = useState<string | null>(null);
+
+    const SUB_MANAGEMENT_URL = Platform.select({
+        ios: 'https://apps.apple.com/account/subscriptions',
+        android: 'https://play.google.com/store/account/subscriptions?package=studio.northbyte.jemp',
+        default: 'https://play.google.com/store/account/subscriptions',
+    });
+
+    const feedbackOptions = [
+        { key: 'profile.subscription_feedback_option_1', trackerVal: 'dislike_plan' },
+        { key: 'profile.subscription_feedback_option_2', trackerVal: 'found_another_app' },
+        { key: 'profile.subscription_feedback_option_3', trackerVal: 'just_looking' },
+        { key: 'profile.subscription_feedback_option_4', trackerVal: 'no_longer_needed' }
+    ];
 
     const router = useRouter();
 
@@ -338,6 +362,25 @@ export default function ProfileScreen() {
                 <View style={styles.settingsSection}>
                     <SectionLabel label={t('ui.section_account')} />
                     <SettingsGroup>
+                        {isSubscribed ? (
+                            <SettingsRow
+                                icon={<Ionicons name="card-outline" size={20} color={theme.textMuted} />}
+                                label={t('profile.subscription_mine')}
+                                onPress={() => {
+                                    setSubModalStep('details');
+                                    setSelectedReason(null);
+                                    setSubModalVisible(true);
+                                }}
+                            />
+                        ) : (
+                            <SettingsRow
+                                icon={<Ionicons name="sparkles-outline" size={20} color={Cyan[500]} />}
+                                label={t('profile.subscription_unlock')}
+                                onPress={() => {
+                                    openWithPlacement('unlock');
+                                }}
+                            />
+                        )}
                         <SettingsRow
                             icon={<LogoutIcon width={20} height={20} />}
                             label={t('ui.sign_out')}
@@ -378,6 +421,132 @@ export default function ProfileScreen() {
 
                 </View>
             </Animated.ScrollView>
+
+            <Modal
+                visible={subModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setSubModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalCard, { backgroundColor: theme.surface }]}>
+                        {subModalStep === 'details' && (
+                            <>
+                                <View style={[styles.successIconRing, { backgroundColor: `${Cyan[500]}15` }]}>
+                                    <Ionicons name="card" size={32} color={Cyan[400]} />
+                                </View>
+
+                                <JempText type="h2" color={theme.text} style={styles.modalTitle}>
+                                    {t('profile.subscription_modal_title')}
+                                </JempText>
+
+                                <JempText type="body-m" color={theme.textMuted} style={styles.modalSubtitle}>
+                                    {t('profile.subscription_modal_active')}
+                                </JempText>
+
+                                <TouchableOpacity
+                                    style={[styles.modalPrimaryBtn, { backgroundColor: theme.text }]}
+                                    onPress={() => setSubModalVisible(false)}
+                                >
+                                    <JempText type="body-m" color={theme.background} style={{ fontWeight: '600' }}>
+                                        {t('ui.cancel')}
+                                    </JempText>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.modalSecondaryBtn, { borderColor: '#ef4444', marginTop: 4 }]}
+                                    onPress={() => setSubModalStep('feedback')}
+                                >
+                                    <JempText type="body-sm" color="#ef4444" style={{ fontWeight: '600' }}>
+                                        {t('profile.subscription_cancel')}
+                                    </JempText>
+                                </TouchableOpacity>
+                            </>
+                        )}
+
+                        {subModalStep === 'feedback' && (
+                            <>
+                                <JempText type="h2" color={theme.text} style={styles.modalTitle}>
+                                    {t('profile.subscription_feedback_title')}
+                                </JempText>
+
+                                <JempText type="body-m" color={theme.textMuted} style={styles.modalSubtitle}>
+                                    {t('profile.subscription_feedback_subtitle')}
+                                </JempText>
+
+                                <View style={styles.feedbackOptionsList}>
+                                    {feedbackOptions.map((opt) => (
+                                        <TouchableOpacity
+                                            key={opt.key}
+                                            style={[styles.feedbackOptionRow, { backgroundColor: theme.background, borderColor: theme.borderDivider }]}
+                                            onPress={() => {
+                                                trackerManager.track('subscription_cancellation_survey', { reason: opt.trackerVal });
+                                                setSelectedReason(opt.trackerVal);
+                                                setSubModalStep('instructions');
+                                            }}
+                                        >
+                                            <JempText type="body-m" color={theme.text} style={{ flex: 1, paddingRight: 8 }}>
+                                                {t(opt.key)}
+                                            </JempText>
+                                            <Ionicons name="chevron-forward" size={16} color={theme.textSubtle} />
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                <TouchableOpacity
+                                    style={styles.modalBackBtn}
+                                    onPress={() => setSubModalStep('details')}
+                                >
+                                    <JempText type="body-sm" color={theme.textMuted}>
+                                        {t('ui.session_cancel_confirm_back')}
+                                    </JempText>
+                                </TouchableOpacity>
+                            </>
+                        )}
+
+                        {subModalStep === 'instructions' && (
+                            <>
+                                <View style={[styles.successIconRing, { backgroundColor: `${theme.textMuted}15` }]}>
+                                    <Ionicons name="information-circle" size={32} color={theme.textMuted} />
+                                </View>
+
+                                <JempText type="h2" color={theme.text} style={styles.modalTitle}>
+                                    {t('profile.subscription_cancel')}
+                                </JempText>
+
+                                <JempText type="body-m" color={theme.textMuted} style={styles.modalSubtitle}>
+                                    {t('profile.subscription_cancel_instructions')}
+                                </JempText>
+
+                                <TouchableOpacity
+                                    style={[styles.modalPrimaryBtn, { backgroundColor: Cyan[500] }]}
+                                    onPress={async () => {
+                                        try {
+                                            await Linking.openURL(SUB_MANAGEMENT_URL);
+                                        } catch (err) {
+                                            console.warn('Could not open subscription URL', err);
+                                        }
+                                        setSubModalVisible(false);
+                                    }}
+                                >
+                                    <JempText type="body-m" color="#000000" style={{ fontWeight: '600' }}>
+                                        {t('profile.subscription_manage')}
+                                    </JempText>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={styles.modalBackBtn}
+                                    onPress={() => setSubModalVisible(false)}
+                                >
+                                    <JempText type="body-sm" color={theme.textMuted}>
+                                        {t('ui.cancel')}
+                                    </JempText>
+                                </TouchableOpacity>
+                            </>
+                        )}
+                    </View>
+                </View>
+            </Modal>
 
         </View>
     );
@@ -483,4 +652,66 @@ const styles = StyleSheet.create({
     successSubtitle: { textAlign: 'center', lineHeight: 20, marginBottom: 8 },
     successBtn: { width: '100%', borderRadius: 100, overflow: 'hidden' },
     successBtnGradient: { height: 52, alignItems: 'center', justifyContent: 'center' },
+
+    // Subscription Modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.65)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+    },
+    modalCard: {
+        width: '100%',
+        borderRadius: 24,
+        padding: 24,
+        alignItems: 'center',
+        gap: 16,
+        maxWidth: 400,
+    },
+    modalTitle: {
+        textAlign: 'center',
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    modalSubtitle: {
+        textAlign: 'center',
+        lineHeight: 20,
+        fontSize: 14,
+    },
+    modalPrimaryBtn: {
+        width: '100%',
+        height: 50,
+        borderRadius: 25,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 8,
+    },
+    modalSecondaryBtn: {
+        width: '100%',
+        height: 50,
+        borderRadius: 25,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalBackBtn: {
+        paddingVertical: 8,
+        marginTop: 4,
+    },
+    feedbackOptionsList: {
+        width: '100%',
+        gap: 10,
+        marginVertical: 8,
+    },
+    feedbackOptionRow: {
+        width: '100%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderRadius: 12,
+        borderWidth: 1,
+    },
 });
