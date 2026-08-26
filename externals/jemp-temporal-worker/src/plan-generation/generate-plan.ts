@@ -361,6 +361,50 @@ export async function prepareGeneration(
     )
   }
 
+  // Primary/Secondary tragen nur Übungen, die dafür getaggt sind — Warmup-/
+  // Accessory-Ware im selben Pool (z.B. band_pull_apart in upper_body_plyometrics)
+  // zählt nicht als echte Auswahl für den Block.
+  function countBlockCapable(pool: any[], blockType: 'primary' | 'secondary' | 'accessory'): number {
+    if (blockType === 'accessory') return pool.length
+    return pool.filter((e: any) =>
+      ((e.exercise_blocks as any[]) ?? []).some((b: any) => b.block_types?.slug === blockType),
+    ).length
+  }
+
+  // Gemeinsamer Pool-Bau für Hauptblöcke: Category/Mode-Filter → Region-Filter
+  // (mit Fallback auf ungefiltert) → Core-Beimischung für Accessory-Blöcke
+  function buildMainBlockPool(
+    blockType: 'primary' | 'secondary' | 'accessory',
+    categorySlug: string,
+    bodyRegions: string[],
+    modeSlug: SessionModeSlug,
+    envId: string | null,
+  ): { pool: any[]; mixedCore: boolean } {
+    const fullPool = filterByCategoryForMode(categorySlug, modeSlug, envId)
+    const regionFiltered = filterByBodyRegion(fullPool, new Set(bodyRegions))
+    const pool = regionFiltered.length > 0 ? regionFiltered : fullPool
+
+    // Accessory mit core-Region: Core-Übungen beimischen. core existiert nur als
+    // body_region (v.a. in strength: dead_bug, hollow_body_hold, …), nicht als
+    // Category — ohne Beimischung wäre der Slot auf mobility-Restbestände beschränkt.
+    let mixedCore = false
+    if (blockType === 'accessory' && bodyRegions.includes('core')) {
+      const inPool = new Set(pool.map((e: any) => e.id))
+      const coreExtras = (allExercises ?? []).filter((e: any) =>
+        e.body_region === 'core'
+        && !inPool.has(e.id)
+        && !e.is_sport_specific
+        && (e.intensity_score === null || e.intensity_score <= 5)
+        && passesEquipmentAndEnv(e, envId),
+      )
+      if (coreExtras.length > 0) {
+        pool.push(...coreExtras)
+        mixedCore = true
+      }
+    }
+    return { pool, mixedCore }
+  }
+
   function exercisesToString(exercises: any[]): string {
     return exercises.map((e) => {
       const blocks = (e.exercise_blocks)
@@ -480,7 +524,9 @@ export async function prepareGeneration(
     }
   }
 
-  const weekPlanSummary = weekPlan.sessions.map((s) => {
+  // Erst NACH Pool Opt + Category-Fallback gebaut — die können Block-Kategorien
+  // noch ändern, und die Summary muss für Phase C zum finalen Stand passen
+  const buildWeekPlanSummary = () => weekPlan.sessions.map((s) => {
     const blocksText = s.blocks.map((b) => {
       const regions = b.body_regions.length > 0 ? `[${b.body_regions.join(',')}]` : ''
       return `${b.block_type}=${b.category_slug}${regions}`
@@ -530,35 +576,15 @@ export async function prepareGeneration(
 
     const blockPools: BlockPool[] = plannedBlocks.map((block) => {
       const blockRegions = new Set<string>(block.body_regions)
-      const fullPool = filterByCategoryForMode(block.category_slug, spec.mode_slug, sessionEnvId)
-      // Pool auf die Block-Regionen einengen (behält full_body/ohne Region); Fallback auf ungefiltert
-      const regionFiltered = filterByBodyRegion(fullPool, blockRegions)
-      const pool = regionFiltered.length > 0 ? regionFiltered : fullPool
-
-      // Accessory mit core-Region: Core-Übungen beimischen. core existiert nur als
-      // body_region (v.a. in strength: dead_bug, hollow_body_hold, …), nicht als
-      // Category — ohne Beimischung wäre der Slot auf mobility-Restbestände beschränkt.
-      let mixedCore = false
-      if (block.block_type === 'accessory' && blockRegions.has('core')) {
-        const inPool = new Set(pool.map((e: any) => e.id))
-        const coreExtras = (allExercises ?? []).filter((e: any) =>
-          e.body_region === 'core'
-          && !inPool.has(e.id)
-          && !e.is_sport_specific
-          && (e.intensity_score === null || e.intensity_score <= 5)
-          && passesEquipmentAndEnv(e, sessionEnvId),
-        )
-        if (coreExtras.length > 0) {
-          pool.push(...coreExtras)
-          mixedCore = true
-          console.log(`Phase B day ${spec.day_of_week} accessory: ${coreExtras.length} Core-Übungen beigemischt`)
-        }
+      const { pool, mixedCore } = buildMainBlockPool(block.block_type, block.category_slug, block.body_regions, spec.mode_slug, sessionEnvId)
+      if (mixedCore) {
+        console.log(`Phase B day ${spec.day_of_week} accessory: Core-Übungen beigemischt`)
       }
 
       if (pool.length === 0) {
         console.warn(`Phase B day ${spec.day_of_week} [${spec.mode_slug}] ${block.block_type}/${block.category_slug}: EMPTY pool — no exercises for this category`)
       } else {
-        console.log(`Phase B day ${spec.day_of_week} [${spec.mode_slug}] ${block.block_type}/${block.category_slug}: ${pool.length} exercises (regions: ${[...blockRegions].join(',') || 'alle'})`)
+        console.log(`Phase B day ${spec.day_of_week} [${spec.mode_slug}] ${block.block_type}/${block.category_slug}: ${pool.length} exercises (${countBlockCapable(pool, block.block_type)} ${block.block_type}-fähig, regions: ${[...blockRegions].join(',') || 'alle'})`)
       }
 
       // Strength: geforderte Muster aus den Block-Regionen — aber nur, was der Pool hergibt
@@ -618,24 +644,30 @@ export async function prepareGeneration(
   // ── Pool Optimization: switch env if any block pool is too small ────────────
   const MIN_BLOCK_POOL = 3
 
+  // Wie viele Übungen können diesen Block wirklich tragen? (primary/secondary:
+  // nur entsprechend getaggte, accessory: alle)
+  const blockCapableCount = (si: SessionBuildInput, p: BlockPool, envId: string | null): number =>
+    countBlockCapable(
+      buildMainBlockPool(p.block_type, p.category_slug, p.bodyRegions, si.spec.mode_slug, envId).pool,
+      p.block_type,
+    )
+
   for (const si of sessionBuildInputs) {
     // Never override user-preset environments
     if (dayEnvMap.has(si.spec.day_of_week)) continue
 
     const tooSmall = si.blockPools.filter(
-      (p) => p.slugs.split(',').filter(Boolean).length < MIN_BLOCK_POOL,
+      (p) => blockCapableCount(si, p, si.environment_id) < MIN_BLOCK_POOL,
     )
     if (tooSmall.length === 0) continue
 
     const tooSmallDesc = tooSmall
-      .map((p) => `${p.block_type}/${p.category_slug}=${p.slugs.split(',').filter(Boolean).length}`)
+      .map((p) => `${p.block_type}/${p.category_slug}=${blockCapableCount(si, p, si.environment_id)}`)
       .join(', ')
     console.log(`Pool Opt day ${si.spec.day_of_week}: small pools: ${tooSmallDesc} (threshold=${MIN_BLOCK_POOL})`)
 
     const scoreEnv = (envId: string | null): number =>
-      si.blockPools.reduce((sum, block) => {
-        return sum + filterByCategoryForMode(block.category_slug, si.spec.mode_slug, envId).length
-      }, 0)
+      si.blockPools.reduce((sum, block) => sum + blockCapableCount(si, block, envId), 0)
 
     const currentScore = scoreEnv(si.environment_id)
     let bestEnvId = si.environment_id
@@ -659,21 +691,8 @@ export async function prepareGeneration(
 
     // Recompute block pools with new environment (gleiche Region-Filterung + Core-Beimischung wie initial)
     for (const block of si.blockPools) {
-      const fullPool = filterByCategoryForMode(block.category_slug, si.spec.mode_slug, bestEnvId)
-      const regionFiltered = filterByBodyRegion(fullPool, new Set(block.bodyRegions))
-      const pool = regionFiltered.length > 0 ? regionFiltered : fullPool
-      if (block.block_type === 'accessory' && block.bodyRegions.includes('core')) {
-        const inPool = new Set(pool.map((e: any) => e.id))
-        const coreExtras = (allExercises ?? []).filter((e: any) =>
-          e.body_region === 'core'
-          && !inPool.has(e.id)
-          && !e.is_sport_specific
-          && (e.intensity_score === null || e.intensity_score <= 5)
-          && passesEquipmentAndEnv(e, bestEnvId),
-        )
-        pool.push(...coreExtras)
-        block.mixedCore = coreExtras.length > 0 || block.mixedCore
-      }
+      const { pool, mixedCore } = buildMainBlockPool(block.block_type, block.category_slug, block.bodyRegions, si.spec.mode_slug, bestEnvId)
+      block.mixedCore = mixedCore || block.mixedCore
       block.exercisesString = exercisesToString(pool)
       block.slugs = pool.map((e: any) => e.slug).join(', ')
       if (block.category_slug === 'strength') {
@@ -681,7 +700,7 @@ export async function prepareGeneration(
         const poolPatterns = new Set(pool.map((e: any) => BODY_REGION_TO_PATTERN[e.body_region]).filter(Boolean))
         block.requiredPatterns = wanted.filter((p) => poolPatterns.has(p))
       }
-      console.log(`     ${block.block_type}/${block.category_slug}: → ${pool.length} exercises`)
+      console.log(`     ${block.block_type}/${block.category_slug}: → ${pool.length} exercises (${countBlockCapable(pool, block.block_type)} ${block.block_type}-fähig)`)
     }
 
     // Recompute warmup/cooldown pools
@@ -698,6 +717,64 @@ export async function prepareGeneration(
     si.cooldownSlugs = cooldownPoolOpt.map((e: any) => e.slug).join(', ')
     si.cooldownCategorySlugs = uniqueSlugsOpt(cooldownPoolOpt)
   }
+
+  // ── Category-Fallback: Hauptblöcke ohne tragfähigen Pool umwidmen ──────────
+  // Der Env-Switch oben hilft nicht, wenn das fehlende Equipment in keinem
+  // Environment des Users existiert (z.B. upper_body_plyometrics ohne Medizinball
+  // → nur clap_push_up ist primary-fähig). Läuft bewusst auch für Tage mit
+  // User-preset Environment — getauscht wird die Kategorie, nie das Environment.
+  const fallbackCandidates = [
+    ...user_focus_categories.map((c) => c.category),
+    ...sport_required_categories.map((c) => c.category),
+  ].filter((c, i, arr) => !!c && c !== 'mobility' && arr.indexOf(c) === i)
+
+  for (const si of sessionBuildInputs) {
+    for (const block of si.blockPools) {
+      if (block.block_type === 'accessory') continue
+      const currentCount = blockCapableCount(si, block, si.environment_id)
+      if (currentCount >= MIN_BLOCK_POOL) continue
+
+      const usedCategories = new Set(si.blockPools.filter((p) => p !== block).map((p) => p.category_slug))
+      let best: { category: string; pool: any[]; count: number } | null = null
+      for (const candidate of fallbackCandidates) {
+        if (candidate === block.category_slug || usedCategories.has(candidate)) continue
+        const fullPool = filterByCategoryForMode(candidate, si.spec.mode_slug, si.environment_id)
+        // Strikt auf die Block-Regionen, ohne Fallback auf ungefiltert — sonst
+        // landet z.B. Lower-Plyo in einem Oberkörper-Block
+        const pool = filterByBodyRegion(fullPool, new Set(block.bodyRegions))
+        const count = countBlockCapable(pool, block.block_type)
+        // Kandidaten sind nach Priorität sortiert: der erste tragfähige gewinnt
+        if (count >= MIN_BLOCK_POOL) { best = { category: candidate, pool, count }; break }
+        if (count > (best?.count ?? 0)) best = { category: candidate, pool, count }
+      }
+
+      if (!best || best.count <= currentCount) {
+        console.warn(`⚠️  Category fallback day ${si.spec.day_of_week} ${block.block_type}/${block.category_slug}: nur ${currentCount} ${block.block_type}-fähige Übungen und keine tragfähigere Kategorie — Block bleibt dünn`)
+        continue
+      }
+
+      console.log(`Category fallback day ${si.spec.day_of_week} ${block.block_type}: ${block.category_slug} (${currentCount} ${block.block_type}-fähig) → ${best.category} (${best.count})`)
+
+      // weekPlan mitziehen, damit die Session-Summary für Phase C den finalen Stand zeigt
+      const weekPlanBlock = weekPlan.sessions
+        .find((s) => s.day_of_week === si.spec.day_of_week)?.blocks
+        .find((b) => b.block_type === block.block_type && b.category_slug === block.category_slug)
+      if (weekPlanBlock) weekPlanBlock.category_slug = best.category as any
+
+      block.category_slug = best.category
+      block.exercisesString = exercisesToString(best.pool)
+      block.slugs = best.pool.map((e: any) => e.slug).join(', ')
+      if (best.category === 'strength') {
+        const wanted = patternsFromRegions(block.bodyRegions)
+        const poolPatterns = new Set(best.pool.map((e: any) => BODY_REGION_TO_PATTERN[e.body_region]).filter(Boolean))
+        block.requiredPatterns = wanted.filter((p) => poolPatterns.has(p))
+      } else {
+        block.requiredPatterns = undefined
+      }
+    }
+  }
+
+  const weekPlanSummary = buildWeekPlanSummary()
 
   // Build compact measurement type + body region lookups
   const exerciseSlugToMeasurementType: Record<string, string> = {}
