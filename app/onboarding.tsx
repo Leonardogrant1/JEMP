@@ -1,5 +1,6 @@
 import { OnboardingProgressWrapper } from '@/components/onboarding/onboarding-progress-wrapper';
 import { getSportKind } from '@/constants/sports';
+import { tierForScore } from '@/constants/tiers';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { getATTStatus } from '@/utils/get-att-status';
@@ -90,8 +91,37 @@ export default function OnboardingScreen() {
                 });
             },
         },
-        { component: CategoryLevelStep, theme: 'dark', initialCanContinue: true },
-        { component: EnvironmentStep, theme: 'dark', initialCanContinue: false },
+        {
+            component: CategoryLevelStep, theme: 'dark', initialCanContinue: true,
+            // Ein Event pro Kategorie — PostHog-Breakdown „category" zeigt,
+            // wo sich die User im Schnitt einschätzen
+            preContinue: async () => {
+                for (const level of useOnboardingStore.getState().categoryLevels) {
+                    if (!level.slug) continue;
+                    trackerManager.track('onboarding_category_level_selected', {
+                        category: level.slug,
+                        level_score: level.score,
+                        tier: tierForScore(level.score).slug,
+                        $set: { [`level_${level.slug}`]: level.score },
+                    });
+                }
+            },
+        },
+        {
+            component: EnvironmentStep, theme: 'dark', initialCanContinue: false,
+            // Ein Event pro Environment — PostHog-Breakdown „environment" zeigt,
+            // wo die Mehrheit trainiert
+            preContinue: async () => {
+                const slugs = useOnboardingStore.getState().environmentSlugs;
+                for (const slug of slugs) {
+                    trackerManager.track('onboarding_environment_selected', {
+                        environment: slug,
+                        environment_count: slugs.length,
+                        $set: { environments: slugs },
+                    });
+                }
+            },
+        },
         { component: EquipmentStep, theme: 'dark', initialCanContinue: true },
         { component: EquipmentEnvironmentStep, theme: 'dark', initialCanContinue: true, shouldSkip: () => environmentIds.length <= 1 || equipmentIds.length === 0 },
         { component: CategoryFocusStep, theme: 'dark', initialCanContinue: false },

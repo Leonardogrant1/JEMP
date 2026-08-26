@@ -31,6 +31,10 @@ export function EnvironmentStep() {
                         description_i18n: e.description_i18n as Record<string, string> | null,
                     }))
                 );
+                // Slugs auch für vorbefüllte Auswahl nachziehen (Tracking)
+                if (storedEnvIds.length > 0) {
+                    setStore({ environmentSlugs: storedEnvIds.map((id) => data.find((e) => e.id === id)?.slug ?? id) });
+                }
             }
         });
     }, []);
@@ -42,7 +46,10 @@ export function EnvironmentStep() {
         next.has(env.id) ? next.delete(env.id) : next.add(env.id);
         setSelected(next);
         const ids = Array.from(next);
-        setStore({ environmentIds: ids });
+        setStore({
+            environmentIds: ids,
+            environmentSlugs: ids.map((id) => environments.find((e) => e.id === id)?.slug ?? id),
+        });
         setCanContinue(ids.length > 0);
     }
 

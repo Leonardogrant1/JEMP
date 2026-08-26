@@ -121,6 +121,7 @@ export function PersonalizationStep() {
                 categoryLevels,
                 equipmentIds,
                 environmentIds,
+                environmentSlugs,
                 dayEnvironments,
                 equipmentEnvironments,
                 weekly_schedule,

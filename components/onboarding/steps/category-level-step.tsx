@@ -79,6 +79,7 @@ export function CategoryLevelStep() {
     function saveLevels(cats: CategoryItem[], s: Record<string, number>) {
         const levels: CategoryLevel[] = cats.map((c) => ({
             categoryId: c.id,
+            slug: c.slug,
             score: s[c.id] ?? DEFAULT_SCORE,
         }));
         setStore({ categoryLevels: levels });

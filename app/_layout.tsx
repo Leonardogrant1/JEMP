@@ -174,6 +174,7 @@ function MainStack({ languageReady }: { languageReady: boolean }) {
         <Stack.Screen name="sport" options={{ animation: 'slide_from_bottom', headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="generate-plan" options={{ animation: 'slide_from_bottom', headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="new-plan" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+        <Stack.Screen name="subscription" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
       </Stack.Protected>
 
 

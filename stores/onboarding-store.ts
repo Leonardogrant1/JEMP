@@ -26,6 +26,8 @@ export type TargetedCategory = {
 
 export type CategoryLevel = {
     categoryId: string;
+    // Nur fürs Tracking (PostHog) — Persistenz läuft weiter über categoryId
+    slug?: string;
     score: number;
 };
 
@@ -45,6 +47,8 @@ type OnboardingStore = ProfileData & {
     categoryLevels: CategoryLevel[];
     equipmentIds: string[];
     environmentIds: string[];
+    // Nur fürs Tracking (PostHog) — Persistenz läuft weiter über environmentIds
+    environmentSlugs: string[];
     equipmentEnvironments: EquipmentEnvironment[];
     dayEnvironments: DayEnvironment[];
     weekly_schedule: WeeklySchedule;
@@ -58,6 +62,7 @@ type OnboardingStore = ProfileData & {
         categoryLevels: CategoryLevel[];
         equipmentIds: string[];
         environmentIds: string[];
+        environmentSlugs: string[];
         equipmentEnvironments: EquipmentEnvironment[];
         dayEnvironments: DayEnvironment[];
         weekly_schedule: WeeklySchedule;
@@ -86,6 +91,7 @@ const initialState: Omit<OnboardingStore, 'set' | 'reset'> = {
     categoryLevels: [],
     equipmentIds: [],
     environmentIds: [],
+    environmentSlugs: [],
     equipmentEnvironments: [],
     dayEnvironments: [],
     weekly_schedule: { sessions: [], notes: null },
