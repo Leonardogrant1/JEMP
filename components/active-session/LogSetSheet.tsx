@@ -5,8 +5,11 @@ import { SideLoadSet } from '@/components/active-session/SideLoadSet';
 import { useLogSet } from '@/components/active-session/use-log-set';
 import { JempText } from '@/components/jemp-text';
 import { Colors, Cyan, Electric } from '@/constants/theme';
+import { loadUnit } from '@/helpers/format';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useActiveSessionTransition } from '@/providers/active-session-transition-provider';
+import { useCurrentUser } from '@/providers/current-user-provider';
+import { useUserCategoryLevelsQuery } from '@/queries/use-user-category-levels-query';
 import { useActiveSessionUIStore } from '@/stores/active-session-ui-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +37,13 @@ export function LogSetSheet() {
     const { exerciseIdx, currentSet } = useActiveSessionTransition();
     const { handleLogSet, hasInput, activeSide, isUnilateral, isDuration } = useLogSet();
 
+    // AMRAP-Übungen stammen per Generator-Regel immer aus Strength-Blöcken —
+    // Anfänger (Level ≤ 30, wie levelLabel) bekommen die Technik-Ansage statt
+    // der Muskelversagen-Ansage
+    const { profile } = useCurrentUser();
+    const { data: categoryLevels } = useUserCategoryLevelsQuery(profile?.id);
+    const isBeginner = (categoryLevels?.strength ?? 0) <= 30;
+
     const current = allExercises[exerciseIdx] ?? null;
     const totalSets = current?.target_sets ?? 1;
 
@@ -51,9 +61,16 @@ export function LogSetSheet() {
         return <LoadSet />;
     };
 
-    const setInfo = isUnilateral
-        ? `${t('ui.set_of', { current: currentSet, total: totalSets })} · ${t(activeSide === 'left' ? 'ui.side_left' : 'ui.side_right')}`
-        : t('ui.set_of', { current: currentSet, total: totalSets });
+    // AMRAP: jeder Satz geht bis kurz vors Muskelversagen
+    const isAmrapSet = current.is_amrap && !isDuration;
+    const showsKgLoad = loadUnit(current.target_load_type) === 'kg';
+
+    const setInfoParts = [
+        t('ui.set_of', { current: currentSet, total: totalSets }),
+        ...(isUnilateral ? [t(activeSide === 'left' ? 'ui.side_left' : 'ui.side_right')] : []),
+        ...(isAmrapSet ? [t('ui.amrap_label' as any)] : []),
+    ];
+    const setInfo = setInfoParts.join(' · ');
 
     return (
         <View style={styles.overlay} pointerEvents="box-none">
@@ -82,11 +99,20 @@ export function LogSetSheet() {
 
                     {renderInputs()}
 
-                    {suggestionHint && (
+                    {/* Ein Hinweis pro Satz: AMRAP-Ansage > Progression > Richtwert-Disclaimer */}
+                    {isAmrapSet ? (
+                        <JempText type="caption" color={theme.textMuted} style={styles.hint}>
+                            {t((isBeginner ? 'ui.amrap_hint_beginner' : 'ui.amrap_hint') as any)}
+                        </JempText>
+                    ) : suggestionHint ? (
                         <JempText type="caption" color={theme.textMuted} style={styles.hint}>
                             {t('ui.progression_hint' as any, { value: suggestionHint })}
                         </JempText>
-                    )}
+                    ) : showsKgLoad ? (
+                        <JempText type="caption" color={theme.textMuted} style={styles.hint}>
+                            {t('ui.load_guideline_hint' as any)}
+                        </JempText>
+                    ) : null}
 
                     <Pressable
                         style={[styles.confirmBtn, !hasInput && styles.confirmBtnDisabled]}

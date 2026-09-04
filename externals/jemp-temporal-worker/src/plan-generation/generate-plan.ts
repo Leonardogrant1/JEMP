@@ -28,6 +28,7 @@ export type SessionBuildInput = {
   spec: { day_of_week: number; mode_slug: SessionModeSlug }
   duration: { min: number; max: number }
   environment_id: string | null
+  hasLoadableEquipment?: boolean
   blockPools: Array<{
     block_type: 'primary' | 'secondary' | 'accessory'
     category_slug: string
@@ -36,6 +37,9 @@ export type SessionBuildInput = {
     bodyRegions: string[]
     requiredPatterns?: string[]
     mixedCore?: boolean
+    slugIntensities?: Record<string, number>
+    patternMaxIntensities?: Record<string, number>
+    slugLateralities?: Record<string, string>
   }>
   bodyRegions: string[]
   warmupExercisesString: string
@@ -102,6 +106,19 @@ export function patternsFromRegions(regions: string[]): string[] {
 export function effectiveRegion(e: { body_region?: string | null; dominant_region?: string | null }): string | null {
   if (e.body_region === 'full_body') return e.dominant_region ?? e.body_region ?? null
   return e.body_region ?? null
+}
+
+// Höchste verfügbare Intensität pro Kraftmuster im Pool — Grundlage für den
+// pool-relativen Intensitäts-Floor pro PFLICHT-Muster (verhindert z.B. push_up
+// (4) im Gym, wo bench_press (8) verfügbar wäre)
+export function patternMaxIntensities(pool: Array<{ body_region?: string | null; dominant_region?: string | null; intensity_score?: number | null }>): Record<string, number> {
+  const map: Record<string, number> = {}
+  for (const e of pool) {
+    const pattern = BODY_REGION_TO_PATTERN[effectiveRegion(e) ?? '']
+    if (!pattern || e.intensity_score === null || e.intensity_score === undefined) continue
+    if ((map[pattern] ?? 0) < e.intensity_score) map[pattern] = e.intensity_score
+  }
+  return map
 }
 
 // Wie viele unterschiedliche Muster ein Strength-Block realistisch tragen kann
@@ -237,16 +254,25 @@ export async function prepareGeneration(
     { data: allEquipmentRows },
     { data: allExercises },
     { data: exerciseSportGroupRows },
+    { data: allEquipmentDefs },
   ] = await Promise.all([
     supabase.from('exercise_environments').select('exercise_id, environment_id'),
     supabase.from('environments').select('id, slug'),
     supabase.from('exercise_equipments').select('exercise_id, equipment_id'),
     supabase.from('exercises').select('*, intensity_score, exercise_type, measurement_type, is_sport_specific, categories(id, slug), exercise_blocks(block_types(slug))'),
     (supabase as any).from('exercise_sport_groups').select('exercise_id, sport_group'),
+    supabase.from('equipments').select('id, slug'),
   ])
   console.log(`[t=${elapsed(t0)}] DB fetch done (${elapsed(tDb)})`)
 
   const categorySlugs = sport_required_categories.map((c) => c.category)
+
+  // Kann der User überhaupt in kg zuladen? Ohne wägbares Equipment sind
+  // 'kg'-Vorgaben des LLM Unsinn (z.B. "Zusatzlast" beim Hip Thrust ohne
+  // Hanteln) — Phase C koerct sie dann auf bodyweight
+  const LOADABLE_EQUIPMENT_SLUGS = new Set(['barbell', 'dumbbell', 'kettlebell', 'plate', 'trap_bar', 'weight_belt', 'sled', 'cable_machine', 'landmine', 'medicine_ball'])
+  const equipmentSlugById = new Map<string, string>((allEquipmentDefs ?? []).map((r: any) => [r.id, r.slug]))
+  const hasLoadableEquipment = equipment_ids.some((id) => LOADABLE_EQUIPMENT_SLUGS.has(equipmentSlugById.get(id) ?? ''))
 
   const envSlugMap = new Map<string, string>((allEnvRows ?? []).map((r: any) => [r.id, r.slug]))
 
@@ -417,6 +443,28 @@ export async function prepareGeneration(
       }
     }
     return { pool, mixedCore }
+  }
+
+  // Intensitäten der Pool-Übungen — Grundlage für die pool-relative
+  // Intensitäts-PFLICHT (Prompt) und deren Validierung in Phase C
+  function poolSlugIntensities(pool: any[]): Record<string, number> {
+    const map: Record<string, number> = {}
+    for (const e of pool) {
+      if (e.slug && e.intensity_score !== null && e.intensity_score !== undefined) {
+        map[e.slug] = e.intensity_score
+      }
+    }
+    return map
+  }
+
+  // Lateralität pro Pool-Übung — Kriterium für erlaubte Muster-Dopplung
+  // (bilateral + unilateral desselben Musters ergänzen sich)
+  function poolSlugLateralities(pool: any[]): Record<string, string> {
+    const map: Record<string, string> = {}
+    for (const e of pool) {
+      if (e.slug && e.laterality) map[e.slug] = e.laterality
+    }
+    return map
   }
 
   function exercisesToString(exercises: any[]): string {
@@ -678,6 +726,9 @@ export async function prepareGeneration(
     bodyRegions: string[]
     requiredPatterns?: string[]
     mixedCore?: boolean
+    slugIntensities?: Record<string, number>
+    patternMaxIntensities?: Record<string, number>
+    slugLateralities?: Record<string, string>
   }
 
   const sessionBuildInputs: SessionBuildInput[] = sessionSpecs.map((spec) => {
@@ -740,6 +791,9 @@ export async function prepareGeneration(
         bodyRegions: block.body_regions,
         requiredPatterns,
         mixedCore,
+        slugIntensities: poolSlugIntensities(pool),
+        patternMaxIntensities: patternMaxIntensities(pool),
+        slugLateralities: poolSlugLateralities(pool),
       }
     })
 
@@ -763,6 +817,7 @@ export async function prepareGeneration(
       spec,
       duration,
       environment_id: sessionEnvId,
+      hasLoadableEquipment,
       blockPools,
       bodyRegions: [...sessionBodyRegions],
       warmupExercisesString: exercisesToString(warmupPool),
@@ -827,6 +882,9 @@ export async function prepareGeneration(
       block.mixedCore = mixedCore || block.mixedCore
       block.exercisesString = exercisesToString(pool)
       block.slugs = pool.map((e: any) => e.slug).join(', ')
+      block.slugIntensities = poolSlugIntensities(pool)
+      block.patternMaxIntensities = patternMaxIntensities(pool)
+      block.slugLateralities = poolSlugLateralities(pool)
       if (block.category_slug === 'strength') {
         const wanted = patternsFromRegions(block.bodyRegions)
         const poolPatterns = new Set(pool.map((e: any) => BODY_REGION_TO_PATTERN[effectiveRegion(e) ?? '']).filter(Boolean))
@@ -896,6 +954,9 @@ export async function prepareGeneration(
       block.category_slug = best.category
       block.exercisesString = exercisesToString(best.pool)
       block.slugs = best.pool.map((e: any) => e.slug).join(', ')
+      block.slugIntensities = poolSlugIntensities(best.pool)
+      block.patternMaxIntensities = patternMaxIntensities(best.pool)
+      block.slugLateralities = poolSlugLateralities(best.pool)
       if (best.category === 'strength') {
         const wanted = patternsFromRegions(block.bodyRegions)
         const poolPatterns = new Set(best.pool.map((e: any) => BODY_REGION_TO_PATTERN[effectiveRegion(e) ?? '']).filter(Boolean))
@@ -933,6 +994,135 @@ export async function prepareGeneration(
     allExerciseSlugs,
     environmentIds: environment_ids,
   }
+}
+
+// Prüft Strength-Muster-Abdeckung, doppelte Übungen und die pool-relative
+// Intensitäts-PFLICHT (Hauptreiz muss das obere Ende des Pools nutzen)
+export function findSessionViolations(
+  session: { blocks: Array<{ block_type: string; exercises: Array<{ exercise_slug: string }> }> },
+  blockPools: SessionBuildInput['blockPools'],
+  modeSlug: SessionModeSlug,
+  exerciseSlugToBodyRegion: Record<string, string>,
+  previousPushRegions?: string[],
+): string[] {
+  const violations: string[] = []
+  for (const block of session.blocks) {
+    const seen = new Set<string>()
+    for (const e of block.exercises) {
+      if (seen.has(e.exercise_slug)) {
+        violations.push(`Block "${block.block_type}": Übung "${e.exercise_slug}" kommt doppelt vor — jede Übung nur einmal pro Block`)
+      }
+      seen.add(e.exercise_slug)
+    }
+
+    const pool = blockPools.find((p) => p.block_type === block.block_type)
+
+    // Intensitäts-PFLICHT nur für volle Sessions — reduced/activation sind
+    // bewusst gedrosselt, accessory hat eine Low-Intensity-Rolle
+    if (modeSlug === 'full' && (block.block_type === 'primary' || block.block_type === 'secondary')) {
+      const intensities = pool?.slugIntensities ?? {}
+      const values = Object.values(intensities)
+      const poolMax = values.length > 0 ? Math.max(...values) : 0
+      if (poolMax > 0) {
+        const floor = block.block_type === 'primary' ? poolMax - 1 : poolMax - 2
+        const chosen = block.exercises
+          .map((e) => intensities[e.exercise_slug])
+          .filter((v): v is number => v !== undefined)
+        const chosenMax = chosen.length > 0 ? Math.max(...chosen) : 0
+        if (chosenMax < floor) {
+          const topSlugs = Object.entries(intensities)
+            .filter(([, v]) => v >= floor)
+            .map(([slug, v]) => `${slug} (${v})`)
+            .join(', ')
+          violations.push(`Block "${block.block_type}": Intensität zu niedrig — höchste gewählte intensity ist ${chosenMax}, der Pool bietet ${poolMax}. Wähle mindestens eine Übung mit intensity ≥ ${floor}, z.B.: ${topSlugs}`)
+        }
+      }
+    }
+
+    if (!pool?.requiredPatterns?.length) continue
+    const covered = new Set(patternsFromRegions(
+      block.exercises.map((e) => exerciseSlugToBodyRegion[e.exercise_slug]).filter(Boolean),
+    ))
+    const missing = pool.requiredPatterns.filter((p) => !covered.has(p))
+    if (missing.length > 0) {
+      violations.push(`Block "${block.block_type}": Muster fehlen: ${missing.join(', ')} — gewählt waren: ${block.exercises.map((e) => e.exercise_slug).join(', ')}`)
+    }
+
+    // Intensitäts-Floor pro PFLICHT-Muster (nur volle Sessions): jedes Muster
+    // muss nahe am Maximum liegen, das der Pool FÜR DIESES MUSTER hergibt —
+    // sonst erfüllt eine schwere Squat-Übung den Block-Floor und die übrigen
+    // Slots bleiben weich (push_up (4) trotz verfügbarer bench_press (8))
+    if (modeSlug === 'full' && (block.block_type === 'primary' || block.block_type === 'secondary')) {
+      const patternMax = pool.patternMaxIntensities ?? {}
+      const intensities = pool.slugIntensities ?? {}
+      const gap = block.block_type === 'primary' ? 1 : 2
+      const patternOf = (slug: string) => BODY_REGION_TO_PATTERN[exerciseSlugToBodyRegion[slug] ?? ''] ?? null
+      for (const p of pool.requiredPatterns) {
+        const max = patternMax[p]
+        if (!max) continue
+        const floor = max - gap
+        const chosenForPattern = block.exercises
+          .filter((e) => patternOf(e.exercise_slug) === p)
+          .map((e) => intensities[e.exercise_slug])
+          .filter((v): v is number => v !== undefined)
+        if (chosenForPattern.length === 0) continue // fehlendes Muster meldet der Check oben
+        if (Math.max(...chosenForPattern) < floor) {
+          const better = Object.entries(intensities)
+            .filter(([slug, v]) => patternOf(slug) === p && v >= floor)
+            .map(([slug, v]) => `${slug} (${v})`)
+            .join(', ')
+          violations.push(`Block "${block.block_type}", Muster "${p}": gewählte Übung zu leicht (intensity ${Math.max(...chosenForPattern)}, Pool bietet ${max} für dieses Muster). Wähle stattdessen: ${better}`)
+        }
+      }
+
+      // Muster-Dopplung: erlaubt nur als komplementäres Paar — unterschiedliche
+      // Lateralität (schwer bilateral + unilaterale Variante) ODER deutlich
+      // andere Intensität (≥2, Hauptlift + Volumen-Variante). Redundante
+      // Zwillinge (Pull-up + Chin-up) fressen einen Muster-Slot ohne Mehrwert.
+      const lateralities = pool.slugLateralities ?? {}
+      const byPattern = new Map<string, string[]>()
+      for (const e of block.exercises) {
+        const p = patternOf(e.exercise_slug)
+        if (!p) continue
+        byPattern.set(p, [...(byPattern.get(p) ?? []), e.exercise_slug])
+      }
+      for (const [p, slugs] of byPattern) {
+        for (let i = 0; i < slugs.length; i++) {
+          for (let j = i + 1; j < slugs.length; j++) {
+            const [a, b] = [slugs[i], slugs[j]]
+            const latDiffers = lateralities[a] !== undefined && lateralities[b] !== undefined && lateralities[a] !== lateralities[b]
+            const intA = intensities[a]; const intB = intensities[b]
+            const intDiffers = intA !== undefined && intB !== undefined && Math.abs(intA - intB) >= 2
+            if (!latDiffers && !intDiffers) {
+              violations.push(`Block "${block.block_type}", Muster "${p}": "${a}" und "${b}" sind redundant (gleiche Lateralität, ähnliche Intensität) — ersetze eine durch ein anderes Muster oder eine komplementäre Variante (unilateral bzw. deutlich leichter/schwerer)`)
+            }
+          }
+        }
+      }
+
+      // Push-Region-Varianz über die Woche: wenn frühere Sessions push bereits
+      // mit derselben Region abgedeckt haben und der Pool eine Floor-taugliche
+      // Übung einer anderen Push-Region bietet, muss diese gewählt werden
+      // (sonst kriegt z.B. die Brust nie einen schweren Press)
+      if (previousPushRegions?.length && pool.requiredPatterns.includes('push')) {
+        const pushFloor = (patternMax['push'] ?? 0) - gap
+        const chosenPush = block.exercises.filter((e) => patternOf(e.exercise_slug) === 'push')
+        const chosenRegions = chosenPush.map((e) => exerciseSlugToBodyRegion[e.exercise_slug]).filter(Boolean)
+        const coversNewRegion = chosenRegions.some((r) => !previousPushRegions.includes(r))
+        if (chosenPush.length > 0 && !coversNewRegion) {
+          const alternatives = Object.entries(intensities)
+            .filter(([slug, v]) => patternOf(slug) === 'push' && v >= pushFloor
+              && !previousPushRegions.includes(exerciseSlugToBodyRegion[slug] ?? ''))
+            .map(([slug, v]) => `${slug} (${v}, ${exerciseSlugToBodyRegion[slug]})`)
+            .join(', ')
+          if (alternatives) {
+            violations.push(`Block "${block.block_type}", Muster "push": Region "${chosenRegions.join('/')}" wurde diese Woche schon schwer trainiert — wähle eine andere Push-Region: ${alternatives}`)
+          }
+        }
+      }
+    }
+  }
+  return violations
 }
 
 // ─── runSessionCD ─────────────────────────────────────────────
@@ -976,6 +1166,15 @@ export async function runSessionCD(
   const effectiveExerciseSlugs = sessionExerciseSlugs.length > 0 ? sessionExerciseSlugs : allExerciseSlugs
   const sessionCategorySlugs = [...new Set(si.blockPools.map(p => p.category_slug))]
   const dynamicMainSchema = buildMainSessionSchema(effectiveExerciseSlugs, sessionCategorySlugs, si.blockPools.length)
+  // Push-Regionen (chest/shoulder/tricep), die frühere Main-Blöcke dieser Woche
+  // schon abgedeckt haben — steuert die Push-Varianz über die Woche
+  const PUSH_REGIONS = new Set(['chest', 'shoulder', 'tricep'])
+  const previousPushRegions = [...new Set(previousSessions
+    .flatMap((ps) => ps.blocks
+      .filter((b) => b.block_type === 'primary' || b.block_type === 'secondary')
+      .flatMap((b) => b.exercises.map((e) => exerciseSlugToBodyRegion[e.slug])))
+    .filter((r): r is string => !!r && PUSH_REGIONS.has(r)))]
+
   const basePrompt = GENERATE_MAIN_BLOCKS_PROMPT({
     sessionIndex,
     totalSessions,
@@ -988,40 +1187,19 @@ export async function runSessionCD(
     planName,
     planDescription,
     previousSessions,
+    previousPushRegions,
   })
 
-  // Prüft Strength-Muster-Abdeckung und doppelte Übungen innerhalb eines Blocks
-  function findPatternViolations(session: z.infer<typeof mainSessionSchema>): string[] {
-    const violations: string[] = []
-    for (const block of session.blocks) {
-      const seen = new Set<string>()
-      for (const e of block.exercises) {
-        if (seen.has(e.exercise_slug)) {
-          violations.push(`Block "${block.block_type}": Übung "${e.exercise_slug}" kommt doppelt vor — jede Übung nur einmal pro Block`)
-        }
-        seen.add(e.exercise_slug)
-      }
-
-      const pool = si.blockPools.find((p) => p.block_type === block.block_type)
-      if (!pool?.requiredPatterns?.length) continue
-      const covered = new Set(patternsFromRegions(
-        block.exercises.map((e) => exerciseSlugToBodyRegion[e.exercise_slug]).filter(Boolean),
-      ))
-      const missing = pool.requiredPatterns.filter((p) => !covered.has(p))
-      if (missing.length > 0) {
-        violations.push(`Block "${block.block_type}": Muster fehlen: ${missing.join(', ')} — gewählt waren: ${block.exercises.map((e) => e.exercise_slug).join(', ')}`)
-      }
-    }
-    return violations
-  }
+  const findPatternViolations = (session: z.infer<typeof mainSessionSchema>): string[] =>
+    findSessionViolations(session, si.blockPools, si.spec.mode_slug, exerciseSlugToBodyRegion, previousPushRegions)
 
   let mainSession!: z.infer<typeof mainSessionSchema>
   let patternFeedback: string | undefined
-  const MAX_PATTERN_ATTEMPTS = 2
+  const MAX_PATTERN_ATTEMPTS = 3
 
   for (let attempt = 1; attempt <= MAX_PATTERN_ATTEMPTS; attempt++) {
     const prompt = patternFeedback
-      ? `${basePrompt}\n\n## KORREKTUR (vorheriger Versuch ungültig)\n${patternFeedback}\nWähle die Übungen neu, sodass jeder Block seine PFLICHT-Muster abdeckt.`
+      ? `${basePrompt}\n\n## KORREKTUR (vorheriger Versuch ungültig)\n${patternFeedback}\nWähle die Übungen neu, sodass alle genannten Verstöße behoben sind (PFLICHT-Muster abgedeckt, INTENSITÄTS-PFLICHT erfüllt, keine Duplikate).`
       : basePrompt
 
     const mainCompletion = await openai.chat.completions.create({
@@ -1060,6 +1238,7 @@ export async function runSessionCD(
 
   // Coerce measurement fields based on DB measurement_type (overrides LLM guesses)
   let coerceCount = 0
+  let amrapCount = 0
   for (const block of mainSession.blocks) {
     for (const ex of block.exercises) {
       const mt = exerciseSlugToMeasurementType[ex.exercise_slug]
@@ -1073,9 +1252,33 @@ export async function runSessionCD(
         if (ex.target_reps_min !== 0 || ex.target_reps_max !== 0 || ex.target_duration_seconds !== 0) { coerceCount++ }
         ex.target_reps_min = 0; ex.target_reps_max = 0; ex.target_duration_seconds = 0
       }
+
+      // 'kg' ohne wägbares Equipment → bodyweight koercen: das LLM verordnet
+      // sonst Zusatzlast, die der User gar nicht besitzt (und die Übung
+      // entgeht fälschlich der AMRAP-Regel)
+      if (ex.target_load_type === 'kg' && si.hasLoadableEquipment === false) {
+        coerceCount++
+        console.log(`  coerce [no-load-equipment] ${ex.exercise_slug}: kg → bodyweight`)
+        ex.target_load_type = 'bodyweight'
+        ex.target_load_value = 0
+      }
+
+      // AMRAP: Bodyweight-Reps-Übungen in Strength-Hauptblöcken haben ohne
+      // Zusatzlast keinen Intensitätsregler — alle Sätze gehen deshalb bis
+      // kurz vors Muskelversagen. Explosives (Plyos/Jumps/Sprints) bewusst
+      // außen vor: dort lebt die Qualität von Wiederholungen fern des Versagens.
+      if (si.spec.mode_slug === 'full'
+        && (block.block_type === 'primary' || block.block_type === 'secondary')
+        && block.focused_category_slug === 'strength'
+        && ex.target_load_type === 'bodyweight'
+        && (ex.target_reps_min > 0 || ex.target_reps_max > 0)) {
+        (ex as any).is_amrap = true
+        amrapCount++
+      }
     }
   }
   if (coerceCount > 0) console.log(`Phase C Session ${sessionIndex + 1}: coerced ${coerceCount} measurement mismatch(es)`)
+  if (amrapCount > 0) console.log(`Phase C Session ${sessionIndex + 1}: ${amrapCount} exercise(s) marked amrap_last_set`)
 
   // ── Phase D: warmup + cooldown (pools already ready from Phase B) ─────
   const tD = Date.now()

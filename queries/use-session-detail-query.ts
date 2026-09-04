@@ -12,8 +12,8 @@ const SESSION_DETAIL_SELECT = `
             id, order_index,
             target_sets, target_reps_min, target_reps_max,
             target_duration_seconds, target_rest_seconds,
-            target_load_type, target_load_value,
-            exercise:exercises ( id, name, slug, image_group, body_region, movement_pattern, thumbnail_storage_path, video_storage_path, youtube_url, is_unilateral, laterality, measurement_type )
+            target_load_type, target_load_value, is_amrap,
+            exercise:exercises ( id, name, slug, image_group, body_region, movement_pattern, thumbnail_storage_path, video_storage_path, youtube_url, laterality, measurement_type )
         )
     )
 ` as const;

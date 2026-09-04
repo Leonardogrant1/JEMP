@@ -107,6 +107,7 @@ export async function savePlan(input: {
     target_rest_seconds: number | null
     target_load_type: string | null
     target_load_value: number | null
+    is_amrap: boolean
   }
 
   const planBlocksBySessionId = new Map<string, PlanBlockRecord[]>()
@@ -196,6 +197,7 @@ export async function savePlan(input: {
             target_rest_seconds: ex.target_rest_seconds >= 0 ? ex.target_rest_seconds : null,
             target_load_type: ex.target_load_type,
             target_load_value: ex.target_load_value >= 0 ? ex.target_load_value : null,
+            is_amrap: (ex as any).is_amrap === true,
           }
         })
         .filter((x): x is NonNullable<typeof x> => x !== null)
@@ -205,7 +207,7 @@ export async function savePlan(input: {
       const { data: insertedExercises, error: exInsertError } = await supabase
         .from('workout_plan_session_block_exercises')
         .insert(exercisesToInsert)
-        .select('id, exercise_id, order_index, target_sets, target_reps_min, target_reps_max, target_duration_seconds, target_distance_meters, target_rest_seconds, target_load_type, target_load_value')
+        .select('id, exercise_id, order_index, target_sets, target_reps_min, target_reps_max, target_duration_seconds, target_distance_meters, target_rest_seconds, target_load_type, target_load_value, is_amrap')
 
       if (exInsertError || !insertedExercises) {
         console.error('Failed to insert exercises:', exInsertError?.message)
@@ -224,6 +226,7 @@ export async function savePlan(input: {
         target_rest_seconds: e.target_rest_seconds,
         target_load_type: e.target_load_type,
         target_load_value: e.target_load_value,
+        is_amrap: e.is_amrap,
       })))
     }
 
@@ -313,6 +316,7 @@ export async function savePlan(input: {
         target_rest_seconds: planEx.target_rest_seconds,
         target_load_type: planEx.target_load_type,
         target_load_value: planEx.target_load_value,
+        is_amrap: planEx.is_amrap,
       })
     }
   }

@@ -140,6 +140,8 @@ type BlockPool = {
   bodyRegions: string[]
   requiredPatterns?: string[]
   mixedCore?: boolean
+  slugIntensities?: Record<string, number>
+  patternMaxIntensities?: Record<string, number>
 }
 
 export type PreviousSessionSummary = {
@@ -168,6 +170,7 @@ type SessionPromptInput = {
   planName: string
   planDescription: string
   previousSessions?: PreviousSessionSummary[]
+  previousPushRegions?: string[]
 }
 
 function getMainBlockStructure(mode: string): string {
@@ -175,7 +178,7 @@ function getMainBlockStructure(mode: string): string {
     case "full":
       return `\
 - warmup — 4 Übungen (Dynamische Mobility, Activation, Movement Prep)
-- primary — 2–3 Übungen (Hauptreiz, höchste Intensität)
+- primary — 2–3 Übungen (Hauptreiz — die intensivsten Übungen, die der Pool hergibt)
 - secondary — 2–3 Übungen (komplementäre Category)
 - accessory — 2–4 Übungen (Core, Stabilität)
 - cooldown — 3 Übungen (Foam Roll, Static Stretch, Breathing)`
@@ -216,6 +219,7 @@ export const GENERATE_MAIN_BLOCKS_PROMPT = (input: Omit<SessionPromptInput, "war
     sessionIndex, totalSessions, spec, duration,
     blockPools, bodyRegions, weekPlanSummary, userContext, planName, planDescription,
     previousSessions = [],
+    previousPushRegions = [],
   } = input
 
   const dayName = DAY_NAMES[spec.day_of_week] ?? `Tag ${spec.day_of_week}`
@@ -223,18 +227,46 @@ export const GENERATE_MAIN_BLOCKS_PROMPT = (input: Omit<SessionPromptInput, "war
 
   const mainPoolsSection = blockPools.length > 0
     ? blockPools.map((pool) => {
+        // Floor pro PFLICHT-Muster: die gewählte Übung eines Musters muss nahe
+        // am Pool-Maximum dieses Musters liegen (verhindert weiche Slots neben
+        // einer einzelnen schweren Übung)
+        const patternGap = pool.block_type === "primary" ? 1 : 2
+        const patternFloors = spec.mode_slug === "full" && pool.requiredPatterns?.length
+          ? pool.requiredPatterns
+              .filter((p) => (pool.patternMaxIntensities?.[p] ?? 0) > patternGap)
+              .map((p) => `${p}: wähle intensity ≥ ${pool.patternMaxIntensities![p] - patternGap} (Pool-Max ${pool.patternMaxIntensities![p]})`)
+          : []
+        const patternFloorSection = patternFloors.length > 0
+          ? `INTENSITÄTS-FLOOR pro Muster: ${patternFloors.join(" · ")}
+Eine leichte Variante neben einer verfügbaren schweren ist ein VERSTOSS (z.B. push_up (4), wenn bench_press (8) im Pool ist).
+`
+          : ""
+        // Push-Varianz über die Woche: nicht jede Session dieselbe Push-Region
+        const pushVarianceSection = pool.requiredPatterns?.includes("push") && previousPushRegions.length > 0
+          ? `PUSH-VARIANZ: Diese Woche wurden bereits Push-Übungen dieser Regionen trainiert: ${previousPushRegions.join(", ")}. Wähle für das push-Muster BEVORZUGT eine noch nicht abgedeckte Region (chest/shoulder/tricep), sofern der Pool dort eine Übung im INTENSITÄTS-FLOOR bietet.
+`
+          : ""
         const patternSection = pool.requiredPatterns && pool.requiredPatterns.length > 0
           ? `Bewegungsmuster-PFLICHT: Dieser Block MUSS jedes dieser Muster mit mindestens einer Übung abdecken: **${pool.requiredPatterns.join(", ")}**
 - squat → back_squat, front_squat, bulgarian_split_squat, lunge-Varianten, pistol_squat
-- hinge → romanian_deadlift, hip_thrust, nordic_curl, deadlift-Varianten, good_morning
-- push → bench_press, overhead_press, dumbbell_shoulder_press, dips, push_up-Varianten
+- hinge → romanian_deadlift, hip_thrust, nordic_curl, deadlift-Varianten, good_morning, power_clean, hang_power_clean, dumbbell_clean, dumbbell_snatch, isometric_mid_thigh_pull (Cleans/Snatches: dominant glute)
+- push → bench_press, overhead_press, push_press, dumbbell_shoulder_press, dips, push_up-Varianten
 - pull → pull_up, chin_up, weighted_pull_up, row-Varianten
-Andere Muster haben in diesem Block KEINEN Platz. Kombiniere NICHT zwei Übungen desselben Musters im selben Block.
+Andere Muster haben in diesem Block KEINEN Platz. Ein Muster darf doppelt vorkommen, aber NUR wenn alle PFLICHT-Muster abgedeckt sind UND sich die beiden Übungen klar ergänzen: unterschiedliche Lateralität (bilateral + unilateral, z.B. back_squat + bulgarian_split_squat) ODER deutlich andere Intensität (Differenz ≥ 2: schwerer Hauptlift + leichtere Volumen-Variante). Redundante Paare sind VERBOTEN (kein pull_up + chin_up, kein romanian_deadlift + hip_thrust).
 WICHTIG: Für die Muster-PFLICHT zählt die \`body_region\` der Übung — bei \`full_body\`-Übungen die dominante Region, falls im Pool als \`(dominant: …)\` angegeben (z.B. Cleans mit dominant glute → hinge). \`full_body\`-Übungen OHNE dominante Region zählen NICHT als Muster-Abdeckung.
-`
+${patternFloorSection}${pushVarianceSection}`
           : ""
         const regionsLine = pool.bodyRegions.length > 0
           ? `Ziel-Regionen dieses Blocks: ${pool.bodyRegions.join(", ")}\n`
+          : ""
+        // Pool-relative Intensitäts-PFLICHT: Hauptreize müssen das obere Ende
+        // dessen nutzen, was der Pool tatsächlich hergibt (nur volle Sessions)
+        const intensityValues = Object.values(pool.slugIntensities ?? {})
+        const poolMax = intensityValues.length > 0 ? Math.max(...intensityValues) : 0
+        const intensityGap = pool.block_type === "primary" ? 1 : 2
+        const intensitySection = spec.mode_slug === "full" && pool.block_type !== "accessory" && poolMax > intensityGap
+          ? `INTENSITÄTS-PFLICHT: Dieser Pool reicht bis intensity ${poolMax}. Wähle mindestens eine Übung mit intensity ≥ ${poolMax - intensityGap}. Greife generell zu den intensivsten Übungen, die Muster-PFLICHT und Zeitbudget zulassen — Intensität geht vor Abwechslung, der User will gefordert werden.
+`
           : ""
         const categoryRule = pool.mixedCore
           ? `Der Pool enthält \`${pool.category_slug}\`- und Core-Übungen — beide sind erlaubt, mische sinnvoll.`
@@ -242,7 +274,7 @@ WICHTIG: Für die Muster-PFLICHT zählt die \`body_region\` der Übung — bei \
 Nur wenn der Pool keine einzige Übung dieser Category enthält, darfst du ausweichen.`
         return `### ${pool.block_type} — Fokus-Category: **${pool.category_slug}**
 ${categoryRule}
-${regionsLine}${patternSection}NUR diese Slugs sind erlaubt:
+${regionsLine}${intensitySection}${patternSection}NUR diese Slugs sind erlaubt:
 ${pool.exercisesString}
 Erlaubte Slugs: ${pool.slugs}
 `
@@ -308,8 +340,8 @@ ${mainPoolsSection}
 
 ## Regeln
 
-**primary** — Hauptreiz, höchste Intensität. focused_category_slug = category des Blocks.
-**secondary** — Komplementärer Reiz. focused_category_slug = category des Blocks.
+**primary** — Hauptreiz, höchste Intensität — nutze das obere Ende der Pool-Intensitäten (INTENSITÄTS-PFLICHT beim Block, falls angegeben). focused_category_slug = category des Blocks.
+**secondary** — Komplementärer Reiz, ebenfalls fordernd. focused_category_slug = category des Blocks.
 **accessory** — Mobility, Core, Stabilität, Injury Prevention. Wähle Übungen, die die Ziel-Regionen dieses Blocks adressieren — nicht dieselben generischen Mobility-Drills wie in anderen Sessions der Woche.
 
 ### Bewegungsmuster für \`strength\`-Blöcke
@@ -317,14 +349,14 @@ ${mainPoolsSection}
 Die PFLICHT-Muster stehen beim jeweiligen Block. Muster-Zuordnung der Übungen:
 
 - **quad** → Squat/Knee-dominant: Back Squat, Front Squat, Bulgarian Split Squat, Pistol Squat, Lunge-Varianten
-- **hamstring / glute** → Hinge/Hip-dominant: RDL, Hip Thrust, Nordic Curl, Good Morning, Deadlift-Varianten
-- **chest / shoulder / tricep** → Push: Bench Press, Overhead Press, Dumbbell Shoulder Press, Dips, Push-up-Varianten
+- **hamstring / glute** → Hinge/Hip-dominant: RDL, Hip Thrust, Nordic Curl, Good Morning, Deadlift-Varianten, Power Clean, Hang Power Clean, Dumbbell Clean/Snatch, Isometric Mid-Thigh Pull
+- **chest / shoulder / tricep** → Push: Bench Press, Overhead Press, Push Press, Dumbbell Shoulder Press, Dips, Push-up-Varianten
 - **upper_back / bicep** → Pull: Pull-up, Chin-up, Row-Varianten
 
-**Kombiniere NIEMALS zwei Übungen desselben Musters in einem Strength-Block** — kein RDL + Hip Thrust im selben Block (beide Hinge), kein Pull-up + Chin-up (beide vertikaler Pull).
+**Muster-Dopplung in Strength-Blöcken nur als komplementäres Paar:** Erst alle PFLICHT-Muster abdecken. Danach darf ein Muster ein zweites Mal vorkommen, wenn sich die Übungen klar ergänzen — schwerer bilateraler Hauptlift + unilaterale Variante (Back Squat + Bulgarian Split Squat) oder deutlich leichtere Volumen-Variante (Intensitäts-Differenz ≥ 2). **Redundante Zwillinge sind VERBOTEN** — kein RDL + Hip Thrust (zwei schwere bilaterale Hinges), kein Pull-up + Chin-up.
 
 ### Volumen (intensity_score)
-- 1–3: 1–2 Sätze | 4–5: 2–3 Sätze | 6–7: 3–4 Sätze, ≥90s Pause | 8–9: 5–6 Sätze, ≥2min Pause | 10: 3–5 Sätze, ≥3min Pause
+- 1–3: 1–2 Sätze | 4–5: 2–3 Sätze | 6–7: 3–4 Sätze, ≥90s Pause | 8–9: 4–6 Sätze, ≥2min Pause | 10: 3–5 Sätze, ≥3min Pause
 - reduced: max. 1 Übung mit intensity ≥ 7
 
 ### Messtyp

@@ -20,28 +20,24 @@ export function calculateProgression(
     loadType: string | null,
     previousSets: PerformedSet[],
     currentSetNumber: number,
+    targetRepsMax: number | null,
 ): ProgressionSuggestion | null {
     if (!previousSets.length) return null;
 
     const prevSet = getSetForNumber(previousSets, currentSetNumber);
     if (!prevSet) return null;
 
-    if (loadType === 'weight_kg') {
+    if (loadType === 'kg') {
         const prevLoad = prevSet.performed_load_value;
         const prevReps = prevSet.performed_reps;
+        // Double Progression: Mehrgewicht erst vorschlagen, wenn dieser Satz
+        // letztes Mal das OBERE Ende des Wiederholungsfensters erreicht hat.
+        // Wer bei 4×4–6 nur 4 geschafft hat, baut erst Reps auf — kein Hint.
+        const hitTopOfRange = prevReps != null
+            && targetRepsMax != null && targetRepsMax > 0
+            && prevReps >= targetRepsMax;
         return {
-            suggestedLoad: prevLoad != null ? String(prevLoad + 2.5) : null,
-            suggestedReps: prevReps != null ? String(prevReps) : null,
-            previousLoad: prevLoad,
-            previousReps: prevReps,
-        };
-    }
-
-    if (loadType === 'weight_lb') {
-        const prevLoad = prevSet.performed_load_value;
-        const prevReps = prevSet.performed_reps;
-        return {
-            suggestedLoad: prevLoad != null ? String(prevLoad + 5) : null,
+            suggestedLoad: hitTopOfRange && prevLoad != null ? String(prevLoad + 2.5) : null,
             suggestedReps: prevReps != null ? String(prevReps) : null,
             previousLoad: prevLoad,
             previousReps: prevReps,

@@ -11,14 +11,16 @@ import { useActiveSessionUIStore } from '@/stores/active-session-ui-store';
 import { devLog } from '@/utils/dev-log';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useCallback } from 'react';
-import { Keyboard } from 'react-native';
+import { Alert, Keyboard } from 'react-native';
 
 /**
  * Komplette Log-Logik der Active Session — geteilt zwischen dem FAB
  * (Duration-Übungen loggen direkt) und dem LogSetSheet (Wheels + Bestätigen).
  */
 export function useLogSet() {
+    const { t } = useTranslation();
     const { id } = useLocalSearchParams<{ id: string }>();
 
     const { data: session } = useSessionDetailQuery(id);
@@ -112,8 +114,12 @@ export function useLogSet() {
         } catch (error) {
             devLog('Error completing session:', error);
             setIsCompleting(false);
+            // Ohne Meldung wirkt ein fehlgeschlagenes Beenden wie ein toter
+            // Button (Prod-Ticket 01.09.) — die Sätze bleiben im Store, ein
+            // erneuter Tap versucht es einfach nochmal
+            Alert.alert(t('ui.error'), t('ui.session_complete_error' as any));
         }
-    }, [id, store, upsertSets, updateStatus, setIsCompleting, setShowCongrats]);
+    }, [id, store, upsertSets, updateStatus, setIsCompleting, setShowCongrats, t]);
 
     // Collect performed set into store + update crash-recovery progress
     const saveSetAndProgress = useCallback((nextExerciseIdx: number, nextSetNumber: number) => {

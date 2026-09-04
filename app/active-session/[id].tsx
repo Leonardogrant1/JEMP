@@ -99,9 +99,15 @@ function ActiveSessionContent({ id, session }: { id: string; session: SessionDet
         );
     }, [session]);
 
-    // Reset initialized on unmount so re-entering the screen reinitializes correctly
+    // Reset initialized on unmount so re-entering the screen reinitializes
+    // correctly — showCongrats muss mit zurück, sonst zeigt die NÄCHSTE Session
+    // in derselben App-Laufzeit sofort den Abschluss-Screen (stale true nach
+    // completeSession → router.replace zur Summary)
     useEffect(() => {
-        return () => setInitialized(false);
+        return () => {
+            setInitialized(false);
+            useActiveSessionUIStore.getState().setShowCongrats(false);
+        };
     }, []);
 
     // Sync session data into UI store
@@ -153,7 +159,7 @@ function ActiveSessionContent({ id, session }: { id: string; session: SessionDet
         if (!current || !initialized) return;
 
         const suggestion = prevSets?.length
-            ? calculateProgression(current.target_load_type, prevSets, currentSet)
+            ? calculateProgression(current.target_load_type, prevSets, currentSet, current.target_reps_max)
             : null;
 
         // Prefill load: last logged set in current session → cross-session previous → target value

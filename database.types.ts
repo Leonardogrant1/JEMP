@@ -504,7 +504,6 @@ export type Database = {
             | null
           intensity_score: number | null
           is_sport_specific: boolean
-          is_unilateral: boolean
           laterality: Database["public"]["Enums"]["laterality"]
           max_level: number
           measurement_type: string
@@ -533,7 +532,6 @@ export type Database = {
             | null
           intensity_score?: number | null
           is_sport_specific?: boolean
-          is_unilateral?: boolean
           laterality?: Database["public"]["Enums"]["laterality"]
           max_level: number
           measurement_type?: string
@@ -562,7 +560,6 @@ export type Database = {
             | null
           intensity_score?: number | null
           is_sport_specific?: boolean
-          is_unilateral?: boolean
           laterality?: Database["public"]["Enums"]["laterality"]
           max_level?: number
           measurement_type?: string
@@ -1313,6 +1310,7 @@ export type Database = {
           created_at: string
           exercise_id: string
           id: string
+          is_amrap: boolean
           notes: string | null
           order_index: number
           target_distance_meters: number | null
@@ -1330,6 +1328,7 @@ export type Database = {
           created_at?: string
           exercise_id: string
           id?: string
+          is_amrap?: boolean
           notes?: string | null
           order_index: number
           target_distance_meters?: number | null
@@ -1347,6 +1346,7 @@ export type Database = {
           created_at?: string
           exercise_id?: string
           id?: string
+          is_amrap?: boolean
           notes?: string | null
           order_index?: number
           target_distance_meters?: number | null
@@ -1586,6 +1586,7 @@ export type Database = {
           created_at: string
           exercise_id: string
           id: string
+          is_amrap: boolean
           order_index: number
           recommended_load_value: number | null
           target_distance_meters: number | null
@@ -1605,6 +1606,7 @@ export type Database = {
           created_at?: string
           exercise_id: string
           id?: string
+          is_amrap?: boolean
           order_index: number
           recommended_load_value?: number | null
           target_distance_meters?: number | null
@@ -1624,6 +1626,7 @@ export type Database = {
           created_at?: string
           exercise_id?: string
           id?: string
+          is_amrap?: boolean
           order_index?: number
           recommended_load_value?: number | null
           target_distance_meters?: number | null

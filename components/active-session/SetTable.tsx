@@ -62,6 +62,11 @@ export function SetTable() {
                 const isDone = logged.length > 0 && !isActive;
                 const isUpcoming = !isActive && !isDone;
 
+                // AMRAP: jeder Satz zeigt "Max" statt des Wiederholungsziels
+                const isAmrapSet = current.is_amrap && !isDuration;
+                const rowTarget = isAmrapSet ? t('ui.amrap_target' as any) : targetLabel;
+                const rowTileTarget = isAmrapSet ? t('ui.amrap_target' as any) : tileTarget;
+
                 const canOpenSheet = isActive;
 
                 return (
@@ -116,7 +121,7 @@ export function SetTable() {
                                                     {side === 'left' ? 'L' : 'R'}
                                                 </JempText>
                                                 <JempText type="body-sm" color={sideLog ? theme.text : theme.textMuted}>
-                                                    {sideLog ? formatSingleSet(sideLog, unit) : tileTarget}
+                                                    {sideLog ? formatSingleSet(sideLog, unit) : rowTileTarget}
                                                 </JempText>
                                             </View>
                                         );
@@ -136,7 +141,7 @@ export function SetTable() {
                                 </View>
                             ) : (
                                 <JempText type="body-l" color={theme.textMuted}>
-                                    {targetLabel}
+                                    {rowTarget}
                                 </JempText>
                             )}
                             {canOpenSheet && (

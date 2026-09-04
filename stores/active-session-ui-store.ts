@@ -15,7 +15,6 @@ export type FlatExercise = {
         youtube_url: string | null;
         thumbnail_storage_path: string | null;
         video_storage_path: string | null;
-        is_unilateral: boolean;
         laterality: string;
         measurement_type: string;
         equipment: { slug: string; name_i18n: Record<string, string> | null }[];
@@ -27,6 +26,7 @@ export type FlatExercise = {
     target_rest_seconds: number | null;
     target_load_type: string | null;
     target_load_value: number | null;
+    is_amrap: boolean;
 };
 
 type PreviousSet = { reps: string; load: string; repsRight?: string };
