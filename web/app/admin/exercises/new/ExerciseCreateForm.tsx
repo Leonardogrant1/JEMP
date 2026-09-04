@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { createExercise, type MovementPattern, type BodyRegion, type ExerciseImageGroup } from '../../../actions/exercises'
+import { createExercise, type MovementPattern, type BodyRegion, type ExerciseImageGroup, type Laterality } from '../../../actions/exercises'
 import { asI18n } from '@/lib/i18n'
 import type { Json } from '../../../../../database.types'
 
@@ -31,7 +31,7 @@ export function ExerciseCreateForm({ categories, equipments, environments, block
   const [bodyRegion, setBodyRegion] = useState('')
   const [minLevel, setMinLevel] = useState('')
   const [maxLevel, setMaxLevel] = useState('')
-  const [isUnilateral, setIsUnilateral] = useState(false)
+  const [laterality, setLaterality] = useState<Laterality>('bilateral')
   const [measurementType, setMeasurementType] = useState('reps_or_duration')
   const [intensityScore, setIntensityScore] = useState('')
   const [exerciseType, setExerciseType] = useState('')
@@ -64,7 +64,7 @@ export function ExerciseCreateForm({ categories, equipments, environments, block
           description_i18n: (descDe || descEn) ? { de: descDe, en: descEn } : undefined,
           movement_pattern: (movementPattern as MovementPattern) || null,
           body_region: (bodyRegion as BodyRegion) || null,
-          is_unilateral: isUnilateral,
+          laterality,
           measurement_type: measurementType,
           intensity_score: intensityScore ? Number(intensityScore) : null,
           exercise_type: exerciseType || null,
@@ -185,15 +185,16 @@ export function ExerciseCreateForm({ categories, equipments, environments, block
             </select>
           </div>
           <div>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isUnilateral}
-                onChange={e => setIsUnilateral(e.target.checked)}
-                className="rounded border-gray-600 bg-gray-800"
-              />
-              <span className="text-gray-300">Unilateral <span className="text-gray-500 text-xs">(Sätze pro Seite)</span></span>
-            </label>
+            <label className="block text-xs text-gray-400 mb-1">Laterality</label>
+            <select
+              value={laterality}
+              onChange={e => setLaterality(e.target.value as Laterality)}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+            >
+              <option value="bilateral">bilateral – beide Seiten gleichzeitig</option>
+              <option value="unilateral">unilateral – eine Seite nach der anderen</option>
+              <option value="alternating">alternating – abwechselnd L/R (UI wie bilateral)</option>
+            </select>
           </div>
           <div>
             <label className="block text-xs text-gray-400 mb-1">Messtyp</label>

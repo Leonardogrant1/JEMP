@@ -68,7 +68,6 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
   const [bodyRegion, setBodyRegion] = useState(initial.body_region ?? '')
   const [minLevel, setMinLevel] = useState(String(initial.min_level ?? ''))
   const [maxLevel, setMaxLevel] = useState(String(initial.max_level ?? ''))
-  const [isUnilateral, setIsUnilateral] = useState(initial.is_unilateral)
   const [laterality, setLaterality] = useState(initial.laterality ?? 'bilateral')
   const [measurementType, setMeasurementType] = useState(initial.measurement_type ?? 'reps_or_duration')
   const [intensityScore, setIntensityScore] = useState(String(initial.intensity_score ?? ''))
@@ -140,7 +139,6 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
           min_level: minLevel ? Number(minLevel) : undefined,
           max_level: maxLevel ? Number(maxLevel) : undefined,
           laterality,
-          is_unilateral: laterality === 'unilateral',
           measurement_type: measurementType,
           intensity_score: intensityScore ? Number(intensityScore) : null,
           exercise_type: exerciseType || null,
@@ -388,10 +386,7 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
             <label className="block text-xs text-gray-400 mb-1">Laterality</label>
             <select
               value={laterality}
-              onChange={e => {
-                setLaterality(e.target.value as Laterality)
-                setIsUnilateral(e.target.value === 'unilateral')
-              }}
+              onChange={e => setLaterality(e.target.value as Laterality)}
               className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
             >
               <option value="bilateral">bilateral – beide Seiten gleichzeitig</option>
