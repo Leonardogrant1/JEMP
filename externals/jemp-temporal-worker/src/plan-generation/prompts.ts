@@ -11,6 +11,8 @@ type WeekPlanPromptInput = {
   /** Markdown-Tabelle: primary-/secondary-fähige Übungen pro Category × Environment */
   categoryAvailability: string
   minBlockPool: number
+  /** Sport-Pflicht-Regionen ("Athletic Floor") — müssen über die Woche direkt trainiert werden */
+  requiredRegions?: string[]
 }
 
 const DAY_NAMES: Record<number, string> = {
@@ -19,7 +21,7 @@ const DAY_NAMES: Record<number, string> = {
 }
 
 export const GENERATE_WEEK_PLAN_PROMPT = (input: WeekPlanPromptInput) => {
-  const { sessions, userContext, categorySlugs, environmentSlugs, dayPresetEnvironments, userFocusCategories, categoryAvailability, minBlockPool } = input
+  const { sessions, userContext, categorySlugs, environmentSlugs, dayPresetEnvironments, userFocusCategories, categoryAvailability, minBlockPool, requiredRegions = [] } = input
 
   // Mobility als Hauptreiz nur, wenn der User sie bewusst priorisiert hat —
   // sonst ist sie Lückenfüller, wenn die no-repeat-Regel die Categories aufbraucht
@@ -29,11 +31,20 @@ export const GENERATE_WEEK_PLAN_PROMPT = (input: WeekPlanPromptInput) => {
     .map((s) => `- Tag ${s.day_of_week} (${DAY_NAMES[s.day_of_week]}): mode=${s.mode_slug}, Dauer ${s.min}–${s.max} min`)
     .join("\n")
 
+  const prio1Category = [...userFocusCategories].sort((a, b) => a.priority - b.priority)[0]?.category
+  const armFocus = prio1Category === "strength"
+  // Fokus-Quote: primary-Pflicht skaliert mit der Zahl der Hauptblock-Sessions —
+  // ohne harte Quote bleibt die Prio-1-Category strukturell bei max. 1 primary
+  // (no-repeat + Sport-Pflicht belegen sonst alle Slots)
+  const mainSessionCount = sessions.filter((s) => s.mode_slug === "full" || s.mode_slug === "reduced").length
+  const primaryQuota = mainSessionCount >= 3 ? 2 : Math.min(1, mainSessionCount)
+  const mainQuota = Math.min(2, mainSessionCount)
+
   const focusSection = userFocusCategories.length > 0
     ? `\n## Focus-Categories (User-Priorisierung)\n` +
       [...userFocusCategories].sort((a, b) => a.priority - b.priority)
         .map((f) => `- \`${f.category}\` (Priorität ${f.priority} = ${f.priority === 1 ? "höchste" : f.priority === 2 ? "mittlere" : "niedrigste"} Priorität)`).join("\n") +
-      `\nPriorität 1 = wichtigste Category. Regeln:\n- Vergib primary-Slots bevorzugt an Focus-Categories (Priorität 1 zuerst) — NUR wenn mode_slug primary erlaubt und die no-repeat-Regel nicht verletzt wird\n- Wenn primary schon vergeben ist: Focus-Category als secondary bevorzugen — aber nur wenn es inhaltlich sinnvoll ist (kein Strength als accessory, kein Mobility als primary)\n- Accessory-Slots sind IMMER für Core, Stability oder Mobility reserviert — keine Focus-Categories dort erzwingen\n- Sport-Pflicht-Categories mit hoher Relevanz (≥2) müssen weiterhin regelmäßig als primary erscheinen\n`
+      `\nPriorität 1 = wichtigste Category. Regeln:\n- **FOKUS-QUOTE (PFLICHT): \`${prio1Category}\` (Priorität 1) MUSS in mindestens ${primaryQuota} Session(s) der primary-Block sein${mainQuota > primaryQuota ? ` und in insgesamt mindestens ${mainQuota} Sessions als primary oder secondary vorkommen` : ""} (nur full/reduced-Sessions zählen).** Die dafür nötige primary-Wiederholung von \`${prio1Category}\` ist ausdrücklich erlaubt — dann mit deutlich anderen body_regions (z.B. einmal Unterkörper-, einmal Oberkörper-Schwerpunkt). Die FOKUS-QUOTE geht vor Abwechslung und vor der Sport-Pflicht-Rotation; nur die HARTE Tragfähigkeits-REGEL geht vor — Sessions, in deren Environment die Category nicht tragfähig ist, zählen nicht.\n- Weitere primary-Slots bevorzugt an die übrigen Focus-Categories (nach Priorität) — NUR wenn mode_slug primary erlaubt und die no-repeat-Regel nicht verletzt wird\n- Wenn primary schon vergeben ist: Focus-Category als secondary bevorzugen — aber nur wenn es inhaltlich sinnvoll ist (kein Mobility als primary ohne Fokus)\n- Accessory-Slots sind für Core, Stability oder Mobility reserviert${armFocus ? " — einzige Ausnahme: der ARM-FOKUS-Block (unten)" : ""} — keine anderen Focus-Categories dort erzwingen\n- Sport-Pflicht-Categories mit hoher Relevanz (≥2) müssen weiterhin regelmäßig als primary erscheinen, soweit die FOKUS-QUOTE das zulässt${armFocus ? `\n- **ARM-FOKUS (PFLICHT bei Priorität 1 = strength): Plane in GENAU einer full-Session einen accessory-Block mit category \`strength\` und body_regions [bicep, tricep]** — direktes Armtraining (Curls, Extensions, Dips). Dieser Block darf zusätzlich zu einem strength-Hauptblock in derselben Session stehen (Ausnahme von der Regel "keine Category doppelt pro Session").` : ""}\n`
     : ""
 
   return `Du bist ein professioneller Trainer. Plane die Kategorien für den Wochentrainingsplan.
@@ -41,6 +52,7 @@ Entscheide für jede Session welche Categories in die Hauptblöcke kommen. Konkr
 
 ## Nutzerdaten
 ${userContext}
+Falls \`user_notes\` in den Nutzerdaten stehen: Das sind verbindliche Wünsche des Users — berücksichtige sie bei der Planung.
 
 ## Sessions diese Woche
 ${sessionsText}
@@ -73,10 +85,11 @@ ${categoryAvailability}
 Erlaubte Category-Slugs: ${categorySlugs.map((s) => `\`${s}\``).join(", ")}
 
 - **KRITISCH: Jede Session MUSS eine andere \`primary\`-Category haben** — \`strength\` als primary an Tag 1 UND Tag 5 ist ein Fehler. Falsch: Tag1=strength, Tag3=lower_body_plyometrics, Tag5=strength. Richtig: Tag1=strength, Tag3=lower_body_plyometrics, Tag5=upper_body_plyometrics.
-  - Einzige Ausnahme: Wenn keine weitere als primary geeignete UND tragfähige Category übrig ist, darf eine primary-Category wiederholt werden — dann MÜSSEN sich die \`body_regions\` der beiden Blöcke deutlich unterscheiden (z.B. Tag 1 strength unten, Tag 5 strength oben). Diese Ausnahme geht vor: kein ungeeigneter Lückenfüller als primary.
-- Sport-Pflicht-Categories (höchste Relevanz) müssen mindestens einmal als primary erscheinen
-- **Innerhalb einer Session müssen primary, secondary und accessory ALLE unterschiedliche Categories haben** — keine Category darf in derselben Session doppelt vorkommen
-- \`accessory\` optional — nur wenn ein klarer Ergänzungsfokus sinnvoll ist (z.B. mobility, core)
+  - Ausnahme 1: Wenn keine weitere als primary geeignete UND tragfähige Category übrig ist, darf eine primary-Category wiederholt werden — dann MÜSSEN sich die \`body_regions\` der beiden Blöcke deutlich unterscheiden (z.B. Tag 1 strength unten, Tag 5 strength oben). Diese Ausnahme geht vor: kein ungeeigneter Lückenfüller als primary.
+  - Ausnahme 2: die FOKUS-QUOTE (siehe Focus-Categories) — die Priorität-1-Category darf und muss dafür als primary wiederholt werden, ebenfalls mit deutlich unterschiedlichen \`body_regions\`.
+- Sport-Pflicht-Categories (höchste Relevanz) müssen mindestens einmal als primary erscheinen — außer die FOKUS-QUOTE lässt keinen Slot frei
+- **Innerhalb einer Session müssen primary, secondary und accessory ALLE unterschiedliche Categories haben** — keine Category darf in derselben Session doppelt vorkommen${armFocus ? " (Ausnahme: der ARM-FOKUS-accessory-Block darf category `strength` haben, auch wenn strength schon Hauptblock der Session ist)" : ""}
+- \`accessory\` optional — ABER: **mindestens EINE full-Session der Woche MUSS einen accessory-Block mit \`core\` in den body_regions haben (Rumpf-PFLICHT)**; category dafür: \`mobility\` — Core-Übungen werden dem Pool automatisch beigemischt. Weitere accessory-Blöcke nur bei klarem Ergänzungsfokus.
 
 ### Wochenbilanz Bewegungsmuster (Pflicht bei Strength)
 
@@ -105,7 +118,13 @@ Bei sportartspezifischer Gewichtung (z.B. Boxen): Unterkörper und hintere Kette
 **Für primary geeignet** (klarer Trainingsreiz):
 - Plyometrics, Jumps, Sprints, Strength, Power${allowMobilityPrimary ? "\n- \`mobility\` — der User hat Mobility hoch priorisiert; als primary erlaubt, wenn die Session explizit auf aktive Beweglichkeitsentwicklung ausgerichtet ist" : ""}
 
-## body_regions (pro Block)
+${requiredRegions.length > 0 ? `### Sport-Pflicht-Regionen (Athletic Floor)
+
+Diese Regionen MÜSSEN über die Woche direkt trainiert werden — jede muss in mindestens einem primary/secondary/accessory-Block in den \`body_regions\` stehen: ${requiredRegions.map((r) => `\`${r}\``).join(", ")}
+- \`accessory\` ist der natürliche Ort für Ergänzungs-Regionen wie \`groin\` (Adduktoren — bei Richtungswechsel-Sportarten Verletzungsprophylaxe Nr. 1, z.B. Copenhagen Plank) oder \`core\`
+- Das ist KEIN Bodybuilding-Anspruch: Regionen außerhalb dieser Liste laufen bewusst über Verbundübungen mit
+
+` : ""}## body_regions (pro Block)
 
 Gib für JEDEN Block die Körperregionen an, die dieser Block trainieren soll. Der Übungspool des Blocks wird auf diese Regionen gefiltert — was hier nicht steht, kann später nicht gewählt werden.
 Erlaubte Werte: quad, hamstring, glute, calf, hip, lower_back, core, chest, upper_back, shoulder, tricep, bicep, full_body
@@ -171,6 +190,10 @@ type SessionPromptInput = {
   planDescription: string
   previousSessions?: PreviousSessionSummary[]
   previousPushRegions?: string[]
+  strengthFocus?: boolean
+  /** Sport-Pflicht-Regionen, die diese Woche noch offen sind */
+  requiredRegionsRemaining?: string[]
+  isLastSession?: boolean
 }
 
 function getMainBlockStructure(mode: string): string {
@@ -220,6 +243,9 @@ export const GENERATE_MAIN_BLOCKS_PROMPT = (input: Omit<SessionPromptInput, "war
     blockPools, bodyRegions, weekPlanSummary, userContext, planName, planDescription,
     previousSessions = [],
     previousPushRegions = [],
+    strengthFocus = false,
+    requiredRegionsRemaining = [],
+    isLastSession = false,
   } = input
 
   const dayName = DAY_NAMES[spec.day_of_week] ?? `Tag ${spec.day_of_week}`
@@ -246,6 +272,12 @@ Eine leichte Variante neben einer verfügbaren schweren ist ein VERSTOSS (z.B. p
           ? `PUSH-VARIANZ: Diese Woche wurden bereits Push-Übungen dieser Regionen trainiert: ${previousPushRegions.join(", ")}. Wähle für das push-Muster BEVORZUGT eine noch nicht abgedeckte Region (chest/shoulder/tricep), sofern der Pool dort eine Übung im INTENSITÄTS-FLOOR bietet.
 `
           : ""
+        // Chest-Push-Pflicht bei Strength-Fokus: die Brust darf beim Push nicht
+        // wochenlang hinter Overhead-Varianten zurückstehen
+        const chestPrioritySection = strengthFocus && pool.requiredPatterns?.includes("push") && !previousPushRegions.includes("chest")
+          ? `PUSH-PRIORITÄT BRUST (PFLICHT): Der User hat \`strength\` als Priorität 1 und diese Woche wurde noch keine chest-Push-Übung gewählt — wähle für das push-Muster eine \`chest\`-Übung im INTENSITÄTS-FLOOR (z.B. bench_press, dips, weighted_push_up). Overhead-/Schulter-Varianten erst, wenn die Brust abgedeckt ist.
+`
+          : ""
         const patternSection = pool.requiredPatterns && pool.requiredPatterns.length > 0
           ? `Bewegungsmuster-PFLICHT: Dieser Block MUSS jedes dieser Muster mit mindestens einer Übung abdecken: **${pool.requiredPatterns.join(", ")}**
 - squat → back_squat, front_squat, bulgarian_split_squat, lunge-Varianten, pistol_squat
@@ -254,7 +286,7 @@ Eine leichte Variante neben einer verfügbaren schweren ist ein VERSTOSS (z.B. p
 - pull → pull_up, chin_up, weighted_pull_up, row-Varianten
 Andere Muster haben in diesem Block KEINEN Platz. Ein Muster darf doppelt vorkommen, aber NUR wenn alle PFLICHT-Muster abgedeckt sind UND sich die beiden Übungen klar ergänzen: unterschiedliche Lateralität (bilateral + unilateral, z.B. back_squat + bulgarian_split_squat) ODER deutlich andere Intensität (Differenz ≥ 2: schwerer Hauptlift + leichtere Volumen-Variante). Redundante Paare sind VERBOTEN (kein pull_up + chin_up, kein romanian_deadlift + hip_thrust).
 WICHTIG: Für die Muster-PFLICHT zählt die \`body_region\` der Übung — bei \`full_body\`-Übungen die dominante Region, falls im Pool als \`(dominant: …)\` angegeben (z.B. Cleans mit dominant glute → hinge). \`full_body\`-Übungen OHNE dominante Region zählen NICHT als Muster-Abdeckung.
-${patternFloorSection}${pushVarianceSection}`
+${patternFloorSection}${pushVarianceSection}${chestPrioritySection}`
           : ""
         const regionsLine = pool.bodyRegions.length > 0
           ? `Ziel-Regionen dieses Blocks: ${pool.bodyRegions.join(", ")}\n`
@@ -269,7 +301,7 @@ ${patternFloorSection}${pushVarianceSection}`
 `
           : ""
         const categoryRule = pool.mixedCore
-          ? `Der Pool enthält \`${pool.category_slug}\`- und Core-Übungen — beide sind erlaubt, mische sinnvoll.`
+          ? `Der Pool enthält \`${pool.category_slug}\`-Übungen UND beigemischte Übungen anderer Categories für die Ziel-Regionen (z.B. Core, Adduktoren) — beide sind erlaubt, mische sinnvoll.`
           : `PFLICHT: Wähle NUR Übungen, deren \`category\` = \`${pool.category_slug}\` ist.
 Nur wenn der Pool keine einzige Übung dieser Category enthält, darfst du ausweichen.`
         return `### ${pool.block_type} — Fokus-Category: **${pool.category_slug}**
@@ -310,6 +342,7 @@ Erlaubte Slugs: ${pool.slugs}
 Warmup und Cooldown werden separat generiert.
 
 **PFLICHT: Du MUSST genau ${blockPools.length} Block(s) ausgeben: ${requiredBlockTypes}. Kein Block darf fehlen, auch wenn ein Pool klein ist.**
+${spec.mode_slug === "full" ? "**PFLICHT: In full-Sessions müssen primary und secondary jeweils MINDESTENS 2 Übungen enthalten, sofern der Pool 2+ geeignete Übungen bietet — ein Hauptblock mit nur 1 Übung ist ein Verstoß.**" : ""}
 
 ## Plan
 ${planName} — ${planDescription}
@@ -320,6 +353,12 @@ ${userContext}
 ## Wochenplan-Überblick
 ${weekPlanSummary}
 Wähle Übungen so, dass sich diese Session klar von den anderen Sessions unterscheidet — andere Körperregionen, andere Bewegungsmuster, keine Wiederholung der gleichen Übungen über die Woche.
+${requiredRegionsRemaining.length > 0 ? `
+## Sport-Pflicht-Regionen — diese Woche noch offen
+${requiredRegionsRemaining.map((r) => `\`${r}\``).join(", ")} ${isLastSession
+    ? "— dies ist die LETZTE Session der Woche: jede dieser Regionen MUSS hier mit mindestens einer Übung trainiert werden, sofern ein Block-Pool eine passende Übung enthält (accessory zählt, z.B. Copenhagen Plank für groin)."
+    : "— steht eine dieser Regionen in den Ziel-Regionen eines Blocks dieser Session, MUSS dort mindestens eine Übung dieser Region gewählt werden (ein Muster über eine andere Region abzudecken reicht dann NICHT); was offen bleibt, MUSS die letzte Session der Woche schließen."}
+` : ""}
 
 ${previousSessionsSection}
 
@@ -342,7 +381,9 @@ ${mainPoolsSection}
 
 **primary** — Hauptreiz, höchste Intensität — nutze das obere Ende der Pool-Intensitäten (INTENSITÄTS-PFLICHT beim Block, falls angegeben). focused_category_slug = category des Blocks.
 **secondary** — Komplementärer Reiz, ebenfalls fordernd. focused_category_slug = category des Blocks.
-**accessory** — Mobility, Core, Stabilität, Injury Prevention. Wähle Übungen, die die Ziel-Regionen dieses Blocks adressieren — nicht dieselben generischen Mobility-Drills wie in anderen Sessions der Woche.
+**accessory** — Mobility, Core, Stabilität, Injury Prevention — oder gezieltes Arm-/Isolationstraining, wenn der Block-Pool \`strength\`-Übungen mit bicep/tricep-Regionen enthält. Wähle Übungen, die die Ziel-Regionen dieses Blocks adressieren — nicht dieselben generischen Mobility-Drills wie in anderen Sessions der Woche.
+
+**user_notes** (falls in den Nutzerdaten vorhanden) sind verbindliche Übungswünsche des Users — dort ausgeschlossene oder unerwünschte Übungen NICHT wählen, auch wenn sie im Pool stehen.
 
 ### Bewegungsmuster für \`strength\`-Blöcke
 

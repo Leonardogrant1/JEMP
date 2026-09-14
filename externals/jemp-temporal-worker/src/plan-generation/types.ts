@@ -27,9 +27,13 @@ export type PlanGenerationInput = {
   equipment_ids: string[]
   category_levels: { category_id: string; level_score: number }[]
   sport_required_categories: { category: string; relevance: number }[]
+  /** Sport-Pflicht-Regionen ("Athletic Floor") — müssen über die Woche direkt trainiert werden */
+  sport_required_regions?: string[]
   user_focus_categories: { category: string; priority: number }[]
   day_environments?: { day_of_week: number; environment_id: string }[]
   equipment_environments?: { equipment_id: string; environment_ids: string[] }[]
+  /** Freitext-Wünsche des Users aus dem Profil (z.B. "kein Incline Bench") */
+  schedule_notes?: string | null
 }
 
 export type PlannedBlockSummary = {

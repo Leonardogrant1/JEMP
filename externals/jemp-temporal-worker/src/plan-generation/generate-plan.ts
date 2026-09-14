@@ -29,6 +29,10 @@ export type SessionBuildInput = {
   duration: { min: number; max: number }
   environment_id: string | null
   hasLoadableEquipment?: boolean
+  /** Fokus-Priorität 1 = strength → Chest-Push-Pflicht in Phase C */
+  strengthFocus?: boolean
+  /** Sport-Pflicht-Regionen — Wochen-Abdeckung wird in Phase C validiert */
+  requiredRegions?: string[]
   blockPools: Array<{
     block_type: 'primary' | 'secondary' | 'accessory'
     category_slug: string
@@ -40,6 +44,8 @@ export type SessionBuildInput = {
     slugIntensities?: Record<string, number>
     patternMaxIntensities?: Record<string, number>
     slugLateralities?: Record<string, string>
+    /** Anzahl block-fähiger Übungen im Pool (primary/secondary: getaggte, accessory: alle) */
+    capableCount?: number
   }>
   bodyRegions: string[]
   warmupExercisesString: string
@@ -188,7 +194,11 @@ function targetDuration(
 ): { min: number; max: number } {
   const r = SESSION_MODE_DURATION[mode]
   if (r.overrides_user) return { min: r.min, max: r.max }
-  return { min: Math.max(userMin, r.min), max: Math.min(userMax, r.max) }
+  const max = Math.min(userMax, r.max)
+  // Kurze User-Präferenz (< Mode-Minimum) gewinnt — sonst entsteht ein
+  // invertiertes Fenster (45-min-Präferenz + full → "Zieldauer 60–45 min")
+  const min = Math.min(Math.max(userMin, r.min), max)
+  return { min, max }
 }
 
 // ─── prepareGeneration ────────────────────────────────────────
@@ -215,6 +225,8 @@ export async function prepareGeneration(
     day_environments = [],
     equipment_environments = [],
     sport_group_name = '',
+    schedule_notes = null,
+    sport_required_regions = [],
   } = input
 
   const userEnvironmentIds = new Set(environment_ids)
@@ -424,22 +436,33 @@ export async function prepareGeneration(
     const regionFiltered = filterByBodyRegion(fullPool, new Set(bodyRegions))
     const pool = regionFiltered.length > 0 ? regionFiltered : fullPool
 
-    // Accessory mit core-Region: Core-Übungen beimischen. core existiert nur als
-    // body_region (v.a. in strength: dead_bug, hollow_body_hold, …), nicht als
-    // Category — ohne Beimischung wäre der Slot auf mobility-Restbestände beschränkt.
+    // Accessory-Pools regionsvollständig machen: Ziel-Regionen, für die die
+    // Block-Category nichts liefert (core/groin/bicep/… leben v.a. in strength),
+    // bekommen kategoriefremde Low-Intensity-Übungen beigemischt — sonst wäre
+    // der Slot auf mobility-Restbestände beschränkt und Pflicht-Regionen wie
+    // Adduktoren blieben unbedienbar.
     let mixedCore = false
-    if (blockType === 'accessory' && bodyRegions.includes('core')) {
-      const inPool = new Set(pool.map((e: any) => e.id))
-      const coreExtras = (allExercises ?? []).filter((e: any) =>
-        e.body_region === 'core'
-        && !inPool.has(e.id)
-        && !e.is_sport_specific
-        && (e.intensity_score === null || e.intensity_score <= 5)
-        && passesEquipmentAndEnv(e, envId),
-      )
-      if (coreExtras.length > 0) {
-        pool.push(...coreExtras)
-        mixedCore = true
+    if (blockType === 'accessory') {
+      const regionCounts = new Map<string, number>()
+      for (const e of pool) {
+        const r = effectiveRegion(e)
+        if (r) regionCounts.set(r, (regionCounts.get(r) ?? 0) + 1)
+      }
+      const missingRegions = new Set(bodyRegions.filter((r) => r !== 'full_body' && (regionCounts.get(r) ?? 0) < 3))
+      if (missingRegions.size > 0) {
+        const inPool = new Set(pool.map((e: any) => e.id))
+        const extras = (allExercises ?? []).filter((e: any) =>
+          missingRegions.has(e.body_region)
+          && !inPool.has(e.id)
+          && !e.is_sport_specific
+          && (e.exercise_type === null || e.exercise_type === 'dynamic')
+          && (e.intensity_score === null || e.intensity_score <= 5)
+          && passesEquipmentAndEnv(e, envId),
+        )
+        if (extras.length > 0) {
+          pool.push(...extras)
+          mixedCore = true
+        }
       }
     }
     return { pool, mixedCore }
@@ -502,6 +525,7 @@ export async function prepareGeneration(
     ...(dayPresetEnvironments.length > 0 ? { day_preset_environments: dayPresetEnvironments } : {}),
     sport_required_categories,
     user_focus_categories,
+    ...(schedule_notes && schedule_notes.trim() !== '' ? { user_notes: schedule_notes.trim() } : {}),
   }, null, 2)
 
   const MIN_BLOCK_POOL = 3
@@ -549,6 +573,7 @@ export async function prepareGeneration(
     userFocusCategories: user_focus_categories,
     categoryAvailability,
     minBlockPool: MIN_BLOCK_POOL,
+    requiredRegions: sport_required_regions,
   })
 
   const weekPlanCompletion = await openai.chat.completions.create({
@@ -616,7 +641,66 @@ export async function prepareGeneration(
         }
       }
     }
+
+    // Fokus-Quote: die Prio-1-Category muss primär genug Raum bekommen — ohne
+    // harte Quote deckeln no-repeat + Sport-Pflicht sie strukturell auf 1 primary,
+    // egal wie der User priorisiert (Prod-Beschwerde "zu wenig Muskelaufbau")
+    const prio1 = [...user_focus_categories].sort((a, b) => a.priority - b.priority)[0]?.category
+    if (prio1) {
+      const resolveEnvId = (s: { day_of_week: number }): string | null => {
+        const envSlug = (s as any).environment_slug
+        return dayEnvMap.get(s.day_of_week)
+          ?? (envSlug ? envSlugToIdMap.get(envSlug) : undefined)
+          ?? null
+      }
+      const mainSessions = plan.sessions.filter((s) => {
+        const mode = sessionSpecs.find((sp) => sp.day_of_week === s.day_of_week)?.mode_slug
+        return mode === 'full' || mode === 'reduced'
+      })
+      const eligibleFor = (blockType: 'primary' | 'secondary') => mainSessions.filter((s) => {
+        const spec = sessionSpecs.find((sp) => sp.day_of_week === s.day_of_week)!
+        const pool = filterByCategoryForMode(prio1, spec.mode_slug, resolveEnvId(s))
+        return countBlockCapable(pool, blockType) >= MIN_BLOCK_POOL
+      })
+      const primaryCovered = mainSessions.filter((s) =>
+        s.blocks.some((b) => b.block_type === 'primary' && b.category_slug === prio1),
+      ).length
+      const mainCovered = mainSessions.filter((s) =>
+        s.blocks.some((b) => (b.block_type === 'primary' || b.block_type === 'secondary') && b.category_slug === prio1),
+      ).length
+      const primaryQuota = Math.min(mainSessions.length >= 3 ? 2 : 1, eligibleFor('primary').length)
+      const mainQuota = Math.min(2, Math.max(eligibleFor('primary').length, eligibleFor('secondary').length))
+      if (primaryCovered < primaryQuota) {
+        issues.push(`FOKUS-QUOTE verletzt: \`${prio1}\` (Priorität 1) ist nur in ${primaryCovered} statt mindestens ${primaryQuota} Session(s) der primary-Block — die primary-Wiederholung von \`${prio1}\` mit deutlich anderen body_regions ist dafür ausdrücklich erlaubt`)
+      } else if (mainCovered < mainQuota) {
+        issues.push(`FOKUS-QUOTE verletzt: \`${prio1}\` (Priorität 1) kommt nur in ${mainCovered} statt mindestens ${mainQuota} Sessions als primary oder secondary vor — plane \`${prio1}\` in einer weiteren Session als Hauptblock`)
+      }
+    }
+
+    // Rumpf-PFLICHT: mindestens ein accessory-Block der Woche mit core-Region
+    const hasFullSession = plan.sessions.some((s) =>
+      sessionSpecs.find((sp) => sp.day_of_week === s.day_of_week)?.mode_slug === 'full')
+    if (hasFullSession) {
+      const coreCovered = plan.sessions.some((s) =>
+        s.blocks.some((b) => b.block_type === 'accessory' && b.body_regions.includes('core')))
+      if (!coreCovered) {
+        issues.push(`Rumpf-PFLICHT verletzt: Kein accessory-Block der Woche hat \`core\` in den body_regions — plane in einer full-Session einen accessory-Block (category \`mobility\`) mit core in den body_regions`)
+      }
+    }
+
     return issues
+  }
+
+  // Sport-Pflicht-Regionen: fehlende Regionen lösen KEINEN eigenen Retry aus
+  // (der deterministische Patcher unten fixt sie sicher) — sie fahren nur als
+  // Zusatzhinweis mit, wenn ohnehin ein Feasibility-Retry läuft
+  const regionCoverageIssues = (plan: z.infer<typeof weekPlanSchema>): string[] => {
+    if (sport_required_regions.length === 0) return []
+    const plannedRegions = new Set<string>(plan.sessions.flatMap((s) => s.blocks.flatMap((b) => b.body_regions as string[])))
+    const missing = sport_required_regions.filter((r) => !plannedRegions.has(r))
+    return missing.length > 0
+      ? [`Sport-Pflicht-Regionen fehlen in allen Blöcken: ${missing.join(', ')} — nimm sie in die body_regions passender Blöcke auf (accessory eignet sich für Ergänzungs-Regionen wie groin oder core)`]
+      : []
   }
 
   const initialIssues = feasibilityIssues(weekPlan)
@@ -630,7 +714,7 @@ export async function prepareGeneration(
         { role: 'assistant', content: JSON.stringify(weekPlan) },
         {
           role: 'user',
-          content: `Dein Wochenplan verletzt die Übungsverfügbarkeits-Regel:\n${initialIssues.map((i) => `- ${i}`).join('\n')}\n\nErsetze die Categories der betroffenen Blöcke durch tragfähige (laut Verfügbarkeitstabelle ≥ ${MIN_BLOCK_POOL} Übungen) und passe die body_regions an. Bilde den ursprünglichen Trainingsreiz über die neue Category ab. Alle anderen Sessions unverändert lassen. Gib den vollständigen korrigierten Wochenplan zurück.`,
+          content: `Dein Wochenplan verletzt die Übungsverfügbarkeits-Regel:\n${[...initialIssues, ...regionCoverageIssues(weekPlan)].map((i) => `- ${i}`).join('\n')}\n\nErsetze die Categories der betroffenen Blöcke durch tragfähige (laut Verfügbarkeitstabelle ≥ ${MIN_BLOCK_POOL} Übungen) und passe die body_regions an. Bilde den ursprünglichen Trainingsreiz über die neue Category ab. Alle anderen Sessions unverändert lassen. Gib den vollständigen korrigierten Wochenplan zurück.`,
         },
       ],
       reasoning_effort: 'low',
@@ -667,8 +751,12 @@ export async function prepareGeneration(
     if (!primaryCategoryCounts.has(category)) primaryCategoryCounts.set(category, [])
     primaryCategoryCounts.get(category)!.push(day)
   }
+  const prio1FocusCategory = [...user_focus_categories].sort((a, b) => a.priority - b.priority)[0]?.category
   for (const [category, days] of primaryCategoryCounts) {
-    if (days.length > 1) {
+    if (days.length > 1 && category === prio1FocusCategory) {
+      // Fokus-Quote: die Prio-1-Category wiederholt primary bewusst (andere body_regions)
+      console.log(`Fokus-Quote: primary "${category}" bewusst mehrfach geplant: ${days.map((d) => DAY_NAMES[d] ?? `Tag ${d}`).join(', ')}`)
+    } else if (days.length > 1) {
       console.warn(`⚠️  Phase A violation: primary category "${category}" used on multiple days: ${days.map((d) => DAY_NAMES[d] ?? `Tag ${d}`).join(', ')} — sessions will feel similar`)
     }
   }
@@ -705,6 +793,27 @@ export async function prepareGeneration(
     }
   }
 
+  // Sport-Pflicht-Regionen: fehlende Regionen deterministisch in accessory-
+  // Blöcke patchen (Backstop nach dem Feasibility-Retry). Der Accessory-Pool
+  // wird für diese Regionen kategoriefremd ergänzt (siehe buildMainBlockPool),
+  // die Wochen-Abdeckung validiert Phase C in der letzten Session.
+  if (sport_required_regions.length > 0) {
+    const plannedRegions = new Set<string>(weekPlan.sessions.flatMap((s) => s.blocks.flatMap((b) => b.body_regions as string[])))
+    const accessoryBlocks = weekPlan.sessions
+      .flatMap((s) => s.blocks.filter((b) => b.block_type === 'accessory').map((b) => ({ day: s.day_of_week, block: b })))
+      .sort((a, b) => a.block.body_regions.length - b.block.body_regions.length)
+    for (const region of sport_required_regions) {
+      if (plannedRegions.has(region)) continue
+      const target = accessoryBlocks[0]
+      if (!target) {
+        console.warn(`⚠️  Sport-Pflicht-Region "${region}" fehlt und kein accessory-Block vorhanden — nicht patchbar`)
+        continue
+      }
+      target.block.body_regions.push(region as any)
+      console.log(`Sport-Pflicht-Region "${region}" fehlte — gepatcht in day ${target.day} accessory (regions += ${region})`)
+    }
+  }
+
   // Erst NACH Pool Opt + Category-Fallback gebaut — die können Block-Kategorien
   // noch ändern, und die Summary muss für Phase C zum finalen Stand passen
   const buildWeekPlanSummary = () => weekPlan.sessions.map((s) => {
@@ -729,6 +838,7 @@ export async function prepareGeneration(
     slugIntensities?: Record<string, number>
     patternMaxIntensities?: Record<string, number>
     slugLateralities?: Record<string, string>
+    capableCount?: number
   }
 
   const sessionBuildInputs: SessionBuildInput[] = sessionSpecs.map((spec) => {
@@ -771,9 +881,10 @@ export async function prepareGeneration(
         console.log(`Phase B day ${spec.day_of_week} [${spec.mode_slug}] ${block.block_type}/${block.category_slug}: ${pool.length} exercises (${countBlockCapable(pool, block.block_type)} ${block.block_type}-fähig, regions: ${[...blockRegions].join(',') || 'alle'})`)
       }
 
-      // Strength: geforderte Muster aus den Block-Regionen — aber nur, was der Pool hergibt
+      // Strength: geforderte Muster aus den Block-Regionen — aber nur, was der Pool
+      // hergibt. Accessory-Strength (ARM-FOKUS-Isolationsblock) trägt keine Muster-Pflicht.
       let requiredPatterns: string[] | undefined
-      if (block.category_slug === 'strength') {
+      if (block.category_slug === 'strength' && block.block_type !== 'accessory') {
         const wanted = patternsFromRegions(block.body_regions)
         const poolPatterns = new Set(pool.map((e: any) => BODY_REGION_TO_PATTERN[effectiveRegion(e) ?? '']).filter(Boolean))
         requiredPatterns = wanted.filter((p) => poolPatterns.has(p))
@@ -794,6 +905,7 @@ export async function prepareGeneration(
         slugIntensities: poolSlugIntensities(pool),
         patternMaxIntensities: patternMaxIntensities(pool),
         slugLateralities: poolSlugLateralities(pool),
+        capableCount: countBlockCapable(pool, block.block_type),
       }
     })
 
@@ -818,6 +930,8 @@ export async function prepareGeneration(
       duration,
       environment_id: sessionEnvId,
       hasLoadableEquipment,
+      strengthFocus: prio1FocusCategory === 'strength',
+      requiredRegions: sport_required_regions,
       blockPools,
       bodyRegions: [...sessionBodyRegions],
       warmupExercisesString: exercisesToString(warmupPool),
@@ -885,12 +999,13 @@ export async function prepareGeneration(
       block.slugIntensities = poolSlugIntensities(pool)
       block.patternMaxIntensities = patternMaxIntensities(pool)
       block.slugLateralities = poolSlugLateralities(pool)
-      if (block.category_slug === 'strength') {
+      block.capableCount = countBlockCapable(pool, block.block_type)
+      if (block.category_slug === 'strength' && block.block_type !== 'accessory') {
         const wanted = patternsFromRegions(block.bodyRegions)
         const poolPatterns = new Set(pool.map((e: any) => BODY_REGION_TO_PATTERN[effectiveRegion(e) ?? '']).filter(Boolean))
         block.requiredPatterns = wanted.filter((p) => poolPatterns.has(p))
       }
-      console.log(`     ${block.block_type}/${block.category_slug}: → ${pool.length} exercises (${countBlockCapable(pool, block.block_type)} ${block.block_type}-fähig)`)
+      console.log(`     ${block.block_type}/${block.category_slug}: → ${pool.length} exercises (${block.capableCount} ${block.block_type}-fähig)`)
     }
 
     // Recompute warmup/cooldown pools
@@ -957,6 +1072,7 @@ export async function prepareGeneration(
       block.slugIntensities = poolSlugIntensities(best.pool)
       block.patternMaxIntensities = patternMaxIntensities(best.pool)
       block.slugLateralities = poolSlugLateralities(best.pool)
+      block.capableCount = best.count
       if (best.category === 'strength') {
         const wanted = patternsFromRegions(block.bodyRegions)
         const poolPatterns = new Set(best.pool.map((e: any) => BODY_REGION_TO_PATTERN[effectiveRegion(e) ?? '']).filter(Boolean))
@@ -1004,6 +1120,11 @@ export function findSessionViolations(
   modeSlug: SessionModeSlug,
   exerciseSlugToBodyRegion: Record<string, string>,
   previousPushRegions?: string[],
+  strengthFocus?: boolean,
+  /** Noch offene Sport-Pflicht-Regionen dieser Woche */
+  remainingRequiredRegions?: string[],
+  /** Letzte Session der Woche → offene Regionen werden über ALLE Pools erzwungen, nicht nur in Blöcken mit passender Ziel-Region */
+  isLastSession?: boolean,
 ): string[] {
   const violations: string[] = []
   for (const block of session.blocks) {
@@ -1016,6 +1137,13 @@ export function findSessionViolations(
     }
 
     const pool = blockPools.find((p) => p.block_type === block.block_type)
+
+    // Mindest-Volumen: full-Hauptblöcke mit nur 1 Übung fühlen sich leer an
+    // (Prod-Beschwerde) — Verstoß nur, wenn der Pool tatsächlich mehr hergibt
+    if (modeSlug === 'full' && (block.block_type === 'primary' || block.block_type === 'secondary')
+      && block.exercises.length < 2 && (pool?.capableCount ?? 0) >= 2) {
+      violations.push(`Block "${block.block_type}": nur ${block.exercises.length} Übung — full-Sessions brauchen mindestens 2 Übungen in primary/secondary (der Pool bietet ${pool!.capableCount} geeignete)`)
+    }
 
     // Intensitäts-PFLICHT nur für volle Sessions — reduced/activation sind
     // bewusst gedrosselt, accessory hat eine Low-Intensity-Rolle
@@ -1120,8 +1248,59 @@ export function findSessionViolations(
           }
         }
       }
+
+      // Chest-Push-Pflicht bei Strength-Fokus: solange die Woche noch keinen
+      // chest-Push hat, muss ein Push-Pflicht-Block eine Floor-taugliche
+      // chest-Übung wählen — sonst besteht "Push" wochenlang nur aus
+      // Overhead-Varianten und die Brust bleibt leer (Prod-Beschwerde)
+      if (strengthFocus && pool.requiredPatterns.includes('push')
+        && !(previousPushRegions ?? []).includes('chest')) {
+        const chestFloor = (patternMax['push'] ?? 0) - gap
+        const hasChestPush = block.exercises.some((e) =>
+          patternOf(e.exercise_slug) === 'push' && exerciseSlugToBodyRegion[e.exercise_slug] === 'chest')
+        if (!hasChestPush) {
+          const chestAlternatives = Object.entries(intensities)
+            .filter(([slug, v]) => patternOf(slug) === 'push' && v >= chestFloor
+              && exerciseSlugToBodyRegion[slug] === 'chest')
+            .map(([slug, v]) => `${slug} (${v})`)
+            .join(', ')
+          if (chestAlternatives) {
+            violations.push(`Block "${block.block_type}", Muster "push": Diese Woche fehlt noch ein schwerer chest-Push (User-Fokus strength) — wähle für push eine chest-Übung: ${chestAlternatives}`)
+          }
+        }
+      }
     }
   }
+
+  // Sport-Pflicht-Regionen ("Athletic Floor"): eine offene Region MUSS gewählt
+  // werden, (a) in jeder Session, deren Block sie explizit als Ziel-Region führt
+  // — sonst erfüllt z.B. IMTP (dominant glute) das hinge-Muster und hamstring
+  // geht leer aus — und (b) in der letzten Session über alle Pools hinweg.
+  if (remainingRequiredRegions?.length) {
+    const chosenRegions = new Set(session.blocks
+      .flatMap((b) => b.exercises.map((e) => exerciseSlugToBodyRegion[e.exercise_slug]))
+      .filter(Boolean))
+    for (const region of remainingRequiredRegions) {
+      if (chosenRegions.has(region)) continue
+      const relevantPools = isLastSession
+        ? blockPools
+        : blockPools.filter((p) => p.bodyRegions.includes(region))
+      const candidates = [...new Set(relevantPools.flatMap((p) =>
+        p.slugs.split(',').map((s) => s.trim()).filter(Boolean)
+          .filter((slug) => exerciseSlugToBodyRegion[slug] === region)
+          .map((slug) => `${slug} (${p.block_type})`)))]
+      if (candidates.length > 0) {
+        violations.push(isLastSession
+          ? `Sport-Pflicht-Region "${region}" wurde diese Woche noch nicht trainiert und dies ist die letzte Session — wähle eine dieser Übungen: ${candidates.slice(0, 6).join(', ')}`
+          : `Sport-Pflicht-Region "${region}" ist Ziel-Region dieser Session und diese Woche noch offen — wähle mindestens eine dieser Übungen: ${candidates.slice(0, 6).join(', ')}`)
+        // Zwischen-Sessions: nur EINE offene Region auf einmal erzwingen — sonst
+        // verdrängen sich zwei Regionen im selben Block gegenseitig über die
+        // Retries (Pingpong); den Rest decken spätere Sessions bzw. die letzte
+        if (!isLastSession) break
+      }
+    }
+  }
+
   return violations
 }
 
@@ -1175,6 +1354,17 @@ export async function runSessionCD(
       .flatMap((b) => b.exercises.map((e) => exerciseSlugToBodyRegion[e.slug])))
     .filter((r): r is string => !!r && PUSH_REGIONS.has(r)))]
 
+  // Sport-Pflicht-Regionen: was frühere Sessions dieser Woche noch nicht
+  // abgedeckt haben — Prompt-Hinweis für jede Session, hart validiert erst
+  // in der letzten (die muss die Restlücken schließen)
+  const coveredRegions = new Set(previousSessions
+    .flatMap((ps) => ps.blocks
+      .filter((b) => b.block_type === 'primary' || b.block_type === 'secondary' || b.block_type === 'accessory')
+      .flatMap((b) => b.exercises.map((e) => exerciseSlugToBodyRegion[e.slug])))
+    .filter(Boolean))
+  const remainingRequiredRegions = (si.requiredRegions ?? []).filter((r) => !coveredRegions.has(r))
+  const isLastSession = sessionIndex === totalSessions - 1
+
   const basePrompt = GENERATE_MAIN_BLOCKS_PROMPT({
     sessionIndex,
     totalSessions,
@@ -1188,10 +1378,16 @@ export async function runSessionCD(
     planDescription,
     previousSessions,
     previousPushRegions,
+    strengthFocus: si.strengthFocus,
+    requiredRegionsRemaining: remainingRequiredRegions,
+    isLastSession,
   })
 
   const findPatternViolations = (session: z.infer<typeof mainSessionSchema>): string[] =>
-    findSessionViolations(session, si.blockPools, si.spec.mode_slug, exerciseSlugToBodyRegion, previousPushRegions)
+    findSessionViolations(
+      session, si.blockPools, si.spec.mode_slug, exerciseSlugToBodyRegion, previousPushRegions,
+      si.strengthFocus, remainingRequiredRegions, isLastSession,
+    )
 
   let mainSession!: z.infer<typeof mainSessionSchema>
   let patternFeedback: string | undefined

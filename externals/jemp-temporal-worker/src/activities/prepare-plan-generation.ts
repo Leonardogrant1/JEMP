@@ -63,6 +63,12 @@ export async function preparePlanGeneration(input: { userId: string }): Promise<
     .map((r: any) => ({ category: r.categories?.slug, relevance: r.relevance }))
     .sort((a: any, b: any) => b.relevance - a.relevance)
 
+  const { data: requiredRegionRows } = await supabase
+    .from('sport_required_regions')
+    .select('body_region')
+    .eq('sport_id', userProfile.sport_id)
+  const sportRequiredRegions = (requiredRegionRows ?? []).map((r: any) => r.body_region as string)
+
   const { data: targetedCategoriesData } = await supabase
     .from('user_targeted_categories')
     .select('priority, categories(slug)')
@@ -102,8 +108,10 @@ export async function preparePlanGeneration(input: { userId: string }): Promise<
       equipment_environments: equipmentEnvironments,
       category_levels: categoryLevels,
       sport_required_categories: sportRequiredCategories,
+      sport_required_regions: sportRequiredRegions,
       user_focus_categories: userFocusCategories,
       day_environments: dayEnvironments,
+      schedule_notes: userProfile.schedule_notes ?? null,
     },
     supabase,
     openai,
