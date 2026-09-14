@@ -18,6 +18,7 @@ import { getDayVariant, toDatabaseDow } from '@/helpers/session-helpers';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { hasCompletePlanSettings } from '@/lib/plan-settings-complete';
 import { startPlanGeneration } from '@/lib/start-plan-generation';
+import { useEquipmentSanityCheck } from '@/hooks/use-equipment-sanity-check';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { type PlanSession, type WorkoutSession, usePlan } from '@/providers/plan-provider';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
@@ -48,6 +49,10 @@ export default function PlanScreen() {
     const jobStatus = usePlanGenerationStore(s => s.job?.status);
     const isGenerating = usePlanGenerationStore(s => s.isGenerating);
     const isError = usePlanGenerationStore(s => s.isError);
+
+    // Kaputte Equipment-Profile (Gym ohne Hanteln, Onboarding-Bug) einmal pro
+    // App-Start zur Korrektur anbieten — Ursache für Bodyweight-only-Pläne
+    useEquipmentSanityCheck(profile?.id);
 
 
     useEffect(() => {

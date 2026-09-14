@@ -36,7 +36,7 @@ export function EquipmentStep() {
     const { t, i18n } = useTranslation();
     const locale = i18n.language;
 
-    const storedEquipmentIds = useOnboardingStore((s) => s.equipmentIds);
+    const storedDeselectedIds = useOnboardingStore((s) => s.deselectedEquipmentIds);
     const [equipments, setEquipments] = useState<EquipmentItem[]>([]);
     const [deselected, setDeselected] = useState<Set<string>>(new Set());
     // Ohne Environments gibt es nichts zu laden — direkt fertig starten
@@ -63,13 +63,15 @@ export function EquipmentStep() {
                 });
                 const items = Array.from(map.values());
                 setEquipments(items);
-                if (storedEquipmentIds.length > 0) {
-                    const storedSet = new Set(storedEquipmentIds);
-                    const initialDeselected = new Set(items.filter((e) => !storedSet.has(e.id)).map((e) => e.id));
-                    setDeselected(initialDeselected);
-                } else {
-                    setStore({ equipmentIds: items.map((e) => e.id) });
-                }
+                // Auswahl IMMER aus (Items der aktuellen Environments − explizite
+                // Abwahlen) ableiten. Die Abwahl-Liste ist die Quelle der Wahrheit:
+                // Items eines neu hinzugekommenen Environments starten dadurch
+                // vorausgewählt. (Vorher wurde die Auswahl persistiert — nach einem
+                // Environment-Wechsel waren damit ALLE Geräte des neuen Environments
+                // deselektiert: Gym-User ohne Hanteln.)
+                const initialDeselected = new Set(storedDeselectedIds);
+                setDeselected(initialDeselected);
+                setStore({ equipmentIds: items.filter((e) => !initialDeselected.has(e.id)).map((e) => e.id) });
             }
             setLoading(false);
         }
@@ -84,7 +86,7 @@ export function EquipmentStep() {
         next.has(id) ? next.delete(id) : next.add(id);
         setDeselected(next);
         const active = equipments.filter((e) => !next.has(e.id)).map((e) => e.id);
-        setStore({ equipmentIds: active });
+        setStore({ equipmentIds: active, deselectedEquipmentIds: [...next] });
     }
 
     function getLabel(eq: EquipmentItem) {

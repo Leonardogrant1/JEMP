@@ -120,6 +120,7 @@ export function PersonalizationStep() {
                 targetedCategories,
                 categoryLevels,
                 equipmentIds,
+                deselectedEquipmentIds,
                 environmentIds,
                 environmentSlugs,
                 dayEnvironments,

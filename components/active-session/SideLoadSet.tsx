@@ -37,6 +37,7 @@ export function SideLoadSet({ side }: { side: 'left' | 'right' }) {
                 label={t('ui.reps')}
                 value={isLeft ? repsLeft : repsRight}
                 fallback={repsFallback}
+                min={1}
                 onChange={isLeft ? setRepsLeft : setRepsRight}
             />
             {showLoad && (

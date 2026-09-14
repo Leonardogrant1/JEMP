@@ -139,7 +139,11 @@ export default function SessionRescheduleScreen() {
                         onLayout={handleSheetLayout}
                         style={[styles.sheet, { backgroundColor: theme.surface, maxHeight: windowHeight * 0.85 }, sheetStyle]}
                     >
-                        <View style={[styles.content, { paddingBottom: insets.bottom + 8 }]}>
+                        {/* maxHeight muss hier als Zahl stehen: ein Prozent-maxHeight gegen
+                            den auto-hohen Sheet-Parent löst Yoga nicht auf — die Tagesliste
+                            bekam volle Höhe, wurde vom Sheet abgeschnitten und scrollte
+                            nicht (Support-Ticket: "Sonntag nicht erreichbar") */}
+                        <View style={[styles.content, { paddingBottom: insets.bottom + 8, maxHeight: windowHeight * 0.85 }]}>
                             <View style={[styles.handle, { backgroundColor: theme.borderDivider }]} />
 
                                 <>
@@ -341,7 +345,6 @@ const styles = StyleSheet.create({
         paddingTop: 12,
         paddingHorizontal: 20,
         gap: 16,
-        maxHeight: '100%',
     },
     handle: {
         width: 36,

@@ -28,10 +28,13 @@ export function LoadSet() {
     return (
         // Reps zuerst, dann Gewicht (zweigeteilt: kg + Nachkomma)
         <View style={styles.wheelRow}>
+            {/* min 1: die DB verbietet performed_reps = 0 (Check-Constraint) —
+                ein 0-Reps-Satz ließe sich gar nicht speichern */}
             <SetWheel
                 label={t('ui.reps')}
                 value={reps}
                 fallback={repsFallback}
+                min={1}
                 onChange={setReps}
             />
             {showLoad && (

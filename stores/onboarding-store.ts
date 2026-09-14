@@ -46,6 +46,12 @@ type OnboardingStore = ProfileData & {
     targetedCategories: TargetedCategory[];
     categoryLevels: CategoryLevel[];
     equipmentIds: string[];
+    // Explizit ABGEWÄHLTES Equipment — Quelle der Wahrheit beim Re-Mount des
+    // Equipment-Steps: equipmentIds wird aus (Items der aktuellen Environments
+    // − deselectedEquipmentIds) neu abgeleitet. Würde stattdessen die Auswahl
+    // persistiert, wären nach einem Environment-Wechsel alle Geräte des neuen
+    // Environments deselektiert (Prod-Bug: Gym-User ohne Hanteln).
+    deselectedEquipmentIds: string[];
     environmentIds: string[];
     // Nur fürs Tracking (PostHog) — Persistenz läuft weiter über environmentIds
     environmentSlugs: string[];
@@ -61,6 +67,7 @@ type OnboardingStore = ProfileData & {
         targetedCategories: TargetedCategory[];
         categoryLevels: CategoryLevel[];
         equipmentIds: string[];
+        deselectedEquipmentIds: string[];
         environmentIds: string[];
         environmentSlugs: string[];
         equipmentEnvironments: EquipmentEnvironment[];
@@ -90,6 +97,7 @@ const initialState: Omit<OnboardingStore, 'set' | 'reset'> = {
     targetedCategories: [],
     categoryLevels: [],
     equipmentIds: [],
+    deselectedEquipmentIds: [],
     environmentIds: [],
     environmentSlugs: [],
     equipmentEnvironments: [],

@@ -68,13 +68,16 @@ export function useLogSet() {
         : [];
     const activeSide: 'left' | 'right' = currentSetSides.some(s => s.side === 'left') ? 'right' : 'left';
 
+    // Reps müssen > 0 sein — die DB lehnt performed_reps = 0 per Check-
+    // Constraint ab (13 stille Speicherfehler in Prod am 04.09.)
+    const validReps = (value: string) => parseInt(value, 10) > 0;
     const hasInput = isDuration && isUnilateral
         ? (activeSide === 'left' ? exerciseDurationLeft : exerciseDurationRight) > 0
         : isDuration
             ? exerciseDuration > 0
             : isUnilateral
-                ? (activeSide === 'left' ? repsLeft : repsRight).trim() !== ''
-                : reps.trim() !== '';
+                ? validReps(activeSide === 'left' ? repsLeft : repsRight)
+                : validReps(reps);
 
     const completeSession = useCallback(async () => {
         if (!id) return;
