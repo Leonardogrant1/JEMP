@@ -38,6 +38,10 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
             ? REVENUECAT_API_KEYS.ios
             : REVENUECAT_API_KEYS.android;
         Purchases.configure({ apiKey });
+        if (Platform.OS === 'ios') {
+            // Apple Search Ads attribution (AdServices token, privacy-preserving — no ATT prompt needed)
+            Purchases.enableAdServicesAttributionTokenCollection();
+        }
         Purchases.setLogLevel(__DEV__ ? Purchases.LOG_LEVEL.DEBUG : Purchases.LOG_LEVEL.INFO);
     }, []);
 
