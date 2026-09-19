@@ -12,9 +12,12 @@ import {
   type ExerciseImageGroup,
   type Laterality,
 } from '../../actions/exercises'
+import { generateThumbnail } from '../../actions/thumbnail-ai'
 import { asI18n } from '@/lib/i18n'
 import { DropZone } from '../_components/DropZone'
 import type { Json } from '../../../../database.types'
+
+type ThumbnailSource = { id: string; name: string; image_group: string | null }
 
 type Props = {
   exercise: Exercise & { equipmentIds: string[]; environmentIds: string[] }
@@ -24,6 +27,7 @@ type Props = {
     environments: { id: string; slug: string; name_i18n: Json | null }[]
     blockTypes: { id: string; slug: string }[]
   }
+  thumbnailSources: ThumbnailSource[]
 }
 
 type Statuses = {
@@ -42,7 +46,7 @@ function isValidSlug(s: string): boolean {
   return /^[a-z0-9]+(_[a-z0-9]+)*$/.test(s)
 }
 
-export function ExerciseEditForm({ exercise: initial, relations }: Props) {
+export function ExerciseEditForm({ exercise: initial, relations, thumbnailSources }: Props) {
   const [exercise, setExercise] = useState(initial)
   const [statuses, setStatuses] = useState<Statuses>({})
   const [isPending, startTransition] = useTransition()
@@ -84,6 +88,13 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
 
   const [pendingThumbnail, setPendingThumbnail] = useState<File | null>(null)
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
+
+  // AI-Thumbnail: Seed default = erste Übung derselben image_group mit Thumbnail
+  const [seedId, setSeedId] = useState(() => {
+    const sameGroup = thumbnailSources.find(s => s.image_group && s.image_group === initial.image_group)
+    return (sameGroup ?? thumbnailSources[0])?.id ?? ''
+  })
+  const [isGenerating, setIsGenerating] = useState(false)
 
   const [pendingVideo, setPendingVideo] = useState<File | null>(null)
   const [videoPreview, setVideoPreview] = useState<string | null>(null)
@@ -201,6 +212,21 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
     setPendingThumbnail(file)
     setThumbnailPreview(URL.createObjectURL(file))
     setStatus('thumbnail', '')
+  }
+
+  const generateAiThumbnail = async () => {
+    if (!seedId || isGenerating) return
+    setIsGenerating(true)
+    setStatus('thumbnail', 'Generating… (~15s)')
+    try {
+      const { b64 } = await generateThumbnail(exercise.id, seedId)
+      const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0))
+      selectThumbnail(new File([bytes], 'ai-thumbnail.png', { type: 'image/png' }))
+    } catch (err) {
+      setStatus('thumbnail', err instanceof Error ? err.message : 'Error generating')
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   const cancelThumbnail = () => {
@@ -630,6 +656,30 @@ export function ExerciseEditForm({ exercise: initial, relations }: Props) {
               label="Drop thumbnail here"
               onFile={selectThumbnail}
             />
+          </div>
+        )}
+
+        {thumbnailSources.length > 0 && (
+          <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-800">
+            <select
+              value={seedId}
+              onChange={e => setSeedId(e.target.value)}
+              disabled={isGenerating}
+              className="flex-1 min-w-0 px-3 py-2 bg-gray-800 text-gray-300 border border-gray-700 rounded text-sm"
+            >
+              {thumbnailSources.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.name}{s.image_group === exercise.image_group ? ' ★' : ''}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={generateAiThumbnail}
+              disabled={isGenerating}
+              className="px-4 py-2 bg-gray-800 text-gray-200 border border-gray-700 rounded text-sm font-medium hover:bg-gray-700 disabled:opacity-50 whitespace-nowrap"
+            >
+              {isGenerating ? 'Generating…' : pendingThumbnail ? '↻ Regenerate' : '✨ Generate'}
+            </button>
           </div>
         )}
 

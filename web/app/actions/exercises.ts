@@ -64,21 +64,36 @@ async function requireAdmin() {
   return user
 }
 
-export async function getExercises(categorySlug?: string): Promise<ExerciseListItem[]> {
-  await requireUser()
-  let query = supabase
-    .from('exercises')
-    .select('id, name, slug, youtube_url, thumbnail_storage_path, video_storage_path, image_group, category:categories(id, slug, name_i18n)')
-    .order('name')
+export type ExerciseFilters = {
+  category?: string
+  equipment?: string
+  blockType?: string
+  bodyRegion?: BodyRegion
+}
 
-  if (categorySlug) {
-    const { data: cat } = await supabase.from('categories').select('id').eq('slug', categorySlug).single()
-    if (cat) query = query.eq('category_id', cat.id)
-  }
+export async function getExercises(filters: ExerciseFilters = {}): Promise<ExerciseListItem[]> {
+  await requireUser()
+  const { category, equipment, blockType, bodyRegion } = filters
+
+  const [cat, eq, bt] = await Promise.all([
+    category ? supabase.from('categories').select('id').eq('slug', category).single().then(r => r.data) : null,
+    equipment ? supabase.from('equipments').select('id').eq('slug', equipment).single().then(r => r.data) : null,
+    blockType ? supabase.from('block_types').select('id').eq('slug', blockType).single().then(r => r.data) : null,
+  ])
+
+  let select = 'id, name, slug, youtube_url, thumbnail_storage_path, video_storage_path, image_group, category:categories(id, slug, name_i18n)'
+  if (eq) select += ', exercise_equipments!inner(equipment_id)'
+  if (bt) select += ', exercise_blocks!inner(block_type_id)'
+
+  let query = supabase.from('exercises').select(select).order('name')
+  if (cat) query = query.eq('category_id', cat.id)
+  if (eq) query = query.eq('exercise_equipments.equipment_id', eq.id)
+  if (bt) query = query.eq('exercise_blocks.block_type_id', bt.id)
+  if (bodyRegion) query = query.eq('body_region', bodyRegion)
 
   const { data, error } = await query
   if (error) throw new Error(error.message)
-  return data as ExerciseListItem[]
+  return data as unknown as ExerciseListItem[]
 }
 
 export async function getExercise(id: string): Promise<Exercise & { equipmentIds: string[]; environmentIds: string[] }> {

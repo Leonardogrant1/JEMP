@@ -1,11 +1,18 @@
 import Link from 'next/link'
-import { getExercises, getExerciseRelations } from '../actions/exercises'
-import { ExerciseCategoryFilter } from './_components/ExerciseCategoryFilter'
+import { Constants } from '../../../database.types'
+import { getExercises, getExerciseRelations, type BodyRegion } from '../actions/exercises'
+import { ExerciseFilterBar } from './_components/ExerciseFilterBar'
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
-  const { category } = await searchParams
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ category?: string; equipment?: string; block?: string; region?: string }> }) {
+  const { category, equipment, block, region } = await searchParams
+  const bodyRegions = Constants.public.Enums.body_region
   const [exercises, relations] = await Promise.all([
-    getExercises(category),
+    getExercises({
+      category,
+      equipment,
+      blockType: block,
+      bodyRegion: bodyRegions.includes(region as BodyRegion) ? (region as BodyRegion) : undefined,
+    }),
     getExerciseRelations(),
   ])
 
@@ -28,7 +35,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         </Link>
       </div>
       <div className="mb-4">
-        <ExerciseCategoryFilter categories={relations.categories as any} />
+        <ExerciseFilterBar
+          categories={relations.categories as any}
+          equipments={relations.equipments as any}
+          blockTypes={relations.blockTypes}
+          bodyRegions={bodyRegions}
+        />
       </div>
       <table className="w-full text-sm">
         <thead>
