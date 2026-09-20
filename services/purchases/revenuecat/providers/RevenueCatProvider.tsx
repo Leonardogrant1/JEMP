@@ -4,6 +4,7 @@ import { useAuth } from '@/providers/auth-provider';
 import { scheduleTrialEndReminder } from '@/services/notifications';
 import { devError, devLog } from '@/utils/dev-log';
 import { wait } from '@/utils/wait';
+import { AppSprint } from "appsprint-react-native";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AppState, Platform } from "react-native";
 import Purchases, { type CustomerInfo, PurchasesPackage } from "react-native-purchases";
@@ -31,6 +32,24 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
     const { session } = useAuth();
     const userId = session?.user?.id;
     const hasLoggedInRef = useRef(false);
+    const appsprintLinkedRef = useRef(false);
+
+    // AppSprint-Install-ID als Subscriber-Attribut an RevenueCat hängen, damit
+    // der AppSprint-Webhook Revenue-Events dem Install zuordnen kann. Die ID
+    // existiert erst nach der Install-Registrierung — bis dahin nichts setzen
+    // (kein Platzhalter), Retry passiert über den Foreground-Listener.
+    const linkAppsprintId = async () => {
+        if (appsprintLinkedRef.current) return;
+        try {
+            const appsprintId = await AppSprint.getAppSprintId();
+            if (appsprintId) {
+                await Purchases.setAttributes({ appsprintId });
+                appsprintLinkedRef.current = true;
+            }
+        } catch (err) {
+            devError('[AppSprint] linking appsprintId to RevenueCat failed', err);
+        }
+    };
 
     // Configure RC once on mount
     useEffect(() => {
@@ -43,6 +62,15 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
             Purchases.enableAdServicesAttributionTokenCollection();
         }
         Purchases.setLogLevel(__DEV__ ? Purchases.LOG_LEVEL.DEBUG : Purchases.LOG_LEVEL.INFO);
+
+        const appsprintKey = process.env.EXPO_PUBLIC_APPSPRINT_API_KEY;
+        if (appsprintKey) {
+            AppSprint.configure({ apiKey: appsprintKey })
+                .then(linkAppsprintId)
+                .catch(err => devError('[AppSprint] configure failed', err));
+        } else {
+            devError('[AppSprint] EXPO_PUBLIC_APPSPRINT_API_KEY missing — attribution disabled');
+        }
     }, []);
 
     // Log in/out whenever the Supabase user changes
@@ -60,6 +88,11 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
         const init = async () => {
             await Purchases.logIn(userId);
             hasLoggedInRef.current = true;
+            // Nach dem Login erneut linken: ein vor dem logIn gesetztes Attribut
+            // kann am anonymen User hängen, wenn der Login einen bereits
+            // existierenden RC-User trifft (Re-Install, Zweitgerät)
+            appsprintLinkedRef.current = false;
+            linkAppsprintId();
             trackerManager.identify(userId);
             const info = await Purchases.getCustomerInfo();
             setCustomerInfo(info);
@@ -71,7 +104,10 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
     // Refresh customer info when app comes back to foreground
     useEffect(() => {
         const sub = AppState.addEventListener('change', (state) => {
-            if (state === 'active' && userId) refreshUserInfo();
+            if (state === 'active') {
+                linkAppsprintId();
+                if (userId) refreshUserInfo();
+            }
         });
         return () => sub.remove();
     }, [userId]);
