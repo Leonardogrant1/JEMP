@@ -1,11 +1,11 @@
-import Link from 'next/link'
-import { Constants } from '../../../database.types'
-import { getExercises, getExerciseRelations, type BodyRegion } from '../actions/exercises'
-import { ExerciseFilterBar } from './_components/ExerciseFilterBar'
+import Link from 'next/link';
+import { BODY_REGIONS } from '@/lib/db-enums';
+import { getExerciseRelations, getExercises, type BodyRegion } from '../actions/exercises';
+import { ExerciseFilterBar } from './_components/ExerciseFilterBar';
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ category?: string; equipment?: string; block?: string; region?: string }> }) {
   const { category, equipment, block, region } = await searchParams
-  const bodyRegions = Constants.public.Enums.body_region
+  const bodyRegions = BODY_REGIONS
   const [exercises, relations] = await Promise.all([
     getExercises({
       category,

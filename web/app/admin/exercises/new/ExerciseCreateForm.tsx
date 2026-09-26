@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createExercise, type MovementPattern, type BodyRegion, type ExerciseImageGroup, type Laterality } from '../../../actions/exercises'
+import { prefillExercise } from '../../../actions/exercise-ai'
 import { asI18n } from '@/lib/i18n'
 import type { Json } from '../../../../../database.types'
 
@@ -46,6 +47,41 @@ export function ExerciseCreateForm({ categories, equipments, environments, block
   const [status, setStatus] = useState('')
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
+
+  // KI-Prefill: Name + grobe Beschreibung rein, alle Klassifizierungs-Felder
+  // werden vorbefüllt (außer Thumbnail/Video/YouTube). Danach normal reviewen.
+  const [roughDescription, setRoughDescription] = useState('')
+  const [isPrefilling, setIsPrefilling] = useState(false)
+
+  const prefill = async () => {
+    if (!name.trim()) { setStatus('Name ist erforderlich für den Prefill'); return }
+    setIsPrefilling(true)
+    setStatus('')
+    try {
+      const p = await prefillExercise(name.trim(), roughDescription.trim())
+      setSlug(p.slug)
+      setDescDe(p.description_de)
+      setDescEn(p.description_en)
+      setCategoryId(p.category_id)
+      setMovementPattern(p.movement_pattern)
+      setBodyRegion(p.body_region)
+      setMinLevel(String(p.min_level))
+      setMaxLevel(String(p.max_level))
+      setIntensityScore(String(p.intensity_score))
+      setExerciseType(p.exercise_type)
+      setMeasurementType(p.measurement_type)
+      setLaterality(p.laterality)
+      setImageGroup(p.image_group)
+      setEquipmentIds(p.equipmentIds)
+      setEnvironmentIds(p.environmentIds)
+      setBlockTypeIds(p.blockTypeIds)
+      toast.success('Felder vorbefüllt — bitte reviewen')
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : 'Prefill fehlgeschlagen')
+    } finally {
+      setIsPrefilling(false)
+    }
+  }
 
   const create = () => {
     if (!name.trim()) { setStatus('Name ist erforderlich'); return }
@@ -99,6 +135,23 @@ export function ExerciseCreateForm({ categories, equipments, environments, block
               placeholder="z.B. Back Squat"
               className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
             />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Grobe Beschreibung (für KI-Prefill, de oder en)</label>
+            <textarea
+              value={roughDescription}
+              onChange={e => setRoughDescription(e.target.value)}
+              rows={2}
+              placeholder="z.B. Kettlebell um den Kopf kreisen, Schultermobilität"
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500 resize-y"
+            />
+            <button
+              onClick={prefill}
+              disabled={isPrefilling}
+              className="mt-2 px-4 py-2 bg-gray-800 text-gray-200 border border-gray-700 rounded text-sm font-medium hover:bg-gray-700 disabled:opacity-50"
+            >
+              {isPrefilling ? 'Befülle… (~10s)' : '✨ Alle Felder vorbefüllen'}
+            </button>
           </div>
           <div>
             <label className="block text-xs text-gray-400 mb-1">Slug</label>
