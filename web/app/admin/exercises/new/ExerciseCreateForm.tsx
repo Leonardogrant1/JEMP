@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { createExercise, type MovementPattern, type BodyRegion, type ExerciseImageGroup, type Laterality } from '../../../actions/exercises'
+import { createExercise, getSignedUploadUrl, updateExercise, type MovementPattern, type BodyRegion, type ExerciseImageGroup, type Laterality } from '../../../actions/exercises'
 import { prefillExercise } from '../../../actions/exercise-ai'
 import { asI18n } from '@/lib/i18n'
+import { DropZone } from '../../_components/DropZone'
 import type { Json } from '../../../../../database.types'
 
 type Props = {
@@ -43,6 +44,9 @@ export function ExerciseCreateForm({ categories, equipments, environments, block
   const [blockTypeIds, setBlockTypeIds] = useState<string[]>([])
 
   const [youtubeUrl, setYoutubeUrl] = useState('')
+
+  const [pendingVideo, setPendingVideo] = useState<File | null>(null)
+  const [videoPreview, setVideoPreview] = useState<string | null>(null)
 
   const [status, setStatus] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -83,17 +87,40 @@ export function ExerciseCreateForm({ categories, equipments, environments, block
     }
   }
 
+  // Object-URL beim Unmount freigeben (Pattern wie im ExerciseEditForm)
+  useEffect(() => {
+    return () => {
+      if (videoPreview) URL.revokeObjectURL(videoPreview)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selectVideo = (file: File) => {
+    if (videoPreview) URL.revokeObjectURL(videoPreview)
+    setPendingVideo(file)
+    setVideoPreview(URL.createObjectURL(file))
+  }
+
+  const cancelVideo = () => {
+    if (videoPreview) URL.revokeObjectURL(videoPreview)
+    setPendingVideo(null)
+    setVideoPreview(null)
+  }
+
   const create = () => {
     if (!name.trim()) { setStatus('Name ist erforderlich'); return }
     if (!isValidSlug(slug)) {
       setSlugError('Nur Kleinbuchstaben und Unterstriche erlaubt (z.B. back_squat)')
       return
     }
+    if (!youtubeUrl.trim() && !pendingVideo) {
+      setStatus('YouTube-URL oder Video ist erforderlich')
+      return
+    }
     setSlugError('')
     setStatus('')
     startTransition(async () => {
       try {
-        await createExercise({
+        const id = await createExercise({
           name: name.trim(),
           slug,
           category_id: categoryId || null,
@@ -112,6 +139,23 @@ export function ExerciseCreateForm({ categories, equipments, environments, block
           blockTypeIds,
           youtube_url: youtubeUrl || null,
         })
+        // Video erst nach dem Anlegen hochladen — der Storage-Pfad braucht die ID
+        if (pendingVideo) {
+          try {
+            const { signedUrl, path } = await getSignedUploadUrl(id, 'video')
+            const res = await fetch(signedUrl, {
+              method: 'PUT',
+              body: pendingVideo,
+              headers: { 'Content-Type': pendingVideo.type },
+            })
+            if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
+            await updateExercise(id, { video_storage_path: path })
+          } catch (err) {
+            toast.error(`Übung erstellt, aber Video-Upload fehlgeschlagen — bitte im Edit-Form nachholen (${err instanceof Error ? err.message : 'Fehler'})`)
+            router.push(`/admin/${id}`)
+            return
+          }
+        }
         toast.success(`„${name.trim()}" wurde erstellt`)
         router.push('/admin')
       } catch (err) {
@@ -392,16 +436,47 @@ export function ExerciseCreateForm({ categories, equipments, environments, block
         </div>
       </section>
 
-      {/* YouTube */}
+      {/* Video / YouTube — mindestens eins von beidem */}
       <section className="bg-gray-900 rounded-lg p-5">
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">YouTube URL</h3>
-        <input
-          type="text"
-          value={youtubeUrl}
-          onChange={e => setYoutubeUrl(e.target.value)}
-          placeholder="https://www.youtube.com/watch?v=..."
-          className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
-        />
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Video</h3>
+        <p className="text-xs text-gray-500 mb-4">YouTube-URL oder Video-Datei — mindestens eins von beidem.</p>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">YouTube URL</label>
+            <input
+              type="text"
+              value={youtubeUrl}
+              onChange={e => setYoutubeUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Video-Datei</label>
+            {pendingVideo ? (
+              <div className="space-y-3">
+                <video
+                  src={videoPreview!}
+                  controls
+                  className="w-64 rounded border border-gray-700"
+                />
+                <button
+                  onClick={cancelVideo}
+                  className="px-4 py-2 text-gray-400 hover:text-white text-sm"
+                >
+                  Entfernen
+                </button>
+              </div>
+            ) : (
+              <DropZone
+                accept="video/*"
+                aspect="landscape"
+                label="Drop video here"
+                onFile={selectVideo}
+              />
+            )}
+          </div>
+        </div>
       </section>
 
       <div className="flex items-center gap-3">
