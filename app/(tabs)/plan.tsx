@@ -14,7 +14,7 @@ import { MONTHS } from '@/constants/date-constants';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { getISOWeek, getPreviewSession, getWeekDays, toDateStr } from '@/helpers/date-helpers';
-import { getDayVariant, toDatabaseDow } from '@/helpers/session-helpers';
+import { getDayVariant, isPlanCompleted, toDatabaseDow } from '@/helpers/session-helpers';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { hasCompletePlanSettings } from '@/lib/plan-settings-complete';
 import { startPlanGeneration } from '@/lib/start-plan-generation';
@@ -75,9 +75,9 @@ export default function PlanScreen() {
     const today = new Date();
     const weekDays = useMemo(() => getWeekDays(today), [today]);
 
-    // Plan has run past its end date — no sessions exist beyond it, so show
-    // a completion state with a CTA instead of an empty week
-    const planExpired = !!plan?.end_date && plan.end_date < toDateStr(today);
+    // Plan is past its end date — or on the end date itself with nothing left
+    // open — so show a completion state with a CTA instead of an empty week
+    const planExpired = isPlanCompleted(plan?.end_date, sessions, toDateStr(today));
 
     const weekNumber = getISOWeek(today);
     const month = MONTHS[today.getMonth()];
