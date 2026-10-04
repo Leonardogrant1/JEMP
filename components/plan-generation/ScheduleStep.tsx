@@ -6,6 +6,7 @@ import { getSportKind } from '@/constants/sports';
 import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTrainingAnimation } from '@/hooks/use-training-animation';
+import { computeLoadProfile, maxWorkoutDays, MIN_WORKOUT_DAYS } from '@/lib/load-profile';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlanWizardStore } from '@/stores/plan-wizard-store';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,8 +35,18 @@ export function ScheduleStep() {
     // Env-Auswahl pro Tag lohnt nur, wenn mehrere Trainingsorte gewählt sind
     const multiEnv = selectedEnvIds.size > 1;
 
+    // Mehr Vereinsbelastung → weniger wählbare eigene Einheiten
+    const maxDays = maxWorkoutDays(computeLoadProfile(sportSessions).load_profile);
+    const atCap = preferredDays.size >= maxDays;
+    const overCap = preferredDays.size > maxDays;
+    const missingDays = MIN_WORKOUT_DAYS - preferredDays.size;
+
     function handleDayPress(dow: number) {
         const active = preferredDays.has(dow);
+        if (!active && atCap) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            return;
+        }
         if (!active) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             togglePreferredDay(dow);
@@ -60,6 +71,7 @@ export function ScheduleStep() {
             <View style={styles.dayList}>
                 {WEEK_DAYS.map(({ dow, key }) => {
                     const active = preferredDays.has(dow);
+                    const blocked = !active && atCap;
                     const env = active && multiEnv
                         ? allEnvs.find(e => e.id === dayEnvMap[dow])
                         : undefined;
@@ -74,6 +86,7 @@ export function ScheduleStep() {
                                 active
                                     ? { backgroundColor: `${GradientMid}18`, borderColor: GradientMid }
                                     : { backgroundColor: 'transparent', borderColor: theme.borderDivider },
+                                blocked && styles.dayRowBlocked,
                             ]}
                         >
                             <JempText
@@ -133,6 +146,15 @@ export function ScheduleStep() {
                         </TouchableOpacity>
                     );
                 })}
+                {missingDays > 0 ? (
+                    <JempText type="caption" color={theme.textMuted} style={styles.maxDaysHint}>
+                        {t(missingDays === 1 ? 'plan.schedule_min_days_hint_one' : 'plan.schedule_min_days_hint', { count: missingDays })}
+                    </JempText>
+                ) : atCap && (
+                    <JempText type="caption" color={overCap ? '#ef4444' : theme.textMuted} style={styles.maxDaysHint}>
+                        {t(overCap ? 'plan.schedule_max_days_over' : 'plan.schedule_max_days_hint', { count: maxDays })}
+                    </JempText>
+                )}
             </View>
 
             <View style={styles.durationSection}>
@@ -160,6 +182,8 @@ const styles = StyleSheet.create({
     bodyTitle: { marginBottom: 6 },
     subtitle: { lineHeight: 20, marginBottom: 24 },
     dayList: { gap: 8 },
+    dayRowBlocked: { opacity: 0.35 },
+    maxDaysHint: { marginTop: 6, lineHeight: 17 },
     dayRow: {
         flexDirection: 'row',
         alignItems: 'center',

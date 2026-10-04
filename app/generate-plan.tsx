@@ -10,6 +10,7 @@ import { WeeklyStep } from '@/components/plan-generation/WeeklyStep';
 import { WizardProgress } from '@/components/plan-generation/WizardProgress';
 import { Colors, GRADIENT } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { computeLoadProfile, maxWorkoutDays, MIN_WORKOUT_DAYS } from '@/lib/load-profile';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlanWizardStore } from '@/stores/plan-wizard-store';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,7 +38,7 @@ export default function GeneratePlanScreen() {
     const {
         phase, loading, isSaving, saveError,
         selectedEnvIds, selectedCategoryIds,
-        preferredDays, preferredDuration,
+        preferredDays, preferredDuration, sportSessions,
         initialize, goBack, goNext, generate,
     } = usePlanWizardStore();
 
@@ -52,7 +53,11 @@ export default function GeneratePlanScreen() {
     const canProceedNext =
         phase === 'environment' ? selectedEnvIds.size > 0 :
         phase === 'goals' ? selectedCategoryIds.size > 0 :
-        phase === 'schedule' ? preferredDays.size >= 2 && preferredDuration !== null :
+        phase === 'schedule' ? (
+            preferredDays.size >= MIN_WORKOUT_DAYS
+            && preferredDays.size <= maxWorkoutDays(computeLoadProfile(sportSessions).load_profile)
+            && preferredDuration !== null
+        ) :
         true;
 
     function handleBack() {

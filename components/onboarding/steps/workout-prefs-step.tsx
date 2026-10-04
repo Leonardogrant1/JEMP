@@ -5,6 +5,7 @@ import { SelectableChip } from '@/components/ui/selectable-chip';
 import { ENV_ICONS } from '@/constants/environment-icons';
 import { getSportKind } from '@/constants/sports';
 import { Colors, GradientMid } from '@/constants/theme';
+import { computeLoadProfile, maxWorkoutDays, MIN_WORKOUT_DAYS } from '@/lib/load-profile';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTrainingAnimationBySlug } from '@/hooks/use-training-animation';
 import { supabase } from '@/services/supabase/client';
@@ -64,10 +65,20 @@ export function WorkoutPrefsStep() {
     storedDayEnvironments.forEach((de) => { dayEnvMap[de.day_of_week] = de.environment_id; });
     const multiEnv = environmentIds.length > 1;
 
+    // Mehr Vereinsbelastung → weniger wählbare eigene Einheiten
+    const maxDays = maxWorkoutDays(computeLoadProfile(sportSessions).load_profile);
+    const atCap = selectedDays.size >= maxDays;
+    const overCap = selectedDays.size > maxDays;
+    const missingDays = MIN_WORKOUT_DAYS - selectedDays.size;
+
     useEffect(() => {
-        setCanContinue(selectedDays.size > 0 && selectedDuration !== null);
+        setCanContinue(
+            selectedDays.size >= MIN_WORKOUT_DAYS
+            && selectedDays.size <= maxDays
+            && selectedDuration !== null,
+        );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [storedDays, selectedDuration]);
+    }, [storedDays, selectedDuration, maxDays]);
 
     useEffect(() => {
         if (environmentIds.length > 1) {
@@ -84,8 +95,12 @@ export function WorkoutPrefsStep() {
     // Wizard-Logik: neuer Tag → an + (bei mehreren Orten) Sheet zur Ort-Wahl;
     // aktiver Tag → Sheet (dort „Tag leeren") bzw. bei einem Ort direkt abwählen
     function handleDayPress(dow: number) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         const active = selectedDays.has(dow);
+        if (!active && atCap) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            return;
+        }
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         if (!active) {
             setStore({ preferred_workout_days: [...(storedDays ?? []), dow] });
             if (multiEnv) router.push(`/training-day-editor?day=${dow}&source=onboarding`);
@@ -120,6 +135,7 @@ export function WorkoutPrefsStep() {
             <Animated.View entering={FadeInDown.delay(360).duration(500).springify()} style={styles.dayList}>
                 {DAYS.map(({ value: dow, label }) => {
                     const active = selectedDays.has(dow);
+                    const blocked = !active && atCap;
                     return (
                         <TouchableOpacity
                             key={dow}
@@ -130,6 +146,7 @@ export function WorkoutPrefsStep() {
                                 active
                                     ? { backgroundColor: `${GradientMid}18`, borderColor: GradientMid }
                                     : { backgroundColor: 'transparent', borderColor: theme.borderDivider },
+                                blocked && styles.dayRowBlocked,
                             ]}
                         >
                             <JempText
@@ -198,6 +215,15 @@ export function WorkoutPrefsStep() {
                         </TouchableOpacity>
                     );
                 })}
+                {missingDays > 0 ? (
+                    <JempText type="caption" color={theme.textMuted} style={styles.maxDaysHint}>
+                        {t(missingDays === 1 ? 'onboarding.workout_prefs_min_days_hint_one' : 'onboarding.workout_prefs_min_days_hint', { count: missingDays })}
+                    </JempText>
+                ) : atCap && (
+                    <JempText type="caption" color={overCap ? '#ef4444' : theme.textMuted} style={styles.maxDaysHint}>
+                        {t(overCap ? 'onboarding.workout_prefs_max_days_over' : 'onboarding.workout_prefs_max_days_hint', { count: maxDays })}
+                    </JempText>
+                )}
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(480).duration(500).springify()} style={styles.section}>
@@ -233,6 +259,8 @@ const styles = StyleSheet.create({
     title: { marginBottom: 10 },
     subtitle: { marginBottom: 28 },
     dayList: { gap: 8 },
+    dayRowBlocked: { opacity: 0.35 },
+    maxDaysHint: { marginTop: 6, lineHeight: 17 },
     dayRow: {
         flexDirection: 'row',
         alignItems: 'center',
