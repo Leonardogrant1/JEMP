@@ -10,7 +10,7 @@ Restructure JEMP's training taxonomy so a plan covers everything an athlete need
 
 Three big moves:
 
-1. **Six pillars** replace the current five categories: Strength, Lower-Body Plyometrics (absorbs Jumps), Sprints, Change of Direction (COD), Conditioning, Mobility. Upper-Body Plyometrics dissolves into exercise metadata.
+1. **Seven pillars** replace the current five categories: Strength, Lower-Body Plyometrics (absorbs Jumps), Upper-Body Plyometrics (kept, preset-gated), Sprints, Change of Direction (COD), Conditioning, Mobility. Sport presets hide irrelevant pillars, so users typically see 5–6.
 2. **Session types** — sessions get an enum `workout | speed | mobility | conditioning`. Speed bundles sprints + COD. All types share the existing block structure and tables.
 3. **Fatigue-cost planning** — each pillar/session type carries a fatigue value; the generator places the week deterministically from those values instead of hardcoded special cases.
 
@@ -44,12 +44,14 @@ The existing `categories` table becomes the pillar table:
 | `mobility` | stays |
 | `lower_body_plyometrics` | stays; **absorbs `jumps`** (they measured the same construct). User-facing label via i18n: "Sprungkraft" / "Jumping & Reactive Power". Lower body only. |
 | `jumps` | merged into `lower_body_plyometrics`, row **deactivated, not deleted** |
-| `upper_body_plyometrics` | **dissolved**: exercises move to `strength` with ballistic metadata tags; row deactivated |
+| `upper_body_plyometrics` | **stays as its own pillar** — ballistic upper-body power is categorially different from 1RM-driven strength (release instead of deceleration). Preset-gated: visible for combat/throwing/striking sports (boxing, MMA, handball, volleyball, tennis), preset 0 (hidden) for soccer & co. Label: "Oberkörper-Explosivität" / "Explosive Power (Upper)". For fighters this is the signature quality (punch power) — product value, not UI bloat. |
 | `sprints` | **new** — sprint exercises move here from lower_body_plyometrics |
 | `cod` | **new** — agility drills (505, T-Drill, shuttles) move here |
 | `conditioning` | **new** — circuits, intervals, sled conditioning formats |
 
-Exercise re-mapping on migration: sprint drills (sprints, resisted/hill variants, A-/B-skips, wall drills, high knees, etc.) → `sprints`; change-of-direction drills → `cod`; rotational med ball slams/throws and cable rotational presses → `strength` with pattern `rotation` (ballistic variants additionally tagged with `plyo_type`); med ball chest pass / plyo push-ups → `strength`, push pattern + `plyo_type` tag.
+Exercise re-mapping on migration: sprint drills (sprints, resisted/hill variants, A-/B-skips, wall drills, high knees, etc.) → `sprints`; change-of-direction drills → `cod`. Upper-plyo exercises **stay in their category** and only gain pattern metadata so workout slots can select them: med ball rotational slams/throws → pattern `rotation` + `plyo_type`; med ball chest pass / plyo push-ups → push pattern + `plyo_type`. Slow, loaded rotation work (e.g., cable rotational punch press) lives in `strength` with pattern `rotation` — the pattern slot unifies them, not the category.
+
+**Pillar visibility gates prioritization and score display, not exercise availability:** ballistic exercises still appear in everyone's workouts via the pattern slots (rotation, push + plyo_type) — a soccer player keeps doing med ball slams in the rotation slot; they just don't prioritize or measure them as an own quality.
 
 Categories get an active/inactive flag. Deactivated rows keep FK integrity for anything referencing them (score history, old targeted_categories); deletion is a separate cleanup migration months later.
 
@@ -71,7 +73,7 @@ Conditioning is prescribed as **formats, not exercises**: the same movement beco
 
 ### 1.5 Pillar priority (replaces focus ranking)
 
-Per-user pillar levels: **1 = maintain, 2 = focus, 3 = emphasis**, under a point budget (~10 across 6 pillars; max sum 18 is unreachable by design — users trade, not stack).
+Per-user pillar levels: **1 = maintain, 2 = focus, 3 = emphasis**, under a point budget (~10 across the pillars visible for the sport, typically 5–6 of 7; maxing everything is unreachable by design — users trade, not stack).
 
 - The user can **never** set a pillar to 0. Effective zeros come only from the system: sport preset marks a pillar irrelevant (hidden from the user entirely), sprints covered by the club (onboarding answer), conditioning damped by high weekly load.
 - Sport presets extend `sports_and_relevances`: default level per sport × pillar (0 = irrelevant) plus score weights (§4.3).
@@ -124,7 +126,7 @@ High weekly club load → conditioning sessions reduced or dropped (club trainin
 
 ### 2.3 Pillar levels → dose
 
-Constants table per pillar: level 1 = maintenance frequency/volume, 2 = focus, 3 = emphasis. (E.g., sprints: 1 = warmup micro-dose, 2 = one speed session, 3 = up to two if the week allows.)
+Constants table per pillar: level 1 = maintenance frequency/volume, 2 = focus, 3 = emphasis. (E.g., sprints: 1 = warmup micro-dose, 2 = one speed session, 3 = up to two if the week allows. Upper-body plyo: levels bias the rotation/push slots toward ballistic variants and raise their volume — the pillar lives inside workouts, no own session type.)
 
 ### 2.4 Pattern slots in workouts
 
@@ -161,7 +163,7 @@ Worker (`generate-plan.ts`, `prompts.ts`, schemas, constants) and the edge-funct
 ### 3.1 New/changed onboarding steps
 
 - **Sprint context (new, 2 questions):** "Do you do sprint sessions with your club?" (yes → system damps the sprint pillar, no sprint sessions) and "How far do you sprint at a stretch in your sport?" (<20m / 20–40m / >40m, with sport examples) → steers acceleration vs. max velocity.
-- **Pillar priority (replaces CategoryFocusStep):** sport preset pre-distributes levels; user adjusts six steppers (levels 1–3) under a visible budget counter (~10 points). Pillars with preset 0 don't appear. No user-facing "off".
+- **Pillar priority (replaces CategoryFocusStep):** sport preset pre-distributes levels; user adjusts one stepper per visible pillar (levels 1–3) under a visible budget counter (~10 points). Pillars with preset 0 don't appear. No user-facing "off".
 - **Self-assessment per visible pillar:** simple anchored rating (e.g., "I rarely sprint / regularly / fastest on my team"), stored as `self_estimate` start values. No forced assessments up front — conservative planning protects.
 - **Day selection as today** (toggles, workout cap by weekly load), extended with: required-day communication ("Your plan needs 3 workout days + 1 speed day — pick 4 days") and the opt-in "I can train twice a day" (enables conditioning doubles; mobility stacks even without opt-in).
 - **Weekly schedule unchanged** — already captures club days, intensity, game/tournament days.
@@ -207,15 +209,16 @@ Raw values never change on sport switch — only the weighting for the overall s
 - **New `sprints.ts`:** 10m (acceleration), 30m, 10m flying (max velocity) — norms already exist, they relocate.
 - **New `cod.ts`:** 505 agility (norm exists); T-Drill later.
 - **New `conditioning.ts`:** Repeated Sprint Test — 6 × 30m with 25s rest; scored on percentage drop-off from run 1 to run 6 (normalizes for own sprint speed, so it measures fatigue resistance, not speed again). Run 1 additionally feeds the sprint score: one setup, two pillars. Fallback: Cooper 12-minute run (published norm tables by age/sex). The Yo-Yo IR and 30-15 IFT were rejected for space/audio requirements; Assault Bike rejected as standard for device availability.
-- `upper-body-plyometrics.ts` dissolved: med ball throws + clap push-ups feed the **strength score** as its explosive upper-body component, sport-weighted (fighters high, soccer near zero) — mirroring where the exercises themselves moved.
-- `strength.ts`, `mobility.ts` stay; strength gains the throw component.
+- `upper-body-plyometrics.ts` **stays unchanged** (MB chest/rotational/overhead throw + clap push-ups) — own pillar, own score. Strength stays purely 1RM/max-reps based.
+- `strength.ts`, `mobility.ts` stay.
 
 ### 4.5 Assessment coverage per pillar
 
 | Pillar | Assessments | Status |
 |---|---|---|
-| Strength | 5× 1RM + max-reps tests (+ med ball throws as weighted component) | exists |
+| Strength | 5× 1RM + max-reps tests | exists |
 | Lower-Body Plyometrics | Vertical/Broad/Box Jump | exists |
+| Upper-Body Plyometrics | MB chest/rotational/overhead throw, clap push-ups | exists |
 | Sprints | 10m, 30m, 10m flying | exists (recategorized) |
 | COD | 505 Agility | exists (recategorized) |
 | Conditioning | Repeated Sprint Test; Cooper fallback | **new** |
@@ -227,11 +230,11 @@ Existing assessment results stay raw data, re-mapped to new pillars (sprint resu
 
 ### 4.7 Score logging on pillar level
 
-**Only the six pillar time series are stored. The overall score is never persisted** — it is always computed live: weighted average(pillar values at time t, current sport's weights). Six multiplications per data point, also for history graphs.
+**Only the seven pillar time series are stored. The overall score is never persisted** — it is always computed live: weighted average(pillar values at time t, current sport's weights). Seven multiplications per data point, also for history graphs.
 
 - Pillar history is sport-independent and never breaks.
 - Overall-score history is reconstructable retroactively for any sport — switching sports re-renders the entire history under the new weights (no gap, no reset to zero).
-- Logs per pillar combination were rejected: every combination is derivable from the six series; derived data is computed, not logged.
+- Logs per pillar combination were rejected: every combination is derivable from the seven series; derived data is computed, not logged.
 - Preset weight tuning shifts recomputed history slightly — accepted (presentation, not data loss); no weight versioning in v1 (YAGNI).
 - Any currently persisted overall score becomes a pure derivation; old entries serve at most as fallback for pre-pillar-history time.
 
@@ -259,7 +262,7 @@ Not in this list by design: no new session screen, no block-screen changes, no q
 1. `session_type` enum + column (default `workout`) — additive.
 2. Exercise metadata columns + interval fields — additive, nullable.
 3. Pillar-level storage + translation of existing focus rankings; `sports_and_relevances` extension (preset levels + score weights).
-4. Category restructuring: new rows (`sprints`, `cod`, `conditioning`), re-mapping (exercises, rankings, targeted_categories), `jumps`/`upper_body_plyometrics` **deactivated, not deleted** (FK safety; deletion is a later cleanup migration). Runs **after** the app release (§6.3).
+4. Category restructuring: new rows (`sprints`, `cod`, `conditioning`), re-mapping (exercises, rankings, targeted_categories), `jumps` **deactivated, not deleted** (FK safety; deletion is a later cleanup migration). `upper_body_plyometrics` stays active and untouched. Runs **after** the app release (§6.3).
 5. Pillar time series for scores + mapping of existing assessment results.
 
 Prod DDL with `lock_timeout`, check for orphaned lock-holding sessions first (laterality-cleanup learning).
@@ -310,4 +313,5 @@ Explicitly v1.5/v2: speed double days with workout restructuring (v1.5), pre-fig
 - **Deterministic week layout:** 48h/72h guarantees must be real guarantees, so they live in rule code, not prompts.
 - **Pillar-level score logging only:** derived data (overall score, per-sport views) is computed, never persisted.
 - **`lower_body_plyometrics` keeps its slug:** slugs are internal; relabeling happens in i18n. Keeping it avoids migration churn (calculator, types, existing rankings).
+- **`upper_body_plyometrics` stays a pillar (reversed from an earlier draft that dissolved it into strength):** ballistic throws are categorially not strength exercises; preset filtering removes the UI-bloat objection (soccer never sees the pillar); keeping it is *less* migration (no exercise recategorization, calculator unchanged, strength score stays 1RM-pure); and for combat/throwing sports it is the signature quality — an own score is product value.
 - **Aging threshold ~4 months** and **hard max-velocity gating on measured sprint values**: presented and carried as design decisions; both are single constants and easy to tune later.
