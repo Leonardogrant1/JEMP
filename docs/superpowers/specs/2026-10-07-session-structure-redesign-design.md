@@ -57,7 +57,7 @@ Categories get an active/inactive flag. Deactivated rows keep FK integrity for a
 
 ### 1.2 Session types & new block types
 
-`sessions.session_type` enum: `workout | speed | mobility | conditioning`, default `workout` (covers all existing rows, no backfill). All session types use the same block tables.
+A `session_type` enum **already exists** in the DB (`training | recovery`, used by `workout_plan_sessions.session_type` NOT NULL and `workout_sessions.session_type` nullable). It is **extended** with `speed | mobility | conditioning` — `training` plays the role of "workout"; existing rows need no backfill. All session types use the same block tables.
 
 **New block types enforce the structure at the data level** (reversal of an earlier draft that kept blocks generic — see decision log). `block_types` is a table; new rows are added, old rows stay:
 
@@ -82,7 +82,7 @@ Consequence accepted by design: a full workout renders as 7–9 sections with 1�
 
 ### 1.4 Conditioning prescription
 
-Conditioning is prescribed as **formats, not exercises**: the same movement becomes conditioning through duration and rest. Block-exercise rows get nullable interval fields `work_seconds`, `rest_seconds`, `rounds` — used in conditioning blocks instead of sets×reps. No partner exercises (pads/mitts excluded; solo bag work allowed).
+Conditioning is prescribed as **formats, not exercises**: the same movement becomes conditioning through duration and rest. The block-exercise rows (`workout_plan_session_block_exercises`, `workout_session_block_exercises`) **already carry** `target_duration_seconds` (= work) and `target_rest_seconds` (= rest); conditioning only adds a nullable `target_rounds` column — used in conditioning blocks instead of sets×reps. No partner exercises (pads/mitts excluded; solo bag work allowed).
 
 ### 1.5 Pillar priority (replaces focus ranking)
 
