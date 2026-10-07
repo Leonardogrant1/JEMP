@@ -7,7 +7,7 @@ export function circularDayDistance(from: number, to: number): number {
 }
 
 import type { WeeklySchedule } from './types'
-import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS } from './week-layout-constants'
+import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, WORKOUT_BLOCK_SEQUENCE } from './week-layout-constants'
 
 export type NewSessionType = 'training' | 'speed' | 'mobility' | 'conditioning'
 export type PillarSlug =
@@ -210,4 +210,38 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
 
   days.sort((a, b) => a.day_of_week - b.day_of_week)
   return { days, carrier, notes }
+}
+
+export type WorkoutBlockType =
+  | 'warmup' | 'push' | 'pull' | 'lower_body' | 'rotation' | 'core' | 'plyo' | 'accessory' | 'cooldown'
+export type PlannedWorkoutBlock = {
+  block_type: WorkoutBlockType
+  variant: string | null
+  emphasis: 'heavy' | 'normal' | 'light'
+}
+
+export function planWorkoutBlocks(placement: WeekPlacement): Map<number, PlannedWorkoutBlock[]> {
+  const trainingDays = placement.days.filter((d) => d.session_type === 'training')
+  const result = new Map<number, PlannedWorkoutBlock[]>()
+
+  trainingDays.forEach((day, i) => {
+    const blocks: PlannedWorkoutBlock[] = WORKOUT_BLOCK_SEQUENCE.map((bt) => {
+      let variant: string | null = null
+      let emphasis: 'heavy' | 'normal' | 'light' = 'normal'
+      switch (bt) {
+        case 'push': variant = i % 2 === 0 ? 'push_vertical' : 'push_horizontal'; break
+        case 'pull': variant = i % 2 === 0 ? 'pull_horizontal' : 'pull_vertical'; break
+        case 'lower_body':
+          if (day.heavy_lower) { variant = 'knee_dominant'; emphasis = 'heavy' }
+          else { variant = 'hinge'; emphasis = 'light' }
+          break
+        case 'plyo': variant = i % 2 === 0 ? 'maximal' : 'submaximal'; break
+        case 'core': variant = i % 2 === 0 ? 'stability' : 'power'; break
+        default: variant = null
+      }
+      return { block_type: bt, variant, emphasis }
+    })
+    result.set(day.day_of_week, blocks)
+  })
+  return result
 }

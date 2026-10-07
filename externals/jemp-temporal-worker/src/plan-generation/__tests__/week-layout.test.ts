@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { circularDayDistance, effectiveSpeedLevel, allocateDays, placeWeek } from '../week-layout'
+import { circularDayDistance, effectiveSpeedLevel, allocateDays, placeWeek, planWorkoutBlocks } from '../week-layout'
+
+// Module-scope helper — Task 5's tests reuse it.
+const placedWeek = (days: number[], heavy: number) => ({
+  carrier: 'none' as const, notes: [] as string[],
+  days: days.map((d) => ({
+    day_of_week: d, session_type: 'training' as const, minutes: 90, dose: 'normal' as const,
+    carries_sprint_block: false, heavy_lower: d === heavy, suppress_micro_dose: false,
+  })),
+})
 
 const schedule = (sessions: Array<{ day_of_week: number; type: 'team_training' | 'game' | 'tournament' | 'individual_training'; intensity: number }>) =>
   ({ sessions, notes: null })
@@ -146,5 +155,48 @@ describe('placeWeek (§2.1b)', () => {
     const placed = placeWeek(input, allocateDays(input))
     expect(placed.days.find((d) => d.day_of_week === 4)?.minutes).toBe(30)
     expect(placed.days.find((d) => d.day_of_week === 1)?.minutes).toBe(60)
+  })
+})
+
+describe('planWorkoutBlocks (§2.4)', () => {
+  it('emits the full block sequence for every workout', () => {
+    const plan = planWorkoutBlocks(placedWeek([1, 4], 1))
+    expect(plan.get(1)!.map((b) => b.block_type)).toEqual(
+      ['warmup','push','pull','lower_body','rotation','core','plyo','accessory','cooldown'])
+  })
+
+  it('rotates push/pull variants across the week and covers both axes', () => {
+    const plan = planWorkoutBlocks(placedWeek([1, 4], 1))
+    const pushes = [1, 4].map((d) => plan.get(d)!.find((b) => b.block_type === 'push')!.variant)
+    expect(new Set(pushes)).toEqual(new Set(['push_vertical', 'push_horizontal']))
+    const pulls = [1, 4].map((d) => plan.get(d)!.find((b) => b.block_type === 'pull')!.variant)
+    expect(new Set(pulls)).toEqual(new Set(['pull_vertical', 'pull_horizontal']))
+  })
+
+  it('gives the heavy day knee_dominant with heavy emphasis, others hinge', () => {
+    const plan = planWorkoutBlocks(placedWeek([1, 4], 4))
+    const heavyLower = plan.get(4)!.find((b) => b.block_type === 'lower_body')!
+    expect(heavyLower).toMatchObject({ variant: 'knee_dominant', emphasis: 'heavy' })
+    expect(plan.get(1)!.find((b) => b.block_type === 'lower_body')!).toMatchObject({ variant: 'hinge', emphasis: 'light' })
+  })
+
+  it('rotates plyo and core variants', () => {
+    const plan = planWorkoutBlocks(placedWeek([1, 3, 5], 1))
+    const plyos = [1, 3, 5].map((d) => plan.get(d)!.find((b) => b.block_type === 'plyo')!.variant)
+    expect(plyos).toEqual(['maximal', 'submaximal', 'maximal'])
+    const cores = [1, 3, 5].map((d) => plan.get(d)!.find((b) => b.block_type === 'core')!.variant)
+    expect(cores).toEqual(['stability', 'power', 'stability'])
+  })
+
+  it('only plans blocks for training days', () => {
+    const input = {
+      available_days: [1, 3, 5, 7], load_profile: 'medium' as const,
+      pillar_levels: { sprints: 2 as const }, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([]),
+    }
+    const placement = placeWeek(input, allocateDays(input))
+    const plan = planWorkoutBlocks(placement)
+    const trainingDays = placement.days.filter((d) => d.session_type === 'training').map((d) => d.day_of_week)
+    expect([...plan.keys()].sort()).toEqual(trainingDays.sort())
   })
 })

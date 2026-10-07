@@ -1,4 +1,4 @@
-import type { NewSessionType } from './week-layout'
+import type { NewSessionType, WorkoutBlockType } from './week-layout'
 
 /** Mirrors the app's lib/load-profile caps (spec §2.1a). */
 export const WORKOUT_DAY_CAP = { low: 4, medium: 3, high: 2 } as const
@@ -8,3 +8,6 @@ export const MIN_WORKOUT_DAYS = 2
 export const FATIGUE_COST: Record<NewSessionType, number> = {
   mobility: 0, conditioning: 2, training: 3, speed: 4,
 }
+
+export const WORKOUT_BLOCK_SEQUENCE: WorkoutBlockType[] =
+  ['warmup', 'push', 'pull', 'lower_body', 'rotation', 'core', 'plyo', 'accessory', 'cooldown']
