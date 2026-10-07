@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { circularDayDistance, effectiveSpeedLevel, allocateDays, placeWeek, planWorkoutBlocks } from '../week-layout'
+import { circularDayDistance, effectiveSpeedLevel, allocateDays, placeWeek, planWorkoutBlocks, estimateMinutes, applyScalingLevers } from '../week-layout'
+import { BLOCK_MINUTES } from '../week-layout-constants'
 
 // Module-scope helper — Task 5's tests reuse it.
 const placedWeek = (days: number[], heavy: number) => ({
@@ -198,5 +199,58 @@ describe('planWorkoutBlocks (§2.4)', () => {
     const plan = planWorkoutBlocks(placement)
     const trainingDays = placement.days.filter((d) => d.session_type === 'training').map((d) => d.day_of_week)
     expect([...plan.keys()].sort()).toEqual(trainingDays.sort())
+  })
+})
+
+describe('scaling levers (§2.9)', () => {
+  const fullBlocks = () => planWorkoutBlocks(placedWeek([1], 1)).get(1)!
+
+  it('estimates the full workout at the sum of block minutes', () => {
+    expect(estimateMinutes(fullBlocks(), 'normal', false)).toBe(
+      Object.values(BLOCK_MINUTES).reduce((a, b) => a + b, 0)) // 62
+  })
+
+  it('drops blocks until the budget fits, never warmup/cooldown/heavy lower', () => {
+    const placement = placedWeek([1], 1)
+    placement.days[0].minutes = 45
+    const { workouts } = applyScalingLevers(placement, planWorkoutBlocks(placement))
+    const w = workouts[0]
+    expect(w.estimated_minutes).toBeLessThanOrEqual(45)
+    const kept = w.blocks.map((b) => b.block_type)
+    expect(kept).toContain('warmup'); expect(kept).toContain('cooldown'); expect(kept).toContain('lower_body')
+    expect(w.dropped.length).toBeGreaterThan(0)
+    expect(w.dropped.every((d) => d.reason === 'time')).toBe(true)
+  })
+
+  it('maintenance dose reduces drops', () => {
+    const normal = placedWeek([1], 1); normal.days[0].minutes = 45
+    const game = placedWeek([1], 1); game.days[0].minutes = 45; (game.days[0] as any).dose = 'maintenance'
+    const nDropped = applyScalingLevers(normal, planWorkoutBlocks(normal)).workouts[0].dropped.length
+    const gDropped = applyScalingLevers(game, planWorkoutBlocks(game)).workouts[0].dropped.length
+    expect(gDropped).toBeLessThan(nDropped)
+  })
+
+  it('rotates drops across the week instead of always dropping the same block', () => {
+    const placement = placedWeek([1, 4], 1)
+    placement.days.forEach((d) => (d.minutes = 50))
+    const { workouts } = applyScalingLevers(placement, planWorkoutBlocks(placement))
+    const d1 = new Set(workouts[0].dropped.map((d) => d.block_type))
+    const d2 = new Set(workouts[1].dropped.map((d) => d.block_type))
+    const overlap = [...d1].filter((b) => d2.has(b))
+    expect(overlap.length).toBeLessThan(Math.max(d1.size, d2.size)) // not identical drop sets
+  })
+
+  it('tiny budget stops at protected floor', () => {
+    const placement = placedWeek([1], 1)
+    placement.days[0].minutes = 20
+    const { workouts, notes } = applyScalingLevers(placement, planWorkoutBlocks(placement))
+    const kept = workouts[0].blocks.map((b) => b.block_type)
+    expect(kept).toEqual(expect.arrayContaining(['warmup', 'lower_body', 'cooldown']))
+    expect(notes.join(' ')).toMatch(/Budget|budget/)
+  })
+
+  it('adds the integrated sprint block minutes on the carrier day', () => {
+    const blocks = fullBlocks()
+    expect(estimateMinutes(blocks, 'normal', true) - estimateMinutes(blocks, 'normal', false)).toBe(12)
   })
 })

@@ -7,7 +7,7 @@ export function circularDayDistance(from: number, to: number): number {
 }
 
 import type { WeeklySchedule } from './types'
-import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, WORKOUT_BLOCK_SEQUENCE } from './week-layout-constants'
+import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, WORKOUT_BLOCK_SEQUENCE, BLOCK_MINUTES, MAINTENANCE_DOSE_FACTOR, INTEGRATED_SPRINT_BLOCK_MINUTES, DROP_PRIORITY } from './week-layout-constants'
 
 export type NewSessionType = 'training' | 'speed' | 'mobility' | 'conditioning'
 export type PillarSlug =
@@ -244,4 +244,67 @@ export function planWorkoutBlocks(placement: WeekPlacement): Map<number, Planned
     result.set(day.day_of_week, blocks)
   })
   return result
+}
+
+export type DroppedBlock = { block_type: WorkoutBlockType; reason: 'time' | 'coverage' }
+export type FinalWorkout = {
+  day_of_week: number
+  blocks: PlannedWorkoutBlock[]
+  dropped: DroppedBlock[]
+  estimated_minutes: number
+}
+
+export function estimateMinutes(
+  blocks: PlannedWorkoutBlock[], dose: 'normal' | 'maintenance', carriesSprintBlock: boolean,
+): number {
+  const content = blocks.reduce((sum, b) => {
+    const base = BLOCK_MINUTES[b.block_type]
+    const scaled = (b.block_type === 'warmup' || b.block_type === 'cooldown') ? base
+      : dose === 'maintenance' ? base * MAINTENANCE_DOSE_FACTOR : base
+    return sum + scaled
+  }, 0)
+  return Math.round(content + (carriesSprintBlock ? INTEGRATED_SPRINT_BLOCK_MINUTES : 0))
+}
+
+export function applyScalingLevers(
+  placement: WeekPlacement, blockPlan: Map<number, PlannedWorkoutBlock[]>,
+): { workouts: FinalWorkout[]; notes: string[] } {
+  const notes: string[] = []
+  const coveredVariants = new Set<string>() // in-plan coverage ledger
+  let previousDrops = new Set<WorkoutBlockType>() // in-plan drop rotation
+
+  const workouts: FinalWorkout[] = []
+  for (const day of placement.days.filter((d) => d.session_type === 'training')) {
+    const blocks = [...(blockPlan.get(day.day_of_week) ?? [])]
+    const dropped: DroppedBlock[] = []
+    const protectedTypes = new Set<WorkoutBlockType>(['warmup', 'cooldown', 'lower_body'])
+
+    const droppable = () => blocks.filter((b) => !protectedTypes.has(b.block_type))
+
+    while (estimateMinutes(blocks, day.dose, day.carries_sprint_block) > day.minutes && droppable().length > 0) {
+      const candidates = droppable()
+      // (a) coverage: variants already seen this week drop first
+      const covered = candidates.filter((b) => b.variant !== null && coveredVariants.has(b.variant))
+      // (c) drop rotation: avoid re-dropping last workout's drops when alternatives exist
+      const pickFrom = (list: PlannedWorkoutBlock[]) => {
+        const fresh = list.filter((b) => !previousDrops.has(b.block_type))
+        return (fresh.length > 0 ? fresh : list)
+      }
+      const pool = covered.length > 0 ? pickFrom(covered) : pickFrom(candidates)
+      // (b) fixed priority as final tiebreak
+      pool.sort((a, b) => DROP_PRIORITY.indexOf(a.block_type) - DROP_PRIORITY.indexOf(b.block_type))
+      const victim = pool[0]
+      blocks.splice(blocks.indexOf(victim), 1)
+      dropped.push({ block_type: victim.block_type, reason: 'time' })
+    }
+
+    const estimated = estimateMinutes(blocks, day.dose, day.carries_sprint_block)
+    if (estimated > day.minutes) {
+      notes.push(`Tag ${day.day_of_week}: Budget ${day.minutes} min nicht erreichbar (geschützter Kern ${estimated} min)`)
+    }
+    for (const b of blocks) if (b.variant) coveredVariants.add(b.variant)
+    previousDrops = new Set(dropped.map((d) => d.block_type))
+    workouts.push({ day_of_week: day.day_of_week, blocks, dropped, estimated_minutes: estimated })
+  }
+  return { workouts, notes }
 }
