@@ -127,7 +127,7 @@ A new step **before** the existing Phase A, implemented as rule code, **not** LL
 
 Fatigue constants per session type (single constants file): mobility 0 · conditioning 2 · workout 3 · speed 4.
 
-1. Place the speed day: never <72h before a `game`/`tournament`, not directly after the game. Prefer short-duration days (a speed session needs ~30–40 min).
+1. Place the speed day: never <72h before a `game`/`tournament` (hard rule). The day directly after a game is a **soft penalty**, not a hard exclusion — if it is the only legal window, it is used with a visible note (weekly sprint exposure per §2.5 outranks post-game comfort; amendment from the Phase-2a review). Prefer short-duration days (a speed session needs ~30–40 min).
 2. Place the **heavy lower-body emphasis** — case distinction by sprint carrier (§2.5): **standalone speed day exists** → on the workout farthest from the speed day (≥48h); **integrated case (no speed day)** → the game-farthest workout day carries both the sprint/COD block and the heavy lower emphasis (one consolidated high day; the reference point is the game day, not a speed day). Both cases prefer the longest-duration day. The 48h rule applies to the heavy lower day — which the generator itself assigns via pattern rotation, so this is always satisfiable. Duration-aware placement makes block drops rarer, not just better distributed.
 3. Workouts adjacent to the speed day get the upper-leaning / light lower-body variant of the weekly rotation.
 4. Conditioning never on the day directly before a game.
