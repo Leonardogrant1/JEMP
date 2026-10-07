@@ -308,3 +308,18 @@ export function applyScalingLevers(
   }
   return { workouts, notes }
 }
+
+export type WeekLayout = {
+  placement: WeekPlacement
+  workouts: FinalWorkout[]
+  carrier: SpeedCarrier
+  notes: string[]
+}
+
+export function buildWeekLayout(input: WeekLayoutInput): WeekLayout {
+  const allocation = allocateDays(input)
+  const placement = placeWeek(input, allocation)
+  const blockPlan = planWorkoutBlocks(placement)
+  const { workouts, notes } = applyScalingLevers(placement, blockPlan)
+  return { placement, workouts, carrier: placement.carrier, notes: [...placement.notes, ...notes] }
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { circularDayDistance, effectiveSpeedLevel, allocateDays, placeWeek, planWorkoutBlocks, estimateMinutes, applyScalingLevers } from '../week-layout'
+import { circularDayDistance, effectiveSpeedLevel, allocateDays, placeWeek, planWorkoutBlocks, estimateMinutes, applyScalingLevers, buildWeekLayout } from '../week-layout'
 import { BLOCK_MINUTES } from '../week-layout-constants'
 
 // Module-scope helper — Task 5's tests reuse it.
@@ -252,5 +252,31 @@ describe('scaling levers (§2.9)', () => {
   it('adds the integrated sprint block minutes on the carrier day', () => {
     const blocks = fullBlocks()
     expect(estimateMinutes(blocks, 'normal', true) - estimateMinutes(blocks, 'normal', false)).toBe(12)
+  })
+})
+
+describe('buildWeekLayout (golden: spec §2.1b example)', () => {
+  const goldenInput = () => ({
+    available_days: [1, 3, 5, 7], load_profile: 'medium' as const,
+    pillar_levels: { sprints: 2 as const, cod: 1 as const, strength: 2 as const, lower_body_plyometrics: 2 as const, mobility: 2 as const },
+    sprints_covered_by_club: false, session_minutes: 60,
+    weekly_schedule: schedule([
+      { day_of_week: 2, type: 'team_training', intensity: 6 },
+      { day_of_week: 4, type: 'team_training', intensity: 6 },
+      { day_of_week: 6, type: 'game', intensity: 10 },
+    ]),
+  })
+
+  it('lays out the soccer week deterministically', () => {
+    const layout = buildWeekLayout(goldenInput())
+    expect(layout.carrier).toBe('standalone')
+    const types = Object.fromEntries(layout.placement.days.map((d) => [d.day_of_week, d.session_type]))
+    expect(types[1]).toBe('speed')
+    expect(types[3]).toBe('training'); expect(types[5]).toBe('training'); expect(types[7]).toBe('training')
+    expect(layout.placement.days.find((d) => d.heavy_lower)?.day_of_week).toBe(3)
+    expect(layout.placement.days.some((d) => d.session_type === 'mobility')).toBe(true)
+    expect(layout.workouts).toHaveLength(3)
+    // Determinism: same input, same output.
+    expect(buildWeekLayout(goldenInput())).toEqual(layout)
   })
 })
