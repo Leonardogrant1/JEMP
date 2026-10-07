@@ -125,8 +125,8 @@ A new step **before** the existing Phase A, implemented as rule code, **not** LL
 
 Fatigue constants per session type (single constants file): mobility 0 · conditioning 2 · workout 3 · speed 4.
 
-1. Place the speed day: never <72h before a `game`/`tournament`, not directly after the game.
-2. Place the **heavy lower-body emphasis** on the workout farthest from the speed day (≥48h). The 48h rule applies to the heavy lower day — which the generator itself assigns via pattern rotation, so this is always satisfiable.
+1. Place the speed day: never <72h before a `game`/`tournament`, not directly after the game. Prefer short-duration days (a speed session needs ~30–40 min).
+2. Place the **heavy lower-body emphasis** on the workout farthest from the speed day (≥48h), preferring the longest-duration day. The 48h rule applies to the heavy lower day — which the generator itself assigns via pattern rotation, so this is always satisfiable. Duration-aware placement makes block drops rarer, not just better distributed.
 3. Workouts adjacent to the speed day get the upper-leaning / light lower-body variant of the weekly rotation.
 4. Conditioning never on the day directly before a game.
 5. Game weeks: speed session scales to maintenance volume (2–4 × 20–30m) instead of a development session. No legal window at all (two games/week): standalone drops, micro-dose moves into the workout warmup.
@@ -176,7 +176,7 @@ Worker (`generate-plan.ts`, `prompts.ts`, schemas, constants) and the edge-funct
 | Lever | Trigger | Effect |
 |---|---|---|
 | **Dose** (volume scaling) | Fatigue context: game proximity, weekload, deload — never time | All blocks stay; sets/intensity scale down (maintenance dosing, same principle as the sprint maintenance dose) |
-| **Breadth** (block drops) | Time budget: estimated duration vs preferred_session_duration | Blocks drop with full set quality kept; never triggered by fatigue |
+| **Breadth** (block drops) | Time budget: estimated duration vs the day's budget (per-day override, else global preferred_session_duration) | Blocks drop with full set quality kept; never triggered by fatigue |
 
 Computation order per session:
 
@@ -195,7 +195,7 @@ Full-session default stays single-pattern exercises — for strength development
 - **Sprint context (new, 2 questions):** "Do you do sprint sessions with your club?" (yes → system damps the sprint pillar, no sprint sessions) and "How far do you sprint at a stretch in your sport?" (<20m / 20–40m / >40m, with sport examples) → steers acceleration vs. max velocity.
 - **Pillar priority (replaces CategoryFocusStep):** sport preset pre-distributes levels; user adjusts one stepper per visible pillar (levels 1–3) under a visible budget counter (~10 points). Pillars with preset 0 don't appear. No user-facing "off".
 - **Self-assessment per visible pillar:** simple anchored rating (e.g., "I rarely sprint / regularly / fastest on my team"), stored as `self_estimate` start values. No forced assessments up front — conservative planning protects.
-- **Day selection as today** (toggles, workout cap by weekly load), extended with: required-day communication ("Your plan needs 3 workout days + 1 speed day — pick 4 days") and the opt-in "I can train twice a day" (enables conditioning doubles; mobility stacks even without opt-in).
+- **Day selection as today** (toggles, workout cap by weekly load), extended with: required-day communication ("Your plan needs 3 workout days + 1 speed day — pick 4 days"), the opt-in "I can train twice a day" (enables conditioning doubles; mobility stacks even without opt-in), and **per-day duration overrides**: `preferred_session_duration` stays the global default; tapping a selected day opens a sheet to adjust that day's duration (same UI pattern as the existing `sport-day-editor`). Nobody is forced to set seven values.
 - **Weekly schedule unchanged** — already captures club days, intensity, game/tournament days.
 
 ### 3.2 Wizard
