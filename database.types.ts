@@ -204,6 +204,7 @@ export type Database = {
           created_at: string | null
           description_i18n: Json | null
           id: string
+          is_active: boolean
           name_i18n: Json | null
           slug: string
           updated_at: string | null
@@ -212,6 +213,7 @@ export type Database = {
           created_at?: string | null
           description_i18n?: Json | null
           id?: string
+          is_active?: boolean
           name_i18n?: Json | null
           slug: string
           updated_at?: string | null
@@ -220,6 +222,7 @@ export type Database = {
           created_at?: string | null
           description_i18n?: Json | null
           id?: string
+          is_active?: boolean
           name_i18n?: Json | null
           slug?: string
           updated_at?: string | null
@@ -493,6 +496,10 @@ export type Database = {
         Row: {
           body_region: Database["public"]["Enums"]["body_region"] | null
           category_id: string | null
+          core_type: Database["public"]["Enums"]["core_type"] | null
+          covered_patterns:
+            | Database["public"]["Enums"]["strength_pattern"][]
+            | null
           created_at: string | null
           description: string | null
           description_i18n: Json | null
@@ -512,7 +519,12 @@ export type Database = {
             | Database["public"]["Enums"]["movement_pattern"]
             | null
           name: string
+          plyo_type: Database["public"]["Enums"]["plyo_type"] | null
           slug: string
+          sprint_type: Database["public"]["Enums"]["sprint_type"] | null
+          strength_pattern:
+            | Database["public"]["Enums"]["strength_pattern"]
+            | null
           thumbnail_storage_path: string | null
           updated_at: string | null
           video_storage_path: string | null
@@ -521,6 +533,10 @@ export type Database = {
         Insert: {
           body_region?: Database["public"]["Enums"]["body_region"] | null
           category_id?: string | null
+          core_type?: Database["public"]["Enums"]["core_type"] | null
+          covered_patterns?:
+            | Database["public"]["Enums"]["strength_pattern"][]
+            | null
           created_at?: string | null
           description?: string | null
           description_i18n?: Json | null
@@ -540,7 +556,12 @@ export type Database = {
             | Database["public"]["Enums"]["movement_pattern"]
             | null
           name: string
+          plyo_type?: Database["public"]["Enums"]["plyo_type"] | null
           slug: string
+          sprint_type?: Database["public"]["Enums"]["sprint_type"] | null
+          strength_pattern?:
+            | Database["public"]["Enums"]["strength_pattern"]
+            | null
           thumbnail_storage_path?: string | null
           updated_at?: string | null
           video_storage_path?: string | null
@@ -549,6 +570,10 @@ export type Database = {
         Update: {
           body_region?: Database["public"]["Enums"]["body_region"] | null
           category_id?: string | null
+          core_type?: Database["public"]["Enums"]["core_type"] | null
+          covered_patterns?:
+            | Database["public"]["Enums"]["strength_pattern"][]
+            | null
           created_at?: string | null
           description?: string | null
           description_i18n?: Json | null
@@ -568,7 +593,12 @@ export type Database = {
             | Database["public"]["Enums"]["movement_pattern"]
             | null
           name?: string
+          plyo_type?: Database["public"]["Enums"]["plyo_type"] | null
           slug?: string
+          sprint_type?: Database["public"]["Enums"]["sprint_type"] | null
+          strength_pattern?:
+            | Database["public"]["Enums"]["strength_pattern"]
+            | null
           thumbnail_storage_path?: string | null
           updated_at?: string | null
           video_storage_path?: string | null
@@ -777,6 +807,7 @@ export type Database = {
           created_at: string | null
           id: string
           relevance: number
+          score_weight: number
           sport_id: string
           updated_at: string | null
         }
@@ -785,6 +816,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           relevance: number
+          score_weight?: number
           sport_id: string
           updated_at?: string | null
         }
@@ -793,6 +825,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           relevance?: number
+          score_weight?: number
           sport_id?: string
           updated_at?: string | null
         }
@@ -848,6 +881,38 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      sport_required_regions: {
+        Row: {
+          body_region: Database["public"]["Enums"]["body_region"]
+          created_at: string
+          id: string
+          sport_id: string
+          updated_at: string
+        }
+        Insert: {
+          body_region: Database["public"]["Enums"]["body_region"]
+          created_at?: string
+          id?: string
+          sport_id: string
+          updated_at?: string
+        }
+        Update: {
+          body_region?: Database["public"]["Enums"]["body_region"]
+          created_at?: string
+          id?: string
+          sport_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sport_required_regions_sport_id_fkey"
+            columns: ["sport_id"]
+            isOneToOne: false
+            referencedRelation: "sports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sports: {
         Row: {
@@ -1159,6 +1224,51 @@ export type Database = {
           },
         ]
       }
+      user_pillar_levels: {
+        Row: {
+          category_id: string
+          created_at: string | null
+          id: string
+          level: number
+          set_by_wizard: boolean
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string | null
+          id?: string
+          level: number
+          set_by_wizard?: boolean
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string | null
+          id?: string
+          level?: number
+          set_by_wizard?: boolean
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_pillar_levels_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_pillar_levels_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_profiles: {
         Row: {
           birth_date: string | null
@@ -1320,6 +1430,7 @@ export type Database = {
           target_reps_max: number | null
           target_reps_min: number | null
           target_rest_seconds: number | null
+          target_rounds: number | null
           target_sets: number | null
           updated_at: string
           workout_plan_session_block_id: string
@@ -1338,6 +1449,7 @@ export type Database = {
           target_reps_max?: number | null
           target_reps_min?: number | null
           target_rest_seconds?: number | null
+          target_rounds?: number | null
           target_sets?: number | null
           updated_at?: string
           workout_plan_session_block_id: string
@@ -1356,6 +1468,7 @@ export type Database = {
           target_reps_max?: number | null
           target_reps_min?: number | null
           target_rest_seconds?: number | null
+          target_rounds?: number | null
           target_sets?: number | null
           updated_at?: string
           workout_plan_session_block_id?: string
@@ -1596,6 +1709,7 @@ export type Database = {
           target_reps_max: number | null
           target_reps_min: number | null
           target_rest_seconds: number | null
+          target_rounds: number | null
           target_sets: number | null
           updated_at: string
           workout_plan_session_block_exercise_id: string | null
@@ -1616,6 +1730,7 @@ export type Database = {
           target_reps_max?: number | null
           target_reps_min?: number | null
           target_rest_seconds?: number | null
+          target_rounds?: number | null
           target_sets?: number | null
           updated_at?: string
           workout_plan_session_block_exercise_id?: string | null
@@ -1636,6 +1751,7 @@ export type Database = {
           target_reps_max?: number | null
           target_reps_min?: number | null
           target_rest_seconds?: number | null
+          target_rounds?: number | null
           target_sets?: number | null
           updated_at?: string
           workout_plan_session_block_exercise_id?: string | null
@@ -1964,6 +2080,7 @@ export type Database = {
         | "forearm"
         | "full_body"
         | "neck"
+      core_type: "stability" | "power"
       exercise_image_group:
         | "squat_patterns"
         | "hip_hinge"
@@ -2020,6 +2137,7 @@ export type Database = {
         | "cardio"
         | "other"
       plan_status: "draft" | "active" | "paused" | "completed" | "archived"
+      plyo_type: "maximal" | "submaximal"
       session_duration: "30min" | "45min" | "60min" | "90min"
       session_status:
         | "scheduled"
@@ -2027,7 +2145,21 @@ export type Database = {
         | "completed"
         | "skipped"
         | "cancelled"
-      session_type: "training" | "recovery"
+      session_type:
+        | "training"
+        | "recovery"
+        | "speed"
+        | "mobility"
+        | "conditioning"
+      sprint_type: "acceleration" | "max_velocity" | "resisted"
+      strength_pattern:
+        | "push_vertical"
+        | "push_horizontal"
+        | "pull_vertical"
+        | "pull_horizontal"
+        | "knee_dominant"
+        | "hinge"
+        | "rotation"
       user_role: "user" | "admin" | "tester" | "affiliate"
     }
     CompositeTypes: {
@@ -2183,6 +2315,7 @@ export const Constants = {
         "full_body",
         "neck",
       ],
+      core_type: ["stability", "power"],
       exercise_image_group: [
         "squat_patterns",
         "hip_hinge",
@@ -2242,6 +2375,7 @@ export const Constants = {
         "other",
       ],
       plan_status: ["draft", "active", "paused", "completed", "archived"],
+      plyo_type: ["maximal", "submaximal"],
       session_duration: ["30min", "45min", "60min", "90min"],
       session_status: [
         "scheduled",
@@ -2250,7 +2384,23 @@ export const Constants = {
         "skipped",
         "cancelled",
       ],
-      session_type: ["training", "recovery"],
+      session_type: [
+        "training",
+        "recovery",
+        "speed",
+        "mobility",
+        "conditioning",
+      ],
+      sprint_type: ["acceleration", "max_velocity", "resisted"],
+      strength_pattern: [
+        "push_vertical",
+        "push_horizontal",
+        "pull_vertical",
+        "pull_horizontal",
+        "knee_dominant",
+        "hinge",
+        "rotation",
+      ],
       user_role: ["user", "admin", "tester", "affiliate"],
     },
   },
