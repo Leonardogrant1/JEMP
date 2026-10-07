@@ -1,3 +1,6 @@
+-- Prod-DDL safety (spec §6.1): fail fast instead of queueing behind a lock.
+SET LOCAL lock_timeout = '5s';
+
 -- Conditioning interval rounds (spec §1.4): work/rest already exist as
 -- target_duration_seconds / target_rest_seconds; only rounds is new.
 ALTER TABLE workout_plan_session_block_exercises

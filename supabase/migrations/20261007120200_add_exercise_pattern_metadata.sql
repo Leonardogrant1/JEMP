@@ -1,3 +1,6 @@
+-- Prod-DDL safety (spec §6.1): fail fast instead of queueing behind a lock.
+SET LOCAL lock_timeout = '5s';
+
 -- Exercise pattern metadata for the session structure redesign (spec §1.3).
 -- All columns nullable: untagged exercises fall back to the existing
 -- BODY_REGION_TO_PATTERN derivation in the generator (spec §6.2c).

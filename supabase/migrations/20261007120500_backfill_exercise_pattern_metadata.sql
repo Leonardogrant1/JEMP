@@ -53,7 +53,8 @@ UPDATE exercises SET core_type = 'stability' WHERE slug IN (
 );
 
 UPDATE exercises SET core_type = 'power' WHERE slug IN (
-    'rotational_med_ball_slam', 'medicine_ball_slam'
+    -- straight (non-rotational) slam: core-power block exercise, no pattern
+    'medicine_ball_slam'
 );
 
 -- === plyo_type ===
@@ -66,6 +67,7 @@ UPDATE exercises SET plyo_type = 'maximal' WHERE slug IN (
     -- prod catalog slug variants (seed names mb_* were renamed on prod)
     'med_ball_chest_pass', 'med_ball_overhead_throw',
     'rotational_med_ball_throw', 'medicine_ball_slam',
+    'rotational_med_ball_slam',
     'clap_push_up'
 );
 

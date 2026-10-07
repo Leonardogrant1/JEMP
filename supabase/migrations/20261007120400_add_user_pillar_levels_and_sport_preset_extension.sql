@@ -1,3 +1,6 @@
+-- Prod-DDL safety (spec §6.1): fail fast instead of queueing behind a lock.
+SET LOCAL lock_timeout = '5s';
+
 -- Per-user pillar priority levels (spec §1.5). set_by_wizard marks
 -- levels written by the new wizard — the activation signal for the new
 -- generator path (spec §6.5); translated legacy rankings stay false.

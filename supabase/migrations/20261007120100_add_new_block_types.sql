@@ -1,3 +1,6 @@
+-- Prod-DDL safety (spec §6.1): fail fast instead of queueing behind a lock.
+SET LOCAL lock_timeout = '5s';
+
 -- New block types for the session structure redesign (spec §1.2).
 -- primary/secondary stay for existing sessions; new plans use these.
 -- Only the generator assigns block types, so adding rows is invisible

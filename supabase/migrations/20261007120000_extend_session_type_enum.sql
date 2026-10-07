@@ -1,3 +1,6 @@
+-- Prod-DDL safety (spec §6.1): fail fast instead of queueing behind a lock.
+SET LOCAL lock_timeout = '5s';
+
 -- Extend the existing session_type enum (training | recovery) with the
 -- new session types from the session structure redesign. 'training'
 -- continues to mean a regular workout session. Additive only: no rows
