@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { circularDayDistance, effectiveSpeedLevel, allocateDays } from '../week-layout'
+import { circularDayDistance, effectiveSpeedLevel, allocateDays, placeWeek } from '../week-layout'
 
 const schedule = (sessions: Array<{ day_of_week: number; type: 'team_training' | 'game' | 'tournament' | 'individual_training'; intensity: number }>) =>
   ({ sessions, notes: null })
@@ -60,5 +60,91 @@ describe('allocateDays (§2.1a)', () => {
   it('mobility day flag from level >= 2 (consumes no available day)', () => {
     const a = allocateDays({ ...base, available_days: [1, 4], load_profile: 'low', pillar_levels: { mobility: 2 } })
     expect(a).toMatchObject({ workouts: 2, mobility_day: true })
+  })
+})
+
+describe('placeWeek (§2.1b)', () => {
+  it('places the worked spec example: soccer, club Tue/Thu, game Sat', () => {
+    const input = {
+      available_days: [1, 3, 5, 7], load_profile: 'medium' as const,
+      pillar_levels: { sprints: 2 as const, strength: 2 as const }, sprints_covered_by_club: false,
+      session_minutes: 60,
+      weekly_schedule: schedule([
+        { day_of_week: 2, type: 'team_training', intensity: 6 },
+        { day_of_week: 4, type: 'team_training', intensity: 6 },
+        { day_of_week: 6, type: 'game', intensity: 10 },
+      ]),
+    }
+    const placed = placeWeek(input, allocateDays(input))
+    const byType = Object.fromEntries(placed.days.map((d) => [d.session_type + ':' + d.day_of_week, d]))
+    expect(byType['speed:1']).toBeDefined()                       // Monday, MD-5
+    const heavy = placed.days.find((d) => d.heavy_lower)
+    expect(heavy?.day_of_week).toBe(3)                            // Wednesday
+    expect(placed.days.find((d) => d.day_of_week === 5)?.heavy_lower).toBe(false) // Friday light
+    expect(placed.days.find((d) => d.session_type === 'speed')?.dose).toBe('maintenance') // game week
+  })
+
+  it('places speed respecting 72h across the week boundary', () => {
+    // Game Tuesday (2): Sunday (7) is 2 days before -> illegal; Wednesday (3) is fine.
+    const input = {
+      available_days: [3, 7], load_profile: 'high' as const,
+      pillar_levels: { sprints: 3 as const }, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([{ day_of_week: 2, type: 'game', intensity: 10 }]),
+    }
+    const alloc = { workouts: 2, speed_days: 1, conditioning_day: false, mobility_day: false, carrier: 'standalone' as const }
+    const placed = placeWeek(input, alloc)
+    expect(placed.days.find((d) => d.session_type === 'speed')?.day_of_week).toBe(3)
+  })
+
+  it('english week degrades carrier to integrated', () => {
+    const input = {
+      available_days: [1, 4], load_profile: 'high' as const,
+      pillar_levels: { sprints: 3 as const }, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([
+        { day_of_week: 3, type: 'game', intensity: 10 },
+        { day_of_week: 6, type: 'game', intensity: 10 },
+      ]),
+    }
+    const alloc = { workouts: 1, speed_days: 1, conditioning_day: false, mobility_day: false, carrier: 'standalone' as const }
+    const placed = placeWeek(input, alloc)
+    expect(placed.carrier).not.toBe('standalone')
+    expect(placed.notes.join(' ')).toMatch(/kein legales Fenster|no legal window/i)
+  })
+
+  it('suppresses the micro dose within 24h after a speed day', () => {
+    const input = {
+      available_days: [1, 2, 4, 6], load_profile: 'medium' as const,
+      pillar_levels: { sprints: 2 as const }, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([]),
+    }
+    const placed = placeWeek(input, allocateDays(input))
+    const speedDay = placed.days.find((d) => d.session_type === 'speed')!.day_of_week
+    const nextDay = placed.days.find((d) => d.session_type === 'training' && circularDayDistance(speedDay, d.day_of_week) === 1)
+    if (nextDay) expect(nextDay.suppress_micro_dose).toBe(true)
+  })
+
+  it('integrated carrier puts sprint block and heavy lower on the game-farthest day', () => {
+    const input = {
+      available_days: [1, 3], load_profile: 'high' as const,
+      pillar_levels: { sprints: 3 as const }, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([{ day_of_week: 6, type: 'game', intensity: 10 }]),
+    }
+    const alloc = { workouts: 2, speed_days: 0, conditioning_day: false, mobility_day: false, carrier: 'integrated' as const }
+    const placed = placeWeek(input, alloc)
+    const carrierDay = placed.days.find((d) => d.carries_sprint_block)
+    expect(carrierDay?.day_of_week).toBe(1) // Monday is farthest from Saturday's game
+    expect(carrierDay?.heavy_lower).toBe(true) // one consolidated high day (spec §2.5)
+  })
+
+  it('per-day minutes override the global duration', () => {
+    const input = {
+      available_days: [1, 4], load_profile: 'low' as const,
+      pillar_levels: {}, sprints_covered_by_club: false, session_minutes: 60,
+      day_minutes: [{ day_of_week: 4, minutes: 30 }],
+      weekly_schedule: schedule([]),
+    }
+    const placed = placeWeek(input, allocateDays(input))
+    expect(placed.days.find((d) => d.day_of_week === 4)?.minutes).toBe(30)
+    expect(placed.days.find((d) => d.day_of_week === 1)?.minutes).toBe(60)
   })
 })
