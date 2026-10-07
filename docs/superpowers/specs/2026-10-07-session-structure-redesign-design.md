@@ -67,7 +67,7 @@ Categories get an active/inactive flag. Deactivated rows keep FK integrity for a
 - **Conditioning:** `warmup` → `conditioning` → `cooldown`
 - `primary` / `secondary` stay seeded and active for **existing sessions only**; new plans never assign them.
 
-Pattern variants (vertical/horizontal, knee/hinge, max/submax, stability/power) are **not** block types — they stay exercise metadata (§1.3) selected *within* a block. Block types make the structure mandatory and visible; exercise metadata keeps the rotation flexible. A workout session missing its pull block is visibly broken and validatable in DB and PlanSimulator.
+Pattern variants (vertical/horizontal, knee/hinge, max/submax, stability/power) are **not** block types — they stay exercise metadata (§1.3) selected *within* a block. Block types make the structure mandatory and visible; exercise metadata keeps the rotation flexible. Validation compares a session against its **expected block set: the full set minus explicitly recorded drops** (§2.9) — a workout missing its pull block *without a recorded drop* is broken and flagged in DB checks and the PlanSimulator; an intended breadth cut is not a false alarm.
 
 Consequence accepted by design: a full workout renders as 7–9 sections with 1–2 exercises each (today: 3–5 blocks of 2–4). Total exercise count stays within the mode budgets; the session reads like a coach's plan. Reduced sessions legitimately show fewer blocks (§2.9).
 
@@ -86,7 +86,7 @@ Conditioning is prescribed as **formats, not exercises**: the same movement beco
 
 ### 1.5 Pillar priority (replaces focus ranking)
 
-Per-user pillar levels: **1 = maintain, 2 = focus, 3 = emphasis**, under a point budget (~10 across the pillars visible for the sport, typically 5–6 of 7; maxing everything is unreachable by design — users trade, not stack).
+Per-user pillar levels: **1 = maintain, 2 = focus, 3 = emphasis**, under a point budget of **`visible pillars + 4`** (e.g., 5 visible → 9, 6 visible → 10). A fixed budget would scale inversely — sports with more relevant pillars would get *less* freedom after the mandatory 1-per-pillar minimum; `N + 4` keeps the headroom constant at 4 points regardless of sport. Maxing everything stays unreachable by design — users trade, not stack.
 
 - The user can **never** set a pillar to 0. Effective zeros come only from the system: sport preset marks a pillar irrelevant (hidden from the user entirely), sprints covered by the club (onboarding answer), conditioning damped by high weekly load.
 - Sport presets extend `sports_and_relevances`: default level per sport × pillar (0 = irrelevant) plus score weights (§4.3).
@@ -115,9 +115,10 @@ A new step **before** the existing Phase A, implemented as rule code, **not** LL
 **2.1a Day allocation:**
 
 - `workouts = min(cap(weekload), available_days)` — unchanged from today.
-- **Sprint level 3:** speed is guaranteed one of the available days; workouts drop to `workouts − 1` (never below the minimum of 2). The user chose this priority — it is not a loss.
-- **Sprint level 2:** speed gets its own day **only if a day is left over the workout cap** (e.g., 4 days available, cap 3 → 3 workouts + 1 speed). No spare day → no standalone; the sprint block integrates into a workout (§2.5).
-- **Sprint level 1:** micro-dose only, never an own day.
+- **The speed day is driven by `speed_level = max(sprint level, COD level)`** — the speed session carries both pillars (§2.5), so a basketball player with COD 3 / sprints 1 gets their speed day through COD. The sprint/COD mix inside the session follows the two levels.
+- **Speed level 3:** speed is guaranteed one of the available days; workouts drop to `workouts − 1`, but never below the minimum of 2. **Edge case 2 available days:** reserving a day would push workouts below 2 → no standalone day exists; speed falls back to an **extended** integrated block (§2.5) on the game-farthest workout day.
+- **Speed level 2:** speed gets its own day **only if a day is left over the workout cap** (e.g., 4 days available, cap 3 → 3 workouts + 1 speed). No spare day → no standalone; the sprint/COD block integrates into a workout (§2.5).
+- **Speed level 1:** micro-dose only, never an own day.
 - Mobility never consumes a day from the budget (fatigue 0); standalone mobility session only from mobility level 2, placed on rest days.
 - Conditioning session only when weekly load permits (§2.2) and a day is available; otherwise finisher-scale content or nothing.
 
@@ -131,7 +132,7 @@ Fatigue constants per session type (single constants file): mobility 0 · condit
 4. Conditioning never on the day directly before a game.
 5. Game weeks: speed session scales to maintenance volume (2–4 × 20–30m) instead of a development session. No legal window at all (two games/week): standalone drops, micro-dose moves into the workout warmup.
 
-Worked example (soccer, club Tue/Thu, game Sat, JEMP days Mon/Wed/Fri/Sun, medium load = cap 3, sprint level 2): 1 spare day → speed Monday (MD-5); heavy lower Wednesday; Friday light/upper (pre-game); Sunday moderate; mobility floats onto Tue/Thu evenings or Sat morning. Every placement matches what a coach would do by hand, and none is a special case in code.
+Worked example (soccer, club Tue/Thu, game Sat, JEMP days Mon/Wed/Fri/Sun, medium load = cap 3, speed level 2): 1 spare day → speed Monday (MD-5); heavy lower Wednesday; Friday light/upper (pre-game); Sunday moderate; mobility floats onto Tue/Thu evenings or Sat morning. Every placement matches what a coach would do by hand, and none is a special case in code.
 
 ### 2.2 Conditioning damping
 
@@ -149,8 +150,8 @@ Replaces category quotas + the body_region coverage patch. Every full workout ca
 
 Per user, in priority order:
 
-1. **Standalone speed session (default from sprint level 2, day budget permitting):** its own day, outdoors, **zero equipment** (drills + sprints + COD with nothing but markers). This is the main reason speed stays standalone: it happens at a different location than the workout (park/track vs. gym), and it is the easiest session to schedule anywhere. Structure: warmup → drills (A-/B-skips, wall drills) → sprint main part → COD block (COD rotates; not every speed session needs both).
-2. **Integrated sprint block (fallback when no day is free):** on the game-farthest workout day, directly after the warmup (high/low principle: consolidate high-CNS content on the same day, sprint first while fresh, then lift — same-session sprint→lift is standard practice; the 48h rule applies between days). Environment-filtered pool: gym users get resisted/stairs/sprint-in-place variants instead of free 30m sprints.
+1. **Standalone speed session (default from speed level 2 — `max(sprints, cod)` —, day budget permitting):** its own day, outdoors, **zero equipment** (drills + sprints + COD with nothing but markers). This is the main reason speed stays standalone: it happens at a different location than the workout (park/track vs. gym), and it is the easiest session to schedule anywhere. Structure: warmup → drills (A-/B-skips, wall drills) → sprint main part → COD block — the sprint/COD proportion follows the two pillar levels (COD 3 + sprints 1 → COD-dominant session).
+2. **Integrated sprint/COD block (fallback when no day is free):** on the game-farthest workout day, directly after the warmup (high/low principle: consolidate high-CNS content on the same day, sprint first while fresh, then lift — same-session sprint→lift is standard practice; the 48h rule applies between days). By design this day **is** the heavy-lower day — one consolidated high day; the sprint volume there is block-sized, not session-sized. COD drills integrate the same way (they need less space than free sprints). Environment-filtered pool: gym users get resisted/stairs/sprint-in-place variants instead of free 30m sprints.
 3. **Micro-dose (always, every workout):** CNS mini-steps + a few short accelerations in the warmup.
 
 `sprint_type` gating: acceleration always; max velocity only if the onboarding distance answer is >20m **and** a measured (not estimated) sprint value exists — max velocity is the most expensive, riskiest content and never a default. Combat athletes: acceleration + hill/sled + intervals, no flying sprints (no 40m runway exists in a fight; hills force the forward lean of entries and protect hamstrings).
@@ -182,7 +183,7 @@ Computation order per session:
 
 1. **Dose first:** volume multiplier from the week context (normal / maintenance / deload).
 2. **Estimate duration** with the scaled volume: blocks × (sets × time-per-set + per-exercise setup overhead). The overhead term is why breadth, not dose, answers time pressure: many one-set blocks maximize setup cost per minute of actual work, and heavy strength work without ramp-up is near-worthless ("touch everything, develop nothing").
-3. **Breadth last:** while the estimate exceeds the budget, drop blocks by priority — (a) what the weekly coverage ledger already covered, (b) lowest pillar levels first (user emphases survive), (c) drop rotation (what was dropped last time is kept this time). Selection within remaining blocks biases toward `covered_patterns` hybrids so dropped patterns still get partial stimulus (counted as partial coverage in the ledger — enough in squeezed weeks, never a substitute for a full block in normal weeks). Warmup/cooldown compress but never drop (CNS mini-steps stay).
+3. **Breadth last:** while the estimate exceeds the budget, drop blocks by priority — (a) what the weekly coverage ledger already covered, (b) lowest pillar levels first (user emphases survive), (c) drop rotation (what was dropped last time is kept this time). **Every drop is persisted on the session** (dropped block types + reason: time/coverage) — this is what validation and the PlanSimulator audit against (§1.2). Selection within remaining blocks biases toward `covered_patterns` hybrids so dropped patterns still get partial stimulus (counted as partial coverage in the ledger — enough in squeezed weeks, never a substitute for a full block in normal weeks). Warmup/cooldown compress but never drop (CNS mini-steps stay).
 
 Full-session default stays single-pattern exercises — for strength development the bench press beats the thruster; compounds are a compromise tool for squeezed sessions, not an upgrade. The mode slugs full/reduced remain as derived labels for pool filtering (`exercise_session_modes`).
 
@@ -193,7 +194,7 @@ Full-session default stays single-pattern exercises — for strength development
 ### 3.1 New/changed onboarding steps
 
 - **Sprint context (new, 2 questions):** "Do you do sprint sessions with your club?" (yes → system damps the sprint pillar, no sprint sessions) and "How far do you sprint at a stretch in your sport?" (<20m / 20–40m / >40m, with sport examples) → steers acceleration vs. max velocity.
-- **Pillar priority (replaces CategoryFocusStep):** sport preset pre-distributes levels; user adjusts one stepper per visible pillar (levels 1–3) under a visible budget counter (~10 points). Pillars with preset 0 don't appear. No user-facing "off".
+- **Pillar priority (replaces CategoryFocusStep):** sport preset pre-distributes levels; user adjusts one stepper per visible pillar (levels 1–3) under a visible budget counter (`visible pillars + 4` points, §1.5). Pillars with preset 0 don't appear. No user-facing "off".
 - **Self-assessment per visible pillar:** simple anchored rating (e.g., "I rarely sprint / regularly / fastest on my team"), stored as `self_estimate` start values. No forced assessments up front — conservative planning protects.
 - **Day selection as today** (toggles, workout cap by weekly load), extended with: required-day communication ("Your plan needs 3 workout days + 1 speed day — pick 4 days"), the opt-in "I can train twice a day" (enables conditioning doubles; mobility stacks even without opt-in), and **per-day duration overrides**: `preferred_session_duration` stays the global default; tapping a selected day opens a sheet to adjust that day's duration (same UI pattern as the existing `sport-day-editor`). Nobody is forced to set seven values.
 - **Weekly schedule unchanged** — already captures club days, intensity, game/tournament days.
@@ -207,7 +208,7 @@ Same building blocks mirrored into plan regeneration (pillar steppers, days, opt
 1. **Mobility + anything: always allowed**, no opt-in (fatigue 0; evening after a workout is a classic slot).
 2. **Conditioning + workout: allowed with opt-in** (conditioning after lifting or as PM session; never the day before a game).
 3. **Speed + workout same day: v1.5** — requires the generator to turn that day's workout upper-leaning (lower_body block moves to another day, weekly coverage preserved). Deferred: it touches pattern rotation at its most sensitive point for a minority of users.
-4. **Never:** speed + heavy lower same day, speed + conditioning same day (quality conflict).
+4. **Never:** a **standalone** speed session + the heavy-lower workout on the same day (two separate high-CNS sessions), or speed + conditioning on the same day (quality conflict). This explicitly does **not** apply to the integrated sprint/COD block (§2.5), which deliberately shares the day with heavy lifting — sprints first, then lift (high/low consolidation, block-sized volume).
 
 ### 3.4 Transparency principle
 
@@ -238,7 +239,7 @@ Raw values never change on sport switch — only the weighting for the overall s
 - `jumps.ts` + `lower-body-plyometrics.ts` → **one** calculator for the merged pillar (vertical/broad/box jump). Sprint times are removed here.
 - **New `sprints.ts`:** 10m (acceleration), 30m, 10m flying (max velocity) — norms already exist, they relocate.
 - **New `cod.ts`:** 505 agility (norm exists); T-Drill later.
-- **New `conditioning.ts`:** Repeated Sprint Test — 6 × 30m with 25s rest; scored on percentage drop-off from run 1 to run 6 (normalizes for own sprint speed, so it measures fatigue resistance, not speed again). Run 1 additionally feeds the sprint score: one setup, two pillars. Fallback: Cooper 12-minute run (published norm tables by age/sex). The Yo-Yo IR and 30-15 IFT were rejected for space/audio requirements; Assault Bike rejected as standard for device availability.
+- **New `conditioning.ts`:** Repeated Sprint Test — 6 × 30m with 25s rest; scored on a **combination of drop-off % and absolute mean time**. Pure drop-off has a known validity weakness: a slower athlete works further below their limit in every run and structurally shows less decay, so slowness would be rewarded — the absolute component anchors the score (exact weighting is an implementation constant). Run 1 additionally feeds the sprint score: one setup, two pillars. Fallback: Cooper 12-minute run (published norm tables by age/sex). The Yo-Yo IR and 30-15 IFT were rejected for space/audio requirements; Assault Bike rejected as standard for device availability.
 - `upper-body-plyometrics.ts` **stays unchanged** (MB chest/rotational/overhead throw + clap push-ups) — own pillar, own score. Strength stays purely 1RM/max-reps based.
 - `strength.ts`, `mobility.ts` stay.
 
@@ -263,6 +264,7 @@ Existing assessment results stay raw data, re-mapped to new pillars (sprint resu
 **Only the seven pillar time series are stored. The overall score is never persisted** — it is always computed live: weighted average(pillar values at time t, current sport's weights). Seven multiplications per data point, also for history graphs.
 
 - Pillar history is sport-independent and never breaks.
+- **Carry-forward rule:** "pillar values at time t" means each pillar's most recent value at or before t (last observation carried forward). Pillars with no value yet at t are excluded and the sport weights renormalize over the present ones — without this rule the live computation would be undefined, since pillar values arrive at different times.
 - Overall-score history is reconstructable retroactively for any sport — switching sports re-renders the entire history under the new weights (no gap, no reset to zero).
 - Logs per pillar combination were rejected: every combination is derivable from the seven series; derived data is computed, not logged.
 - Preset weight tuning shifts recomputed history slightly — accepted (presentation, not data loss); no weight versioning in v1 (YAGNI).
@@ -307,8 +309,8 @@ The app has a hard force-update mechanism (`providers/version-check-provider.tsx
 
 1. Additive migrations (6.1 steps 1–3, 5) — invisible to old clients.
 2. Deploy worker + edge function (handles old and new data states via §6.2c + sensible defaults for users without new wizard data).
-3. **Store release 3.0.0.** The moment `/store-info` reports it, all 2.x users are hard-blocked — the store release *is* the flip; there is no grace period with the current major-diff logic (accepted and intended here).
-4. Set `MIN_SUPPORTED_VERSION` to 3.0.0 (belt and braces; highest-priority check, covers store-info fetch failures).
+3. **Store release 3.0.0** with phased/staged rollout disabled (100% availability in all regions), so no user sees a block before the binary is downloadable. Caveat: the automatic store-diff check fires as soon as `/store-info` reports 3.0.0 — it cannot be sequenced independently, which is why availability must come first.
+4. **Flip `MIN_SUPPORTED_VERSION` to 3.0.0 — the primary, deliberate gate:** controllable timing, reversible, and the highest-priority check. The automatic store-diff is the second line (covers version-check fetch failures). Consciously accepted consequence: users who technically cannot update (old OS versions) are locked out — justified for a restructure of this size.
 5. **Data migration (6.1 step 4) immediately after** — no old clients remain that could misread the new category list.
 
 Known, accepted gaps: version checks run on app start and after >60s background (a user mid-session finishes their session — good); full fetch failure fails open (offline old app stays usable; anything harmful needs the backend anyway).
@@ -335,7 +337,7 @@ Explicitly v1.5/v2: speed double days with workout restructuring (v1.5), pre-fig
 
 ## Decision log (key calls and why)
 
-- **New block types enforce the structure (reversed from the earlier metadata+slots-only draft):** originally rejected as invasive, but the landscape changed — keeping `primary`/`secondary` for existing sessions removes the data migration, the 3.0.0 force-update removes the old-client problem, the generator is rewritten in phase 2 anyway, and the app renders block labels generically (only small slug lists to extend). In return the structure is data-enforced (a workout missing its pull block is visibly broken and validatable) and the method becomes visible UI for free. Exercise pattern metadata stays — block types make it mandatory, variants stay flexible within blocks.
+- **New block types enforce the structure (reversed from the earlier metadata+slots-only draft):** originally rejected as invasive, but the landscape changed — keeping `primary`/`secondary` for existing sessions removes the data migration, the 3.0.0 force-update removes the old-client problem, the generator is rewritten in phase 2 anyway, and the app renders block labels generically (only small slug lists to extend). In return the structure is data-enforced (a workout missing its pull block without a recorded drop is visibly broken and validatable) and the method becomes visible UI for free. Exercise pattern metadata stays — block types make it mandatory, variants stay flexible within blocks.
 - **Two independent scaling levers, no "reduced type" choice:** dose (volume) is triggered by fatigue context, breadth (block drops) by the time budget; computed per session in that order. Compounds (`covered_patterns`) compensate dropped patterns with partial stimulus in squeezed sessions only.
 - **Speed bundles sprints + COD:** same venue, same warmup, similar neural load; variants rotate across weeks. Own types for each pillar would create more session types than training days.
 - **Standalone speed as default carrier (level 2+):** different venue than the workout, zero equipment. Integration is the fallback for full weeks; micro-dose is the floor.
