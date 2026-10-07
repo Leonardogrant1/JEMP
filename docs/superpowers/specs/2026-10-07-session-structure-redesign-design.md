@@ -11,7 +11,7 @@ Restructure JEMP's training taxonomy so a plan covers everything an athlete need
 Three big moves:
 
 1. **Seven pillars** replace the current five categories: Strength, Lower-Body Plyometrics (absorbs Jumps), Upper-Body Plyometrics (kept, preset-gated), Sprints, Change of Direction (COD), Conditioning, Mobility. Sport presets hide irrelevant pillars, so users typically see 5–6.
-2. **Session types** — sessions get an enum `workout | speed | mobility | conditioning`. Speed bundles sprints + COD. All types share the existing block structure and tables.
+2. **Session types & pattern blocks** — sessions get an enum `workout | speed | mobility | conditioning` (speed bundles sprints + COD), and new block types (`push`, `pull`, `lower_body`, `rotation`, `core`, `plyo`, `sprint`, `cod`, `conditioning`, `mobility`) make the structure mandatory and visible; `primary`/`secondary` remain for existing sessions.
 3. **Fatigue-cost planning** — each pillar/session type carries a fatigue value; the generator places the week deterministically from those values instead of hardcoded special cases.
 
 Supporting changes: pattern metadata on exercises (vertical/horizontal push/pull, knee/hinge, plyo max/submax, core stability/power, sprint acceleration/max-velocity/resisted), a budgeted pillar-priority UI replacing the focus ranking, and a source-tracked, aging score architecture per pillar.
@@ -49,22 +49,35 @@ The existing `categories` table becomes the pillar table:
 | `cod` | **new** — agility drills (505, T-Drill, shuttles) move here |
 | `conditioning` | **new** — circuits, intervals, sled conditioning formats |
 
-Exercise re-mapping on migration: sprint drills (sprints, resisted/hill variants, A-/B-skips, wall drills, high knees, etc.) → `sprints`; change-of-direction drills → `cod`. Upper-plyo exercises **stay in their category** and only gain pattern metadata so workout slots can select them: med ball rotational slams/throws → pattern `rotation` + `plyo_type`; med ball chest pass / plyo push-ups → push pattern + `plyo_type`. Slow, loaded rotation work (e.g., cable rotational punch press) lives in `strength` with pattern `rotation` — the pattern slot unifies them, not the category.
+Exercise re-mapping on migration: sprint drills (sprints, resisted/hill variants, A-/B-skips, wall drills, high knees, etc.) → `sprints`; change-of-direction drills → `cod`. Upper-plyo exercises **stay in their category** and only gain pattern metadata so workout blocks can select them: med ball rotational slams/throws → pattern `rotation` + `plyo_type`; med ball chest pass / plyo push-ups → push pattern + `plyo_type`. Slow, loaded rotation work (e.g., cable rotational punch press) lives in `strength` with pattern `rotation` — the `rotation` block unifies them, not the category.
 
-**Pillar visibility gates prioritization and score display, not exercise availability:** ballistic exercises still appear in everyone's workouts via the pattern slots (rotation, push + plyo_type) — a soccer player keeps doing med ball slams in the rotation slot; they just don't prioritize or measure them as an own quality.
+**Pillar visibility gates prioritization and score display, not exercise availability:** ballistic exercises still appear in everyone's workouts via the pattern blocks (rotation, push + plyo_type) — a soccer player keeps doing med ball slams in the rotation block; they just don't prioritize or measure them as an own quality.
 
 Categories get an active/inactive flag. Deactivated rows keep FK integrity for anything referencing them (score history, old targeted_categories); deletion is a separate cleanup migration months later.
 
-### 1.2 Session types
+### 1.2 Session types & new block types
 
-`sessions.session_type` enum: `workout | speed | mobility | conditioning`, default `workout` (covers all existing rows, no backfill). All session types use the same block structure (`warmup/primary/secondary/accessory/cooldown`) and the same tables — `session_type` is only an enum. Block types are **not** touched.
+`sessions.session_type` enum: `workout | speed | mobility | conditioning`, default `workout` (covers all existing rows, no backfill). All session types use the same block tables.
+
+**New block types enforce the structure at the data level** (reversal of an earlier draft that kept blocks generic — see decision log). `block_types` is a table; new rows are added, old rows stay:
+
+- **Workout:** `warmup` → `push` → `pull` → `lower_body` → `rotation` → `core` → `plyo` → `accessory` → `cooldown`
+- **Speed:** `warmup` → `sprint` → `cod` → `cooldown`
+- **Mobility:** `mobility` (optionally preceded by a light `warmup`)
+- **Conditioning:** `warmup` → `conditioning` → `cooldown`
+- `primary` / `secondary` stay seeded and active for **existing sessions only**; new plans never assign them.
+
+Pattern variants (vertical/horizontal, knee/hinge, max/submax, stability/power) are **not** block types — they stay exercise metadata (§1.3) selected *within* a block. Block types make the structure mandatory and visible; exercise metadata keeps the rotation flexible. A workout session missing its pull block is visibly broken and validatable in DB and PlanSimulator.
+
+Consequence accepted by design: a full workout renders as 7–9 sections with 1–2 exercises each (today: 3–5 blocks of 2–4). Total exercise count stays within the mode budgets; the session reads like a coach's plan. Reduced sessions legitimately show fewer blocks (§2.9).
 
 ### 1.3 Exercise metadata (new nullable columns)
 
-- `strength_pattern`: `push_vertical | push_horizontal | pull_vertical | pull_horizontal | knee_dominant | hinge | rotation` — **exactly one primary pattern per exercise**. Hybrid exercises (e.g., cable rotational punch press = push + rotation) get the pattern whose weekly slot they fill (here: `rotation` — the training stimulus is rotational force transfer; it competes with woodchops, not bench press).
+- `strength_pattern`: `push_vertical | push_horizontal | pull_vertical | pull_horizontal | knee_dominant | hinge | rotation` — **exactly one primary pattern per exercise**. Hybrid exercises (e.g., cable rotational punch press = push + rotation) get the pattern whose block they fill (here: `rotation` — the training stimulus is rotational force transfer; it competes with woodchops, not bench press).
 - `plyo_type`: `maximal | submaximal` (on plyo exercises; also used as a ballistic tag on strength exercises like med ball throws).
 - `core_type`: `stability | power`.
 - `sprint_type`: `acceleration | max_velocity | resisted`.
+- `covered_patterns`: optional array of **secondary** patterns a compound exercise meaningfully hits (KB swing: primary `hinge`, covered `pull`; clean & press: primary `hinge`, covered `push_vertical`; thruster: primary `knee_dominant`, covered `push_vertical`; renegade row: primary `core_stability`, covered `pull_horizontal`). The primary pattern decides which block the exercise lives in; covered patterns feed the weekly coverage ledger as partial stimulus (§2.9). Backfill only the ~20 obvious hybrids.
 - `laterality` already exists (bilateral/unilateral/alternating) and covers single/double leg.
 
 ### 1.4 Conditioning prescription
@@ -126,11 +139,11 @@ High weekly club load → conditioning sessions reduced or dropped (club trainin
 
 ### 2.3 Pillar levels → dose
 
-Constants table per pillar: level 1 = maintenance frequency/volume, 2 = focus, 3 = emphasis. (E.g., sprints: 1 = warmup micro-dose, 2 = one speed session, 3 = up to two if the week allows. Upper-body plyo: levels bias the rotation/push slots toward ballistic variants and raise their volume — the pillar lives inside workouts, no own session type.)
+Constants table per pillar: level 1 = maintenance frequency/volume, 2 = focus, 3 = emphasis. (E.g., sprints: 1 = warmup micro-dose, 2 = one speed session, 3 = up to two if the week allows. Upper-body plyo: levels bias the rotation/push blocks toward ballistic variants and raise their volume — the pillar lives inside workouts, no own session type.)
 
-### 2.4 Pattern slots in workouts
+### 2.4 Pattern blocks in workouts
 
-Replaces category quotas + the body_region coverage patch. Every workout keeps the base slots: Push, Pull, Lower Body, Rotation, Core, Plyo, Accessory — **this base structure is invariant**. Variants rotate across the week: push/pull vertical↔horizontal, knee↔hinge, laterality single↔double, plyo max↔submax, core stability↔power. Weekly coverage rule: every pattern at least once per week. Patterns come from the new exercise metadata instead of the `BODY_REGION_TO_PATTERN` derivation. CNS mini-steps (fast feet / short accelerations) are a fixed warmup component of every workout. Accessory = small muscles (adductors, hip flexors, calves, feet; optionally biceps/triceps).
+Replaces category quotas + the body_region coverage patch. Every full workout carries the block set from §1.2 — **the base structure is data-enforced**. Variants rotate across the week *within* each block: push/pull vertical↔horizontal, knee↔hinge, laterality single↔double, plyo max↔submax, core stability↔power. Weekly coverage rule: every pattern at least once per week, tracked in a coverage ledger. Patterns come from the new exercise metadata instead of the `BODY_REGION_TO_PATTERN` derivation. CNS mini-steps (fast feet / short accelerations) are a fixed warmup component of every workout. Accessory = small muscles (adductors, hip flexors, calves, feet; optionally biceps/triceps).
 
 ### 2.5 Sprint content carriers
 
@@ -156,6 +169,23 @@ Pillars with `self_estimate` or aged-out values → one intensity step down, fla
 
 Worker (`generate-plan.ts`, `prompts.ts`, schemas, constants) and the edge-function mirror `supabase/functions/generate-trainings-plan/` — changed in sync, as with previous generator packages.
 
+### 2.9 Session scaling: two independent levers
+
+"Reduced" is not a single mode — the generator computes two independent levers per session, each with its own trigger. There is no user-facing choice; both derive from existing data (preferred_session_duration, weekly schedule, weekload).
+
+| Lever | Trigger | Effect |
+|---|---|---|
+| **Dose** (volume scaling) | Fatigue context: game proximity, weekload, deload — never time | All blocks stay; sets/intensity scale down (maintenance dosing, same principle as the sprint maintenance dose) |
+| **Breadth** (block drops) | Time budget: estimated duration vs preferred_session_duration | Blocks drop with full set quality kept; never triggered by fatigue |
+
+Computation order per session:
+
+1. **Dose first:** volume multiplier from the week context (normal / maintenance / deload).
+2. **Estimate duration** with the scaled volume: blocks × (sets × time-per-set + per-exercise setup overhead). The overhead term is why breadth, not dose, answers time pressure: many one-set blocks maximize setup cost per minute of actual work, and heavy strength work without ramp-up is near-worthless ("touch everything, develop nothing").
+3. **Breadth last:** while the estimate exceeds the budget, drop blocks by priority — (a) what the weekly coverage ledger already covered, (b) lowest pillar levels first (user emphases survive), (c) drop rotation (what was dropped last time is kept this time). Selection within remaining blocks biases toward `covered_patterns` hybrids so dropped patterns still get partial stimulus (counted as partial coverage in the ledger — enough in squeezed weeks, never a substitute for a full block in normal weeks). Warmup/cooldown compress but never drop (CNS mini-steps stay).
+
+Full-session default stays single-pattern exercises — for strength development the bench press beats the thruster; compounds are a compromise tool for squeezed sessions, not an upgrade. The mode slugs full/reduced remain as derived labels for pool filtering (`exercise_session_modes`).
+
 ---
 
 ## 3. Onboarding & Priority UI
@@ -176,7 +206,7 @@ Same building blocks mirrored into plan regeneration (pillar steppers, days, opt
 
 1. **Mobility + anything: always allowed**, no opt-in (fatigue 0; evening after a workout is a classic slot).
 2. **Conditioning + workout: allowed with opt-in** (conditioning after lifting or as PM session; never the day before a game).
-3. **Speed + workout same day: v1.5** — requires the generator to turn that day's workout upper-leaning (lower slot moves to another day, weekly coverage preserved). Deferred: it touches pattern rotation at its most sensitive point for a minority of users.
+3. **Speed + workout same day: v1.5** — requires the generator to turn that day's workout upper-leaning (lower_body block moves to another day, weekly coverage preserved). Deferred: it touches pattern rotation at its most sensitive point for a minority of users.
 4. **Never:** speed + heavy lower same day, speed + conditioning same day (quality conflict).
 
 ### 3.4 Transparency principle
@@ -243,15 +273,15 @@ Existing assessment results stay raw data, re-mapped to new pillars (sprint resu
 ## 5. App UI & Screens
 
 - **5.1 Plan/week view:** each session type gets a visual identity — icon, label, session image (extend `session-images.ts`). A speed session is called "Sprint Session", not "Workout 3". Mobility sessions appear as light cards on rest days (`rest-day-card` as anchor).
-- **5.2 Session screen (`session/[id].tsx`):** same screen for all types (payoff of the shared-structure decision). Additions: conditioning blocks render the interval prescription (work/rest/rounds) as a new row variant; sprint exercises show distance + attempts (measurement types exist).
+- **5.2 Session screen (`session/[id].tsx`):** same screen for all types; block labels already render generically via `t('block_type.${slug}')`, so new blocks appear as sections automatically — the pattern structure becomes visible UI for free. To update: the small hardcoded slug lists (hero image pick, focus chips, isMainBlock in `session/[id].tsx`, mirrored in session-summary, active-session, SessionHeader) extend to the new types or become data-driven. Additions: conditioning blocks render the interval prescription (work/rest/rounds) as a new row variant; sprint exercises show distance + attempts (measurement types exist). Full workouts render 7–9 shorter sections (§1.2); reduced sessions show honestly fewer blocks.
 - **5.3 Active session:** the biggest new UI piece is the **interval timer** for conditioning (work/rest countdown, round counter, switch signal). Speed sessions reuse the existing set/rest logic.
 - **5.4 Progress/scores:** pillar view filtered to sport-relevant pillars; overall score computed live (§4.7). Per pillar: history graph + **source badge** ("estimated" / "measured" / "stale — retest due") with a CTA to the matching assessment.
 - **5.5 Assessments screen:** grouped by pillar; new RST flow (enter six times sequentially, app computes drop-off, writes two pillars); Cooper as alternative; "Recommended for you" row fed by uncertain/stale pillars.
 - **5.6 Moving sessions:** session-manage sheet (redesign branch) extended with move/swap + soft warnings that explain the rule in one sentence ("Sprints <72h before your game fatigue you for the weekend") — warn, never block. Moving the speed session to the user's track/field day is the expected normal case (space constraint), not misuse.
 - **5.7 Web admin:** exercise create/edit forms get the new metadata fields as selects; AI prefill suggests them; category pickers show the new pillars; PlanSimulator understands session types for testing week placement.
-- **5.8 i18n:** new namespaces for session types, pillar names ("Sprungkraft" etc.), pattern labels, warning texts. `block_type.*` keys unchanged.
+- **5.8 i18n:** new namespaces for session types, pillar names ("Sprungkraft" etc.), warning texts, and new `block_type.*` keys for the new block types (existing keys unchanged).
 
-Not in this list by design: no new session screen, no block-screen changes, no query changes beyond the enum field.
+Not in this list by design: no new session screen and no query changes beyond the enum field — new block types flow through the existing generic block rendering.
 
 ---
 
@@ -259,8 +289,8 @@ Not in this list by design: no new session screen, no block-screen changes, no q
 
 ### 6.1 DB migrations (order within the package)
 
-1. `session_type` enum + column (default `workout`) — additive.
-2. Exercise metadata columns + interval fields — additive, nullable.
+1. `session_type` enum + column (default `workout`) — additive. New `block_types` rows (§1.2) — also additive and safe pre-release: only the generator assigns block types, old clients never see them in sessions.
+2. Exercise metadata columns (incl. `covered_patterns`) + interval fields — additive, nullable.
 3. Pillar-level storage + translation of existing focus rankings; `sports_and_relevances` extension (preset levels + score weights).
 4. Category restructuring: new rows (`sprints`, `cod`, `conditioning`), re-mapping (exercises, rankings, targeted_categories), `jumps` **deactivated, not deleted** (FK safety; deletion is a later cleanup migration). `upper_body_plyometrics` stays active and untouched. Runs **after** the app release (§6.3).
 5. Pillar time series for scores + mapping of existing assessment results.
@@ -294,7 +324,7 @@ The new generator path activates only for users whose pillar levels were **writt
 ### 6.6 Build phases (each independently shippable)
 
 1. **Taxonomy & data:** migrations 6.1 steps 1–3 + backfill start (no behavior change).
-2. **Generator:** week layout, fatigue logic, pattern slots, sprint/conditioning content, conservative mode.
+2. **Generator:** week layout, fatigue logic, pattern blocks, block drop/dose levers, sprint/conditioning content, conservative mode.
 3. **Onboarding & wizard:** pillar steppers, sprint questions, day communication.
 4. **Session types in the app:** plan view, conditioning timer, move with warnings.
 5. **Scores & assessments:** calculator restructuring, time series, RST flow, badges.
@@ -305,7 +335,8 @@ Explicitly v1.5/v2: speed double days with workout restructuring (v1.5), pre-fig
 
 ## Decision log (key calls and why)
 
-- **Metadata + slots, not new block types:** blocks stay generic containers; meaning comes from generator slots + exercise metadata. UI grouping by pattern remains retrofittable without schema changes.
+- **New block types enforce the structure (reversed from the earlier metadata+slots-only draft):** originally rejected as invasive, but the landscape changed — keeping `primary`/`secondary` for existing sessions removes the data migration, the 3.0.0 force-update removes the old-client problem, the generator is rewritten in phase 2 anyway, and the app renders block labels generically (only small slug lists to extend). In return the structure is data-enforced (a workout missing its pull block is visibly broken and validatable) and the method becomes visible UI for free. Exercise pattern metadata stays — block types make it mandatory, variants stay flexible within blocks.
+- **Two independent scaling levers, no "reduced type" choice:** dose (volume) is triggered by fatigue context, breadth (block drops) by the time budget; computed per session in that order. Compounds (`covered_patterns`) compensate dropped patterns with partial stimulus in squeezed sessions only.
 - **Speed bundles sprints + COD:** same venue, same warmup, similar neural load; variants rotate across weeks. Own types for each pillar would create more session types than training days.
 - **Standalone speed as default carrier (level 2+):** different venue than the workout, zero equipment. Integration is the fallback for full weeks; micro-dose is the floor.
 - **User picks days, generator picks content:** the user knows their life, the app knows the physiology. Correction happens after generation via move + soft warnings.
