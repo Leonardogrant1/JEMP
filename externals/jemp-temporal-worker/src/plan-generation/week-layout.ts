@@ -7,7 +7,7 @@ export function circularDayDistance(from: number, to: number): number {
 }
 
 import type { WeeklySchedule } from './types'
-import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, WORKOUT_BLOCK_SEQUENCE, BLOCK_MINUTES, MAINTENANCE_DOSE_FACTOR, INTEGRATED_SPRINT_BLOCK_MINUTES, DROP_PRIORITY } from './week-layout-constants'
+import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, WORKOUT_BLOCK_SEQUENCE, BLOCK_MINUTES, MAINTENANCE_DOSE_FACTOR, INTEGRATED_SPRINT_BLOCK_MINUTES, DROP_PRIORITY, BLOCK_TO_PILLAR } from './week-layout-constants'
 
 export type NewSessionType = 'training' | 'speed' | 'mobility' | 'conditioning'
 export type PillarSlug =
@@ -117,9 +117,18 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
   // window, it is used with a note (72h protection outranks post-game comfort).
   const speedLegal = (day: number) => gameFwd(day) >= 3 && !gameDays.includes(day)
 
+  // A day qualifies for the block-sized integrated sprint volume only ≥72h
+  // before a game — otherwise the carrier degrades to micro (spec §2.1b.5).
+  const integratedLegal = (day: number) => gameFwd(day) >= 3
+
   let carrier = allocation.carrier
   let speedDayCount = allocation.speed_days
-  const pool = [...input.available_days].sort((a, b) => a - b)
+  // Sanitize: game/tournament days are never schedulable, even if the user
+  // left them toggled "available" (review C2 — heavy squats on match day).
+  const pool = [...input.available_days].filter((d) => !gameDays.includes(d)).sort((a, b) => a - b)
+  for (const d of input.available_days) if (gameDays.includes(d)) {
+    notes.push(`Tag ${d} ist Spiel-/Turniertag — aus den Trainingstagen entfernt`)
+  }
 
   // 1. Speed days: legal days; avoid post-game days, then shortest minutes first.
   const speedDays: number[] = []
@@ -135,8 +144,10 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
       speedDayCount -= 1
     }
     if (speedDays.length === 0) {
-      carrier = pool.length > 0 ? 'integrated' : 'micro'
+      carrier = pool.some(integratedLegal) ? 'integrated' : 'micro'
       notes.push('Speed: kein legales Fenster (72h-Regel) — Standalone zu ' + carrier + ' degradiert')
+    } else if (speedDayCount > 0) {
+      notes.push(`Speed: ${speedDayCount} reservierte(r) Speed-Tag(e) ohne legales Fenster — Tag bleibt frei`)
     }
   }
 
@@ -149,25 +160,51 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
     else notes.push('Conditioning: kein legaler Tag (Spieltag-Nähe) — entfällt diese Woche')
   }
 
+  // Workout-cap guard (review C1): leftover reserved days — unplaceable speed
+  // days, stripped game days etc. — must become REST, never extra workouts.
+  while (pool.length > allocation.workouts) {
+    const freed = pool.pop()!
+    notes.push(`Tag ${freed} bleibt frei — Workout-Cap (${allocation.workouts}) erreicht`)
+  }
+
   // 3. Remaining pool = training days. Heavy lower: ≥72h before the game
   //    (hard, falls back if impossible), far from the speed day (48h,
   //    symmetric), prefer long days. "Game-farthest" uses forward distance —
   //    the protection is about days UNTIL the game, not days since it.
   const trainingDays = pool
   const speedFar = (d: number) => speedDays.length === 0 ? 0 : Math.min(...speedDays.map((s) => symmetricDistance(d, s)))
+  // Finite game distance for sort arithmetic (Infinity - Infinity = NaN).
+  const gameFwdFinite = (d: number) => gameDays.length === 0 ? 7 : gameFwd(d)
+  const afterPenalty = (d: number) => (dayAfterGame(d) ? 1 : 0)
   let heavyCandidates = trainingDays.filter((d) => gameFwd(d) >= 3)
+  const heavyFallback = heavyCandidates.length === 0 && trainingDays.length > 0
   if (heavyCandidates.length === 0) heavyCandidates = [...trainingDays]
   heavyCandidates.sort((a, b) =>
-    (speedDays.length > 0 ? speedFar(b) - speedFar(a) : gameFwd(b) - gameFwd(a)) ||
+    afterPenalty(a) - afterPenalty(b) ||
+    (speedDays.length > 0 ? speedFar(b) - speedFar(a) : gameFwdFinite(b) - gameFwdFinite(a)) ||
     minutesFor(input, b) - minutesFor(input, a) || a - b)
   // 48h guard against the speed day; integrated carrier shares its day by design.
   const heavyDay = heavyCandidates.find((d) => speedDays.every((s) => symmetricDistance(d, s) >= 2)) ?? heavyCandidates[0] ?? null
   if (heavyDay !== null && speedDays.some((s) => symmetricDistance(heavyDay, s) < 2)) {
-    notes.push('Heavy-Lower: 48h-Abstand zum Speed-Tag nicht einhaltbar — leichteste verfügbare Verletzung gewählt')
+    notes.push('Heavy-Lower: 48h-Abstand zum Speed-Tag nicht einhaltbar — geringste Regelabweichung gewählt')
   }
-  const sprintBlockDay = carrier === 'integrated' && trainingDays.length > 0
-    ? [...trainingDays].sort((a, b) => gameFwd(b) - gameFwd(a) || a - b)[0]
-    : null
+  if (heavyFallback && heavyDay !== null) {
+    notes.push(`Heavy-Lower: kein Tag ≥72h vor dem Spiel verfügbar — Kompromiss auf Tag ${heavyDay}`)
+  }
+  if (heavyDay !== null && dayAfterGame(heavyDay)) {
+    notes.push(`Heavy-Lower: Tag ${heavyDay} liegt direkt nach einem Spiel — einzige Option`)
+  }
+  let sprintBlockDay: number | null = null
+  if (carrier === 'integrated') {
+    const legalCarriers = trainingDays.filter(integratedLegal).sort((a, b) =>
+      afterPenalty(a) - afterPenalty(b) || gameFwdFinite(b) - gameFwdFinite(a) ||
+      minutesFor(input, b) - minutesFor(input, a) || a - b)
+    if (legalCarriers.length > 0) sprintBlockDay = legalCarriers[0]
+    else {
+      carrier = 'micro'
+      notes.push('Speed: kein Workout-Tag ≥72h vor dem Spiel — integrierter Block zu micro degradiert')
+    }
+  }
 
   // 4. Mobility day: a true rest day (no available/club/game day); fallback: lowest-intensity club day.
   let mobilityDay: number | null = null
@@ -180,6 +217,10 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
         .filter((s) => s.type === 'team_training' || s.type === 'individual_training')
         .sort((a, b) => a.intensity - b.intensity)
       mobilityDay = club[0]?.day_of_week ?? null
+      // Last resort: mobility stacks on any training day (fatigue 0 — evening
+      // slot, spec §3.3.1). An allocated mobility session must never vanish.
+      if (mobilityDay === null && trainingDays.length > 0) mobilityDay = trainingDays[0]
+      if (mobilityDay !== null) notes.push(`Mobility: kein Ruhetag frei — auf Tag ${mobilityDay} gestapelt (Abend-Slot)`)
     }
   }
 
@@ -268,7 +309,14 @@ export function estimateMinutes(
 
 export function applyScalingLevers(
   placement: WeekPlacement, blockPlan: Map<number, PlannedWorkoutBlock[]>,
+  pillarLevels: PillarLevels = {},
 ): { workouts: FinalWorkout[]; notes: string[] } {
+  // Drop priority (b) per spec §2.9: lowest pillar levels drop first — user
+  // emphases survive. Blocks without a pillar mapping count as level 1.
+  const levelOf = (bt: WorkoutBlockType): number => {
+    const pillar = BLOCK_TO_PILLAR[bt]
+    return pillar ? (pillarLevels[pillar] ?? 1) : 1
+  }
   const notes: string[] = []
   const coveredVariants = new Set<string>() // in-plan coverage ledger
   let previousDrops = new Set<WorkoutBlockType>() // in-plan drop rotation
@@ -291,8 +339,10 @@ export function applyScalingLevers(
         return (fresh.length > 0 ? fresh : list)
       }
       const pool = covered.length > 0 ? pickFrom(covered) : pickFrom(candidates)
-      // (b) fixed priority as final tiebreak
-      pool.sort((a, b) => DROP_PRIORITY.indexOf(a.block_type) - DROP_PRIORITY.indexOf(b.block_type))
+      // (b) lowest pillar level first (user emphases survive), fixed priority as final tiebreak
+      pool.sort((a, b) =>
+        levelOf(a.block_type) - levelOf(b.block_type) ||
+        DROP_PRIORITY.indexOf(a.block_type) - DROP_PRIORITY.indexOf(b.block_type))
       const victim = pool[0]
       blocks.splice(blocks.indexOf(victim), 1)
       dropped.push({ block_type: victim.block_type, reason: 'time' })

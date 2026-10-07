@@ -280,3 +280,103 @@ describe('buildWeekLayout (golden: spec §2.1b example)', () => {
     expect(buildWeekLayout(goldenInput())).toEqual(layout)
   })
 })
+
+describe('review fixes (phase 2a final review)', () => {
+  it('C1: unplaceable speed days never become extra workouts beyond the cap', () => {
+    // high load (cap 2), sprints 3, games Wed+Sun: only one legal speed window.
+    const input = {
+      available_days: [1, 2, 4, 6], load_profile: 'high' as const,
+      pillar_levels: { sprints: 3 as const }, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([
+        { day_of_week: 3, type: 'game', intensity: 10 },
+        { day_of_week: 7, type: 'game', intensity: 10 },
+      ]),
+    }
+    const alloc = allocateDays(input)
+    const placed = placeWeek(input, alloc)
+    const trainingCount = placed.days.filter((d) => d.session_type === 'training').length
+    expect(trainingCount).toBeLessThanOrEqual(alloc.workouts)
+    expect(placed.notes.join(' ')).toMatch(/bleibt frei|Cap/)
+  })
+
+  it('C2: game days inside available_days are never scheduled', () => {
+    const input = {
+      available_days: [1, 3, 6], load_profile: 'low' as const,
+      pillar_levels: {}, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([{ day_of_week: 6, type: 'game', intensity: 10 }]),
+    }
+    const placed = placeWeek(input, allocateDays(input))
+    expect(placed.days.some((d) => d.day_of_week === 6)).toBe(false)
+  })
+
+  it('I1: silent 72h heavy fallback now emits a note', () => {
+    // Game Wednesday; training Mon+Tue are both <72h before it.
+    const input = {
+      available_days: [1, 2], load_profile: 'high' as const,
+      pillar_levels: {}, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([{ day_of_week: 3, type: 'game', intensity: 10 }]),
+    }
+    const placed = placeWeek(input, allocateDays(input))
+    expect(placed.days.some((d) => d.heavy_lower)).toBe(true)
+    expect(placed.notes.join(' ')).toMatch(/Heavy-Lower/)
+  })
+
+  it('I2: english week with no 72h-safe workout day degrades to micro, not integrated', () => {
+    const input = {
+      available_days: [1, 4], load_profile: 'high' as const,
+      pillar_levels: { sprints: 3 as const }, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([
+        { day_of_week: 3, type: 'game', intensity: 10 },
+        { day_of_week: 6, type: 'game', intensity: 10 },
+      ]),
+    }
+    const alloc = { workouts: 2, speed_days: 1, conditioning_day: false, mobility_day: false, carrier: 'standalone' as const }
+    const placed = placeWeek(input, alloc)
+    expect(placed.carrier).toBe('micro')
+    expect(placed.days.some((d) => d.carries_sprint_block)).toBe(false)
+  })
+
+  it('I3: integrated sprint block prefers the longest day', () => {
+    const input = {
+      available_days: [1, 4], load_profile: 'high' as const,
+      pillar_levels: { sprints: 2 as const }, sprints_covered_by_club: false, session_minutes: 60,
+      day_minutes: [{ day_of_week: 1, minutes: 45 }, { day_of_week: 4, minutes: 90 }],
+      weekly_schedule: schedule([]),
+    }
+    const alloc = { workouts: 2, speed_days: 0, conditioning_day: false, mobility_day: false, carrier: 'integrated' as const }
+    const placed = placeWeek(input, alloc)
+    expect(placed.days.find((d) => d.carries_sprint_block)?.day_of_week).toBe(4)
+  })
+
+  it('I4: heavy lower avoids the morning after the match when alternatives exist, notes otherwise', () => {
+    const input = {
+      available_days: [5, 7], load_profile: 'high' as const,
+      pillar_levels: {}, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([{ day_of_week: 6, type: 'game', intensity: 10 }]),
+    }
+    const placed = placeWeek(input, allocateDays(input))
+    // Friday is <72h pre-game, Sunday is MD+1 — compromise is unavoidable, but it must be noted.
+    expect(placed.notes.join(' ')).toMatch(/Heavy-Lower/)
+  })
+
+  it('I5: allocated mobility falls back to a training day instead of vanishing', () => {
+    const input = {
+      available_days: [1, 2, 3, 4, 5, 6, 7], load_profile: 'low' as const,
+      pillar_levels: { mobility: 2 as const }, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([]),
+    }
+    const placed = placeWeek(input, allocateDays(input))
+    expect(placed.days.some((d) => d.session_type === 'mobility')).toBe(true)
+    expect(placed.notes.join(' ')).toMatch(/Mobility/)
+  })
+
+  it('I6: drop priority respects pillar levels — emphasized plyo survives over pull', () => {
+    const placement = placedWeek([1], 1)
+    placement.days[0].minutes = 45
+    const noLevels = applyScalingLevers(placement, planWorkoutBlocks(placement))
+    expect(noLevels.workouts[0].dropped.map((d) => d.block_type)).toContain('plyo')
+    const withLevels = applyScalingLevers(placement, planWorkoutBlocks(placement), { lower_body_plyometrics: 3 })
+    const droppedTypes = withLevels.workouts[0].dropped.map((d) => d.block_type)
+    expect(droppedTypes).not.toContain('plyo')
+  })
+})

@@ -1,4 +1,4 @@
-import type { NewSessionType, WorkoutBlockType } from './week-layout'
+import type { NewSessionType, WorkoutBlockType, PillarSlug } from './week-layout'
 
 /** Mirrors the app's lib/load-profile caps (spec §2.1a). */
 export const WORKOUT_DAY_CAP = { low: 4, medium: 3, high: 2 } as const
@@ -19,3 +19,9 @@ export const MAINTENANCE_DOSE_FACTOR = 0.7
 export const INTEGRATED_SPRINT_BLOCK_MINUTES = 12
 /** Drop order when no coverage/rotation signal decides (lowest value drops first). */
 export const DROP_PRIORITY: WorkoutBlockType[] = ['accessory', 'rotation', 'core', 'plyo', 'pull', 'push']
+
+/** Block → pillar mapping for the §2.9(b) drop priority. Unmapped blocks count as level 1. */
+export const BLOCK_TO_PILLAR: Partial<Record<WorkoutBlockType, PillarSlug>> = {
+  push: 'strength', pull: 'strength', lower_body: 'strength',
+  plyo: 'lower_body_plyometrics', rotation: 'upper_body_plyometrics',
+}
