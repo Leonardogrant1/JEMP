@@ -76,7 +76,8 @@ async function completeAssessment({
         const { error: upsertError } = await supabase
             .from('user_category_levels')
             .upsert(
-                { user_id: userId, category_id: categoryId, level_score: avgScore },
+                // Phase 5 (§4.1): Assessment-Abschluss macht die Säule 'measured'
+                { user_id: userId, category_id: categoryId, level_score: avgScore, source: 'measured', measured_at: new Date().toISOString() },
                 { onConflict: 'user_id,category_id' },
             );
         if (upsertError) throw upsertError;
