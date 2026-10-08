@@ -49,3 +49,16 @@ describe('warmup CNS micro-dose pool (QA-Befund 08.10.)', () => {
         expect(exerciseMatchesBlock(ex({ slug: 'b_skip_drill', category_slug: 'sprints', intensity_score: 5, sprint_type: null }), block('warmup'))).toBe(false);
     });
 });
+
+describe('optional block (User-Plan: Arme raus aus Accessory)', () => {
+    it('Arm-Isolation matcht optional, nicht mehr accessory', () => {
+        const curl = ex({ slug: 'dumbbell_biceps_curl', body_region: 'bicep' });
+        expect(exerciseMatchesBlock(curl, block('optional'))).toBe(true);
+        expect(exerciseMatchesBlock(curl, block('accessory'))).toBe(false);
+    });
+    it('funktionelle kleine Muskeln bleiben accessory, nie optional', () => {
+        const cope = ex({ slug: 'copenhagen_hip_adduction', body_region: 'groin' });
+        expect(exerciseMatchesBlock(cope, block('accessory'))).toBe(true);
+        expect(exerciseMatchesBlock(cope, block('optional'))).toBe(false);
+    });
+});

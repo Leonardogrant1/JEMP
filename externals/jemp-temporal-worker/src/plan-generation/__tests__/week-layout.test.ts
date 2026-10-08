@@ -163,7 +163,7 @@ describe('planWorkoutBlocks (§2.4)', () => {
   it('emits the full block sequence for every workout', () => {
     const plan = planWorkoutBlocks(placedWeek([1, 4], 1))
     expect(plan.get(1)!.map((b) => b.block_type)).toEqual(
-      ['warmup','push','pull','lower_body','rotation','core','plyo','accessory','cooldown'])
+      ['warmup','push','pull','lower_body','rotation','core','plyo','accessory','optional','cooldown'])
   })
 
   it('rotates push/pull variants across the week and covers both axes', () => {

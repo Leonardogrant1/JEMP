@@ -25,7 +25,10 @@ export type V2Exercise = {
   measurement_type: string | null
 }
 
-const ACCESSORY_REGIONS = new Set(['groin', 'hip', 'calf', 'ankle', 'bicep', 'tricep', 'forearm'])
+const ACCESSORY_REGIONS = new Set(['groin', 'hip', 'calf', 'ankle'])
+// Optional-Block (Kür): isolierte Arm-Arbeit — bewusst getrennt vom
+// funktionellen Accessory, damit Show-Muskeln nie Prophylaxe verdrängen.
+const OPTIONAL_REGIONS = new Set(['bicep', 'tricep', 'forearm'])
 const PLYO_CATEGORIES = new Set(['jumps', 'lower_body_plyometrics'])
 
 /** Coarse pattern for untagged exercises (legacy derivation). */
@@ -57,7 +60,13 @@ export function exerciseMatchesBlock(ex: V2Exercise, blockDef: PlannedWorkoutBlo
       return PLYO_CATEGORIES.has(ex.category_slug)
     case 'accessory': {
       const region = effectiveRegion(ex)
-      return ex.category_slug === 'strength' && region !== null && ACCESSORY_REGIONS.has(region)
+      return ex.category_slug === 'strength' && ex.strength_pattern === null && ex.core_type === null
+        && region !== null && ACCESSORY_REGIONS.has(region)
+    }
+    case 'optional': {
+      const region = effectiveRegion(ex)
+      return ex.category_slug === 'strength' && ex.strength_pattern === null && ex.core_type === null
+        && region !== null && OPTIONAL_REGIONS.has(region)
     }
     case 'warmup':
       if (ex.category_slug === 'mobility') return true

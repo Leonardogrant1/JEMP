@@ -149,6 +149,7 @@ const en = {
     'block_type.sprint': 'Sprints',
     'block_type.cod': 'Change of direction',
     'block_type.conditioning': 'Conditioning',
+    'block_type.optional': 'Arms (optional)',
     'block_type.mobility': 'Mobility',
     'prescription.distance': '{{attempts}} × {{meters}} m',
     'prescription.rounds': '{{rounds}} rounds · {{work}}s work / {{rest}}s rest',
