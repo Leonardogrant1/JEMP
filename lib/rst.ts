@@ -5,6 +5,7 @@
 import { STALE_AFTER_DAYS } from './pillar-score';
 
 export const RST_RUN_COUNT = 6;
+export const RST_REST_SECONDS = 25;
 const DEDICATED_SPRINT_SLUGS = new Set(['sprint_10m', 'sprint_30m', 'sprint_10m_flying']);
 
 export type RstDerived = { dropOffPct: number; meanTime: number; run1: number };
