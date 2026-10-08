@@ -9,3 +9,10 @@ const LEGACY_CATEGORY_SLUGS = new Set([
 export function freezeLegacyCategories<T extends { category: string }>(rows: T[]): T[] {
   return rows.filter((r) => LEGACY_CATEGORY_SLUGS.has(r.category))
 }
+
+/** Sport-relevance view for the legacy path: frozen slugs AND no relevance-0
+ *  rows — the preset matrix introduced 0 ("pillar hidden"), a value the legacy
+ *  prompt/capability logic has never seen (phase-3a review fix I1). */
+export function freezeLegacySportCategories<T extends { category: string; relevance: number }>(rows: T[]): T[] {
+  return freezeLegacyCategories(rows).filter((r) => r.relevance > 0)
+}

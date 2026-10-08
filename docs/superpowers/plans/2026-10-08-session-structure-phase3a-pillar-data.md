@@ -459,3 +459,15 @@ In `prepare-plan-generation.ts`, wrap the two legacy-input fields:
 
 - [ ] **Step 3: GREEN + build** — `npm test` (all green incl. 2 new), `npm run build`, worker `npx tsc --noEmit` → 0.
 - [ ] **Step 4: Commit** — `feat(worker): freeze legacy generator category view against pillar data migration`
+
+---
+
+## Prod-Deploy-Checkliste (vor `db push` dieser Migrationen — NACH App 3.0.0 + Min-Version-Flip)
+
+Aus dem Final-Review; alle Queries read-only gegen Prod ausführen:
+
+1. `SELECT count(*) FROM (SELECT user_id, category_id FROM user_targeted_categories GROUP BY 1,2 HAVING count(*) > 1) d;` → muss 0 sein (sonst Pre-Dedupe nötig: jumps-vs-jumps-Duplikate würden zu lbp-Duplikaten).
+2. Nach dem Push: `SELECT count(*) FROM sports s WHERE (SELECT count(*) FROM sport_category_relevance scr JOIN categories c ON c.id = scr.category_id AND c.is_active WHERE scr.sport_id = s.id) <> 7;` → 0 (Slug-Mismatch würde Sportarten still überspringen).
+3. Nach dem Push: `SELECT count(*) FROM user_category_levels ucl WHERE NOT EXISTS (SELECT 1 FROM user_category_levels x JOIN categories c ON c.id = x.category_id AND c.slug = 'sprints' WHERE x.user_id = ucl.user_id);` → 0 (Level-Lockout-Guard; Fallback-INSERT deckt auch lbp-lose User).
+4. Migrationen NUR via `supabase db push` / `migration up` (Transaktions-Wrapper!) — manuelles `psql -f` lässt `SET LOCAL lock_timeout` wirkungslos verpuffen (Laterality-Learning).
+5. App 3.0.0 muss die Säulen-Labels (i18n `category.sprints/cod/conditioning`, seit Phase 3a drin) und die `is_active`-Filter in goals.tsx/category-level-step enthalten — beides in diesem Branch.

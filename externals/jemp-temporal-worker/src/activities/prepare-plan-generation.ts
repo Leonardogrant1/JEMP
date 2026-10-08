@@ -3,7 +3,7 @@ import { getSupabaseClient } from 'src/utils/supabase'
 import { getOpenAIClient } from 'src/utils/openai'
 import { prepareGeneration, PrepareResult } from 'src/plan-generation/generate-plan'
 import { prepareGenerationV2, shouldUseV2 } from 'src/plan-generation/v2/prepare-v2'
-import { freezeLegacyCategories } from 'src/plan-generation/legacy-categories'
+import { freezeLegacyCategories, freezeLegacySportCategories } from 'src/plan-generation/legacy-categories'
 import { intensityToPoints, pointsToLoadProfile } from 'src/plan-generation/helpers'
 
 export async function preparePlanGeneration(input: { userId: string }): Promise<PrepareResult> {
@@ -115,7 +115,7 @@ export async function preparePlanGeneration(input: { userId: string }): Promise<
       equipment_ids: equipmentIds,
       equipment_environments: equipmentEnvironments,
       category_levels: categoryLevels,
-      sport_required_categories: freezeLegacyCategories(sportRequiredCategories),
+      sport_required_categories: freezeLegacySportCategories(sportRequiredCategories),
       sport_required_regions: sportRequiredRegions,
       user_focus_categories: freezeLegacyCategories(userFocusCategories),
       day_environments: dayEnvironments,

@@ -13,3 +13,20 @@ WHERE NOT EXISTS (
   SELECT 1 FROM user_category_levels x
   WHERE x.user_id = ucl.user_id AND x.category_id = c_new.id
 );
+
+-- Fallback (phase-3a review I3): users with SOME level rows but no
+-- lower_body_plyometrics row would still be locked out of every
+-- recategorized exercise (level filter excludes categories without a row).
+-- Seed their new-pillar levels from their average existing level.
+INSERT INTO user_category_levels (user_id, category_id, level_score)
+SELECT src.user_id, c_new.id, src.avg_level
+FROM (
+  SELECT user_id, round(avg(level_score))::int AS avg_level
+  FROM user_category_levels
+  GROUP BY user_id
+) src
+JOIN categories c_new ON c_new.slug IN ('sprints','cod','conditioning')
+WHERE NOT EXISTS (
+  SELECT 1 FROM user_category_levels x
+  WHERE x.user_id = src.user_id AND x.category_id = c_new.id
+);
