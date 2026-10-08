@@ -29,7 +29,7 @@ Supporting changes: pattern metadata on exercises (vertical/horizontal push/pull
 - Taper logic before fights/competitions (v2).
 - Drop Jump/RSI and T-Drill assessments (v2).
 - Weight versioning for score presentation (accepted: retroactive recomputation shifts history slightly when presets are tuned).
-- **Hypertrophy volume targets.** The block structure yields 1–2 exercises per pattern per session — enough for strength (intensity + frequency), roughly half the ~10+ hard weekly sets per muscle hypertrophy needs. Deliberate: JEMP plans athleticism, and strength at constant body weight beats mass for most sports. A volume mode (fewer patterns per session, 3–4 sets each) would collide with the coverage ledger and block mandate — noted as an idea, not scoped.
+- **Hypertrophy volume targets.** The block structure yields 1–2 exercises per pattern per session — enough for strength (intensity + frequency), roughly half the ~10+ hard weekly sets per muscle hypertrophy needs. Deliberate: JEMP plans athleticism, and strength at constant body weight beats mass for most sports. If ever built (post-v1), the designated shape is: an onboarding body-weight-goal question (gain/hold/lose) plus a **volume surcharge on the strength pillar**, gated by sport preset — never an own pillar, never a global mode. A generic volume mode would collide with the coverage ledger and block mandate.
 
 ---
 
