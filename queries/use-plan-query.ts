@@ -1,4 +1,5 @@
 import { useCurrentUser } from '@/providers/current-user-provider';
+import { HERO_BLOCK_ORDER, isFocusChipBlock } from '@/constants/blocks';
 import { supabase } from '@/services/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from './query-keys';
@@ -41,7 +42,7 @@ async function fetchActivePlan(userId: string) {
     ]);
 
     function extractPrimaryExerciseInfo(blocks: any[]): { slug: string | null; imageGroup: string | null } {
-        for (const blockSlug of ['primary', 'secondary', 'accessory'] as const) {
+        for (const blockSlug of HERO_BLOCK_ORDER) {
             const block = (blocks ?? []).find((b: any) => b.block_type?.slug === blockSlug);
             if (!block) continue;
             const exercises = (block.workout_session_block_exercises ?? block.workout_plan_session_block_exercises ?? []);
@@ -56,7 +57,7 @@ async function fetchActivePlan(userId: string) {
     function extractFocusCategories(blocks: any[]): string[] {
         const counts = new Map<string, number>();
         for (const block of (blocks ?? [])) {
-            if (!['primary', 'secondary'].includes(block.block_type?.slug)) continue;
+            if (!isFocusChipBlock(block.block_type?.slug)) continue;
             const exercises = (block.workout_session_block_exercises ?? block.workout_plan_session_block_exercises ?? []);
             for (const ex of exercises) {
                 const cat = ex.exercise?.category?.slug;

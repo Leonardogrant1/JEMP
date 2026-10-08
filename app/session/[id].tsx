@@ -4,8 +4,8 @@ import { CATEGORY_SVG_ICONS } from '@/constants/category-icons';
 import { CategoryChip, ModeChip, SessionChip } from '@/components/plan/SessionChip';
 import { StatsStrip } from '@/components/profile/stats-strip';
 import { Skeleton } from '@/components/ui/skeleton';
-import { HERO_BLOCK_ORDER, isContentBlock } from '@/constants/blocks';
-import { intervalPrescription } from '@/lib/prescription';
+import { HERO_BLOCK_ORDER, isContentBlock, isFocusChipBlock } from '@/constants/blocks';
+import { distancePrescription, intervalPrescription } from '@/lib/prescription';
 import { getSessionImage } from '@/constants/session-images';
 import { Colors, GradientMid, Neutral } from '@/constants/theme';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
@@ -100,7 +100,7 @@ export default function SessionDetailScreen() {
     const focusCategories = useMemo(() => {
         const slugs: string[] = [];
         for (const b of session?.blocks ?? []) {
-            if (!isContentBlock(b.block_type?.slug)) continue;
+            if (!isFocusChipBlock(b.block_type?.slug)) continue;
             const slug = b.focused_category?.slug;
             if (slug && !slugs.includes(slug)) slugs.push(slug);
         }
@@ -285,21 +285,29 @@ export default function SessionDetailScreen() {
                                         )}
                                         <View style={styles.exerciseMeta}>
                                             {(() => {
-                                                // Conditioning: Intervall-Format statt Sätze×Wdh (Spec §5.2)
+                                                // Intervall (Conditioning) > Distanz (Sprint, Spec §5.2) > Sätze×Wdh
                                                 const interval = intervalPrescription(ex);
-                                                if (!interval) return null;
+                                                if (interval) {
+                                                    return (
+                                                        <JempText type="caption" color={theme.textSubtle}>
+                                                            {t('prescription.rounds', { rounds: interval.rounds, work: interval.workSeconds, rest: interval.restSeconds })}
+                                                        </JempText>
+                                                    );
+                                                }
+                                                const distance = distancePrescription(ex);
+                                                if (!distance) return null;
                                                 return (
                                                     <JempText type="caption" color={theme.textSubtle}>
-                                                        {t('prescription.rounds', { rounds: interval.rounds, work: interval.workSeconds, rest: interval.restSeconds })}
+                                                        {t('prescription.distance', { attempts: distance.attempts, meters: distance.meters })}
                                                     </JempText>
                                                 );
                                             })()}
-                                            {!intervalPrescription(ex) && ex.target_sets && (
+                                            {!intervalPrescription(ex) && !distancePrescription(ex) && ex.target_sets && (
                                                 <JempText type="caption" color={theme.textSubtle}>
                                                     {ex.target_sets} {t('ui.sets')}
                                                 </JempText>
                                             )}
-                                            {!intervalPrescription(ex) && reps !== '' && (
+                                            {!intervalPrescription(ex) && !distancePrescription(ex) && reps !== '' && (
                                                 <>
                                                     <JempText type="caption" color={Neutral[7]}>{'  ·  '}</JempText>
                                                     <JempText type="caption" color={theme.textSubtle}>

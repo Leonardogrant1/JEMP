@@ -24,6 +24,8 @@ export type FlatExercise = {
     target_reps_max: number | null;
     target_duration_seconds: number | null;
     target_rest_seconds: number | null;
+    target_distance_meters: number | null;
+    target_rounds: number | null;
     target_load_type: string | null;
     target_load_value: number | null;
     is_amrap: boolean;

@@ -1,4 +1,5 @@
 import { loadUnit } from '@/helpers/format';
+import { isProgressBlock } from '@/constants/blocks';
 import { supabase } from '@/services/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from './query-keys';
@@ -30,7 +31,7 @@ type SessionBest = {
 
 // Only actual training blocks count as progress — warmup/cooldown mobility
 // work would drown out the meaningful improvements
-const PROGRESS_BLOCK_TYPES = new Set(['primary', 'secondary', 'accessory']);
+// v2-aware (Review I6): Inhalts-Blöcke ohne Conditioning/Mobility — siehe isProgressBlock.
 
 /**
  * Per-exercise progression across a plan, computed from the logged sets:
@@ -78,7 +79,7 @@ async function fetchPlanExerciseProgress(planId: string): Promise<PlanProgress> 
             totalVolumeKg += row.performed_load_value * row.performed_reps;
         }
 
-        if (!blockType || !PROGRESS_BLOCK_TYPES.has(blockType)) continue;
+        if (!isProgressBlock(blockType)) continue;
 
         let entry = byExercise.get(exercise.id);
         if (!entry) {

@@ -152,6 +152,7 @@ const de: Record<TranslationKeys, string> = {
     'block_type.cod': 'Richtungswechsel',
     'block_type.conditioning': 'Conditioning',
     'block_type.mobility': 'Mobility',
+    'prescription.distance': '{{attempts}} × {{meters}} m',
     'prescription.rounds': '{{rounds}} Runden · {{work}}s Arbeit / {{rest}}s Pause',
     'session_type.training': 'Training',
     'session_type.recovery': 'Regeneration',

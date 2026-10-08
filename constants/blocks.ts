@@ -15,3 +15,15 @@ export const HERO_BLOCK_ORDER: string[] = [
     'primary', 'secondary', 'accessory',
     'lower_body', 'push', 'pull', 'sprint', 'plyo', 'cod', 'rotation', 'core', 'conditioning', 'mobility',
 ];
+
+/** Fokus-Chips: Hauptreize ohne Accessory — bewahrt die Legacy-Chip-Semantik
+ *  (primary/secondary) und überträgt sie sinngemäß auf v2-Blöcke. */
+export function isFocusChipBlock(slug: string | null | undefined): boolean {
+    return isContentBlock(slug) && slug !== 'accessory';
+}
+
+/** Fortschritts-Tracking: Inhalts-Blöcke ohne Conditioning/Mobility —
+ *  Runden-/Dehn-Volumen würde die aussagekräftigen Progressionen ertränken. */
+export function isProgressBlock(slug: string | null | undefined): boolean {
+    return isContentBlock(slug) && slug !== 'conditioning' && slug !== 'mobility';
+}

@@ -20,3 +20,24 @@ describe('plannedSetCount (rounds-as-sets, Review Focus 2)', () => {
         expect(plannedSetCount({})).toBe(1);
     });
 });
+
+describe('isDurationMode (Review I1/I2: ein Prädikat für alle drei Stellen)', () => {
+    it('duration-measurement ODER Intervall erzwingen Duration-Modus', () => {
+        const { isDurationMode } = require('@/lib/prescription');
+        expect(isDurationMode('duration', {})).toBe(true);
+        expect(isDurationMode('reps_or_duration', { target_rounds: 10, target_duration_seconds: 30 })).toBe(true);
+        expect(isDurationMode('reps_or_duration', {})).toBe(false);
+        expect(isDurationMode('reps', { target_rounds: null })).toBe(false);
+    });
+});
+
+describe('distancePrescription (Spec §5.2 Sprint-Zeilen)', () => {
+    const { distancePrescription } = require('@/lib/prescription');
+    it('liefert Versuche × Meter für Sprint-Zeilen', () => {
+        expect(distancePrescription({ target_sets: 4, target_distance_meters: 30 })).toEqual({ attempts: 4, meters: 30 });
+    });
+    it('null ohne Distanz oder bei Intervall-Format', () => {
+        expect(distancePrescription({ target_sets: 3 })).toBeNull();
+        expect(distancePrescription({ target_sets: 1, target_distance_meters: 30, target_rounds: 10, target_duration_seconds: 30 })).toBeNull();
+    });
+});

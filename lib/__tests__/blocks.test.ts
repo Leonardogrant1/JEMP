@@ -22,3 +22,29 @@ describe('HERO_BLOCK_ORDER', () => {
         }
     });
 });
+
+describe('isFocusChipBlock (Review I3: Legacy-Chip-Parität)', () => {
+    const { isFocusChipBlock } = require('@/constants/blocks');
+    it('Legacy: nur primary/secondary — accessory bleibt draußen wie vorher', () => {
+        expect(isFocusChipBlock('primary')).toBe(true);
+        expect(isFocusChipBlock('secondary')).toBe(true);
+        expect(isFocusChipBlock('accessory')).toBe(false);
+    });
+    it('v2-Inhalts-Blöcke liefern Chips, Warmup/Cooldown nie', () => {
+        expect(isFocusChipBlock('push')).toBe(true);
+        expect(isFocusChipBlock('sprint')).toBe(true);
+        expect(isFocusChipBlock('warmup')).toBe(false);
+    });
+});
+
+describe('isProgressBlock (Review I6: Fortschritt ohne Conditioning/Mobility)', () => {
+    const { isProgressBlock } = require('@/constants/blocks');
+    it('Kraft-/Explosiv-Blöcke zählen, Conditioning/Mobility nicht', () => {
+        for (const slug of ['primary', 'secondary', 'accessory', 'push', 'pull', 'lower_body', 'rotation', 'core', 'plyo', 'sprint', 'cod']) {
+            expect(isProgressBlock(slug)).toBe(true);
+        }
+        expect(isProgressBlock('conditioning')).toBe(false);
+        expect(isProgressBlock('mobility')).toBe(false);
+        expect(isProgressBlock('warmup')).toBe(false);
+    });
+});

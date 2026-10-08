@@ -150,6 +150,7 @@ const en = {
     'block_type.cod': 'Change of direction',
     'block_type.conditioning': 'Conditioning',
     'block_type.mobility': 'Mobility',
+    'prescription.distance': '{{attempts}} × {{meters}} m',
     'prescription.rounds': '{{rounds}} rounds · {{work}}s work / {{rest}}s rest',
     'session_type.training': 'Training',
     'session_type.recovery': 'Recovery',
