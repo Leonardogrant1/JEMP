@@ -233,8 +233,7 @@ Expected: `0` (every lbp-user has a sprints row; spot-check cod/conditioning ana
 | basketball | 2 | 3 | 0 | 1 | 2 | 1 | 1 |
 | volleyball | 2 | 3 | 1 | 1 | 1 | 1 | 1 |
 | handball | 2 | 2 | 2 | 1 | 2 | 1 | 1 |
-| rugby | 3 | 2 | 0 | 2 | 1 | 1 | 1 |
-| football (american) | 3 | 2 | 0 | 2 | 1 | 1 | 1 |
+| rugby, football (american) | 3 | 2 | 0 | 2 | 1 | 1 | 1 |
 | boxing, kickboxing, karate, taekwondo | 2 | 1 | 3 | 1 | 0 | 2 | 1 |
 | mma | 2 | 1 | 2 | 1 | 0 | 3 | 1 |
 | bjj | 2 | 1 | 1 | 0 | 0 | 3 | 2 |
@@ -256,52 +255,86 @@ Expected: `0` (every lbp-user has a sprints row; spot-check cod/conditioning ana
 | gymnastics | 2 | 2 | 1 | 0 | 0 | 0 | 3 |
 | other | 2 | 2 | 0 | 1 | 1 | 1 | 1 |
 
-- [ ] **Step 1: Write the migration** — a `VALUES` list `(sport_slug, category_slug, relevance)` covering every (sport × pillar) cell of the matrix above (including the 0 cells), upserted:
+- [ ] **Step 1: Write the migration** — **profile-based authoring** (user decision): ~25 preset profiles defined once, sports mapped to profiles by name, SQL expands to per-sport rows. Storage stays per-sport (`sport_category_relevance`), the profile layer exists only inside this migration — tuning edits one profile row, re-assigning a sport is a one-word change, per-sport exceptions = own profile.
 
 ```sql
 -- ⚠️ ROLLOUT GATE (§6.3): prod-deploy ONLY after app 3.0.0 is live + MIN_SUPPORTED_VERSION flip. Local/dev: safe anytime.
 SET LOCAL lock_timeout = '5s';
 
 -- Pillar preset levels per sport (spec §1.5): 0 = hidden, 1-3 = default level.
--- score_weight stays at its 1.0 default (tuning is phase 5).
+-- Authored as PROFILES (grouping layer) expanded to per-sport rows; storage
+-- stays per-sport so exceptions never need schema work. score_weight stays 1.0.
+WITH profiles(profile, strength, lower_body_plyometrics, upper_body_plyometrics, sprints, cod, conditioning, mobility) AS (VALUES
+  ('contact_team',    2, 2, 0, 2, 2, 1, 1),
+  ('court_vertical',  2, 3, 0, 1, 2, 1, 1),
+  ('net_vertical',    2, 3, 1, 1, 1, 1, 1),
+  ('throwing_team',   2, 2, 2, 1, 2, 1, 1),
+  ('collision_team',  3, 2, 0, 2, 1, 1, 1),
+  ('striker',         2, 1, 3, 1, 0, 2, 1),
+  ('hybrid_fighter',  2, 1, 2, 1, 0, 3, 1),
+  ('grappler_ground', 2, 1, 1, 0, 0, 3, 2),
+  ('grappler_throw',  3, 1, 1, 0, 0, 2, 2),
+  ('track_sprint',    2, 2, 0, 3, 0, 0, 1),
+  ('track_jump',      2, 3, 0, 2, 0, 0, 1),
+  ('track_throw',     3, 1, 3, 0, 0, 0, 1),
+  ('endurance_run',   2, 2, 0, 1, 0, 0, 2),
+  ('endurance_ride',  2, 1, 0, 0, 0, 0, 2),
+  ('endurance_swim',  2, 0, 1, 0, 0, 0, 2),
+  ('racket_tennis',   1, 2, 2, 1, 3, 1, 1),
+  ('racket_squash',   1, 2, 1, 1, 3, 2, 1),
+  ('racket_badminton',1, 3, 1, 1, 3, 1, 1),
+  ('gym_power',       3, 1, 0, 0, 0, 1, 2),
+  ('gym_oly',         3, 2, 0, 0, 0, 0, 2),
+  ('gym_mixed',       2, 2, 1, 0, 0, 2, 1),
+  ('gym_physique',    3, 1, 0, 0, 0, 1, 1),
+  ('climb',           2, 1, 1, 0, 0, 1, 2),
+  ('gym_artistic',    2, 2, 1, 0, 0, 0, 3),
+  ('generalist',      2, 2, 0, 1, 1, 1, 1)
+), sport_profiles(sport_slug, profile) AS (VALUES
+  ('soccer','contact_team'), ('hockey','contact_team'),
+  ('basketball','court_vertical'),
+  ('volleyball','net_vertical'),
+  ('handball','throwing_team'),
+  ('rugby','collision_team'), ('football','collision_team'),
+  ('boxing','striker'), ('kickboxing','striker'), ('karate','striker'), ('taekwondo','striker'),
+  ('mma','hybrid_fighter'),
+  ('bjj','grappler_ground'),
+  ('judo','grappler_throw'), ('wrestling','grappler_throw'),
+  ('sprinting','track_sprint'),
+  ('jumping','track_jump'),
+  ('throwing','track_throw'),
+  ('running','endurance_run'), ('triathlon','endurance_run'),
+  ('cycling','endurance_ride'),
+  ('swimming','endurance_swim'),
+  ('tennis','racket_tennis'),
+  ('squash','racket_squash'),
+  ('badminton','racket_badminton'),
+  ('powerlifting','gym_power'),
+  ('weightlifting','gym_oly'),
+  ('crossfit','gym_mixed'),
+  ('bodybuilding','gym_physique'),
+  ('climbing','climb'),
+  ('gymnastics','gym_artistic'),
+  ('other','generalist')
+), expanded AS (
+  SELECT sp.sport_slug, x.category_slug, x.relevance
+  FROM sport_profiles sp
+  JOIN profiles p USING (profile)
+  CROSS JOIN LATERAL (VALUES
+    ('strength', p.strength),
+    ('lower_body_plyometrics', p.lower_body_plyometrics),
+    ('upper_body_plyometrics', p.upper_body_plyometrics),
+    ('sprints', p.sprints),
+    ('cod', p.cod),
+    ('conditioning', p.conditioning),
+    ('mobility', p.mobility)
+  ) AS x(category_slug, relevance)
+)
 INSERT INTO sport_category_relevance (sport_id, category_id, relevance)
-SELECT s.id, c.id, v.relevance
-FROM (VALUES
-  ('soccer','strength',2),('soccer','lower_body_plyometrics',2),('soccer','upper_body_plyometrics',0),('soccer','sprints',2),('soccer','cod',2),('soccer','conditioning',1),('soccer','mobility',1),
-  ('hockey','strength',2),('hockey','lower_body_plyometrics',2),('hockey','upper_body_plyometrics',0),('hockey','sprints',2),('hockey','cod',2),('hockey','conditioning',1),('hockey','mobility',1),
-  ('basketball','strength',2),('basketball','lower_body_plyometrics',3),('basketball','upper_body_plyometrics',0),('basketball','sprints',1),('basketball','cod',2),('basketball','conditioning',1),('basketball','mobility',1),
-  ('volleyball','strength',2),('volleyball','lower_body_plyometrics',3),('volleyball','upper_body_plyometrics',1),('volleyball','sprints',1),('volleyball','cod',1),('volleyball','conditioning',1),('volleyball','mobility',1),
-  ('handball','strength',2),('handball','lower_body_plyometrics',2),('handball','upper_body_plyometrics',2),('handball','sprints',1),('handball','cod',2),('handball','conditioning',1),('handball','mobility',1),
-  ('rugby','strength',3),('rugby','lower_body_plyometrics',2),('rugby','upper_body_plyometrics',0),('rugby','sprints',2),('rugby','cod',1),('rugby','conditioning',1),('rugby','mobility',1),
-  ('football','strength',3),('football','lower_body_plyometrics',2),('football','upper_body_plyometrics',0),('football','sprints',2),('football','cod',1),('football','conditioning',1),('football','mobility',1),
-  ('boxing','strength',2),('boxing','lower_body_plyometrics',1),('boxing','upper_body_plyometrics',3),('boxing','sprints',1),('boxing','cod',0),('boxing','conditioning',2),('boxing','mobility',1),
-  ('kickboxing','strength',2),('kickboxing','lower_body_plyometrics',1),('kickboxing','upper_body_plyometrics',3),('kickboxing','sprints',1),('kickboxing','cod',0),('kickboxing','conditioning',2),('kickboxing','mobility',1),
-  ('karate','strength',2),('karate','lower_body_plyometrics',1),('karate','upper_body_plyometrics',3),('karate','sprints',1),('karate','cod',0),('karate','conditioning',2),('karate','mobility',1),
-  ('taekwondo','strength',2),('taekwondo','lower_body_plyometrics',1),('taekwondo','upper_body_plyometrics',3),('taekwondo','sprints',1),('taekwondo','cod',0),('taekwondo','conditioning',2),('taekwondo','mobility',1),
-  ('mma','strength',2),('mma','lower_body_plyometrics',1),('mma','upper_body_plyometrics',2),('mma','sprints',1),('mma','cod',0),('mma','conditioning',3),('mma','mobility',1),
-  ('bjj','strength',2),('bjj','lower_body_plyometrics',1),('bjj','upper_body_plyometrics',1),('bjj','sprints',0),('bjj','cod',0),('bjj','conditioning',3),('bjj','mobility',2),
-  ('judo','strength',3),('judo','lower_body_plyometrics',1),('judo','upper_body_plyometrics',1),('judo','sprints',0),('judo','cod',0),('judo','conditioning',2),('judo','mobility',2),
-  ('wrestling','strength',3),('wrestling','lower_body_plyometrics',1),('wrestling','upper_body_plyometrics',1),('wrestling','sprints',0),('wrestling','cod',0),('wrestling','conditioning',2),('wrestling','mobility',2),
-  ('sprinting','strength',2),('sprinting','lower_body_plyometrics',2),('sprinting','upper_body_plyometrics',0),('sprinting','sprints',3),('sprinting','cod',0),('sprinting','conditioning',0),('sprinting','mobility',1),
-  ('jumping','strength',2),('jumping','lower_body_plyometrics',3),('jumping','upper_body_plyometrics',0),('jumping','sprints',2),('jumping','cod',0),('jumping','conditioning',0),('jumping','mobility',1),
-  ('throwing','strength',3),('throwing','lower_body_plyometrics',1),('throwing','upper_body_plyometrics',3),('throwing','sprints',0),('throwing','cod',0),('throwing','conditioning',0),('throwing','mobility',1),
-  ('running','strength',2),('running','lower_body_plyometrics',2),('running','upper_body_plyometrics',0),('running','sprints',1),('running','cod',0),('running','conditioning',0),('running','mobility',2),
-  ('triathlon','strength',2),('triathlon','lower_body_plyometrics',2),('triathlon','upper_body_plyometrics',0),('triathlon','sprints',1),('triathlon','cod',0),('triathlon','conditioning',0),('triathlon','mobility',2),
-  ('cycling','strength',2),('cycling','lower_body_plyometrics',1),('cycling','upper_body_plyometrics',0),('cycling','sprints',0),('cycling','cod',0),('cycling','conditioning',0),('cycling','mobility',2),
-  ('swimming','strength',2),('swimming','lower_body_plyometrics',0),('swimming','upper_body_plyometrics',1),('swimming','sprints',0),('swimming','cod',0),('swimming','conditioning',0),('swimming','mobility',2),
-  ('tennis','strength',1),('tennis','lower_body_plyometrics',2),('tennis','upper_body_plyometrics',2),('tennis','sprints',1),('tennis','cod',3),('tennis','conditioning',1),('tennis','mobility',1),
-  ('squash','strength',1),('squash','lower_body_plyometrics',2),('squash','upper_body_plyometrics',1),('squash','sprints',1),('squash','cod',3),('squash','conditioning',2),('squash','mobility',1),
-  ('badminton','strength',1),('badminton','lower_body_plyometrics',3),('badminton','upper_body_plyometrics',1),('badminton','sprints',1),('badminton','cod',3),('badminton','conditioning',1),('badminton','mobility',1),
-  ('powerlifting','strength',3),('powerlifting','lower_body_plyometrics',1),('powerlifting','upper_body_plyometrics',0),('powerlifting','sprints',0),('powerlifting','cod',0),('powerlifting','conditioning',1),('powerlifting','mobility',2),
-  ('weightlifting','strength',3),('weightlifting','lower_body_plyometrics',2),('weightlifting','upper_body_plyometrics',0),('weightlifting','sprints',0),('weightlifting','cod',0),('weightlifting','conditioning',0),('weightlifting','mobility',2),
-  ('crossfit','strength',2),('crossfit','lower_body_plyometrics',2),('crossfit','upper_body_plyometrics',1),('crossfit','sprints',0),('crossfit','cod',0),('crossfit','conditioning',2),('crossfit','mobility',1),
-  ('bodybuilding','strength',3),('bodybuilding','lower_body_plyometrics',1),('bodybuilding','upper_body_plyometrics',0),('bodybuilding','sprints',0),('bodybuilding','cod',0),('bodybuilding','conditioning',1),('bodybuilding','mobility',1),
-  ('climbing','strength',2),('climbing','lower_body_plyometrics',1),('climbing','upper_body_plyometrics',1),('climbing','sprints',0),('climbing','cod',0),('climbing','conditioning',1),('climbing','mobility',2),
-  ('gymnastics','strength',2),('gymnastics','lower_body_plyometrics',2),('gymnastics','upper_body_plyometrics',1),('gymnastics','sprints',0),('gymnastics','cod',0),('gymnastics','conditioning',0),('gymnastics','mobility',3),
-  ('other','strength',2),('other','lower_body_plyometrics',2),('other','upper_body_plyometrics',0),('other','sprints',1),('other','cod',1),('other','conditioning',1),('other','mobility',1)
-) AS v(sport_slug, category_slug, relevance)
-JOIN sports s ON s.slug = v.sport_slug
-JOIN categories c ON c.slug = v.category_slug
+SELECT s.id, c.id, e.relevance
+FROM expanded e
+JOIN sports s ON s.slug = e.sport_slug
+JOIN categories c ON c.slug = e.category_slug
 ON CONFLICT (sport_id, category_id) DO UPDATE SET relevance = EXCLUDED.relevance;
 ```
 
