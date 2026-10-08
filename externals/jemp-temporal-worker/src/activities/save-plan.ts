@@ -121,6 +121,7 @@ export async function savePlan(input: {
         name: aiSession.name,
         description: aiSession.description,
         session_type: aiSession.session_type,
+        dropped_blocks: (aiSession as any).dropped_blocks ?? null,
         mode_slug: aiSession.mode_slug,
         day_of_week: aiSession.day_of_week,
         order_index: aiSession.order_index,
@@ -142,7 +143,9 @@ export async function savePlan(input: {
     const blocksToInsert = aiSession.blocks
       .map((block) => {
         const blockTypeId = blockTypeMap.get(block.block_type)
-        if (!blockTypeId) return null
+        // Silent-drop guard (phase 2b review focus): an unresolvable block type
+        // means a missing block_types row — fail loudly instead of losing the block.
+        if (!blockTypeId) throw new Error(`savePlan: unknown block_type slug "${block.block_type}" — block_types row missing`)
         return {
           workout_plan_session_id: sessionId,
           order_index: block.order_index,
@@ -198,6 +201,7 @@ export async function savePlan(input: {
             target_load_type: ex.target_load_type,
             target_load_value: ex.target_load_value >= 0 ? ex.target_load_value : null,
             is_amrap: (ex as any).is_amrap === true,
+            target_rounds: (ex as any).target_rounds ?? null,
           }
         })
         .filter((x): x is NonNullable<typeof x> => x !== null)
@@ -207,7 +211,7 @@ export async function savePlan(input: {
       const { data: insertedExercises, error: exInsertError } = await supabase
         .from('workout_plan_session_block_exercises')
         .insert(exercisesToInsert)
-        .select('id, exercise_id, order_index, target_sets, target_reps_min, target_reps_max, target_duration_seconds, target_distance_meters, target_rest_seconds, target_load_type, target_load_value, is_amrap')
+        .select('id, exercise_id, order_index, target_sets, target_reps_min, target_reps_max, target_duration_seconds, target_distance_meters, target_rest_seconds, target_load_type, target_load_value, is_amrap, target_rounds')
 
       if (exInsertError || !insertedExercises) {
         console.error('Failed to insert exercises:', exInsertError?.message)

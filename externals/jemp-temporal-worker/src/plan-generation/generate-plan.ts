@@ -34,8 +34,11 @@ export type SessionBuildInput = {
   /** Sport-Pflicht-Regionen — Wochen-Abdeckung wird in Phase C validiert */
   requiredRegions?: string[]
   blockPools: Array<{
-    block_type: 'primary' | 'secondary' | 'accessory'
+    // Widened for v2 pattern blocks (push/pull/lower_body/...); legacy only emits the original three.
+    block_type: string
     category_slug: string
+    variant?: string | null
+    emphasis?: 'heavy' | 'normal' | 'light'
     exercisesString: string
     slugs: string
     bodyRegions: string[]
