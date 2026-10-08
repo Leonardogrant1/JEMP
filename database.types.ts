@@ -1072,6 +1072,8 @@ export type Database = {
           created_at: string | null
           id: string
           level_score: number
+          measured_at: string | null
+          source: Database["public"]["Enums"]["score_source"]
           updated_at: string | null
           user_id: string
         }
@@ -1080,6 +1082,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           level_score: number
+          measured_at?: string | null
+          source?: Database["public"]["Enums"]["score_source"]
           updated_at?: string | null
           user_id: string
         }
@@ -1088,6 +1092,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           level_score?: number
+          measured_at?: string | null
+          source?: Database["public"]["Enums"]["score_source"]
           updated_at?: string | null
           user_id?: string
         }
@@ -2156,6 +2162,7 @@ export type Database = {
         | "other"
       plan_status: "draft" | "active" | "paused" | "completed" | "archived"
       plyo_type: "maximal" | "submaximal"
+      score_source: "self_estimate" | "measured"
       session_duration: "30min" | "45min" | "60min" | "90min"
       session_status:
         | "scheduled"
@@ -2395,6 +2402,7 @@ export const Constants = {
       ],
       plan_status: ["draft", "active", "paused", "completed", "archived"],
       plyo_type: ["maximal", "submaximal"],
+      score_source: ["self_estimate", "measured"],
       session_duration: ["30min", "45min", "60min", "90min"],
       session_status: [
         "scheduled",
