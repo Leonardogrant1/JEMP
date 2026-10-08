@@ -106,6 +106,23 @@ describe('placeWeek (§2.1b)', () => {
     expect(placed.days.find((d) => d.session_type === 'speed')?.day_of_week).toBe(3)
   })
 
+  it('prefers sprint-friendly days for the speed day (day environments)', () => {
+    // Ohne Präferenz gewinnt Tag 1 (niedrigster Tag bei gleichen Minuten).
+    // Tag 5 ist der einzige sprinttaugliche (z. B. Outdoor-)Tag → Speed dorthin.
+    const input = {
+      available_days: [1, 3, 5], load_profile: 'high' as const,
+      pillar_levels: { sprints: 3 as const }, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([]),
+      sprint_friendly_days: [5],
+    }
+    const alloc = { workouts: 2, speed_days: 1, conditioning_day: false, mobility_day: false, carrier: 'standalone' as const }
+    const placed = placeWeek(input, alloc)
+    expect(placed.days.find((d) => d.session_type === 'speed')?.day_of_week).toBe(5)
+    // Ist kein sprinttauglicher Tag legal, bleibt die bisherige Wahl bestehen (mit Note).
+    const fallback = placeWeek({ ...input, sprint_friendly_days: [] as number[] }, alloc)
+    expect(fallback.days.find((d) => d.session_type === 'speed')?.day_of_week).toBe(1)
+  })
+
   it('english week degrades carrier to integrated', () => {
     const input = {
       available_days: [1, 4], load_profile: 'high' as const,

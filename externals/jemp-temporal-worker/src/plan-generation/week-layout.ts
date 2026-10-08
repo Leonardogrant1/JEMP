@@ -26,6 +26,10 @@ export type WeekLayoutInput = {
   /** Global preferred session duration (minutes); per-day overrides win. */
   session_minutes: number
   day_minutes?: Array<{ day_of_week: number; minutes: number }>
+  /** Tage, deren Umgebung echte Sprints erlaubt (Outdoor oder keine Tages-
+   *  Umgebung gesetzt). Fehlt das Feld, gelten alle Tage als sprinttauglich.
+   *  Weiche Präferenz: 72h-Regel und Legalität gewinnen immer. */
+  sprint_friendly_days?: number[]
 }
 
 export type SpeedCarrier = 'standalone' | 'integrated' | 'micro' | 'none'
@@ -138,16 +142,21 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
     notes.push(`Tag ${d} ist Spiel-/Turniertag — aus den Trainingstagen entfernt`)
   }
 
-  // 1. Speed days: legal days; avoid post-game days, then shortest minutes first.
+  // 1. Speed days: legal days; prefer sprint-friendly (day-environment) days,
+  // avoid post-game days, then shortest minutes first.
+  const sprintFriendly = (day: number) =>
+    input.sprint_friendly_days === undefined || input.sprint_friendly_days.includes(day)
   const speedDays: number[] = []
   if (speedDayCount > 0) {
     const legal = pool.filter(speedLegal).sort((a, b) =>
+      (sprintFriendly(a) ? 0 : 1) - (sprintFriendly(b) ? 0 : 1) ||
       (dayAfterGame(a) ? 1 : 0) - (dayAfterGame(b) ? 1 : 0) ||
       minutesFor(input, a) - minutesFor(input, b) || a - b)
     while (speedDayCount > 0 && legal.length > 0) {
       const d = legal.shift()!
       speedDays.push(d)
       if (dayAfterGame(d)) notes.push(`Speed: Tag ${d} liegt direkt nach einem Spiel — einziges legales Fenster`)
+      if (!sprintFriendly(d)) notes.push(`Speed: Tag ${d} hat keine sprinttaugliche Umgebung — kein besserer legaler Tag frei`)
       pool.splice(pool.indexOf(d), 1)
       speedDayCount -= 1
     }

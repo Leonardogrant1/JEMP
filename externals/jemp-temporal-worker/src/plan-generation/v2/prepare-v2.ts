@@ -20,6 +20,53 @@ export function shouldUseV2(rows: Array<{ set_by_wizard: boolean }>): boolean {
   return rows.some((r) => r.set_by_wizard)
 }
 
+export type ExerciseFilterMaps = {
+  envByExercise: Map<string, Set<string>>
+  equipByExercise: Map<string, Set<string>>
+  userEnvs: Set<string>
+  userEquip: Set<string>
+  /** equipment_id → environment_ids: nur ortsgebundenes Equipment hat Einträge. */
+  equipmentEnvs: Map<string, Set<string>>
+  levelByCategoryId: Map<string, number>
+  hasLevelData: boolean
+}
+
+// categories bleibt untypisiert: Supabase inferiert die Join-Spalte als Array,
+// zur Laufzeit ist es das Einzel-Objekt der Relation (wie im Legacy-Filter).
+type FilterableRow = { id: string; min_level: number; max_level: number; categories?: unknown }
+
+/** Übungs-Filter, optional auf eine Tages-Umgebung verengt (dayEnvId).
+ *  Mit null entspricht er dem bisherigen Any-Match über alle User-Umgebungen;
+ *  mit Tages-Umgebung zählen nur dort erlaubte Übungen und dort verfügbares
+ *  Equipment (equipment_environments). */
+export function makeExerciseFilter(maps: ExerciseFilterMaps, dayEnvId: string | null) {
+  const equipUsable = (id: string): boolean => {
+    if (!maps.userEquip.has(id)) return false
+    if (dayEnvId === null) return true
+    const envs = maps.equipmentEnvs.get(id)
+    return !envs || envs.size === 0 || envs.has(dayEnvId)
+  }
+  return (row: FilterableRow): boolean => {
+    const required = maps.equipByExercise.get(row.id)
+    if (required && required.size > 0 && maps.userEquip.size > 0 && ![...required].some(equipUsable)) return false
+    const allowed = maps.envByExercise.get(row.id)
+    if (allowed && allowed.size > 0) {
+      if (dayEnvId !== null) {
+        if (!allowed.has(dayEnvId)) return false
+      } else if (maps.userEnvs.size > 0 && ![...allowed].some((id) => maps.userEnvs.has(id))) {
+        return false
+      }
+    }
+    const categoryId = (row.categories as { id?: string } | null)?.id
+    if (maps.hasLevelData && categoryId) {
+      const level = maps.levelByCategoryId.get(categoryId)
+      if (level === undefined) return false
+      if (level < row.min_level || level > row.max_level) return false
+    }
+    return true
+  }
+}
+
 export type PlanGenerationInputV2 = PlanGenerationInput & {
   user_id: string
   pillar_levels: PillarLevels
@@ -72,27 +119,18 @@ export async function prepareGenerationV2(
     if (!equipByExercise.has(r.exercise_id)) equipByExercise.set(r.exercise_id, new Set())
     equipByExercise.get(r.exercise_id)!.add(r.equipment_id)
   }
-  const userEnvs = new Set(input.environment_ids)
-  const userEquip = new Set(input.equipment_ids)
-  const levelByCategoryId = new Map<string, number>(input.category_levels.map((cl: { category_id: string; level_score: number }) => [cl.category_id, cl.level_score]))
-
   // Lean v2 re-implementation of the legacy equipment/env/level filter —
   // deliberate duplication so the legacy closure stays untouched (plan ruling).
-  const passes = (row: any): boolean => {
-    const required = equipByExercise.get(row.id)
-    if (required && required.size > 0 && userEquip.size > 0 && ![...required].some((id) => userEquip.has(id))) return false
-    const allowed = envByExercise.get(row.id)
-    if (allowed && allowed.size > 0 && userEnvs.size > 0 && ![...allowed].some((id) => userEnvs.has(id))) return false
-    const categoryId = row.categories?.id
-    if (input.category_levels.length > 0 && categoryId) {
-      const level = levelByCategoryId.get(categoryId)
-      if (level === undefined) return false
-      if (level < row.min_level || level > row.max_level) return false
-    }
-    return true
+  const filterMaps: ExerciseFilterMaps = {
+    envByExercise, equipByExercise,
+    userEnvs: new Set(input.environment_ids),
+    userEquip: new Set(input.equipment_ids),
+    equipmentEnvs: new Map((input.equipment_environments ?? []).map((ee) => [ee.equipment_id, new Set(ee.environment_ids)])),
+    levelByCategoryId: new Map<string, number>(input.category_levels.map((cl: { category_id: string; level_score: number }) => [cl.category_id, cl.level_score])),
+    hasLevelData: input.category_levels.length > 0,
   }
 
-  const exercises: V2Exercise[] = (exerciseRows ?? []).filter(passes).map((row: any) => ({
+  const toV2 = (row: any): V2Exercise => ({
     id: row.id, slug: row.slug, name: row.name,
     category_slug: row.categories?.slug ?? '',
     body_region: row.body_region, dominant_region: row.dominant_region,
@@ -101,7 +139,22 @@ export async function prepareGenerationV2(
     covered_patterns: row.covered_patterns, laterality: row.laterality,
     min_level: row.min_level, max_level: row.max_level,
     intensity_score: row.intensity_score, measurement_type: row.measurement_type,
-  }))
+  })
+
+  const exercises: V2Exercise[] = (exerciseRows ?? []).filter(makeExerciseFilter(filterMaps, null)).map(toV2)
+
+  // Tages-Umgebungen (Lückenschluss 08.10.): hat ein Tag eine feste Umgebung,
+  // zählen nur dort erlaubte Übungen und dort verfügbares Equipment.
+  const dayEnvById = new Map((input.day_environments ?? []).map((de) => [de.day_of_week, de.environment_id]))
+  const byEnvCache = new Map<string, V2Exercise[]>()
+  const exercisesForDay = (dayOfWeek: number): V2Exercise[] => {
+    const envId = dayEnvById.get(dayOfWeek)
+    if (!envId) return exercises
+    if (!byEnvCache.has(envId)) {
+      byEnvCache.set(envId, (exerciseRows ?? []).filter(makeExerciseFilter(filterMaps, envId)).map(toV2))
+    }
+    return byEnvCache.get(envId)!
+  }
 
   // ── 2. Measured sprint value within the aging window (max-velocity gate) ──
   const since = new Date(Date.now() - MEASURED_SPRINT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString()
@@ -116,6 +169,13 @@ export async function prepareGenerationV2(
   const allowMaxVelocity = hasMeasuredSprint && input.sprint_distance !== null && input.sprint_distance !== 'under_20m'
 
   // ── 3. Deterministic week layout ─────────────────────────────────────────
+  // Sprinttauglich = keine Tages-Umgebung gesetzt oder Outdoor — der Speed-Tag
+  // soll bevorzugt dort liegen, wo echte Antritte möglich sind.
+  const envSlugById = new Map(input.environment_ids.map((id, i) => [id, input.environment_slugs[i]]))
+  const sprintFriendlyDays = input.preferred_workout_days.filter((d) => {
+    const envId = dayEnvById.get(d)
+    return !envId || envSlugById.get(envId) === 'outdoor'
+  })
   const layout: WeekLayout = buildWeekLayout({
     available_days: input.preferred_workout_days,
     weekly_schedule: input.weekly_schedule ?? { sessions: [], notes: null },
@@ -124,6 +184,7 @@ export async function prepareGenerationV2(
     sprints_covered_by_club: input.sprints_covered_by_club,
     session_minutes: input.max_session_duration,
     day_minutes: input.day_minutes,
+    sprint_friendly_days: sprintFriendlyDays,
   })
   notes.push(...layout.notes)
 
@@ -133,34 +194,35 @@ export async function prepareGenerationV2(
   const trainingDays = layout.placement.days.filter((d) => d.session_type === 'training')
 
   for (const day of layout.placement.days) {
+    const dayExercises = exercisesForDay(day.day_of_week)
     if (day.session_type === 'speed') {
       const r = buildSpeedSession({
-        day, exercises,
+        day, exercises: dayExercises,
         levels: { sprints: input.pillar_levels.sprints ?? 0, cod: input.pillar_levels.cod ?? 0 },
         allowMaxVelocity, orderIndex: orderIndex++,
       })
       if (r) { prebuiltSessions.push(r.session); notes.push(...r.notes) }
       else notes.push(`Speed-Session Tag ${day.day_of_week}: Pool leer — Session entfällt`)
     } else if (day.session_type === 'mobility') {
-      const r = buildMobilitySession({ day, exercises, orderIndex: orderIndex++ })
+      const r = buildMobilitySession({ day, exercises: dayExercises, orderIndex: orderIndex++ })
       if (r) prebuiltSessions.push(r.session)
       else notes.push(`Mobility-Session Tag ${day.day_of_week}: Pool zu klein — Session entfällt`)
     } else if (day.session_type === 'conditioning') {
-      const r = buildConditioningSession({ day, exercises, orderIndex: orderIndex++ })
+      const r = buildConditioningSession({ day, exercises: dayExercises, orderIndex: orderIndex++ })
       if (r) prebuiltSessions.push(r.session)
       else notes.push(`Conditioning-Session Tag ${day.day_of_week}: Pool zu klein — Session entfällt`)
     }
   }
 
   // ── 5. Per-training-day contexts for runSessionV2 ────────────────────────
-  const sprintPoolSlugs = exercises
-    .filter((e) => e.sprint_type !== null && (allowMaxVelocity || e.sprint_type !== 'max_velocity'))
-    .map((e) => e.slug)
-  const finisherPoolSlugs = conditioningPoolSlugs(exercises)
-
   const sessionBuildInputs: SessionBuildInput[] = layout.workouts.map((workout) => {
     const day = trainingDays.find((d) => d.day_of_week === workout.day_of_week)!
-    const pools = buildBlockPools(exercises, workout.blocks)
+    const dayExercises = exercisesForDay(workout.day_of_week)
+    const sprintPoolSlugs = dayExercises
+      .filter((e) => e.sprint_type !== null && (allowMaxVelocity || e.sprint_type !== 'max_velocity'))
+      .map((e) => e.slug)
+    const finisherPoolSlugs = conditioningPoolSlugs(dayExercises)
+    const pools = buildBlockPools(dayExercises, workout.blocks)
     const poolRecord: Record<string, string[]> = {}
     for (const [bt, pool] of pools) poolRecord[bt] = pool.map((e) => e.slug)
     notes.push(...preDropEmptyPools(workout, poolRecord).map((n) => `Tag ${workout.day_of_week}: ${n}`))
