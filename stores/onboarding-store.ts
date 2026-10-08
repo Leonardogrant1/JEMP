@@ -49,6 +49,7 @@ type OnboardingStore = ProfileData & {
     sport_slug: string | null;
     targetedCategories: TargetedCategory[];
     pillarLevels: PillarLevel[];
+    sprintClubAnswered: boolean;
     categoryLevels: CategoryLevel[];
     equipmentIds: string[];
     // Explizit ABGEWÄHLTES Equipment — Quelle der Wahrheit beim Re-Mount des
@@ -71,6 +72,7 @@ type OnboardingStore = ProfileData & {
         sport_slug: string | null;
         targetedCategories: TargetedCategory[];
         pillarLevels: PillarLevel[];
+        sprintClubAnswered: boolean;
         categoryLevels: CategoryLevel[];
         equipmentIds: string[];
         deselectedEquipmentIds: string[];
@@ -105,6 +107,7 @@ const initialState: Omit<OnboardingStore, 'set' | 'reset'> = {
     unit_system: 'metric',
     targetedCategories: [],
     pillarLevels: [],
+    sprintClubAnswered: false,
     categoryLevels: [],
     equipmentIds: [],
     deselectedEquipmentIds: [],

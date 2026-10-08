@@ -119,6 +119,7 @@ export function PersonalizationStep() {
                 sport_slug,
                 targetedCategories,
                 pillarLevels,
+                sprintClubAnswered,
                 categoryLevels,
                 equipmentIds,
                 deselectedEquipmentIds,
