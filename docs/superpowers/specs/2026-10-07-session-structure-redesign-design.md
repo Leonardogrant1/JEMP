@@ -121,7 +121,7 @@ A new step **before** the existing Phase A, implemented as rule code, **not** LL
 - **Speed level 2:** speed gets its own day **only if a day is left over the workout cap** (e.g., 4 days available, cap 3 → 3 workouts + 1 speed). No spare day → no standalone; the sprint/COD block integrates into a workout (§2.5).
 - **Speed level 1:** micro-dose only, never an own day.
 - Mobility never consumes a day from the budget (fatigue 0); standalone mobility session only from mobility level 2, placed on rest days.
-- Conditioning session only when weekly load permits (§2.2) and a day is available; otherwise finisher-scale content or nothing.
+- Conditioning session only when weekly load permits (§2.2) and a day is available; otherwise a **conditioning finisher** (~10 min interval block at the end of a workout, minutes budgeted by the duration estimate so the breadth lever compensates — never on the sprint-carrier day, never the day before a game, damped away at high load) — the integrated carrier implemented in Phase 2b.
 
 **2.1b Weekday placement (fatigue rules):**
 
