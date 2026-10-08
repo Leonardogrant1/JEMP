@@ -36,3 +36,15 @@ describe('buildSpeedSession', () => {
     expect(r).toBeNull()
   })
 })
+
+describe('speed session warmup drills (QA 08.10.: A-Skip = Sprint-Warmup)', () => {
+    it('nimmt Technik-Drills (sprints-Kategorie, kein sprint_type, leicht) ins Warmup', () => {
+        const pool = [
+            ...basePool,
+            ex({ slug: 'a_skip_drill', category_slug: 'sprints', sprint_type: null, intensity_score: 1, measurement_type: 'duration' }),
+        ];
+        const r = buildSpeedSession({ day: day(), exercises: pool, levels: { sprints: 2, cod: 1 }, allowMaxVelocity: true, orderIndex: 0 })!;
+        const warmupSlugs = r.session.blocks.find((b: any) => b.block_type === 'warmup')!.exercises.map((e: any) => e.exercise_slug);
+        expect(warmupSlugs).toContain('a_skip_drill');
+    });
+});

@@ -70,6 +70,11 @@ export function buildSpeedSession(input: {
       (e.category_slug === 'lower_body_plyometrics' && e.sprint_type === null && e.measurement_type === 'time'))
     .sort(byIntensityThenSlug)
   const mobilityPool = exercises.filter((e) => e.category_slug === 'mobility').sort(byIntensityThenSlug)
+  // Sprint-Technik-Drills (A-/B-Skips, Wall Drills — Kategorie sprints ohne
+  // sprint_type): gehören laut Spec in den Drill-Teil des Speed-Warmups.
+  const drillPool = exercises
+    .filter((e) => e.category_slug === 'sprints' && e.sprint_type === null && (e.intensity_score ?? 10) <= 3)
+    .sort(byIntensityThenSlug)
 
   if (sprintPool.length === 0 && codPool.length === 0) {
     return null
@@ -95,7 +100,7 @@ export function buildSpeedSession(input: {
     target_sets: maintenance ? 2 : 3,
     target_rest_seconds: 90,
   }))
-  const warmupExercises = mobilityPool.slice(0, 2).map((e, i) => ({
+  const warmupExercises = [...mobilityPool.slice(0, 2), ...drillPool.slice(0, 2)].map((e, i) => ({
     ...baseExercise(e, i), target_duration_seconds: 45, target_rest_seconds: 15,
   }))
   const cooldownExercises = mobilityPool.slice(2, 4).map((e, i) => ({
