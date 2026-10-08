@@ -118,6 +118,7 @@ export function PersonalizationStep() {
                 set, reset,
                 sport_slug,
                 targetedCategories,
+                pillarLevels,
                 categoryLevels,
                 equipmentIds,
                 deselectedEquipmentIds,
@@ -147,15 +148,19 @@ export function PersonalizationStep() {
 
             await Promise.all([
                 supabase.from('user_targeted_categories').delete().eq('user_id', session.user.id),
+                supabase.from('user_pillar_levels').delete().eq('user_id', session.user.id),
                 supabase.from('user_category_levels').delete().eq('user_id', session.user.id),
                 supabase.from('user_environments').delete().eq('user_id', session.user.id),
                 supabase.from('user_equipments').delete().eq('user_id', session.user.id),
                 (supabase as any).from('user_equipment_environments').delete().eq('user_id', session.user.id),
             ]);
 
-            if (targetedCategories.length > 0) {
-                const { error: e } = await supabase.from('user_targeted_categories').insert(
-                    targetedCategories.map(({ categoryId, priority }) => ({ user_id: session.user.id, category_id: categoryId, priority }))
+            // §6.5-Aktivierung: Wizard-geschriebene Säulen-Stufen schalten den
+            // User auf den v2-Generator. targeted_categories wird vom neuen
+            // Flow nicht mehr geschrieben (Legacy-Konzept).
+            if (pillarLevels.length > 0) {
+                const { error: e } = await supabase.from('user_pillar_levels').insert(
+                    pillarLevels.map(({ categoryId, level }) => ({ user_id: session.user.id, category_id: categoryId, level, set_by_wizard: true }))
                 );
                 if (e) throw e;
             }

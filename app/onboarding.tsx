@@ -7,7 +7,7 @@ import { getATTStatus } from '@/utils/get-att-status';
 import { AttributionStep } from '@/components/onboarding/steps/attribution-step';
 import { BirthdayStep } from '@/components/onboarding/steps/birthday-step';
 import { BodyStep } from '@/components/onboarding/steps/body-step';
-import { CategoryFocusStep } from '@/components/onboarding/steps/category-focus-step';
+import { PillarStepperStep } from '@/components/onboarding/steps/pillar-stepper-step';
 import { CategoryLevelStep } from '@/components/onboarding/steps/category-level-step';
 import { CompleteStep } from '@/components/onboarding/steps/complete-step';
 import { EnvironmentStep } from '@/components/onboarding/steps/environment-step';
@@ -124,7 +124,7 @@ export default function OnboardingScreen() {
         },
         { component: EquipmentStep, theme: 'dark', initialCanContinue: true },
         { component: EquipmentEnvironmentStep, theme: 'dark', initialCanContinue: true, shouldSkip: () => environmentIds.length <= 1 || equipmentIds.length === 0 },
-        { component: CategoryFocusStep, theme: 'dark', initialCanContinue: false },
+        { component: PillarStepperStep, theme: 'dark', initialCanContinue: true },
         { component: WeeklyScheduleStep, theme: 'dark', initialCanContinue: true },
         { component: WorkoutPrefsStep, theme: 'dark', initialCanContinue: false },
         { component: InjuriesStep, theme: 'dark', initialCanContinue: true },

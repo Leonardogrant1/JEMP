@@ -34,7 +34,7 @@ export function PlanReadyStep() {
 
     const preferredDays = useOnboardingStore((s) => s.preferred_workout_days);
     const duration = useOnboardingStore((s) => s.preferred_session_duration);
-    const targetedCategories = useOnboardingStore((s) => s.targetedCategories);
+    const pillarLevels = useOnboardingStore((s) => s.pillarLevels);
     const categoryLevels = useOnboardingStore((s) => s.categoryLevels);
     const sportSlug = useOnboardingStore((s) => s.sport_slug);
 
@@ -45,7 +45,7 @@ export function PlanReadyStep() {
 
     const daysPerWeek = (preferredDays ?? []).length;
     const durationLabel = duration ? DURATION_LABELS[duration] ?? duration : '—';
-    const topGoal = [...targetedCategories].sort((a, b) => a.priority - b.priority)[0];
+    const topGoal = [...pillarLevels].sort((a, b) => b.level - a.level)[0];
     const GoalIcon = topGoal ? CATEGORY_SVG_ICONS[topGoal.slug] : undefined;
     const goalLabel = topGoal ? getCategoryLabelShort(topGoal.slug, t) : '—';
     const sportLabel = getSportLabelI18n(sportSlug, t) ?? '—';
