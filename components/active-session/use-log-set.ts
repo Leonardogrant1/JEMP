@@ -1,4 +1,5 @@
 import { formatTimer } from '@/helpers/active-session-helpers';
+import { intervalPrescription, plannedSetCount } from '@/lib/prescription';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
 import { useUpsertPerformedSets } from '@/mutations/use-upsert-performed-set';
@@ -55,11 +56,14 @@ export function useLogSet() {
     const setShowExerciseComplete = useActiveSessionUIStore(s => s.setShowExerciseComplete);
 
     const current = allExercises[exerciseIdx] ?? null;
-    const totalSets = current?.target_sets ?? 1;
+    const totalSets = current ? plannedSetCount(current) : 1;
     const isLastSet = currentSet >= totalSets;
     const isLastExercise = exerciseIdx === allExercises.length - 1;
     const isUnilateral = current?.exercise.laterality === 'unilateral';
-    const isDuration = current?.exercise.measurement_type === 'duration';
+    // Intervall-Verschreibung (Conditioning-Runden) erzwingt den Duration-Modus —
+    // auch bei measurement_type reps_or_duration (Phase 4, rounds-as-sets).
+    const isDuration = current?.exercise.measurement_type === 'duration'
+        || (current != null && intervalPrescription(current) !== null);
 
     // Unilateral wird SEITENWEISE geloggt (links → Pause → rechts → Pause):
     // die aktive Seite ergibt sich aus den bereits geloggten Einträgen des Satzes

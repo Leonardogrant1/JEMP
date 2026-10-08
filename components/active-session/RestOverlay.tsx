@@ -1,4 +1,5 @@
 import { TimerRing } from '@/components/active-session/TimerRing';
+import { plannedSetCount } from '@/lib/prescription';
 import { JempText } from '@/components/jemp-text';
 import { Colors, GradientMid } from '@/constants/theme';
 import { formatTimer } from '@/helpers/active-session-helpers';
@@ -49,7 +50,7 @@ export function RestOverlay() {
     const { exerciseIdx, currentSet } = useActiveSessionTransition();
     const allExercises = useActiveSessionUIStore(s => s.allExercises);
     const currentExercise = allExercises[exerciseIdx] ?? null;
-    const exerciseDone = currentExercise != null && currentSet > (currentExercise.target_sets ?? 1);
+    const exerciseDone = currentExercise != null && currentSet > plannedSetCount(currentExercise);
     const next = exerciseDone ? allExercises[exerciseIdx + 1] ?? null : currentExercise;
     const nextSetNumber = exerciseDone ? 1 : currentSet;
     const isNewExercise = nextSetNumber === 1;
@@ -112,7 +113,7 @@ export function RestOverlay() {
                                 {next.exercise.name}
                             </JempText>
                             <JempText type="caption" color={theme.textMuted}>
-                                {t('ui.set_of', { current: nextSetNumber, total: next.target_sets ?? 1 })}
+                                {t('ui.set_of', { current: nextSetNumber, total: plannedSetCount(next) })}
                                 {nextSideLabel ? ` · ${nextSideLabel}` : ''}
                             </JempText>
                         </View>

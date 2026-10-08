@@ -1,4 +1,5 @@
 import { DurationSet } from '@/components/active-session/DurationSet';
+import { plannedSetCount } from '@/lib/prescription';
 import { LoadSet } from '@/components/active-session/LoadSet';
 import { SideDurationSet } from '@/components/active-session/SideDurationSet';
 import { SideLoadSet } from '@/components/active-session/SideLoadSet';
@@ -45,7 +46,7 @@ export function LogSetSheet() {
     const isBeginner = (categoryLevels?.strength ?? 0) <= 30;
 
     const current = allExercises[exerciseIdx] ?? null;
-    const totalSets = current?.target_sets ?? 1;
+    const totalSets = current ? plannedSetCount(current) : 1;
 
     if (!showLogSheet || !current) return null;
 
