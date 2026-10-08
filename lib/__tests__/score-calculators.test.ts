@@ -55,3 +55,20 @@ describe('cooperLevel', () => {
         expect(calculateAssessmentScore('cooper_test', 2400, profile)).toBe(cooperLevel(2400, 26, 'male'));
     });
 });
+
+describe('neue COD-Tests (5-10-5 + Hexagon)', () => {
+    const { codTestLevel } = require('@/lib/score-calculators/cod');
+    it('Normmitte ≈ Level 50, schneller = besser', () => {
+        const mid510 = codTestLevel(5.0, 25, 'male', 'pro_agility');
+        expect(mid510).toBeGreaterThanOrEqual(45);
+        expect(mid510).toBeLessThanOrEqual(55);
+        expect(codTestLevel(4.6, 25, 'male', 'pro_agility')).toBeGreaterThan(mid510);
+        const midHex = codTestLevel(12.2, 25, 'male', 'hexagon');
+        expect(midHex).toBeGreaterThanOrEqual(45);
+        expect(midHex).toBeLessThanOrEqual(55);
+    });
+    it('Map: beide Assessments verdrahtet', () => {
+        expect(calculateAssessmentScore('pro_agility_shuttle_test', 5.0, profile)).toBe(codTestLevel(5.0, 26, 'male', 'pro_agility'));
+        expect(calculateAssessmentScore('hexagon_test', 12.2, profile)).toBe(codTestLevel(12.2, 26, 'male', 'hexagon'));
+    });
+});

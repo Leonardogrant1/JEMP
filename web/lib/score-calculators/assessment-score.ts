@@ -1,5 +1,5 @@
-import { jumpLevel, bodyweightStrengthLevel, oneRmLevel, lowerBodyPlyometricsLevel, upperBodyPlyometricsLevel, mobilityEaseLevel, sprintLevel, codLevel, cooperLevel } from './index';
-import type { JumpExercise, BodyweightExercise, OneRmExercise, LowerBodyPlyometricsExercise, UpperBodyPlyometricsExercise, SprintExercise } from './index';
+import { jumpLevel, bodyweightStrengthLevel, oneRmLevel, lowerBodyPlyometricsLevel, upperBodyPlyometricsLevel, mobilityEaseLevel, sprintLevel, codLevel, codTestLevel, cooperLevel } from './index';
+import type { JumpExercise, BodyweightExercise, OneRmExercise, LowerBodyPlyometricsExercise, UpperBodyPlyometricsExercise, SprintExercise, CodTest } from './index';
 import { calculateAge } from '@/types/user-data';
 
 export type AssessmentUserProfile = {
@@ -18,6 +18,7 @@ type ScoreEntry =
     | { type: 'mobility' }
     | { type: 'sprint';     exercise: SprintExercise }
     | { type: 'cod' }
+    | { type: 'cod_test';  test: CodTest }
     | { type: 'cooper' };
 
 const ASSESSMENT_SCORE_MAP: Record<string, ScoreEntry> = {
@@ -41,6 +42,8 @@ const ASSESSMENT_SCORE_MAP: Record<string, ScoreEntry> = {
     sprint_10m_flying:          { type: 'sprint',     exercise: '10m_sprint_flying' },
     // Change of Direction
     agility_505:                { type: 'cod' },
+    pro_agility_shuttle_test:   { type: 'cod_test',   test: 'pro_agility' },
+    hexagon_test:               { type: 'cod_test',   test: 'hexagon' },
     // Conditioning (RST läuft über den eigenen Flow, nicht über diese Map)
     cooper_test:                { type: 'cooper' },
     // Upper body plyometrics
@@ -99,6 +102,8 @@ export function calculateAssessmentScore(
             return sprintLevel(value, weight_kg, age, gender, entry.exercise);
         case 'cod':
             return codLevel(value, weight_kg, age, gender);
+        case 'cod_test':
+            return codTestLevel(value, age, gender, entry.test);
         case 'cooper':
             return cooperLevel(value, age, gender);
     }
