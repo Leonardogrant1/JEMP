@@ -7,11 +7,14 @@ import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTrainingAnimation } from '@/hooks/use-training-animation';
 import { computeLoadProfile, maxWorkoutDays, MIN_WORKOUT_DAYS } from '@/lib/load-profile';
+import { computeWeekComposition } from '@/lib/week-allocation';
+import { DayDurationSheet } from '@/components/onboarding/day-duration-sheet';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlanWizardStore } from '@/stores/plan-wizard-store';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import LottieView from 'lottie-react-native';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -28,8 +31,10 @@ export function ScheduleStep() {
         selectedEnvIds, allEnvs,
         dayEnvMap,
         sportSessions, selectedSportSlug,
+        pillarLevels, sprintClub, dayDurations, setDayDuration,
     } = usePlanWizardStore();
     const trainingAnimation = useTrainingAnimation(profile?.sport);
+    const [durationSheetDay, setDurationSheetDay] = useState<number | null>(null);
     const sportKind = getSportKind(selectedSportSlug);
 
     // Env-Auswahl pro Tag lohnt nur, wenn mehrere Trainingsorte gewählt sind
@@ -155,6 +160,27 @@ export function ScheduleStep() {
                         {t(overCap ? 'plan.schedule_max_days_over' : 'plan.schedule_max_days_hint', { count: maxDays })}
                     </JempText>
                 )}
+                {(() => {
+                    // Live-Zusammensetzung (§3.4) — Spiegel der Generator-Zuteilung.
+                    if (preferredDays.size < MIN_WORKOUT_DAYS || pillarLevels.length === 0) return null;
+                    const levelMap: Record<string, 1 | 2 | 3> = {};
+                    pillarLevels.forEach((l) => { levelMap[l.slug] = l.level; });
+                    const comp = computeWeekComposition({
+                        availableDayCount: Math.min(preferredDays.size, maxDays + 2),
+                        loadProfile: computeLoadProfile(sportSessions).load_profile,
+                        pillarLevels: levelMap,
+                        sprintsCoveredByClub: sprintClub,
+                    });
+                    const parts: string[] = [t('week_composition.workouts', { count: comp.workouts })];
+                    if (comp.speedDays === 1) parts.push(t('week_composition.speed_days', { count: 1 }));
+                    if (comp.speedDays > 1) parts.push(t('week_composition.speed_days_plural', { count: comp.speedDays }));
+                    if (comp.speedDays === 0 && comp.carrier === 'integrated') parts.push(t('week_composition.sprint_integrated'));
+                    if (comp.conditioningDay) parts.push(t('week_composition.conditioning_day'));
+                    const line = parts.join(' + ') + (comp.mobilityDay ? ` · ${t('week_composition.mobility')}` : '');
+                    return (
+                        <JempText type="caption" color={GradientMid} style={styles.maxDaysHint}>{line}</JempText>
+                    );
+                })()}
             </View>
 
             <View style={styles.durationSection}>
@@ -172,7 +198,33 @@ export function ScheduleStep() {
                         />
                     ))}
                 </View>
+                {preferredDays.size > 0 && (
+                    <View style={styles.durationRow}>
+                        {[...preferredDays].sort((a, b) => a - b).map((dow) => {
+                            const override = dayDurations.find((d) => d.day_of_week === dow);
+                            const dayLabel = t(WEEK_DAYS.find((d) => d.dow === dow)?.key ?? '');
+                            return (
+                                <SelectableChip
+                                    key={dow}
+                                    label={override ? `${dayLabel} ${override.minutes}m` : dayLabel}
+                                    selected={!!override}
+                                    onPress={() => setDurationSheetDay(dow)}
+                                    style={styles.durationChip}
+                                />
+                            );
+                        })}
+                    </View>
+                )}
             </View>
+
+            <DayDurationSheet
+                visible={durationSheetDay !== null}
+                dayLabel={durationSheetDay !== null ? t(WEEK_DAYS.find((d) => d.dow === durationSheetDay)?.key ?? '') : ''}
+                currentMinutes={dayDurations.find((d) => d.day_of_week === durationSheetDay)?.minutes ?? null}
+                defaultMinutes={preferredDuration === '30min' ? 30 : preferredDuration === '45min' ? 45 : preferredDuration === '90min' ? 90 : 60}
+                onSelect={(minutes) => { if (durationSheetDay !== null) setDayDuration(durationSheetDay, minutes); }}
+                onClose={() => setDurationSheetDay(null)}
+            />
         </ScrollView>
     );
 }

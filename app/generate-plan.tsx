@@ -3,7 +3,8 @@ import { BodyStep } from '@/components/plan-generation/BodyStep';
 import { EnvironmentStep } from '@/components/plan-generation/EnvironmentStep';
 import { EquipmentEnvironmentStep } from '@/components/plan-generation/EquipmentEnvironmentStep';
 import { EquipmentStep } from '@/components/plan-generation/EquipmentStep';
-import { GoalsStep } from '@/components/plan-generation/GoalsStep';
+import { PillarStep } from '@/components/plan-generation/PillarStep';
+import { SprintContextStep } from '@/components/plan-generation/SprintContextStep';
 import { ScheduleDetailStep } from '@/components/plan-generation/ScheduleDetailStep';
 import { ScheduleStep } from '@/components/plan-generation/ScheduleStep';
 import { WeeklyStep } from '@/components/plan-generation/WeeklyStep';
@@ -37,7 +38,7 @@ export default function GeneratePlanScreen() {
 
     const {
         phase, loading, isSaving, saveError,
-        selectedEnvIds, selectedCategoryIds,
+        selectedEnvIds, pillarLevels, sprintClubAnswered, sprintDistance,
         preferredDays, preferredDuration, sportSessions,
         initialize, goBack, goNext, generate,
     } = usePlanWizardStore();
@@ -52,7 +53,8 @@ export default function GeneratePlanScreen() {
 
     const canProceedNext =
         phase === 'environment' ? selectedEnvIds.size > 0 :
-        phase === 'goals' ? selectedCategoryIds.size > 0 :
+        phase === 'goals' ? pillarLevels.length > 0 :
+        phase === 'sprint-context' ? (sprintClubAnswered && sprintDistance !== null) :
         phase === 'schedule' ? (
             preferredDays.size >= MIN_WORKOUT_DAYS
             && preferredDays.size <= maxWorkoutDays(computeLoadProfile(sportSessions).load_profile)
@@ -101,7 +103,8 @@ export default function GeneratePlanScreen() {
                     {phase === 'environment' && <EnvironmentStep />}
                     {phase === 'equipment' && <EquipmentStep />}
                     {phase === 'equipment-env' && <EquipmentEnvironmentStep />}
-                    {phase === 'goals' && <GoalsStep />}
+                    {phase === 'goals' && <PillarStep />}
+                    {phase === 'sprint-context' && <SprintContextStep />}
                     {phase === 'body' && <BodyStep />}
                     {phase === 'schedule' && <ScheduleStep />}
                     {phase === 'schedule-detail' && <ScheduleDetailStep />}
