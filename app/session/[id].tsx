@@ -5,6 +5,7 @@ import { CategoryChip, ModeChip, SessionChip } from '@/components/plan/SessionCh
 import { StatsStrip } from '@/components/profile/stats-strip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HERO_BLOCK_ORDER, isContentBlock } from '@/constants/blocks';
+import { intervalPrescription } from '@/lib/prescription';
 import { getSessionImage } from '@/constants/session-images';
 import { Colors, GradientMid, Neutral } from '@/constants/theme';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
@@ -283,12 +284,22 @@ export default function SessionDetailScreen() {
                                             </JempText>
                                         )}
                                         <View style={styles.exerciseMeta}>
-                                            {ex.target_sets && (
+                                            {(() => {
+                                                // Conditioning: Intervall-Format statt Sätze×Wdh (Spec §5.2)
+                                                const interval = intervalPrescription(ex);
+                                                if (!interval) return null;
+                                                return (
+                                                    <JempText type="caption" color={theme.textSubtle}>
+                                                        {t('prescription.rounds', { rounds: interval.rounds, work: interval.workSeconds, rest: interval.restSeconds })}
+                                                    </JempText>
+                                                );
+                                            })()}
+                                            {!intervalPrescription(ex) && ex.target_sets && (
                                                 <JempText type="caption" color={theme.textSubtle}>
                                                     {ex.target_sets} {t('ui.sets')}
                                                 </JempText>
                                             )}
-                                            {reps !== '' && (
+                                            {!intervalPrescription(ex) && reps !== '' && (
                                                 <>
                                                     <JempText type="caption" color={Neutral[7]}>{'  ·  '}</JempText>
                                                     <JempText type="caption" color={theme.textSubtle}>
@@ -296,7 +307,7 @@ export default function SessionDetailScreen() {
                                                     </JempText>
                                                 </>
                                             )}
-                                            {rest && (
+                                            {!intervalPrescription(ex) && rest && (
                                                 <>
                                                     <JempText type="caption" color={Neutral[7]}>{'  ·  '}</JempText>
                                                     <Ionicons name="timer-outline" size={10} color={theme.textSubtle} />
