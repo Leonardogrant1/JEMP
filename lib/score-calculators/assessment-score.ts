@@ -1,5 +1,5 @@
-import { jumpLevel, bodyweightStrengthLevel, oneRmLevel, lowerBodyPlyometricsLevel, upperBodyPlyometricsLevel, mobilityEaseLevel } from './index';
-import type { JumpExercise, BodyweightExercise, OneRmExercise, LowerBodyPlyometricsExercise, UpperBodyPlyometricsExercise } from './index';
+import { jumpLevel, bodyweightStrengthLevel, oneRmLevel, lowerBodyPlyometricsLevel, upperBodyPlyometricsLevel, mobilityEaseLevel, sprintLevel, codLevel, cooperLevel } from './index';
+import type { JumpExercise, BodyweightExercise, OneRmExercise, LowerBodyPlyometricsExercise, UpperBodyPlyometricsExercise, SprintExercise } from './index';
 import { calculateAge } from '@/types/user-data';
 
 export type AssessmentUserProfile = {
@@ -15,7 +15,10 @@ type ScoreEntry =
     | { type: 'one_rm';     exercise: OneRmExercise }
     | { type: 'lower_plyo'; exercise: LowerBodyPlyometricsExercise }
     | { type: 'upper_plyo'; exercise: UpperBodyPlyometricsExercise }
-    | { type: 'mobility' };
+    | { type: 'mobility' }
+    | { type: 'sprint';     exercise: SprintExercise }
+    | { type: 'cod' }
+    | { type: 'cooper' };
 
 const ASSESSMENT_SCORE_MAP: Record<string, ScoreEntry> = {
     // Jumps
@@ -32,11 +35,14 @@ const ASSESSMENT_SCORE_MAP: Record<string, ScoreEntry> = {
     romanian_deadlift_1rm:      { type: 'one_rm',     exercise: 'romanian_deadlift' },
     bench_press_1rm:            { type: 'one_rm',     exercise: 'bench_press' },
     weighted_pullups_1rm:       { type: 'one_rm',     exercise: 'weighted_pullups' },
-    // Lower body plyometrics
-    sprint_10m:                 { type: 'lower_plyo', exercise: '10m_sprint' },
-    sprint_30m:                 { type: 'lower_plyo', exercise: '30m_sprint' },
-    sprint_10m_flying:          { type: 'lower_plyo', exercise: '10m_sprint_flying' },
-    agility_505:                { type: 'lower_plyo', exercise: '505_agility' },
+    // Sprints (Säule seit Phase 5 — Attribution über assessments.category_id)
+    sprint_10m:                 { type: 'sprint',     exercise: '10m_sprint' },
+    sprint_30m:                 { type: 'sprint',     exercise: '30m_sprint' },
+    sprint_10m_flying:          { type: 'sprint',     exercise: '10m_sprint_flying' },
+    // Change of Direction
+    agility_505:                { type: 'cod' },
+    // Conditioning (RST läuft über den eigenen Flow, nicht über diese Map)
+    cooper_test:                { type: 'cooper' },
     // Upper body plyometrics
     mb_chest_throw:             { type: 'upper_plyo', exercise: 'mb_chest_throw_cm' },
     mb_rotational_throw:        { type: 'upper_plyo', exercise: 'mb_rotational_throw_cm' },
@@ -89,5 +95,11 @@ export function calculateAssessmentScore(
             return upperBodyPlyometricsLevel(value, weight_kg, age, gender, entry.exercise);
         case 'mobility':
             return mobilityEaseLevel(value);
+        case 'sprint':
+            return sprintLevel(value, weight_kg, age, gender, entry.exercise);
+        case 'cod':
+            return codLevel(value, weight_kg, age, gender);
+        case 'cooper':
+            return cooperLevel(value, age, gender);
     }
 }
