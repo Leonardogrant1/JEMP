@@ -1294,6 +1294,10 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
           schedule_notes: string | null
           sport_id: string | null
+          sprint_distance:
+            | Database["public"]["Enums"]["sprint_distance_answer"]
+            | null
+          sprints_covered_by_club: boolean
           timezone: string | null
           unit_system: string
           updated_at: string | null
@@ -1325,6 +1329,10 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           schedule_notes?: string | null
           sport_id?: string | null
+          sprint_distance?:
+            | Database["public"]["Enums"]["sprint_distance_answer"]
+            | null
+          sprints_covered_by_club?: boolean
           timezone?: string | null
           unit_system?: string
           updated_at?: string | null
@@ -1356,6 +1364,10 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           schedule_notes?: string | null
           sport_id?: string | null
+          sprint_distance?:
+            | Database["public"]["Enums"]["sprint_distance_answer"]
+            | null
+          sprints_covered_by_club?: boolean
           timezone?: string | null
           unit_system?: string
           updated_at?: string | null
@@ -1547,6 +1559,7 @@ export type Database = {
           created_at: string | null
           day_of_week: number
           description: string | null
+          dropped_blocks: Json | null
           environment_id: string
           estimated_duration_minutes: number | null
           id: string
@@ -1562,6 +1575,7 @@ export type Database = {
           created_at?: string | null
           day_of_week: number
           description?: string | null
+          dropped_blocks?: Json | null
           environment_id: string
           estimated_duration_minutes?: number | null
           id?: string
@@ -1577,6 +1591,7 @@ export type Database = {
           created_at?: string | null
           day_of_week?: number
           description?: string | null
+          dropped_blocks?: Json | null
           environment_id?: string
           estimated_duration_minutes?: number | null
           id?: string
@@ -2151,6 +2166,7 @@ export type Database = {
         | "speed"
         | "mobility"
         | "conditioning"
+      sprint_distance_answer: "under_20m" | "20_40m" | "over_40m"
       sprint_type: "acceleration" | "max_velocity" | "resisted"
       strength_pattern:
         | "push_vertical"
@@ -2391,6 +2407,7 @@ export const Constants = {
         "mobility",
         "conditioning",
       ],
+      sprint_distance_answer: ["under_20m", "20_40m", "over_40m"],
       sprint_type: ["acceleration", "max_velocity", "resisted"],
       strength_pattern: [
         "push_vertical",
