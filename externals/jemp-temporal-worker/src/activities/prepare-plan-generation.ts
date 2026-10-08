@@ -2,6 +2,7 @@
 import { getSupabaseClient } from 'src/utils/supabase'
 import { getOpenAIClient } from 'src/utils/openai'
 import { prepareGeneration, PrepareResult } from 'src/plan-generation/generate-plan'
+import { prepareGenerationV2, shouldUseV2 } from 'src/plan-generation/v2/prepare-v2'
 import { intensityToPoints, pointsToLoadProfile } from 'src/plan-generation/helpers'
 
 export async function preparePlanGeneration(input: { userId: string }): Promise<PrepareResult> {
@@ -92,8 +93,14 @@ export async function preparePlanGeneration(input: { userId: string }): Promise<
   }
   const durationPref = durationMap[userProfile.preferred_session_duration ?? '60min'] ?? { min: 45, max: 75 }
 
-  return prepareGeneration(
-    {
+  // ── Activation gate (spec §6.5): only wizard-written pillar levels switch
+  // to the v2 path; translated legacy rankings (set_by_wizard=false) never do.
+  const { data: pillarRows } = await supabase
+    .from('user_pillar_levels')
+    .select('level, set_by_wizard, categories(slug)')
+    .eq('user_id', userId)
+
+  const legacyInput = {
       sport_slug: sportData?.slug ?? '',
       sport_group_name: (sportData as any)?.group_name ?? '',
       preferred_workout_days: userProfile.preferred_workout_days ?? [],
@@ -112,7 +119,28 @@ export async function preparePlanGeneration(input: { userId: string }): Promise<
       user_focus_categories: userFocusCategories,
       day_environments: dayEnvironments,
       schedule_notes: userProfile.schedule_notes ?? null,
-    },
+    }
+
+  if (shouldUseV2((pillarRows ?? []) as Array<{ set_by_wizard: boolean }>)) {
+    const pillarLevels: Record<string, 1 | 2 | 3> = {}
+    for (const row of (pillarRows ?? []) as any[]) {
+      if (row.set_by_wizard && row.categories?.slug) pillarLevels[row.categories.slug] = row.level
+    }
+    return prepareGenerationV2(
+      {
+        ...legacyInput,
+        user_id: userId,
+        pillar_levels: pillarLevels,
+        sprints_covered_by_club: (userProfile as any).sprints_covered_by_club ?? false,
+        sprint_distance: (userProfile as any).sprint_distance ?? null,
+      },
+      supabase,
+      openai,
+    )
+  }
+
+  return prepareGeneration(
+    legacyInput,
     supabase,
     openai,
   )

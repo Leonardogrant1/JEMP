@@ -75,6 +75,9 @@ export async function generatePlanWorkflow(input: {
       })
     }
 
+    // v2 (phase 2b): deterministic speed/mobility/conditioning sessions
+    plannedSessions.push(...((prepareResult.prebuiltSessions ?? []) as PlannedSession[]))
+
     await updateJobStatus({ jobId, status: 'saving' })
     const planId = await savePlan({
       userId,

@@ -4,8 +4,7 @@
 import { z } from 'zod'
 import { zodResponseFormat } from 'openai/helpers/zod'
 import type OpenAI from 'openai'
-import type { FinalWorkout, PlacedDay, WorkoutBlockType } from '../week-layout'
-import type { V2Exercise } from './pool'
+import type { FinalWorkout, PlacedDay } from '../week-layout'
 import type { PlannedSessionLike } from './build-speed-session'
 import { V2_SESSION_PROMPT } from './v2-prompts'
 
@@ -76,12 +75,18 @@ export function findV2Violations(
   return violations
 }
 
+/** v2 per-session payload — crosses the Temporal workflow/activity boundary,
+ *  so it must stay plain JSON (no Maps, no class instances). */
+export type V2SessionContext = {
+  workout: FinalWorkout
+  day: PlacedDay
+  /** block_type -> pool slugs */
+  pools: Record<string, string[]>
+  sprintPool: string[]
+}
+
 export async function runSessionV2(
-  input: {
-    workout: FinalWorkout
-    day: PlacedDay
-    pools: Map<WorkoutBlockType | string, V2Exercise[]>
-    sprintPool: V2Exercise[]
+  input: V2SessionContext & {
     userContext: string
     weekSummary: string
     previousSummaries: string[]
@@ -99,16 +104,16 @@ export async function runSessionV2(
   const poolMap = new Map<string, { slugs: Set<string> }>()
   const poolLines: string[] = []
   for (const bt of expectedBlocks) {
-    const pool = bt === 'sprint' ? sprintPool : (pools.get(bt as WorkoutBlockType) ?? [])
-    poolMap.set(bt, { slugs: new Set(pool.map((e) => e.slug)) })
-    poolLines.push(`- \`${bt}\`: ${pool.map((e) => e.slug).join(', ') || '(leer)'}`)
+    const pool = bt === 'sprint' ? sprintPool : (pools[bt] ?? [])
+    poolMap.set(bt, { slugs: new Set(pool) })
+    poolLines.push(`- \`${bt}\`: ${pool.join(', ') || '(leer)'}`)
   }
   const allSlugs = [...new Set(expectedBlocks.flatMap((bt) => [...poolMap.get(bt)!.slugs]))]
   const schema = buildV2SessionSchema(expectedBlocks, allSlugs)
 
   const basePrompt = V2_SESSION_PROMPT({
     workout, day, poolLines,
-    sprintPoolLine: day.carries_sprint_block ? sprintPool.map((e) => e.slug).join(', ') : null,
+    sprintPoolLine: day.carries_sprint_block ? sprintPool.join(', ') : null,
     userContext, weekSummary, previousSummaries,
   })
 
