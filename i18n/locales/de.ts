@@ -259,6 +259,7 @@ const de: Record<TranslationKeys, string> = {
     'plan.week_load_disclaimer': 'Hohe Sport-Belastung — deine JEMP-Einheiten werden entsprechend reduziert.',
     'plan.week_load_info_body': 'Jede Sport-Einheit zählt je nach Intensität 1–5 Punkte. Die Summe ergibt deine Wochenbelastung: Niedrig (bis 4), Mittel (bis 10), Hoch (ab 11). Bei hoher Belastung reduziert JEMP deine Einheiten automatisch, damit Regeneration und Fortschritt im Gleichgewicht bleiben.',
     'ui.got_it': 'Verstanden',
+    'ui.show_more': 'Mehr anzeigen',
     'ui.duration': 'Dauer',
     'ui.exercises': 'Übungen',
     'ui.equipment': 'Equipment',

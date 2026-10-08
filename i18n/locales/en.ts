@@ -257,6 +257,7 @@ const en = {
     'plan.week_load_disclaimer': 'High sport load — your JEMP sessions will be scaled down accordingly.',
     'plan.week_load_info_body': 'Each sport session counts 1–5 points depending on its intensity. The total is your weekly load: low (up to 4), medium (up to 10), high (11+). With a high load, JEMP automatically scales down your sessions to keep recovery and progress in balance.',
     'ui.got_it': 'Got it',
+    'ui.show_more': 'Show more',
     'ui.duration': 'Duration',
     'ui.exercises': 'Exercises',
     'ui.equipment': 'Equipment',

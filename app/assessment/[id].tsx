@@ -80,7 +80,7 @@ export default function AssessmentScreen() {
     // Units follow the profile preference — no in-screen toggles
     const weightUnit: 'kg' | 'lbs' = unitSystem === 'imperial' ? 'lbs' : 'kg';
     const [showOneRmWarning, setShowOneRmWarning] = useState(false);
-    const [descExpanded, setDescExpanded] = useState(false);
+    const [showInfo, setShowInfo] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const [celebrationUnlocks, setCelebrationUnlocks] = useState<AchievementDef[] | null>(null);
     const [showVideo, setShowVideo] = useState(false);
@@ -154,6 +154,9 @@ export default function AssessmentScreen() {
     const description = (assessment.description_i18n as Record<string, string> | null)?.[locale]
         ?? assessment.description
         ?? '';
+    // Heuristik statt onTextLayout (plattform-inkonsistent): ~55 Zeichen/Zeile
+    // bei body-sm — ab ~3 Zeilen gibt es den "Mehr anzeigen"-Link.
+    const descLong = description.length > 150;
     const metric = assessment.metric;
     const unitKey = metric?.unit ?? 'count';
     const isTimeBased = unitKey === 's';
@@ -322,18 +325,25 @@ export default function AssessmentScreen() {
                     <View style={{ width: 24 }} />
                 </View>
 
-                {/* Anleitung inline (QA 08.10.): 3 Zeilen gekappt, Tap klappt den
-                    vollen Text aus — ersetzt den alten (i)-Dialog. */}
+                {/* Anleitung inline (QA 08.10.): 3 Zeilen gekappt; lange Texte
+                    bekommen einen sichtbaren "Mehr anzeigen"-Link, der das
+                    Info-Modal öffnet (Affordance statt unsichtbarem Tap). */}
                 {description ? (
-                    <Pressable onPress={() => setDescExpanded((v) => !v)}>
+                    <Pressable onPress={() => setShowInfo(true)} disabled={!descLong}>
                         <JempText
                             type="body-sm"
                             color={theme.textMuted}
-                            numberOfLines={descExpanded ? undefined : 3}
+                            numberOfLines={3}
                             style={styles.descriptionInline}
                         >
                             {description}
                         </JempText>
+                        {descLong && (
+                            <View style={styles.showMoreRow}>
+                                <JempText type="caption" color={Cyan[500]}>{t('ui.show_more')}</JempText>
+                                <Ionicons name="chevron-down" size={12} color={Cyan[500]} />
+                            </View>
+                        )}
                     </Pressable>
                 ) : null}
 
@@ -748,6 +758,16 @@ export default function AssessmentScreen() {
             />
 
             <JempDialog
+                visible={showInfo}
+                title={assessmentName}
+                message={description}
+                buttonLabel={t('ui.got_it')}
+                icon="information-circle-outline"
+                iconColor={Cyan[500]}
+                onDismiss={() => setShowInfo(false)}
+            />
+
+            <JempDialog
                 visible={showOneRmWarning}
                 title={t('ui.rep_mode_1rm')}
                 message={t('ui.rep_mode_1rm_warning')}
@@ -801,6 +821,7 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     descriptionInline: { marginTop: 4, lineHeight: 19 },
+    showMoreRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4, alignSelf: 'flex-start' },
 
     videoBtn: {
         flexDirection: 'row',
