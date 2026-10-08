@@ -1,0 +1,46 @@
+import { computeWeekComposition, WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS } from '@/lib/week-allocation';
+
+// ⚠️ Diese Vektoren replizieren die Worker-Tests (week-layout.test.ts, allocateDays) wörtlich —
+// App-Spiegel und Engine MÜSSEN dieselben Zahlen liefern.
+const base = { sprintsCoveredByClub: false };
+
+describe('computeWeekComposition (Spiegel von allocateDays)', () => {
+    it('Level 3 reserviert einen garantierten Speed-Tag', () => {
+        expect(computeWeekComposition({ ...base, availableDayCount: 4, loadProfile: 'low', pillarLevels: { sprints: 3 } }))
+            .toMatchObject({ workouts: 3, speedDays: 1, carrier: 'standalone' });
+    });
+    it('Level 2 nimmt nur Überschuss-Tage', () => {
+        expect(computeWeekComposition({ ...base, availableDayCount: 4, loadProfile: 'medium', pillarLevels: { sprints: 2 } }))
+            .toMatchObject({ workouts: 3, speedDays: 1, carrier: 'standalone' });
+        expect(computeWeekComposition({ ...base, availableDayCount: 4, loadProfile: 'high', pillarLevels: { sprints: 2 } }))
+            .toMatchObject({ workouts: 2, speedDays: 1 });
+    });
+    it('2-Tage-Edge: Level 3 fällt auf integriert zurück (Minimum 2 Workouts gewinnt)', () => {
+        expect(computeWeekComposition({ ...base, availableDayCount: 2, loadProfile: 'high', pillarLevels: { sprints: 3 } }))
+            .toMatchObject({ workouts: 2, speedDays: 0, carrier: 'integrated' });
+    });
+    it('Vereins-Dämpfung bremst Sprints, nie COD', () => {
+        const c = computeWeekComposition({ availableDayCount: 4, loadProfile: 'low', pillarLevels: { sprints: 3, cod: 3 }, sprintsCoveredByClub: true });
+        expect(c.speedDays).toBeGreaterThanOrEqual(1);
+        const micro = computeWeekComposition({ availableDayCount: 2, loadProfile: 'low', pillarLevels: { sprints: 3 }, sprintsCoveredByClub: true });
+        expect(micro.carrier).toBe('micro');
+    });
+    it('zweiter Speed-Tag nur aus zweitem Überschuss-Tag', () => {
+        expect(computeWeekComposition({ ...base, availableDayCount: 4, loadProfile: 'high', pillarLevels: { sprints: 3 } }))
+            .toMatchObject({ workouts: 2, speedDays: 2 });
+    });
+    it('Conditioning: Stufe 3 durchbricht die Dämpfung, Stufe 2 nur bei low', () => {
+        expect(computeWeekComposition({ ...base, availableDayCount: 4, loadProfile: 'medium', pillarLevels: { conditioning: 3 } }).conditioningDay).toBe(true);
+        expect(computeWeekComposition({ ...base, availableDayCount: 5, loadProfile: 'high', pillarLevels: { conditioning: 2 } }).conditioningDay).toBe(false);
+        expect(computeWeekComposition({ ...base, availableDayCount: 6, loadProfile: 'low', pillarLevels: { conditioning: 2 } }).conditioningDay).toBe(true);
+    });
+    it('Mobility ab Stufe 2, kostet keinen Tag', () => {
+        expect(computeWeekComposition({ ...base, availableDayCount: 2, loadProfile: 'low', pillarLevels: { mobility: 2 } }))
+            .toMatchObject({ workouts: 2, mobilityDay: true });
+    });
+    it('Cap low = 5', () => {
+        expect(WORKOUT_DAY_CAP.low).toBe(5);
+        expect(MIN_WORKOUT_DAYS).toBe(2);
+        expect(computeWeekComposition({ ...base, availableDayCount: 5, loadProfile: 'low', pillarLevels: {} }).workouts).toBe(5);
+    });
+});
