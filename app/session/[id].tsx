@@ -4,6 +4,7 @@ import { CATEGORY_SVG_ICONS } from '@/constants/category-icons';
 import { CategoryChip, ModeChip, SessionChip } from '@/components/plan/SessionChip';
 import { StatsStrip } from '@/components/profile/stats-strip';
 import { Skeleton } from '@/components/ui/skeleton';
+import { HERO_BLOCK_ORDER, isContentBlock } from '@/constants/blocks';
 import { getSessionImage } from '@/constants/session-images';
 import { Colors, GradientMid, Neutral } from '@/constants/theme';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
@@ -82,7 +83,7 @@ export default function SessionDetailScreen() {
     // Gleiche Bild-Logik wie die Session-Cards im Plan: erste Übung des
     // wichtigsten Trainingsblocks bestimmt das Hero-Foto
     const heroImage = useMemo(() => {
-        for (const type of ['primary', 'secondary', 'accessory']) {
+        for (const type of HERO_BLOCK_ORDER) {
             const block = session?.blocks.find(b => b.block_type?.slug === type);
             const first = block?.exercises[0]?.exercise;
             if (first) return getSessionImage(first.slug, first.image_group, remoteThumbnails);
@@ -98,7 +99,7 @@ export default function SessionDetailScreen() {
     const focusCategories = useMemo(() => {
         const slugs: string[] = [];
         for (const b of session?.blocks ?? []) {
-            if (!['primary', 'secondary'].includes(b.block_type?.slug ?? '')) continue;
+            if (!isContentBlock(b.block_type?.slug)) continue;
             const slug = b.focused_category?.slug;
             if (slug && !slugs.includes(slug)) slugs.push(slug);
         }
@@ -225,7 +226,7 @@ export default function SessionDetailScreen() {
                     <View key={block.id} style={styles.blockSection}>
                         {/* Block header — Kategorie (mit Icon) nur bei den Trainingsblöcken */}
                         {(() => {
-                            const isMainBlock = ['primary', 'secondary', 'accessory'].includes(block.block_type?.slug ?? '');
+                            const isMainBlock = isContentBlock(block.block_type?.slug);
                             const categorySlug = isMainBlock ? block.focused_category?.slug : undefined;
                             const CategoryIcon = categorySlug ? CATEGORY_SVG_ICONS[categorySlug] : undefined;
                             return (

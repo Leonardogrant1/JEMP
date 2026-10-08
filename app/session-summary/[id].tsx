@@ -3,6 +3,7 @@ import { SectionHeader } from '@/components/plan/SectionHeader';
 import { SessionChip } from '@/components/plan/SessionChip';
 import { StatsStrip } from '@/components/profile/stats-strip';
 import { Skeleton } from '@/components/ui/skeleton';
+import { HERO_BLOCK_ORDER } from '@/constants/blocks';
 import { getSessionImage } from '@/constants/session-images';
 import { Colors, GradientMid } from '@/constants/theme';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
@@ -92,7 +93,7 @@ export default function SessionSummaryScreen() {
     // Gleiche Bild-Logik wie Session-Card/-Detail: erste Übung des wichtigsten
     // Trainingsblocks bestimmt das Hero-Foto
     const heroImage = useMemo(() => {
-        for (const type of ['primary', 'secondary', 'accessory']) {
+        for (const type of HERO_BLOCK_ORDER) {
             const block = session?.blocks.find(b => b.block_type?.slug === type);
             const first = block?.exercises[0]?.exercise;
             if (first) return getSessionImage(first.slug, first.image_group, remoteThumbnails);
