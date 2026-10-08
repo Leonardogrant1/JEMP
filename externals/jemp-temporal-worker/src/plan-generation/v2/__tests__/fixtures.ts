@@ -8,7 +8,7 @@ export const ex = (over: Partial<any>): any => ({
 
 export const day = (over: Partial<any> = {}): any => ({
   day_of_week: 1, session_type: 'speed', minutes: 40, dose: 'normal',
-  carries_sprint_block: false, heavy_lower: false, suppress_micro_dose: false, ...over,
+  carries_sprint_block: false, carries_conditioning_finisher: false, heavy_lower: false, suppress_micro_dose: false, ...over,
 })
 
 export const block = (bt: string, variant: string | null = null): any =>

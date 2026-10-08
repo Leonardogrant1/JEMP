@@ -7,7 +7,7 @@ const placedWeek = (days: number[], heavy: number) => ({
   carrier: 'none' as const, notes: [] as string[],
   days: days.map((d) => ({
     day_of_week: d, session_type: 'training' as const, minutes: 90, dose: 'normal' as const,
-    carries_sprint_block: false, heavy_lower: d === heavy, suppress_micro_dose: false,
+    carries_sprint_block: false, carries_conditioning_finisher: false, heavy_lower: d === heavy, suppress_micro_dose: false,
   })),
 })
 
@@ -392,5 +392,43 @@ describe('review fix I4: pillar levels reach the drop lever', () => {
     const dropped = layout.workouts[0].dropped.map((d) => d.block_type)
     expect(dropped.length).toBeGreaterThan(0)
     expect(dropped).not.toContain('plyo')
+  })
+})
+
+describe('conditioning finisher (integrated carrier)', () => {
+  const base = {
+    available_days: [1, 4], load_profile: 'medium' as const,
+    sprints_covered_by_club: false, session_minutes: 60,
+    weekly_schedule: schedule([]),
+  }
+  it('flags one training day when conditioning >= 2 has no own day', () => {
+    const input = { ...base, pillar_levels: { conditioning: 2 as const } }
+    const placed = placeWeek(input, allocateDays(input))
+    expect(placed.days.filter((d) => (d as any).carries_conditioning_finisher).length).toBe(1)
+  })
+  it('never fires at high weekly load (club covers it)', () => {
+    const input = { ...base, load_profile: 'high' as const, pillar_levels: { conditioning: 3 as const } }
+    const placed = placeWeek(input, allocateDays(input))
+    expect(placed.days.some((d) => (d as any).carries_conditioning_finisher)).toBe(false)
+  })
+  it('never lands on the sprint-carrier day', () => {
+    const input = { ...base, pillar_levels: { conditioning: 2 as const, sprints: 2 as const } }
+    const placed = placeWeek(input, allocateDays(input))
+    const finisher = placed.days.find((d) => (d as any).carries_conditioning_finisher)
+    expect(finisher?.carries_sprint_block).toBe(false)
+  })
+  it('keeps the session inside its minute budget via extra drops', () => {
+    const input = { ...base, pillar_levels: { conditioning: 2 as const } }
+    const layout = buildWeekLayout(input)
+    for (const w of layout.workouts) {
+      const day = layout.placement.days.find((d) => d.day_of_week === w.day_of_week)!
+      expect(w.estimated_minutes).toBeLessThanOrEqual(day.minutes)
+    }
+    const finisherDay = layout.placement.days.find((d) => (d as any).carries_conditioning_finisher)!
+    const finisherWorkout = layout.workouts.find((w) => w.day_of_week === finisherDay.day_of_week)!
+    const otherWorkout = layout.workouts.find((w) => w.day_of_week !== finisherDay.day_of_week)!
+    // The finisher's ~10 min must be part of the estimate, so its day drops
+    // strictly MORE blocks — otherwise the session silently overruns the budget.
+    expect(finisherWorkout.dropped.length).toBeGreaterThan(otherWorkout.dropped.length)
   })
 })

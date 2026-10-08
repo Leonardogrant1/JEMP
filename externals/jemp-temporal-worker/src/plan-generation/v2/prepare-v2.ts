@@ -9,7 +9,7 @@ import type { PrepareResult, SessionBuildInput } from '../generate-plan'
 import type { PlanGenerationInput } from '../types'
 import { buildBlockPools, preDropEmptyPools, type V2Exercise } from './pool'
 import { buildSpeedSession, type PlannedSessionLike } from './build-speed-session'
-import { buildMobilitySession, buildConditioningSession } from './build-simple-sessions'
+import { buildMobilitySession, buildConditioningSession, conditioningPoolSlugs } from './build-simple-sessions'
 import type { V2SessionContext } from './run-session-v2'
 
 export const MEASURED_SPRINT_MAX_AGE_DAYS = 120
@@ -138,6 +138,7 @@ export async function prepareGenerationV2(
   const sprintPoolSlugs = exercises
     .filter((e) => e.sprint_type !== null && (allowMaxVelocity || e.sprint_type !== 'max_velocity'))
     .map((e) => e.slug)
+  const finisherPoolSlugs = conditioningPoolSlugs(exercises)
 
   const sessionBuildInputs: SessionBuildInput[] = layout.workouts.map((workout) => {
     const day = trainingDays.find((d) => d.day_of_week === workout.day_of_week)!
@@ -145,7 +146,7 @@ export async function prepareGenerationV2(
     const poolRecord: Record<string, string[]> = {}
     for (const [bt, pool] of pools) poolRecord[bt] = pool.map((e) => e.slug)
     notes.push(...preDropEmptyPools(workout, poolRecord).map((n) => `Tag ${workout.day_of_week}: ${n}`))
-    const v2: V2SessionContext = { workout, day, pools: poolRecord, sprintPool: sprintPoolSlugs }
+    const v2: V2SessionContext = { workout, day, pools: poolRecord, sprintPool: sprintPoolSlugs, conditioningFinisherPool: finisherPoolSlugs }
     return {
       spec: { day_of_week: workout.day_of_week, mode_slug: day.dose === 'maintenance' ? 'reduced' : 'full' },
       duration: { min: Math.max(20, day.minutes - 10), max: day.minutes },

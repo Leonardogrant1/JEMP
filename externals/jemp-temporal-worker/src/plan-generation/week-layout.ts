@@ -7,7 +7,7 @@ export function circularDayDistance(from: number, to: number): number {
 }
 
 import type { WeeklySchedule } from './types'
-import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, WORKOUT_BLOCK_SEQUENCE, BLOCK_MINUTES, MAINTENANCE_DOSE_FACTOR, INTEGRATED_SPRINT_BLOCK_MINUTES, DROP_PRIORITY, BLOCK_TO_PILLAR } from './week-layout-constants'
+import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, WORKOUT_BLOCK_SEQUENCE, BLOCK_MINUTES, MAINTENANCE_DOSE_FACTOR, INTEGRATED_SPRINT_BLOCK_MINUTES, CONDITIONING_FINISHER_MINUTES, DROP_PRIORITY, BLOCK_TO_PILLAR } from './week-layout-constants'
 
 export type NewSessionType = 'training' | 'speed' | 'mobility' | 'conditioning'
 export type PillarSlug =
@@ -84,6 +84,9 @@ export type PlacedDay = {
   minutes: number
   dose: 'normal' | 'maintenance'
   carries_sprint_block: boolean
+  /** Conditioning finisher (~10 min interval block at the end) — the integrated
+   *  carrier when conditioning level >= 2 has no own day (spec §2.1a fallback). */
+  carries_conditioning_finisher: boolean
   heavy_lower: boolean
   suppress_micro_dose: boolean
 }
@@ -206,6 +209,21 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
     }
   }
 
+  // 3b. Conditioning finisher day (spec §2.1a fallback "finisher-scale content"):
+  //     conditioning level >= 2 without an own day, damped away at high load
+  //     (§2.2 — club training covers it). Never on the sprint-carrier day
+  //     (§3.3: speed + conditioning never share a day), never the day before
+  //     a game. Prefers the game-farthest, longest training day.
+  let finisherDay: number | null = null
+  const conditioningLevel = input.pillar_levels.conditioning ?? 0
+  if (!allocation.conditioning_day && conditioningLevel >= 2 && input.load_profile !== 'high') {
+    const candidates = trainingDays
+      .filter((d) => d !== sprintBlockDay && gameDays.every((g) => circularDayDistance(d, g) !== 1))
+      .sort((a, b) => gameFwdFinite(b) - gameFwdFinite(a) || minutesFor(input, b) - minutesFor(input, a) || a - b)
+    finisherDay = candidates[0] ?? null
+    if (finisherDay === null) notes.push('Conditioning: kein geeigneter Finisher-Tag — entfällt diese Woche')
+  }
+
   // 4. Mobility day: a true rest day (no available/club/game day); fallback: lowest-intensity club day.
   let mobilityDay: number | null = null
   if (allocation.mobility_day) {
@@ -228,15 +246,16 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
   for (const d of speedDays) days.push({
     day_of_week: d, session_type: 'speed', minutes: Math.min(minutesFor(input, d), 40),
     dose: gameWeek ? 'maintenance' : 'normal',
-    carries_sprint_block: false, heavy_lower: false, suppress_micro_dose: false,
+    carries_sprint_block: false, carries_conditioning_finisher: false, heavy_lower: false, suppress_micro_dose: false,
   })
   if (conditioningDay !== null) days.push({
     day_of_week: conditioningDay, session_type: 'conditioning', minutes: minutesFor(input, conditioningDay),
-    dose: 'normal', carries_sprint_block: false, heavy_lower: false, suppress_micro_dose: false,
+    dose: 'normal', carries_sprint_block: false, carries_conditioning_finisher: false, heavy_lower: false, suppress_micro_dose: false,
   })
   for (const d of trainingDays) days.push({
     day_of_week: d, session_type: 'training', minutes: minutesFor(input, d), dose: 'normal',
     carries_sprint_block: d === sprintBlockDay,
+    carries_conditioning_finisher: d === finisherDay,
     heavy_lower: d === heavyDay || (d === sprintBlockDay && heavyDay === null),
     suppress_micro_dose: speedDays.some((s) => circularDayDistance(s, d) === 1),
   })
@@ -246,7 +265,7 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
   }
   if (mobilityDay !== null) days.push({
     day_of_week: mobilityDay, session_type: 'mobility', minutes: 20, dose: 'normal',
-    carries_sprint_block: false, heavy_lower: false, suppress_micro_dose: false,
+    carries_sprint_block: false, carries_conditioning_finisher: false, heavy_lower: false, suppress_micro_dose: false,
   })
 
   days.sort((a, b) => a.day_of_week - b.day_of_week)
@@ -297,6 +316,7 @@ export type FinalWorkout = {
 
 export function estimateMinutes(
   blocks: PlannedWorkoutBlock[], dose: 'normal' | 'maintenance', carriesSprintBlock: boolean,
+  carriesConditioningFinisher = false,
 ): number {
   const content = blocks.reduce((sum, b) => {
     const base = BLOCK_MINUTES[b.block_type]
@@ -304,7 +324,9 @@ export function estimateMinutes(
       : dose === 'maintenance' ? base * MAINTENANCE_DOSE_FACTOR : base
     return sum + scaled
   }, 0)
-  return Math.round(content + (carriesSprintBlock ? INTEGRATED_SPRINT_BLOCK_MINUTES : 0))
+  return Math.round(content
+    + (carriesSprintBlock ? INTEGRATED_SPRINT_BLOCK_MINUTES : 0)
+    + (carriesConditioningFinisher ? CONDITIONING_FINISHER_MINUTES : 0))
 }
 
 export function applyScalingLevers(
@@ -329,7 +351,7 @@ export function applyScalingLevers(
 
     const droppable = () => blocks.filter((b) => !protectedTypes.has(b.block_type))
 
-    while (estimateMinutes(blocks, day.dose, day.carries_sprint_block) > day.minutes && droppable().length > 0) {
+    while (estimateMinutes(blocks, day.dose, day.carries_sprint_block, day.carries_conditioning_finisher) > day.minutes && droppable().length > 0) {
       const candidates = droppable()
       // (a) coverage: variants already seen this week drop first
       const covered = candidates.filter((b) => b.variant !== null && coveredVariants.has(b.variant))
@@ -348,7 +370,7 @@ export function applyScalingLevers(
       dropped.push({ block_type: victim.block_type, reason: 'time' })
     }
 
-    const estimated = estimateMinutes(blocks, day.dose, day.carries_sprint_block)
+    const estimated = estimateMinutes(blocks, day.dose, day.carries_sprint_block, day.carries_conditioning_finisher)
     if (estimated > day.minutes) {
       notes.push(`Tag ${day.day_of_week}: Budget ${day.minutes} min nicht erreichbar (geschützter Kern ${estimated} min)`)
     }

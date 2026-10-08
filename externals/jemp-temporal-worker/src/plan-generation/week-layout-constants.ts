@@ -17,6 +17,7 @@ export const BLOCK_MINUTES: Record<WorkoutBlockType, number> = {
 }
 export const MAINTENANCE_DOSE_FACTOR = 0.7
 export const INTEGRATED_SPRINT_BLOCK_MINUTES = 12
+export const CONDITIONING_FINISHER_MINUTES = 10
 /** Drop order when no coverage/rotation signal decides (lowest value drops first). */
 export const DROP_PRIORITY: WorkoutBlockType[] = ['accessory', 'rotation', 'core', 'plyo', 'pull', 'push']
 

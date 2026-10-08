@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildMobilitySession, buildConditioningSession } from '../build-simple-sessions'
+import { buildMobilitySession, buildConditioningSession, buildConditioningFinisherBlock } from '../build-simple-sessions'
 import { ex, day } from './fixtures'
 
 describe('buildMobilitySession', () => {
@@ -34,5 +34,18 @@ describe('buildConditioningSession', () => {
   it('returns null and a note when the pool is empty', () => {
     const r = buildConditioningSession({ day: day(), exercises: [ex({ slug: 'bench_press', category_slug: 'strength' })], orderIndex: 0 })
     expect(r).toBeNull()
+  })
+})
+
+describe('buildConditioningFinisherBlock', () => {
+  it('builds a compact interval block before the cooldown', () => {
+    const block = buildConditioningFinisherBlock(['burpee', 'jump_rope_standard', 'bear_crawl'], 7)!
+    expect(block.block_type).toBe('conditioning')
+    expect(block.order_index).toBe(7)
+    expect(block.exercises.length).toBeLessThanOrEqual(3)
+    expect(block.exercises.every((e: any) => e.target_rounds > 0 && e.target_duration_seconds === 30)).toBe(true)
+  })
+  it('returns null below 2 slugs', () => {
+    expect(buildConditioningFinisherBlock(['burpee'], 7)).toBeNull()
   })
 })

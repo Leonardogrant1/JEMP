@@ -6,6 +6,7 @@ import { zodResponseFormat } from 'openai/helpers/zod'
 import type OpenAI from 'openai'
 import type { FinalWorkout, PlacedDay } from '../week-layout'
 import type { PlannedSessionLike } from './build-speed-session'
+import { buildConditioningFinisherBlock } from './build-simple-sessions'
 import { V2_SESSION_PROMPT } from './v2-prompts'
 
 function toEnum(values: string[]): z.ZodTypeAny {
@@ -83,6 +84,8 @@ export type V2SessionContext = {
   /** block_type -> pool slugs */
   pools: Record<string, string[]>
   sprintPool: string[]
+  /** Pool for the deterministic conditioning finisher (appended in code, not by the LLM). */
+  conditioningFinisherPool: string[]
 }
 
 export async function runSessionV2(
@@ -145,8 +148,24 @@ export async function runSessionV2(
   }
   if (!lastSession) throw new Error(`runSessionV2: no usable completion for day ${day.day_of_week}`)
 
+  // Deterministic conditioning finisher (integrated carrier): appended in code
+  // before the cooldown — its minutes were already budgeted by the layout engine.
+  const blocks = [...(lastSession as any).blocks]
+  if (day.carries_conditioning_finisher) {
+    const cooldownIdx = blocks.findIndex((b: any) => b.block_type === 'cooldown')
+    const insertAt = cooldownIdx === -1 ? blocks.length : cooldownIdx
+    const finisher = buildConditioningFinisherBlock(input.conditioningFinisherPool, insertAt)
+    if (finisher) {
+      blocks.splice(insertAt, 0, finisher)
+      blocks.forEach((b: any, i: number) => { b.order_index = i })
+    } else {
+      console.warn(`runSessionV2 day ${day.day_of_week}: conditioning finisher pool too small — skipped`)
+    }
+  }
+
   return {
     ...(lastSession as any),
+    blocks,
     day_of_week: day.day_of_week,
     order_index: orderIndex,
     session_type: 'training',

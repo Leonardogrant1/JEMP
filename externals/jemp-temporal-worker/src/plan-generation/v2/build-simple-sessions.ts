@@ -102,3 +102,40 @@ export function buildConditioningSession(input: {
     notes: [],
   }
 }
+
+/** Integrated conditioning finisher (~10 min at the end of a workout) — the
+ *  fallback carrier when conditioning level >= 2 has no own day. Compact
+ *  interval format; the week-layout engine already budgeted its minutes
+ *  (CONDITIONING_FINISHER_MINUTES), so it displaces content, never extends
+ *  the session. Returns null below 2 slugs (never an empty/thin block). */
+export function buildConditioningFinisherBlock(
+  poolSlugs: string[],
+  orderIndex: number,
+): { block_type: string; order_index: number; focused_category_slug: string; exercises: any[] } | null {
+  if (poolSlugs.length < 2) return null
+  const format = CONDITIONING_FORMATS.interval_30_30
+  const picked = [...poolSlugs].sort().slice(0, 3)
+  return {
+    block_type: 'conditioning',
+    order_index: orderIndex,
+    focused_category_slug: 'lower_body_plyometrics',
+    exercises: picked.map((slug, i) => ({
+      exercise_slug: slug, order_index: i, notes: '',
+      target_sets: 1, target_reps_min: -1, target_reps_max: -1,
+      target_duration_seconds: format.work, target_distance_meters: -1,
+      target_rest_seconds: format.rest, target_load_type: 'bodyweight' as const,
+      target_load_value: -1, target_rounds: Math.max(4, Math.round(format.rounds / 2)),
+    })),
+  }
+}
+
+/** Shared conditioning pool filter (used by the standalone session and the finisher). */
+export function conditioningPoolSlugs(exercises: V2Exercise[]): string[] {
+  return exercises
+    .filter((e) =>
+      (e.category_slug === 'lower_body_plyometrics' || e.category_slug === 'conditioning') &&
+      e.sprint_type === null &&
+      (e.measurement_type === 'duration' || e.measurement_type === 'reps_or_duration'))
+    .sort(byIntensityThenSlug)
+    .map((e) => e.slug)
+}
