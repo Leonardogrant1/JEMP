@@ -25,6 +25,23 @@ export type PlanGenerationInputV2 = PlanGenerationInput & {
   pillar_levels: PillarLevels
   sprints_covered_by_club: boolean
   sprint_distance: 'under_20m' | '20_40m' | 'over_40m' | null
+  day_minutes?: Array<{ day_of_week: number; minutes: number }>
+}
+
+/** Validates the preferred_day_durations JSONB from the profile — malformed
+ *  input (bad days, non-positive minutes, wrong shape) yields undefined so the
+ *  engine falls back to the global duration (phase 3b, review focus 5). */
+export function parseDayDurations(raw: unknown): Array<{ day_of_week: number; minutes: number }> | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined
+  const parsed: Array<{ day_of_week: number; minutes: number }> = []
+  for (const entry of raw) {
+    if (typeof entry !== 'object' || entry === null) return undefined
+    const { day_of_week, minutes } = entry as any
+    if (!Number.isInteger(day_of_week) || day_of_week < 1 || day_of_week > 7) return undefined
+    if (!Number.isInteger(minutes) || minutes <= 0) return undefined
+    parsed.push({ day_of_week, minutes })
+  }
+  return parsed
 }
 
 const DAY_NAMES: Record<number, string> = {
@@ -106,6 +123,7 @@ export async function prepareGenerationV2(
     pillar_levels: input.pillar_levels,
     sprints_covered_by_club: input.sprints_covered_by_club,
     session_minutes: input.max_session_duration,
+    day_minutes: input.day_minutes,
   })
   notes.push(...layout.notes)
 

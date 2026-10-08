@@ -2,7 +2,7 @@
 import { getSupabaseClient } from 'src/utils/supabase'
 import { getOpenAIClient } from 'src/utils/openai'
 import { prepareGeneration, PrepareResult } from 'src/plan-generation/generate-plan'
-import { prepareGenerationV2, shouldUseV2 } from 'src/plan-generation/v2/prepare-v2'
+import { prepareGenerationV2, shouldUseV2, parseDayDurations } from 'src/plan-generation/v2/prepare-v2'
 import { freezeLegacyCategories, freezeLegacySportCategories } from 'src/plan-generation/legacy-categories'
 import { intensityToPoints, pointsToLoadProfile } from 'src/plan-generation/helpers'
 
@@ -134,6 +134,7 @@ export async function preparePlanGeneration(input: { userId: string }): Promise<
         pillar_levels: pillarLevels,
         sprints_covered_by_club: (userProfile as any).sprints_covered_by_club ?? false,
         sprint_distance: (userProfile as any).sprint_distance ?? null,
+        day_minutes: parseDayDurations((userProfile as any).preferred_day_durations),
       },
       supabase,
       openai,
