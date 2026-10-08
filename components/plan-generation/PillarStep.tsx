@@ -29,7 +29,8 @@ export function PillarStep() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    content: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 24 },
+    // 120 wie die Schwester-Steps: der Weiter-Button floatet über dem Inhalt
+    content: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 120 },
     title: { marginBottom: 10 },
     subtitle: { marginBottom: 20 },
 });
