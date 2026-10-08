@@ -15,10 +15,10 @@ const ALL_STAT_SLUGS = [
 const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
     strength: 'barbell',
     jumps: 'arrow-up',
-    sprints: 'flash',
+    sprints: 'footsteps',
     cod: 'shuffle',
     conditioning: 'pulse',
-    lower_body_plyometrics: 'footsteps',
+    lower_body_plyometrics: 'arrow-up',
     upper_body_plyometrics: 'hand-right',
     mobility: 'body',
 };

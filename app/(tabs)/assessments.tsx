@@ -30,7 +30,7 @@ const CATEGORY_ORDER = ['strength', 'lower_body_plyometrics', 'upper_body_plyome
 const CATEGORY_ANIMATIONS: Record<string, object> = {
     strength: require('@/assets/animations/strength.json'),
     jumps: require('@/assets/animations/jump.json'),
-    lower_body_plyometrics: require('@/assets/animations/lower_plyo.json'),
+    lower_body_plyometrics: require('@/assets/animations/jump.json'),
     upper_body_plyometrics: require('@/assets/animations/upper_plyo.json'),
     mobility: require('@/assets/animations/mobility.json'),
     sprints: require('@/assets/animations/lower_plyo.json'),

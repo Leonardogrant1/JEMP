@@ -12,8 +12,11 @@ import { SvgProps } from "react-native-svg";
  */
 export const CATEGORY_SVG_ICONS: Record<string, ComponentType<SvgProps>> = {
     strength: StrengthIcon,
+    // Icon-Umzug 08.10.: Jump-Icon gehört zur gemergten Sprungkraft-Säule,
+    // das alte Lower-Plyo-Icon (Schritte) passt zur neuen Sprint-Säule.
     jumps: JumpIcon,
-    lower_body_plyometrics: LowerPlyoIcon,
+    lower_body_plyometrics: JumpIcon,
+    sprints: LowerPlyoIcon,
     upper_body_plyometrics: UpperPlyoIcon,
     mobility: MobilityIcon,
 };
