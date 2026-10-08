@@ -340,8 +340,8 @@ export default function AssessmentScreen() {
                         </JempText>
                         {descLong && (
                             <View style={styles.showMoreRow}>
-                                <JempText type="caption" color={Cyan[500]}>{t('ui.show_more')}</JempText>
-                                <Ionicons name="chevron-down" size={12} color={Cyan[500]} />
+                                <JempText type="caption" color={GradientMid}>{t('ui.show_more')}</JempText>
+                                <Ionicons name="chevron-down" size={12} color={GradientMid} />
                             </View>
                         )}
                     </Pressable>
