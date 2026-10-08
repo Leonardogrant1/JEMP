@@ -64,10 +64,13 @@ export function allocateDays(input: WeekLayoutInput): DayAllocation {
     else carrier = 'integrated'
   }
 
-  // Conditioning own day: level >= 2, low weekly load (damping §2.2), day to spare.
+  // Conditioning own day (damping §2.2): level 2 only at low weekly load;
+  // level 3 is a deliberate signal (e.g. combat-sport preset) and PIERCES the
+  // damping at any load. Speed drew its surplus days first — speed wins the
+  // shared spare day, conditioning falls back to the finisher.
   const conditioningLevel = input.pillar_levels.conditioning ?? 0
   let conditioningDay = false
-  if (conditioningLevel >= 2 && input.load_profile === 'low' && spare > 0) {
+  if (spare > 0 && (conditioningLevel === 3 || (conditioningLevel === 2 && input.load_profile === 'low'))) {
     conditioningDay = true
     spare -= 1
   }
@@ -216,7 +219,8 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
   //     a game. Prefers the game-farthest, longest training day.
   let finisherDay: number | null = null
   const conditioningLevel = input.pillar_levels.conditioning ?? 0
-  if (!allocation.conditioning_day && conditioningLevel >= 2 && input.load_profile !== 'high') {
+  const finisherAllowed = conditioningLevel === 3 || (conditioningLevel === 2 && input.load_profile !== 'high')
+  if (!allocation.conditioning_day && finisherAllowed) {
     const candidates = trainingDays
       .filter((d) => d !== sprintBlockDay && gameDays.every((g) => circularDayDistance(d, g) !== 1))
       .sort((a, b) => gameFwdFinite(b) - gameFwdFinite(a) || minutesFor(input, b) - minutesFor(input, a) || a - b)

@@ -61,10 +61,10 @@ describe('allocateDays (§2.1a)', () => {
     // cap high = 2 workouts; 4 days: 1 guaranteed speed + 1 surplus -> 2 speed days
     expect(a).toMatchObject({ workouts: 2, speed_days: 2 })
   })
-  it('conditioning gets an own day only at low load, level >= 2, with a day to spare', () => {
-    const yes = allocateDays({ ...base, available_days: [1, 2, 4, 6, 7], load_profile: 'low', pillar_levels: { conditioning: 2 } })
+  it('conditioning level 2 gets an own day only at low load with a day to spare', () => {
+    const yes = allocateDays({ ...base, available_days: [1, 2, 3, 4, 6, 7], load_profile: 'low', pillar_levels: { conditioning: 2 } })
     expect(yes.conditioning_day).toBe(true)
-    const highLoad = allocateDays({ ...base, available_days: [1, 2, 4, 6, 7], load_profile: 'high', pillar_levels: { conditioning: 3 } })
+    const highLoad = allocateDays({ ...base, available_days: [1, 2, 4, 6, 7], load_profile: 'high', pillar_levels: { conditioning: 2 } })
     expect(highLoad.conditioning_day).toBe(false)
   })
   it('mobility day flag from level >= 2 (consumes no available day)', () => {
@@ -406,10 +406,10 @@ describe('conditioning finisher (integrated carrier)', () => {
     const placed = placeWeek(input, allocateDays(input))
     expect(placed.days.filter((d) => (d as any).carries_conditioning_finisher).length).toBe(1)
   })
-  it('never fires at high weekly load (club covers it)', () => {
-    const input = { ...base, load_profile: 'high' as const, pillar_levels: { conditioning: 3 as const } }
-    const placed = placeWeek(input, allocateDays(input))
-    expect(placed.days.some((d) => (d as any).carries_conditioning_finisher)).toBe(false)
+  it('level 2 never fires at high weekly load (club covers it); level 3 pierces', () => {
+    const damped = { ...base, load_profile: 'high' as const, pillar_levels: { conditioning: 2 as const } }
+    const placedDamped = placeWeek(damped, allocateDays(damped))
+    expect(placedDamped.days.some((d) => (d as any).carries_conditioning_finisher)).toBe(false)
   })
   it('never lands on the sprint-carrier day', () => {
     const input = { ...base, pillar_levels: { conditioning: 2 as const, sprints: 2 as const } }
@@ -430,5 +430,47 @@ describe('conditioning finisher (integrated carrier)', () => {
     // The finisher's ~10 min must be part of the estimate, so its day drops
     // strictly MORE blocks — otherwise the session silently overruns the budget.
     expect(finisherWorkout.dropped.length).toBeGreaterThan(otherWorkout.dropped.length)
+  })
+})
+
+describe('review follow-up: cap low=5 and level-3 conditioning pierces damping', () => {
+  it('low load allows 5 workouts', () => {
+    const input = {
+      available_days: [1, 2, 3, 5, 6], load_profile: 'low' as const,
+      pillar_levels: {}, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([]),
+    }
+    expect(allocateDays(input).workouts).toBe(5)
+  })
+  it('high-load fighter with conditioning level 3 gets at least the finisher', () => {
+    const input = {
+      available_days: [1, 4], load_profile: 'high' as const,
+      pillar_levels: { conditioning: 3 as const }, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([
+        { day_of_week: 2, type: 'team_training', intensity: 9 },
+        { day_of_week: 5, type: 'team_training', intensity: 9 },
+      ]),
+    }
+    const placed = placeWeek(input, allocateDays(input))
+    expect(placed.days.some((d) => d.carries_conditioning_finisher)).toBe(true)
+  })
+  it('level-3 conditioning takes an own day from surplus even at medium load', () => {
+    const input = {
+      available_days: [1, 2, 4, 6], load_profile: 'medium' as const,
+      pillar_levels: { conditioning: 3 as const }, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([]),
+    }
+    expect(allocateDays(input).conditioning_day).toBe(true)
+  })
+  it('level-2 conditioning stays damped at high load (no finisher, no day)', () => {
+    const input = {
+      available_days: [1, 4], load_profile: 'high' as const,
+      pillar_levels: { conditioning: 2 as const }, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([]),
+    }
+    const alloc = allocateDays(input)
+    const placed = placeWeek(input, alloc)
+    expect(alloc.conditioning_day).toBe(false)
+    expect(placed.days.some((d) => d.carries_conditioning_finisher)).toBe(false)
   })
 })

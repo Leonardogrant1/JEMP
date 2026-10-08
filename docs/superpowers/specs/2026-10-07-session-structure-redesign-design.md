@@ -29,6 +29,7 @@ Supporting changes: pattern metadata on exercises (vertical/horizontal push/pull
 - Taper logic before fights/competitions (v2).
 - Drop Jump/RSI and T-Drill assessments (v2).
 - Weight versioning for score presentation (accepted: retroactive recomputation shifts history slightly when presets are tuned).
+- **Hypertrophy volume targets.** The block structure yields 1–2 exercises per pattern per session — enough for strength (intensity + frequency), roughly half the ~10+ hard weekly sets per muscle hypertrophy needs. Deliberate: JEMP plans athleticism, and strength at constant body weight beats mass for most sports. A volume mode (fewer patterns per session, 3–4 sets each) would collide with the coverage ledger and block mandate — noted as an idea, not scoped.
 
 ---
 
@@ -115,13 +116,14 @@ A new step **before** the existing Phase A, implemented as rule code, **not** LL
 
 **2.1a Day allocation:**
 
-- `workouts = min(cap(weekload), available_days)` — unchanged from today.
+- `workouts = min(cap(weekload), available_days)` with caps **low 5 / medium 3 / high 2** (amendment: low raised from 4 — without club sessions and games, five own training days are sustainable; medium/high stay, club load counts).
 - **The speed day is driven by `speed_level = max(sprint level, COD level)`** — the speed session carries both pillars (§2.5), so a basketball player with COD 3 / sprints 1 gets their speed day through COD. The sprint/COD mix inside the session follows the two levels.
 - **Speed level 3:** speed is guaranteed one of the available days; workouts drop to `workouts − 1`, but never below the minimum of 2. A **second** speed day arises only when, after this allocation, a surplus day over the workout cap is still free **and** a legal placement window (72h/48h rules) exists for it — same surplus logic as level 2. **Edge case 2 available days:** reserving a day would push workouts below 2 → no standalone day exists; speed falls back to an **extended** integrated block (§2.5) on the game-farthest workout day.
 - **Speed level 2:** speed gets its own day **only if a day is left over the workout cap** (e.g., 4 days available, cap 3 → 3 workouts + 1 speed). No spare day → no standalone; the sprint/COD block integrates into a workout (§2.5).
 - **Speed level 1:** micro-dose only, never an own day.
+- **Surplus-day priority: speed before conditioning.** Allocation draws surplus days sequentially — speed first, then conditioning. When one spare day is contested, speed wins and conditioning falls back to the finisher (it has a cheap integrated form; speed's standalone form carries the venue/equipment advantage).
 - Mobility never consumes a day from the budget (fatigue 0); standalone mobility session only from mobility level 2, placed on rest days.
-- Conditioning session only when weekly load permits (§2.2) and a day is available; otherwise a **conditioning finisher** (~10 min interval block at the end of a workout, minutes budgeted by the duration estimate so the breadth lever compensates — never on the sprint-carrier day, never the day before a game, damped away at high load) — the integrated carrier implemented in Phase 2b.
+- Conditioning: level 2 gets an own day only at low weekly load (damping §2.2); **level 3 pierces the damping at any load** (the deliberate signal of e.g. the combat-sport preset — own day when a surplus day exists, finisher otherwise, resolving the §2.2 combat exception). Otherwise a **conditioning finisher** (~10 min interval block at the end of a workout, minutes budgeted by the duration estimate so the breadth lever compensates — never on the sprint-carrier day, never the day before a game, damped away at high load) — the integrated carrier implemented in Phase 2b.
 
 **2.1b Weekday placement (fatigue rules):**
 
