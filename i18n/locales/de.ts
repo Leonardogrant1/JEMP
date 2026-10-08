@@ -205,6 +205,7 @@ const de: Record<TranslationKeys, string> = {
     'rst.rest_label': 'Pause — nächster Lauf in',
     'rst.done_label': 'Alle Läufe gestoppt',
     'rst.implausible': 'Die letzten Läufe sind deutlich schneller als die ersten — prüfe die Reihenfolge der Zeiten.',
+    'rst.out_of_range': 'Für 30 m sind Zeiten unter 2 s oder über 10 s unplausibel — prüfe die gestoppten Läufe.',
     'cooper.meters_label': 'Distanz in Metern',
     'cooper.meters_placeholder': 'z. B. 2400',
     'score_source.measured': 'Gemessen',

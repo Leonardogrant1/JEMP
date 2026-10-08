@@ -10,15 +10,26 @@ const DEDICATED_SPRINT_SLUGS = new Set(['sprint_10m', 'sprint_30m', 'sprint_10m_
 
 export type RstDerived = { dropOffPct: number; meanTime: number; run1: number };
 
-/** Validiert 6 plausible Zeiten (2–10 s) und leitet Drop-off/Durchschnitt ab. */
-export function rstDerive(times: number[]): RstDerived | null {
+/** Warum rstDerive ablehnt — die UI braucht die Ursache für die richtige
+ *  Fehlermeldung: 'range' = Zeit außerhalb 2–10 s (z. B. Stoppuhr zu früh
+ *  gestoppt), 'order' = letzte Läufe deutlich schneller (Rückwärts-Eingabe). */
+export function rstInvalidReason(times: number[]): 'range' | 'order' | null {
     if (times.length !== RST_RUN_COUNT) return null;
-    if (times.some((t) => !Number.isFinite(t) || t < 2 || t > 10)) return null;
+    if (times.some((t) => !Number.isFinite(t) || t < 2 || t > 10)) return 'range';
     const first2 = (times[0] + times[1]) / 2;
     const last2 = (times[4] + times[5]) / 2;
     // "Ascending-ish" (Review M8): deutlich schnellere letzte Läufe deuten auf
     // Rückwärts-Eingabe — negativer Drop-off würde den Score aufblasen.
-    if (last2 < first2 * 0.97) return null;
+    if (last2 < first2 * 0.97) return 'order';
+    return null;
+}
+
+/** Validiert 6 plausible Zeiten (2–10 s) und leitet Drop-off/Durchschnitt ab. */
+export function rstDerive(times: number[]): RstDerived | null {
+    if (times.length !== RST_RUN_COUNT) return null;
+    if (rstInvalidReason(times) !== null) return null;
+    const first2 = (times[0] + times[1]) / 2;
+    const last2 = (times[4] + times[5]) / 2;
     const dropOffPct = ((last2 - first2) / first2) * 100;
     const meanTime = times.reduce((a, b) => a + b, 0) / RST_RUN_COUNT;
     return { dropOffPct: Math.round(dropOffPct * 10) / 10, meanTime: Math.round(meanTime * 100) / 100, run1: times[0] };

@@ -1,4 +1,4 @@
-import { rstDerive, shouldFeedSprintScore } from '@/lib/rst';
+import { rstDerive, rstInvalidReason, shouldFeedSprintScore } from '@/lib/rst';
 
 describe('rstDerive', () => {
     it('berechnet Drop-off (first2 vs last2) und Durchschnitt', () => {
@@ -11,6 +11,20 @@ describe('rstDerive', () => {
         expect(rstDerive([4, 4, 4, 4, 4])).toBeNull();
         expect(rstDerive([4, 4, 4, 4, 4, 99])).toBeNull();
         expect(rstDerive([4, 4, 4, 4, 4, 0])).toBeNull();
+    });
+});
+
+describe('rstInvalidReason', () => {
+    it('null bei gültigen oder unvollständigen Zeiten', () => {
+        expect(rstInvalidReason([4.0, 4.1, 4.3, 4.4, 4.5, 4.6])).toBeNull();
+        expect(rstInvalidReason([4.0, 4.1])).toBeNull();
+    });
+    it('range bei Zeiten außerhalb 2–10 s (z. B. zu schnelles Durchtippen)', () => {
+        expect(rstInvalidReason([0.5, 0.6, 0.4, 0.5, 0.6, 0.5])).toBe('range');
+        expect(rstInvalidReason([4, 4, 4, 4, 4, 99])).toBe('range');
+    });
+    it('order nur, wenn die letzten Läufe deutlich schneller sind', () => {
+        expect(rstInvalidReason([4.9, 4.8, 4.6, 4.5, 4.1, 4.0])).toBe('order');
     });
 });
 

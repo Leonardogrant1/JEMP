@@ -2,7 +2,7 @@ import { JempText } from '@/components/jemp-text';
 import { Colors, Cyan, Electric, GRADIENT, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useStopwatch } from '@/hooks/use-stopwatch';
-import { rstDerive, RST_REST_SECONDS, RST_RUN_COUNT } from '@/lib/rst';
+import { rstDerive, rstInvalidReason, RST_REST_SECONDS, RST_RUN_COUNT } from '@/lib/rst';
 import { useCompleteAssessment } from '@/mutations/use-complete-assessment';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { useUserAssessmentQuery } from '@/queries/use-user-assessment-query';
@@ -52,7 +52,9 @@ export default function AssessmentRstScreen() {
         : times.map((v) => parseFloat(v.replace(',', '.')));
     const allRecorded = mode === 'timer' ? stopwatch.attempts.length >= RST_RUN_COUNT : true;
     const derived = rstDerive(parsed);
-    const implausible = parsed.length === RST_RUN_COUNT && parsed.every((v) => Number.isFinite(v)) && derived === null;
+    const invalidReason = parsed.length === RST_RUN_COUNT && parsed.every((v) => Number.isFinite(v))
+        ? rstInvalidReason(parsed)
+        : null;
     const canSubmit = derived !== null && !completeAssessment.isPending;
 
     function setTime(i: number, v: string) {
@@ -236,9 +238,9 @@ export default function AssessmentRstScreen() {
                         {`Drop-off ${derived.dropOffPct}% · Ø ${derived.meanTime}s`}
                     </JempText>
                 )}
-                {implausible && (
+                {invalidReason && (
                     <JempText type="body-sm" color="#ef4444" style={styles.derived}>
-                        {t('rst.implausible')}
+                        {t(invalidReason === 'range' ? 'rst.out_of_range' : 'rst.implausible')}
                     </JempText>
                 )}
 

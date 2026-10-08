@@ -203,6 +203,7 @@ const en = {
     'rst.rest_label': 'Rest — next run in',
     'rst.done_label': 'All runs recorded',
     'rst.implausible': 'The last runs are much faster than the first — check the order of your times.',
+    'rst.out_of_range': 'Times under 2 s or over 10 s are implausible for 30 m — check your recorded runs.',
     'cooper.meters_label': 'Distance in meters',
     'cooper.meters_placeholder': 'e.g. 2400',
     'score_source.measured': 'Measured',
