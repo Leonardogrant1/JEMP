@@ -40,6 +40,17 @@ export function SessionCard({ session, modeSlug: propModeSlug, theme }: { sessio
             <View style={styles.cardContent}>
                 <JempText type="h1" color="#fff">{session.name}</JempText>
                 <View style={styles.metaRow}>
+                    {(() => {
+                        const st = (session as any).session_type as string | null;
+                        if (!st || st === 'training' || st === 'recovery') return null;
+                        const ICONS: Record<string, string> = { speed: 'flash-outline', mobility: 'body-outline', conditioning: 'pulse-outline' };
+                        return (
+                            <SessionChip
+                                icon={<Ionicons name={(ICONS[st] ?? 'barbell-outline') as any} size={12} color={GradientMid} />}
+                                label={t(`session_type.${st}`)}
+                            />
+                        );
+                    })()}
                     {session.estimated_duration_minutes ? (
                         <SessionChip
                             icon={<Ionicons name="time-outline" size={12} color={GradientMid} />}

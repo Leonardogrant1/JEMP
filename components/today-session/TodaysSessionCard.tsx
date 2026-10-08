@@ -69,7 +69,18 @@ export function TodaysSessionHero({ session }: { session: WorkoutSession }) {
                     </JempText>
                     <JempText type="hero" color="#fff">{session.name}</JempText>
                     <View style={styles.metaRow}>
-                        {session.estimated_duration_minutes ? (
+                        {(() => {
+                        const st = (session as any).session_type as string | null;
+                        if (!st || st === 'training' || st === 'recovery') return null;
+                        const ICONS: Record<string, string> = { speed: 'flash-outline', mobility: 'body-outline', conditioning: 'pulse-outline' };
+                        return (
+                            <SessionChip
+                                icon={<Ionicons name={(ICONS[st] ?? 'barbell-outline') as any} size={12} color={GradientMid} />}
+                                label={t(`session_type.${st}`)}
+                            />
+                        );
+                    })()}
+                    {session.estimated_duration_minutes ? (
                             <SessionChip
                                 icon={<Ionicons name="time-outline" size={12} color={GradientMid} />}
                                 label={`${session.estimated_duration_minutes} ${t('ui.min')}`}
