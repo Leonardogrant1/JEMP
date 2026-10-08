@@ -276,7 +276,7 @@ export default function AssessmentsScreen() {
                             <Pressable
                                 key={ua.id}
                                 style={[styles.card, { backgroundColor: theme.surface }]}
-                                onPress={() => router.push(`/assessment/${ua.id}`)}
+                                onPress={() => router.push((ua.assessment?.slug === 'repeated_sprint_test' ? `/assessment-rst?id=${ua.id}` : `/assessment/${ua.id}`) as never)}
                             >
                                 <View style={[styles.circle, { borderColor: theme.borderStrong }]} />
                                 <View style={styles.cardText}>

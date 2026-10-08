@@ -26,11 +26,12 @@ import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { CooperCountdown } from '@/components/assessments/cooper-countdown';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     ActivityIndicator, Pressable,
-    StyleSheet, View,
+    StyleSheet, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -71,6 +72,7 @@ export default function AssessmentScreen() {
     const [tapeCm, setTapeCm] = useState(0);
     const [repCount, setRepCount] = useState(0);
     const [secInt, setSecInt] = useState(0);
+    const [metersInput, setMetersInput] = useState('');
     const [secTenth, setSecTenth] = useState(0);
     const [weightMain, setWeightMain] = useState(0);
     const [weightTenth, setWeightTenth] = useState(0);
@@ -153,6 +155,7 @@ export default function AssessmentScreen() {
     const isRatingBased = unitKey === 'rating';
     const isCmBased = unitKey === 'cm';
     const isCountBased = unitKey === 'count';
+    const isMetersBased = unitKey === 'm';
     // Vertical Jump lässt sich per Video über die Flugzeit messen
     const isVideoMeasurable = assessment.slug === 'vertical_jump';
     const repMax = REP_RAIL_MAX[assessment.slug] ?? REP_RAIL_DEFAULT_MAX;
@@ -197,7 +200,9 @@ export default function AssessmentScreen() {
                 ? repCount > 0 ? String(repCount) : ''
                 : isTimeBased
                     ? secInt + secTenth > 0 ? (secInt + secTenth / 10).toFixed(1) : ''
-                    : weightKgValue > 0 ? String(weightKgValue) : '';
+                    : isMetersBased
+                        ? (parseInt(metersInput, 10) > 0 ? String(parseInt(metersInput, 10)) : '')
+                        : weightKgValue > 0 ? String(weightKgValue) : '';
 
     // Weighted pull-ups: convert over total load (incl. bodyweight), not just the added plates
     const pullupBodyweight = assessment.slug === 'weighted_pullups_1rm' ? profile?.weight_in_kg ?? undefined : undefined;
@@ -473,6 +478,19 @@ export default function AssessmentScreen() {
                                 </Pressable>
                             </>
                         )}
+                    </View>
+                ) : !isRatingBased && isMetersBased ? (
+                    <View style={styles.section}>
+                        <CooperCountdown />
+                        <JempText type="caption" color={theme.textMuted}>{t('cooper.meters_label')}</JempText>
+                        <TextInput
+                            value={metersInput}
+                            onChangeText={(v) => setMetersInput(v.replace(/[^0-9]/g, ''))}
+                            keyboardType="number-pad"
+                            placeholder={t('cooper.meters_placeholder')}
+                            placeholderTextColor={theme.textSubtle}
+                            style={[styles.metersInput, { color: theme.text, borderColor: theme.borderStrong }]}
+                        />
                     </View>
                 ) : !isRatingBased && mode === 'manual' && isCountBased ? (
                     <View style={styles.inputSection}>
@@ -762,6 +780,8 @@ export default function AssessmentScreen() {
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+    metersInput: { borderWidth: 1.5, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16, fontSize: 22, marginTop: 6 },
+    section: { gap: 4 },
     root: { flex: 1 },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     scroll: { flex: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120 },

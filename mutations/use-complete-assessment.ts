@@ -1,4 +1,7 @@
 import { calculateAssessmentScore, AssessmentUserProfile } from '@/lib/score-calculators/assessment-score';
+import { rstConditioningLevel } from '@/lib/score-calculators/conditioning';
+import { rstDerive, shouldFeedSprintScore } from '@/lib/rst';
+import { calculateAge } from '@/types/user-data';
 import { queryKeys } from '@/queries/query-keys';
 import { supabase } from '@/services/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -15,13 +18,74 @@ type CompleteAssessmentParams = {
     assessmentSlug: string;
     categoryId: string;
     userProfile: AssessmentUserProfile;
+    /** RST-Flow (Spec §4.4): 6 Zeiten — value trägt dann den Drop-off %. */
+    rstTimes?: number[];
 };
 
 async function completeAssessment({
     userAssessmentId, assessmentId, userId, metricId, value,
     assessmentSlug, categoryId, userProfile,
+    rstTimes,
 }: CompleteAssessmentParams): Promise<{ newUnlocks: AchievementDef[] }> {
-    const score = calculateAssessmentScore(assessmentSlug, value, userProfile);
+    let score = calculateAssessmentScore(assessmentSlug, value, userProfile);
+    let entryValue = value;
+
+    // ── RST-Sonderfall (Spec §4.4): Score aus 6 Zeiten, zweiter Metric-Eintrag
+    //    für die Durchschnittszeit, Lauf 1 füttert optional den Sprint-Score.
+    if (assessmentSlug === 'repeated_sprint_test' && rstTimes) {
+        const derived = rstDerive(rstTimes);
+        if (!derived) throw new Error('RST: ungültige Zeiten');
+        const age = calculateAge(userProfile.birth_date);
+        score = rstConditioningLevel(rstTimes, age, userProfile.gender);
+        entryValue = derived.dropOffPct;
+
+        const { data: meanMetric } = await supabase.from('metrics').select('id').eq('slug', 'rst_mean_time').single();
+        if (meanMetric) {
+            await supabase.from('metric_entries').insert({
+                user_id: userId, metric_id: meanMetric.id, value: derived.meanTime,
+                source_type: 'assessment', user_assessment_id: userAssessmentId,
+            });
+        }
+
+        // Prioritäts-Regel: dedizierter Sprint-Test ≤120 Tage gewinnt.
+        const { data: dedicated } = await supabase
+            .from('user_assessments')
+            .select('completed_at, assessment:assessments!inner ( slug )')
+            .eq('user_id', userId)
+            .eq('status', 'completed')
+            .in('assessment.slug', ['sprint_10m', 'sprint_30m', 'sprint_10m_flying']);
+        const existing = (dedicated ?? [])
+            .filter((r: any) => r.completed_at)
+            .map((r: any) => ({ assessmentSlug: r.assessment.slug, completedAt: r.completed_at }));
+        if (shouldFeedSprintScore(existing, new Date())) {
+            // Lauf 1 ist eine echte 30m-Zeit → als Sprint-Messung über den
+            // regulären Pfad (eigene user_assessment-Zeile für sprint_30m).
+            const { data: sprintAssessment } = await supabase
+                .from('assessments')
+                .select('id, measured_metric_id, category_id')
+                .eq('slug', 'sprint_30m')
+                .single();
+            if (sprintAssessment?.measured_metric_id && sprintAssessment.category_id) {
+                const { data: ua } = await supabase
+                    .from('user_assessments')
+                    .insert({ user_id: userId, assessment_id: sprintAssessment.id, status: 'in_progress', started_at: new Date().toISOString() })
+                    .select('id')
+                    .single();
+                if (ua) {
+                    await completeAssessment({
+                        userAssessmentId: ua.id,
+                        assessmentId: sprintAssessment.id,
+                        userId,
+                        metricId: sprintAssessment.measured_metric_id,
+                        value: derived.run1,
+                        assessmentSlug: 'sprint_30m',
+                        categoryId: sprintAssessment.category_id,
+                        userProfile,
+                    });
+                }
+            }
+        }
+    }
 
     // 1. Insert metric entry (with score if calculable)
     const { error: metricError } = await supabase
@@ -29,7 +93,7 @@ async function completeAssessment({
         .insert({
             user_id: userId,
             metric_id: metricId,
-            value,
+            value: entryValue,
             source_type: 'assessment',
             user_assessment_id: userAssessmentId,
             ...(score !== null && { score }),
