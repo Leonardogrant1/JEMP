@@ -6,6 +6,8 @@ import { ENV_ICONS } from '@/constants/environment-icons';
 import { getSportKind } from '@/constants/sports';
 import { Colors, GradientMid } from '@/constants/theme';
 import { computeLoadProfile, maxWorkoutDays, MIN_WORKOUT_DAYS } from '@/lib/load-profile';
+import { computeWeekComposition } from '@/lib/week-allocation';
+import { DayDurationSheet } from '@/components/onboarding/day-duration-sheet';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTrainingAnimationBySlug } from '@/hooks/use-training-animation';
 import { supabase } from '@/services/supabase/client';
@@ -17,7 +19,7 @@ import { router } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, View, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 const DURATIONS: { value: SessionDuration; label: string }[] = [
@@ -33,6 +35,10 @@ export function WorkoutPrefsStep() {
     const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
     const storedDays = useOnboardingStore((s) => s.preferred_workout_days);
+    const pillarLevels = useOnboardingStore((s) => s.pillarLevels);
+    const sprintsCoveredByClub = useOnboardingStore((s) => s.sprints_covered_by_club);
+    const dayDurations = useOnboardingStore((s) => s.preferred_day_durations);
+    const [durationSheetDay, setDurationSheetDay] = useState<number | null>(null);
     const storedDuration = useOnboardingStore((s) => s.preferred_session_duration);
     const storedDayEnvironments = useOnboardingStore((s) => s.dayEnvironments);
     const environmentIds = useOnboardingStore((s) => s.environmentIds);
@@ -207,6 +213,16 @@ export function WorkoutPrefsStep() {
                                         />
                                     );
                                 })()}
+                                {active && (() => {
+                                    const override = (dayDurations ?? []).find((d) => d.day_of_week === dow);
+                                    return (
+                                        <Pressable onPress={() => setDurationSheetDay(dow)} hitSlop={8}>
+                                            {override
+                                                ? <JempText type="caption" color={GradientMid}>{`${override.minutes}m`}</JempText>
+                                                : <Ionicons name="time-outline" size={15} color={theme.textMuted} />}
+                                        </Pressable>
+                                    );
+                                })()}
                                 {active
                                     ? <Ionicons name="checkmark-circle" size={16} color={GradientMid} />
                                     : <Ionicons name="add" size={18} color={theme.textSubtle} />
@@ -224,6 +240,30 @@ export function WorkoutPrefsStep() {
                         {t(overCap ? 'onboarding.workout_prefs_max_days_over' : 'onboarding.workout_prefs_max_days_hint', { count: maxDays })}
                     </JempText>
                 )}
+                {(() => {
+                    // Live-Zusammensetzung (§3.4): deterministisch aus dem Allocation-Spiegel —
+                    // verspricht exakt das, was der Generator baut.
+                    if (selectedDays.size < MIN_WORKOUT_DAYS || pillarLevels.length === 0) return null;
+                    const levelMap: Record<string, 1 | 2 | 3> = {};
+                    pillarLevels.forEach((l) => { levelMap[l.slug] = l.level; });
+                    const comp = computeWeekComposition({
+                        availableDayCount: Math.min(selectedDays.size, maxDays + 2),
+                        loadProfile: computeLoadProfile(sportSessions).load_profile,
+                        pillarLevels: levelMap,
+                        sprintsCoveredByClub: sprintsCoveredByClub ?? false,
+                    });
+                    const parts: string[] = [t('week_composition.workouts', { count: comp.workouts })];
+                    if (comp.speedDays === 1) parts.push(t('week_composition.speed_days', { count: 1 }));
+                    if (comp.speedDays > 1) parts.push(t('week_composition.speed_days_plural', { count: comp.speedDays }));
+                    if (comp.speedDays === 0 && comp.carrier === 'integrated') parts.push(t('week_composition.sprint_integrated'));
+                    if (comp.conditioningDay) parts.push(t('week_composition.conditioning_day'));
+                    const line = parts.join(' + ') + (comp.mobilityDay ? ` · ${t('week_composition.mobility')}` : '');
+                    return (
+                        <JempText type="caption" color={GradientMid} style={styles.maxDaysHint}>
+                            {line}
+                        </JempText>
+                    );
+                })()}
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(480).duration(500).springify()} style={styles.section}>
@@ -243,6 +283,18 @@ export function WorkoutPrefsStep() {
                 </View>
             </Animated.View>
 
+            <DayDurationSheet
+                visible={durationSheetDay !== null}
+                dayLabel={DAYS.find((d) => d.value === durationSheetDay)?.label ?? ''}
+                currentMinutes={(dayDurations ?? []).find((d) => d.day_of_week === durationSheetDay)?.minutes ?? null}
+                defaultMinutes={selectedDuration === '30min' ? 30 : selectedDuration === '45min' ? 45 : selectedDuration === '90min' ? 90 : 60}
+                onSelect={(minutes) => {
+                    if (durationSheetDay === null) return;
+                    const rest = (dayDurations ?? []).filter((d) => d.day_of_week !== durationSheetDay);
+                    setStore({ preferred_day_durations: minutes === null ? (rest.length > 0 ? rest : null) : [...rest, { day_of_week: durationSheetDay, minutes }] });
+                }}
+                onClose={() => setDurationSheetDay(null)}
+            />
         </ScrollView>
     );
 }
