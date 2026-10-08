@@ -8,14 +8,14 @@ const en = {
 
     // ── Categories (slugs from categories table) ─────────────────────────
     'pillars.title': 'Your priorities',
-    'pillars.subtitle': 'Your sport sets the baseline — spend your budget on what matters most to you.',
-    'pillars.budget': '{{spent}} of {{budget}} points',
+    'pillars.subtitle': 'Every pillar stays in your training — put your focus points on what matters most to you.',
+    'pillars.budget': '{{spent}} of {{budget}} focus points spent',
     'pillars.level_1': 'Maintain',
     'pillars.level_2': 'Focus',
     'pillars.level_3': 'Priority',
     'pillars.load_error': 'Could not load your pillars.',
     'pillars.load_retry': 'Tap to retry',
-    'pillars.budget_full': 'Budget full — reduce another pillar first.',
+    'pillars.budget_full': 'All focus points spent — take one from another pillar first.',
     'pillars.hint_sprint_level3': 'One of your training days becomes a sprint session.',
     'pillars.hint_sprint_level2': 'If your week has room, a sprint session is added.',
     'sprint_context.title': 'Sprints & your club',

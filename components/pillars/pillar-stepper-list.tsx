@@ -5,6 +5,7 @@ import { getCategoryDescription, type CategoryI18n } from '@/constants/category-
 import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { budgetSpent, canIncrement, type PillarLevel } from '@/lib/pillar-budget';
+import { useToastStore } from '@/stores/toast-store';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
@@ -33,11 +34,21 @@ export function PillarStepperList({ pillars, levels, budget, onChange }: Props) 
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const [infoPillar, setInfoPillar] = useState<PillarListItem | null>(null);
 
-    const spent = budgetSpent(levels);
+    // Reframing (QA 08.10.): Stufe 1 ist die kostenlose Basis — angezeigt
+    // werden nur die Fokus-Punkte darüber (Budget N+4 → immer 4 Punkte).
+    // Engine und gespeicherte Levels bleiben unverändert.
+    const focusSpent = budgetSpent(levels) - levels.length;
+    const focusBudget = budget - levels.length;
 
     function increment(categoryId: string) {
         if (!canIncrement(levels, categoryId, budget)) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            const current = levels.find((l) => l.categoryId === categoryId);
+            // Nur wenn das Budget blockiert (nicht die Stufen-Obergrenze):
+            // erklären, warum der Tap nichts tut.
+            if (current && current.level < 3) {
+                useToastStore.getState().show(t('pillars.budget_full'));
+            }
             return;
         }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -61,8 +72,8 @@ export function PillarStepperList({ pillars, levels, budget, onChange }: Props) 
     return (
         <View>
             <View style={[styles.budgetBar, { backgroundColor: theme.surface }]}>
-                <JempText type="body-sm" color={spent >= budget ? GradientMid : theme.textMuted}>
-                    {t('pillars.budget', { spent, budget })}
+                <JempText type="body-sm" color={focusSpent >= focusBudget ? GradientMid : theme.textMuted}>
+                    {t('pillars.budget', { spent: focusSpent, budget: focusBudget })}
                 </JempText>
             </View>
 
@@ -96,8 +107,9 @@ export function PillarStepperList({ pillars, levels, budget, onChange }: Props) 
                                         <Ionicons name="remove" size={18} color={theme.text} />
                                     </Pressable>
                                     <View style={styles.pips}>
-                                        {[1, 2, 3].map((p) => (
-                                            <View key={p} style={[styles.pip, { backgroundColor: p <= level ? GradientMid : theme.borderStrong }]} />
+                                        {/* Ein Pip pro investiertem Fokus-Punkt (Stufe − Basis) */}
+                                        {[1, 2].map((p) => (
+                                            <View key={p} style={[styles.pip, { backgroundColor: p <= level - 1 ? GradientMid : theme.borderStrong }]} />
                                         ))}
                                     </View>
                                     <Pressable onPress={() => increment(pillar.categoryId)} hitSlop={8}
