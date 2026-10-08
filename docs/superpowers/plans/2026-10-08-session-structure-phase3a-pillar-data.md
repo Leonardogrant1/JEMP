@@ -234,8 +234,8 @@ Expected: `0` (every lbp-user has a sprints row; spot-check cod/conditioning ana
 | volleyball | 2 | 3 | 1 | 1 | 1 | 1 | 1 |
 | handball | 2 | 2 | 2 | 1 | 2 | 1 | 1 |
 | rugby, football (american) | 3 | 2 | 0 | 2 | 1 | 1 | 1 |
-| boxing, kickboxing, karate, taekwondo | 2 | 1 | 3 | 1 | 0 | 2 | 1 |
-| mma | 2 | 1 | 2 | 1 | 0 | 3 | 1 |
+| boxing, kickboxing, karate, taekwondo | 2 | 1 | 3 | 1 | 1 | 2 | 1 |
+| mma | 2 | 1 | 2 | 1 | 1 | 3 | 1 |
 | bjj | 2 | 1 | 1 | 0 | 0 | 3 | 2 |
 | judo, wrestling | 3 | 1 | 1 | 0 | 0 | 2 | 2 |
 | sprinting | 2 | 2 | 0 | 3 | 0 | 0 | 1 |
@@ -471,3 +471,5 @@ Aus dem Final-Review; alle Queries read-only gegen Prod ausführen:
 3. Nach dem Push: `SELECT count(*) FROM user_category_levels ucl WHERE NOT EXISTS (SELECT 1 FROM user_category_levels x JOIN categories c ON c.id = x.category_id AND c.slug = 'sprints' WHERE x.user_id = ucl.user_id);` → 0 (Level-Lockout-Guard; Fallback-INSERT deckt auch lbp-lose User).
 4. Migrationen NUR via `supabase db push` / `migration up` (Transaktions-Wrapper!) — manuelles `psql -f` lässt `SET LOCAL lock_timeout` wirkungslos verpuffen (Laterality-Learning).
 5. App 3.0.0 muss die Säulen-Labels (i18n `category.sprints/cod/conditioning`, seit Phase 3a drin) und die `is_active`-Filter in goals.tsx/category-level-step enthalten — beides in diesem Branch.
+
+> **Amendment 08.10. (QA):** Striker + MMA bekommen COD 1 (Erhaltung — Ladder/Shuffle-Fußarbeit) via `20261008140000_striker_cod_level_1.sql`; Grappler bleiben 0.
