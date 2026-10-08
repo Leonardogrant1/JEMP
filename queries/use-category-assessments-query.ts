@@ -37,7 +37,7 @@ async function fetchCategoryAssessments(
     // 2. Fetch assessments for this category + metric info (small set)
     const { data: assessments, error: assessmentsErr } = await supabase
         .from('assessments')
-        .select('id, name, metric:metrics!measured_metric_id(unit, higher_is_better)')
+        .select('id, name, metric:metrics!measured_metric_id(slug, unit, higher_is_better)')
         .eq('category_id', cat.id);
     if (assessmentsErr) throw assessmentsErr;
     if (!assessments?.length) return [];
@@ -47,7 +47,8 @@ async function fetchCategoryAssessments(
             a.id,
             {
                 name: a.name as string,
-                unit: (a.metric as any)?.unit ?? '',
+                // RST-Drop-off: Prozent im 's'-Metric (Review I5) — Unit hier umlabeln
+                unit: (a.metric as any)?.slug === 'rst_drop_off' ? '%' : ((a.metric as any)?.unit ?? ''),
                 higherIsBetter: (a.metric as any)?.higher_is_better ?? true,
             },
         ])

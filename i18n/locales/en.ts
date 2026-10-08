@@ -204,6 +204,8 @@ const en = {
     'score_source.stale': 'Stale — retest due',
     'score_source.estimated': 'Estimated',
     'assessments.recommended': 'Recommended for you',
+    'score_source.cta_measure': 'Measure now',
+    'score_source.cta_retest': 'Retest due — measure now',
     'ui.pause': 'Rest',
     'ui.min': 'min',
     'ui.welcome_back': 'Welcome Back,',

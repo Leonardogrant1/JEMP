@@ -206,6 +206,8 @@ const de: Record<TranslationKeys, string> = {
     'score_source.stale': 'Veraltet — Retest fällig',
     'score_source.estimated': 'Geschätzt',
     'assessments.recommended': 'Empfohlen für dich',
+    'score_source.cta_measure': 'Jetzt messen',
+    'score_source.cta_retest': 'Retest fällig — jetzt messen',
     'ui.pause': 'Pause',
     'ui.min': 'Min.',
     'ui.welcome_back': 'Willkommen zurück,',

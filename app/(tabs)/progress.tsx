@@ -14,7 +14,7 @@ import { useOverallScore } from '@/hooks/use-overall-score';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { useCategoryAssessmentsQuery } from '@/queries/use-category-assessments-query';
 import { useUserCategoryHistoryQuery } from '@/queries/use-user-category-history-query';
-import { overallSeries } from '@/lib/pillar-score';
+import { overallSeries, pillarSourceStatus } from '@/lib/pillar-score';
 import { usePillarWeightsQuery } from '@/queries/use-pillar-weights-query';
 import { useUserCategoryLevelsQuery } from '@/queries/use-user-category-levels-query';
 import { useDevToolsStore } from '@/stores/dev-tools-store';
@@ -91,6 +91,12 @@ export default function ProgressScreen() {
         }
         return result;
     }, [historyData]);
+
+    // Retest-/Mess-CTA (Spec §5.4, Review I3): Status der gewählten Säule
+    const selectedMeta = (categoryLevels as any)?.__meta?.[selectedCategory];
+    const selectedStatus = selectedCategory !== 'all' && selectedMeta
+        ? pillarSourceStatus(selectedMeta.source, selectedMeta.measuredAt, new Date())
+        : selectedCategory !== 'all' ? 'estimated' : null;
 
     const heroLabel = selectedCategory === 'all'
         ? t('category.overall')
@@ -175,6 +181,16 @@ export default function ProgressScreen() {
                             : null}
                     />
 
+                    {selectedStatus && selectedStatus !== 'measured' && (
+                        <Pressable
+                            onPress={() => router.push('/(tabs)/assessments' as never)}
+                            style={{ alignSelf: 'center', marginBottom: 12 }}
+                        >
+                            <JempText type="button" color={Cyan[500]}>
+                                {t(selectedStatus === 'stale' ? 'score_source.cta_retest' : 'score_source.cta_measure')}
+                            </JempText>
+                        </Pressable>
+                    )}
                     {selectedCategory === 'all' && (
                         <CategoryStatGrid
                             levels={categoryLevels ?? {}}

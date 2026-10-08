@@ -25,3 +25,18 @@ describe('shouldFeedSprintScore (Prioritäts-Regel §4.4)', () => {
         expect(shouldFeedSprintScore([], now)).toBe(true);
     });
 });
+
+describe('review fixes I2/M8', () => {
+    it('rstDerive lehnt rückwärts eingegebene Zeiten ab (last2 deutlich schneller als first2)', () => {
+        expect(rstDerive([4.9, 4.8, 4.6, 4.5, 4.1, 4.0])).toBeNull();
+    });
+    it('shouldFeedSprintScore ignoriert RST-gespeiste (derived) Einträge', () => {
+        const now = new Date('2026-10-08');
+        expect(shouldFeedSprintScore([
+            { assessmentSlug: 'sprint_30m', completedAt: '2026-09-01', sourceType: 'derived' },
+        ], now)).toBe(true);
+        expect(shouldFeedSprintScore([
+            { assessmentSlug: 'sprint_30m', completedAt: '2026-09-01', sourceType: 'assessment' },
+        ], now)).toBe(false);
+    });
+});

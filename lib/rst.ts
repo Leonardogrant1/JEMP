@@ -15,6 +15,9 @@ export function rstDerive(times: number[]): RstDerived | null {
     if (times.some((t) => !Number.isFinite(t) || t < 2 || t > 10)) return null;
     const first2 = (times[0] + times[1]) / 2;
     const last2 = (times[4] + times[5]) / 2;
+    // "Ascending-ish" (Review M8): deutlich schnellere letzte Läufe deuten auf
+    // Rückwärts-Eingabe — negativer Drop-off würde den Score aufblasen.
+    if (last2 < first2 * 0.97) return null;
     const dropOffPct = ((last2 - first2) / first2) * 100;
     const meanTime = times.reduce((a, b) => a + b, 0) / RST_RUN_COUNT;
     return { dropOffPct: Math.round(dropOffPct * 10) / 10, meanTime: Math.round(meanTime * 100) / 100, run1: times[0] };
@@ -24,11 +27,14 @@ export function rstDerive(times: number[]): RstDerived | null {
  *  wenn er älter als der RST ist. Nur ohne frischen dedizierten Test darf
  *  Lauf 1 den Sprint-Score füttern. */
 export function shouldFeedSprintScore(
-    existing: Array<{ assessmentSlug: string; completedAt: string }>,
+    existing: Array<{ assessmentSlug: string; completedAt: string; sourceType?: string }>,
     now: Date,
 ): boolean {
+    // Review I2: RST-gespeiste Einträge (source_type 'derived') zählen nicht als
+    // dedizierter Test — sonst blockiert der erste RST alle weiteren Feeds.
     return !existing.some((e) =>
         DEDICATED_SPRINT_SLUGS.has(e.assessmentSlug) &&
+        e.sourceType !== 'derived' &&
         (now.getTime() - new Date(e.completedAt).getTime()) / 86400000 <= STALE_AFTER_DAYS,
     );
 }

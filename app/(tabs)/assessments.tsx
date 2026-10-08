@@ -162,6 +162,8 @@ export default function AssessmentsScreen() {
         if (ua.result_value == null) return null;
         const unit = ua.assessment.metric?.unit;
         if (unit === 'rating') return `${ua.result_value}/10`;
+        // RST-Drop-off trägt Prozent im 's'-Metric (Review I5)
+        if (ua.assessment.metric?.slug === 'rst_drop_off') return `${ua.result_value} %`;
         const converted = displayMetricValue(ua.result_value, unit, unitSystem);
         const unitLabel = UNIT_LABELS[converted.unit ?? '']?.[locale === 'de' ? 'de' : 'en'] ?? converted.unit ?? '';
         return `${converted.value} ${unitLabel}`.trim();

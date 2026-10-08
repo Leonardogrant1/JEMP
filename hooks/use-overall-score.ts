@@ -10,7 +10,7 @@ import { useMemo } from 'react';
 export function useOverallScore(userId: string | undefined): number | null {
     const { data: categoryLevels } = useUserCategoryLevelsQuery(userId);
     const { profile } = useCurrentUser();
-    const { data: weights } = usePillarWeightsQuery(profile?.sport_id ?? (profile as any)?.sport?.id ?? null);
+    const { data: weights } = usePillarWeightsQuery(profile?.sport_id ?? null);
     return useMemo(() => {
         if (!categoryLevels) return null;
         const values = ALL_STAT_SLUGS
