@@ -39,3 +39,13 @@ describe('buildBlockPools', () => {
     expect(pools.get('lower_body')!.map((e: any) => e.slug)).toEqual(['romanian_deadlift'])
   })
 })
+
+describe('warmup CNS micro-dose pool (QA-Befund 08.10.)', () => {
+    it('lässt Sprint-Technik-Drills (Kategorie sprints, kein sprint_type) ins Warmup', () => {
+        expect(exerciseMatchesBlock(ex({ slug: 'high_knees', category_slug: 'sprints', intensity_score: 1, sprint_type: null }), block('warmup'))).toBe(true);
+    });
+    it('hält echte Sprints und intensive Drills draußen', () => {
+        expect(exerciseMatchesBlock(ex({ slug: 'sprint_10m', category_slug: 'sprints', sprint_type: 'acceleration', intensity_score: 1 }), block('warmup'))).toBe(false);
+        expect(exerciseMatchesBlock(ex({ slug: 'b_skip_drill', category_slug: 'sprints', intensity_score: 5, sprint_type: null }), block('warmup'))).toBe(false);
+    });
+});

@@ -61,6 +61,10 @@ export function exerciseMatchesBlock(ex: V2Exercise, blockDef: PlannedWorkoutBlo
     }
     case 'warmup':
       if (ex.category_slug === 'mobility') return true
+      // CNS-Mikro-Dosis (QA 08.10.): Sprint-Technik-Drills (Ministeps, Skips)
+      // leben seit der Rekategorisierung in 'sprints' — ohne diesen Zweig
+      // hätte der Warmup-Prompt einen leeren Drill-Pool.
+      if (ex.category_slug === 'sprints' && ex.sprint_type === null && (ex.intensity_score ?? 10) <= 3) return true
       return PLYO_CATEGORIES.has(ex.category_slug) && ex.sprint_type === null && (ex.intensity_score ?? 10) <= 3
     case 'cooldown':
       return ex.category_slug === 'mobility'
