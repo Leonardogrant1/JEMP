@@ -62,7 +62,7 @@ A `session_type` enum **already exists** in the DB (`training | recovery`, used 
 
 **New block types enforce the structure at the data level** (reversal of an earlier draft that kept blocks generic — see decision log). `block_types` is a table; new rows are added, old rows stay:
 
-- **Workout:** `warmup` → `push` → `pull` → `lower_body` → `rotation` → `core` → `plyo` → `accessory` → `cooldown`
+- **Workout:** `warmup` → `push` → `pull` → `lower_body` → `rotation` → `core` → `plyo` → `accessory` → `optional` → `cooldown` (amendment 08.10.: `optional` = isolated arm work, split from the functional accessory pool so show muscles never displace prophylaxis work; drops first under time pressure)
 - **Speed:** `warmup` → `sprint` → `cod` → `cooldown`
 - **Mobility:** `mobility` (optionally preceded by a light `warmup`)
 - **Conditioning:** `warmup` → `conditioning` → `cooldown`
