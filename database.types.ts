@@ -1284,6 +1284,7 @@ export type Database = {
           last_name: string | null
           load_profile: string
           load_score: number
+          preferred_day_durations: Json | null
           preferred_language: string | null
           preferred_session_duration:
             | Database["public"]["Enums"]["session_duration"]
@@ -1319,6 +1320,7 @@ export type Database = {
           last_name?: string | null
           load_profile?: string
           load_score?: number
+          preferred_day_durations?: Json | null
           preferred_language?: string | null
           preferred_session_duration?:
             | Database["public"]["Enums"]["session_duration"]
@@ -1354,6 +1356,7 @@ export type Database = {
           last_name?: string | null
           load_profile?: string
           load_score?: number
+          preferred_day_durations?: Json | null
           preferred_language?: string | null
           preferred_session_duration?:
             | Database["public"]["Enums"]["session_duration"]
