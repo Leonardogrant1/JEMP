@@ -1,3 +1,4 @@
+import ConditioningIcon from "@/assets/icons/conditioning_white.svg";
 import JumpIcon from "@/assets/icons/jump_white.svg";
 import LowerPlyoIcon from "@/assets/icons/lower_plyo_white.svg";
 import MobilityIcon from "@/assets/icons/mobility_white.svg";
@@ -17,6 +18,7 @@ export const CATEGORY_SVG_ICONS: Record<string, ComponentType<SvgProps>> = {
     jumps: JumpIcon,
     lower_body_plyometrics: JumpIcon,
     sprints: LowerPlyoIcon,
+    conditioning: ConditioningIcon,
     upper_body_plyometrics: UpperPlyoIcon,
     mobility: MobilityIcon,
 };
