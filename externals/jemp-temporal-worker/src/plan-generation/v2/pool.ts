@@ -79,3 +79,25 @@ export function buildBlockPools(
   }
   return pools
 }
+
+/** Review fix I2: blocks whose pool is empty are pre-dropped deterministically
+ *  (reason 'coverage' feeds the §2.9 dropped_blocks audit) instead of sending
+ *  the LLM an unsatisfiable structure. Warmup/cooldown are never dropped. */
+export function preDropEmptyPools(
+  workout: { blocks: PlannedWorkoutBlock[]; dropped: Array<{ block_type: WorkoutBlockType; reason: 'time' | 'coverage' }> },
+  pools: Record<string, string[]>,
+): string[] {
+  const notes: string[] = []
+  const keep: PlannedWorkoutBlock[] = []
+  for (const b of workout.blocks) {
+    const isProtected = b.block_type === 'warmup' || b.block_type === 'cooldown'
+    if (!isProtected && (pools[b.block_type] ?? []).length === 0) {
+      workout.dropped.push({ block_type: b.block_type, reason: 'coverage' })
+      notes.push(`Block "${b.block_type}" ohne passende Übungen im Pool — vorab gedroppt`)
+    } else {
+      keep.push(b)
+    }
+  }
+  workout.blocks = keep
+  return notes
+}

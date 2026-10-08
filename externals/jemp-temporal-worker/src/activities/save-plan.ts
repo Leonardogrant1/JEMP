@@ -108,6 +108,7 @@ export async function savePlan(input: {
     target_load_type: string | null
     target_load_value: number | null
     is_amrap: boolean
+    target_rounds: number | null
   }
 
   const planBlocksBySessionId = new Map<string, PlanBlockRecord[]>()
@@ -231,6 +232,7 @@ export async function savePlan(input: {
         target_load_type: e.target_load_type,
         target_load_value: e.target_load_value,
         is_amrap: e.is_amrap,
+        target_rounds: e.target_rounds ?? null,
       })))
     }
 
@@ -321,6 +323,7 @@ export async function savePlan(input: {
         target_load_type: planEx.target_load_type,
         target_load_value: planEx.target_load_value,
         is_amrap: planEx.is_amrap,
+        target_rounds: planEx.target_rounds ?? null,
       })
     }
   }

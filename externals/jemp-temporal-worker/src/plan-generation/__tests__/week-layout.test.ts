@@ -380,3 +380,17 @@ describe('review fixes (phase 2a final review)', () => {
     expect(droppedTypes).not.toContain('plyo')
   })
 })
+
+describe('review fix I4: pillar levels reach the drop lever', () => {
+  it('buildWeekLayout lets an emphasized plyo pillar survive drops', () => {
+    const input = {
+      available_days: [1], load_profile: 'low' as const,
+      pillar_levels: { lower_body_plyometrics: 3 as const }, sprints_covered_by_club: false,
+      session_minutes: 45, weekly_schedule: schedule([]),
+    }
+    const layout = buildWeekLayout(input)
+    const dropped = layout.workouts[0].dropped.map((d) => d.block_type)
+    expect(dropped.length).toBeGreaterThan(0)
+    expect(dropped).not.toContain('plyo')
+  })
+})

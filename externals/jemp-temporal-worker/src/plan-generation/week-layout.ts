@@ -370,6 +370,6 @@ export function buildWeekLayout(input: WeekLayoutInput): WeekLayout {
   const allocation = allocateDays(input)
   const placement = placeWeek(input, allocation)
   const blockPlan = planWorkoutBlocks(placement)
-  const { workouts, notes } = applyScalingLevers(placement, blockPlan)
+  const { workouts, notes } = applyScalingLevers(placement, blockPlan, input.pillar_levels)
   return { placement, workouts, carrier: placement.carrier, notes: [...placement.notes, ...notes] }
 }

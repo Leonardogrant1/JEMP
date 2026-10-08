@@ -7,7 +7,7 @@ import type OpenAI from 'openai'
 import { buildWeekLayout, type PillarLevels, type WeekLayout } from '../week-layout'
 import type { PrepareResult, SessionBuildInput } from '../generate-plan'
 import type { PlanGenerationInput } from '../types'
-import { buildBlockPools, type V2Exercise } from './pool'
+import { buildBlockPools, preDropEmptyPools, type V2Exercise } from './pool'
 import { buildSpeedSession, type PlannedSessionLike } from './build-speed-session'
 import { buildMobilitySession, buildConditioningSession } from './build-simple-sessions'
 import type { V2SessionContext } from './run-session-v2'
@@ -144,6 +144,7 @@ export async function prepareGenerationV2(
     const pools = buildBlockPools(exercises, workout.blocks)
     const poolRecord: Record<string, string[]> = {}
     for (const [bt, pool] of pools) poolRecord[bt] = pool.map((e) => e.slug)
+    notes.push(...preDropEmptyPools(workout, poolRecord).map((n) => `Tag ${workout.day_of_week}: ${n}`))
     const v2: V2SessionContext = { workout, day, pools: poolRecord, sprintPool: sprintPoolSlugs }
     return {
       spec: { day_of_week: workout.day_of_week, mode_slug: day.dose === 'maintenance' ? 'reduced' : 'full' },

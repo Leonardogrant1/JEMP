@@ -3,6 +3,7 @@ import { proxyActivities, ActivityOptions } from '@temporalio/workflow'
 import type * as activities from '../activities'
 import type { PreviousSessionSummary } from '../plan-generation/prompts'
 import type { PlannedSession } from '../plan-generation/generate-plan'
+import { isSummaryBlock } from './summary-filter'
 
 const activityOptions: ActivityOptions = {
   startToCloseTimeout: '30 minutes',
@@ -61,7 +62,7 @@ export async function generatePlanWorkflow(input: {
         day_of_week: session.day_of_week,
         mode_slug: session.mode_slug,
         blocks: session.blocks
-          .filter(b => b.block_type === 'primary' || b.block_type === 'secondary' || b.block_type === 'accessory')
+          .filter(b => isSummaryBlock(b.block_type))
           .map(b => ({
             block_type: b.block_type as any,
             category_slug: b.focused_category_slug,
