@@ -149,7 +149,6 @@ export function PersonalizationStep() {
 
             await Promise.all([
                 supabase.from('user_targeted_categories').delete().eq('user_id', session.user.id),
-                supabase.from('user_pillar_levels').delete().eq('user_id', session.user.id),
                 supabase.from('user_category_levels').delete().eq('user_id', session.user.id),
                 supabase.from('user_environments').delete().eq('user_id', session.user.id),
                 supabase.from('user_equipments').delete().eq('user_id', session.user.id),
@@ -160,6 +159,10 @@ export function PersonalizationStep() {
             // User auf den v2-Generator. targeted_categories wird vom neuen
             // Flow nicht mehr geschrieben (Legacy-Konzept).
             if (pillarLevels.length > 0) {
+                // Delete nur bei vorhandenem Payload (Review I1): ein leerer
+                // Store darf übersetzte Levels nie löschen.
+                const { error: delErr } = await supabase.from('user_pillar_levels').delete().eq('user_id', session.user.id);
+                if (delErr) throw delErr;
                 const { error: e } = await supabase.from('user_pillar_levels').insert(
                     pillarLevels.map(({ categoryId, level }) => ({ user_id: session.user.id, category_id: categoryId, level, set_by_wizard: true }))
                 );

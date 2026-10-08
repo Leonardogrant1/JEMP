@@ -412,7 +412,7 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
         const {
             profileId,
             selectedEnvIds, selectedEquipmentIds, equipmentEnvSelections,
-            rankedCategories, preferredDays, preferredDuration,
+            preferredDays, preferredDuration,
             scheduleNotes, sportSessions, dayEnvMap,
             weightKg, heightCm,
         } = get();
@@ -460,11 +460,15 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
 
             // 5. Säulen-Stufen (§6.5-Aktivierung: set_by_wizard schaltet auf v2)
             const { pillarLevels, sprintClub, sprintDistance, dayDurations } = get();
-            await supabase.from('user_pillar_levels').delete().eq('user_id', profileId);
+            // §6.5-Aktivierung — Fehler hier dürfen NICHT still bleiben: ein
+            // fehlgeschriebener Marker hieße v1-Plan ohne sichtbare Ursache.
             if (pillarLevels.length > 0) {
-                await supabase.from('user_pillar_levels').insert(
+                const { error: delErr } = await supabase.from('user_pillar_levels').delete().eq('user_id', profileId);
+                if (delErr) throw delErr;
+                const { error: insErr } = await supabase.from('user_pillar_levels').insert(
                     pillarLevels.map(({ categoryId, level }) => ({ user_id: profileId, category_id: categoryId, level, set_by_wizard: true }))
                 );
+                if (insErr) throw insErr;
             }
 
             // 6. Update schedule

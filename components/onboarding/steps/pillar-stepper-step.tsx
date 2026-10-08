@@ -10,8 +10,8 @@ import {
 } from '@/lib/pillar-budget';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { supabase } from '@/services/supabase/client';
-import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
@@ -25,14 +25,18 @@ export function PillarStepperStep() {
     const setStore = useOnboardingStore((s) => s.set);
     const [pillars, setPillars] = useState<PillarItem[]>([]);
     const [levels, setLevels] = useState<PillarLevel[]>(storedLevels);
+    const [loadError, setLoadError] = useState(false);
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
-    useEffect(() => {
-        // Preset ist ein valider Default — Weiter geht immer (Spec §3.1).
-        setCanContinue(true);
+    const loadPillars = useCallback(async () => {
+        // Weiter erst, wenn die Stufen wirklich geladen sind (Review I1):
+        // ein leerer Store würde den Sprint-Step fälschlich überspringen und
+        // am Ende KEINE set_by_wizard-Zeilen schreiben (User bliebe auf v1).
+        setCanContinue(storedLevels.length > 0);
+        setLoadError(false);
         if (!sportId) return;
-        (async () => {
+        {
             const [{ data: presetRows }, { data: { session } }] = await Promise.all([
                 supabase
                     .from('sport_category_relevance')
@@ -41,7 +45,10 @@ export function PillarStepperStep() {
                     .eq('categories.is_active', true),
                 supabase.auth.getSession(),
             ]);
-            if (!presetRows) return;
+            if (!presetRows || presetRows.length === 0) {
+                setLoadError(true);
+                return;
+            }
             const presets: PillarItem[] = presetRows.map((r: any) => ({
                 categoryId: r.categories.id,
                 slug: r.categories.slug,
@@ -68,9 +75,15 @@ export function PillarStepperStep() {
             const initial = normalizeToBudget(initialLevels(visible, stored), pillarBudget(visible.length));
             setLevels(initial);
             setStore({ pillarLevels: initial });
-        })();
+            setCanContinue(true);
+        }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sportId]);
+
+    useEffect(() => {
+        loadPillars().catch(() => setLoadError(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loadPillars]);
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -83,12 +96,22 @@ export function PillarStepperStep() {
                 </JempText>
             </Animated.View>
 
-            <PillarStepperList
-                pillars={pillars}
-                levels={levels}
-                budget={pillarBudget(pillars.length)}
-                onChange={(next) => { setLevels(next); setStore({ pillarLevels: next }); }}
-            />
+            {loadError ? (
+                <Pressable
+                    onPress={() => { loadPillars().catch(() => setLoadError(true)); }}
+                    style={[styles.retry, { backgroundColor: theme.surface }]}
+                >
+                    <JempText type="body-l" color={theme.text}>{t('pillars.load_error')}</JempText>
+                    <JempText type="caption" color={theme.textMuted}>{t('pillars.load_retry')}</JempText>
+                </Pressable>
+            ) : (
+                <PillarStepperList
+                    pillars={pillars}
+                    levels={levels}
+                    budget={pillarBudget(pillars.length)}
+                    onChange={(next) => { setLevels(next); setStore({ pillarLevels: next }); }}
+                />
+            )}
         </ScrollView>
     );
 }
@@ -98,4 +121,5 @@ const styles = StyleSheet.create({
     content: { paddingHorizontal: 28, paddingTop: 32, paddingBottom: 24 },
     title: { marginBottom: 10 },
     subtitle: { marginBottom: 20 },
+    retry: { borderRadius: 16, padding: 20, alignItems: 'center', gap: 6 },
 });

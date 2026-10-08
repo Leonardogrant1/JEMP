@@ -44,3 +44,22 @@ describe('computeWeekComposition (Spiegel von allocateDays)', () => {
         expect(computeWeekComposition({ ...base, availableDayCount: 5, loadProfile: 'low', pillarLevels: {} }).workouts).toBe(5);
     });
 });
+
+describe('extraSessionAllowance (review fix I4: surplus days reachable)', () => {
+    const { extraSessionAllowance } = require('@/lib/week-allocation');
+    it('speed level 3 allows up to 2 extra days, level 2 one', () => {
+        expect(extraSessionAllowance({ loadProfile: 'medium', pillarLevels: { sprints: 3 }, sprintsCoveredByClub: false })).toBe(2);
+        expect(extraSessionAllowance({ loadProfile: 'medium', pillarLevels: { sprints: 2 }, sprintsCoveredByClub: false })).toBe(1);
+    });
+    it('conditioning adds a day at level 3 (any load) or level 2 at low', () => {
+        expect(extraSessionAllowance({ loadProfile: 'high', pillarLevels: { conditioning: 3 }, sprintsCoveredByClub: false })).toBe(1);
+        expect(extraSessionAllowance({ loadProfile: 'low', pillarLevels: { conditioning: 2 }, sprintsCoveredByClub: false })).toBe(1);
+        expect(extraSessionAllowance({ loadProfile: 'medium', pillarLevels: { conditioning: 2 }, sprintsCoveredByClub: false })).toBe(0);
+    });
+    it('club-damped sprints grant nothing without cod', () => {
+        expect(extraSessionAllowance({ loadProfile: 'low', pillarLevels: { sprints: 3 }, sprintsCoveredByClub: true })).toBe(0);
+    });
+    it('combines speed and conditioning allowances', () => {
+        expect(extraSessionAllowance({ loadProfile: 'low', pillarLevels: { sprints: 2, conditioning: 2 }, sprintsCoveredByClub: false })).toBe(2);
+    });
+});

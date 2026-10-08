@@ -7,7 +7,7 @@ import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTrainingAnimation } from '@/hooks/use-training-animation';
 import { computeLoadProfile, maxWorkoutDays, MIN_WORKOUT_DAYS } from '@/lib/load-profile';
-import { computeWeekComposition } from '@/lib/week-allocation';
+import { computeWeekComposition, extraSessionAllowance } from '@/lib/week-allocation';
 import { DayDurationSheet } from '@/components/onboarding/day-duration-sheet';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlanWizardStore } from '@/stores/plan-wizard-store';
@@ -41,7 +41,11 @@ export function ScheduleStep() {
     const multiEnv = selectedEnvIds.size > 1;
 
     // Mehr Vereinsbelastung → weniger wählbare eigene Einheiten
-    const maxDays = maxWorkoutDays(computeLoadProfile(sportSessions).load_profile);
+    const loadProfile = computeLoadProfile(sportSessions).load_profile;
+    const wizardLevelMap: Record<string, 1 | 2 | 3> = {};
+    pillarLevels.forEach((l) => { wizardLevelMap[l.slug] = l.level; });
+    const maxDays = maxWorkoutDays(loadProfile)
+        + extraSessionAllowance({ loadProfile, pillarLevels: wizardLevelMap, sprintsCoveredByClub: sprintClub });
     const atCap = preferredDays.size >= maxDays;
     const overCap = preferredDays.size > maxDays;
     const missingDays = MIN_WORKOUT_DAYS - preferredDays.size;
@@ -166,8 +170,8 @@ export function ScheduleStep() {
                     const levelMap: Record<string, 1 | 2 | 3> = {};
                     pillarLevels.forEach((l) => { levelMap[l.slug] = l.level; });
                     const comp = computeWeekComposition({
-                        availableDayCount: Math.min(preferredDays.size, maxDays + 2),
-                        loadProfile: computeLoadProfile(sportSessions).load_profile,
+                        availableDayCount: preferredDays.size,
+                        loadProfile,
                         pillarLevels: levelMap,
                         sprintsCoveredByClub: sprintClub,
                     });

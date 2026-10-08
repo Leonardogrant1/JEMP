@@ -15,6 +15,8 @@ const de: Record<TranslationKeys, string> = {
     'pillars.level_1': 'Erhalt',
     'pillars.level_2': 'Fokus',
     'pillars.level_3': 'Schwerpunkt',
+    'pillars.load_error': 'Säulen konnten nicht geladen werden.',
+    'pillars.load_retry': 'Tippen zum erneuten Versuchen',
     'pillars.budget_full': 'Budget voll — reduziere zuerst eine andere Säule.',
     'pillars.hint_sprint_level3': 'Einer deiner Trainingstage wird zur Sprint-Einheit.',
     'pillars.hint_sprint_level2': 'Wenn deine Woche Platz hat, kommt eine Sprint-Einheit dazu.',

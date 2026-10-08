@@ -13,6 +13,8 @@ const en = {
     'pillars.level_1': 'Maintain',
     'pillars.level_2': 'Focus',
     'pillars.level_3': 'Priority',
+    'pillars.load_error': 'Could not load your pillars.',
+    'pillars.load_retry': 'Tap to retry',
     'pillars.budget_full': 'Budget full — reduce another pillar first.',
     'pillars.hint_sprint_level3': 'One of your training days becomes a sprint session.',
     'pillars.hint_sprint_level2': 'If your week has room, a sprint session is added.',

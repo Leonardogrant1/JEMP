@@ -6,7 +6,7 @@ import { ENV_ICONS } from '@/constants/environment-icons';
 import { getSportKind } from '@/constants/sports';
 import { Colors, GradientMid } from '@/constants/theme';
 import { computeLoadProfile, maxWorkoutDays, MIN_WORKOUT_DAYS } from '@/lib/load-profile';
-import { computeWeekComposition } from '@/lib/week-allocation';
+import { computeWeekComposition, extraSessionAllowance } from '@/lib/week-allocation';
 import { DayDurationSheet } from '@/components/onboarding/day-duration-sheet';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTrainingAnimationBySlug } from '@/hooks/use-training-animation';
@@ -72,7 +72,13 @@ export function WorkoutPrefsStep() {
     const multiEnv = environmentIds.length > 1;
 
     // Mehr Vereinsbelastung → weniger wählbare eigene Einheiten
-    const maxDays = maxWorkoutDays(computeLoadProfile(sportSessions).load_profile);
+    // Cap = Workout-Cap + Session-Allowance (Spec §3.1): Überschuss-Tage werden
+    // zu Speed-/Conditioning-Einheiten — der Tage-Cap muss sie zulassen.
+    const loadProfile = computeLoadProfile(sportSessions).load_profile;
+    const pillarLevelMap: Record<string, 1 | 2 | 3> = {};
+    pillarLevels.forEach((l) => { pillarLevelMap[l.slug] = l.level; });
+    const allowance = extraSessionAllowance({ loadProfile, pillarLevels: pillarLevelMap, sprintsCoveredByClub: sprintsCoveredByClub ?? false });
+    const maxDays = maxWorkoutDays(loadProfile) + allowance;
     const atCap = selectedDays.size >= maxDays;
     const overCap = selectedDays.size > maxDays;
     const missingDays = MIN_WORKOUT_DAYS - selectedDays.size;
@@ -247,8 +253,8 @@ export function WorkoutPrefsStep() {
                     const levelMap: Record<string, 1 | 2 | 3> = {};
                     pillarLevels.forEach((l) => { levelMap[l.slug] = l.level; });
                     const comp = computeWeekComposition({
-                        availableDayCount: Math.min(selectedDays.size, maxDays + 2),
-                        loadProfile: computeLoadProfile(sportSessions).load_profile,
+                        availableDayCount: selectedDays.size,
+                        loadProfile,
                         pillarLevels: levelMap,
                         sprintsCoveredByClub: sprintsCoveredByClub ?? false,
                     });

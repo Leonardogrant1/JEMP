@@ -59,3 +59,17 @@ export function computeWeekComposition(input: AllocationInput): WeekComposition 
 
     return { workouts, speedDays, conditioningDay, mobilityDay, carrier };
 }
+
+/** Review fix I4 (Spec §3.1): Wie viele Tage ÜBER dem Workout-Cap darf der
+ *  User anbieten, damit Speed-/Conditioning-Sessions überhaupt entstehen
+ *  können? Macht die Überschuss-Zustände der Zuteilung im UI erreichbar. */
+export function extraSessionAllowance(input: Omit<AllocationInput, 'availableDayCount'>): number {
+    const speedLevel = Math.max(
+        Math.min(input.pillarLevels.sprints ?? 0, input.sprintsCoveredByClub ? 1 : 3),
+        input.pillarLevels.cod ?? 0,
+    );
+    const speedExtra = speedLevel === 3 ? 2 : speedLevel === 2 ? 1 : 0;
+    const condLevel = input.pillarLevels.conditioning ?? 0;
+    const condExtra = (condLevel === 3 || (condLevel === 2 && input.loadProfile === 'low')) ? 1 : 0;
+    return speedExtra + condExtra;
+}
