@@ -8,7 +8,7 @@ import { useCurrentUser } from '@/providers/current-user-provider';
 import { useUserAssessmentQuery } from '@/queries/use-user-assessment-query';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -17,9 +17,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 /** RST-Flow (Spec §4.4/§5.5): 6 Zeiten → Drop-off + Durchschnitt → Conditioning-
  *  Score; Lauf 1 füttert den Sprint-Score (Prioritäts-Regel in der Mutation).
  *  Timer-Modus als Default: Stoppuhr pro Lauf + Pausen-Countdown, manuelle
- *  Eingabe bleibt als Fallback (gleiches Toggle wie in assessment/[id]). */
-export default function AssessmentRstScreen() {
-    const { id } = useLocalSearchParams<{ id: string }>();
+ *  Eingabe bleibt als Fallback (gleiches Toggle wie in assessment/[id]).
+ *  Rendert unter der Route assessment/[id] — der Screen wählt die Komponente
+ *  anhand des Slugs; die Query teilt sich den Cache-Key mit dem Screen. */
+export function RstAssessment({ id }: { id: string }) {
     const router = useRouter();
     const { t, i18n } = useTranslation();
     const colorScheme = useColorScheme();

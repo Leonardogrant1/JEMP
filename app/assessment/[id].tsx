@@ -27,6 +27,7 @@ import Slider from '@react-native-community/slider';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { CooperCountdown } from '@/components/assessments/cooper-countdown';
+import { RstAssessment } from '@/components/assessments/rst-assessment';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -139,6 +140,12 @@ export default function AssessmentScreen() {
                 </View>
             </SafeAreaView>
         );
+    }
+
+    // RST hat einen eigenen Mehrlauf-Flow (6 Zeiten statt eines Werts) —
+    // gleiche Route, eigene Komponente.
+    if (data.assessment?.slug === 'repeated_sprint_test') {
+        return <RstAssessment id={id} />;
     }
 
 
