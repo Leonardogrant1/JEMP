@@ -137,6 +137,20 @@ const en = {
     'movement_pattern.other': 'Other',
 
     // ── Session type (session_type enum) ──────────────────────────────────
+    'session_type.speed': 'Sprint session',
+    'session_type.mobility': 'Mobility session',
+    'session_type.conditioning': 'Conditioning session',
+    'block_type.push': 'Push',
+    'block_type.pull': 'Pull',
+    'block_type.lower_body': 'Lower body',
+    'block_type.rotation': 'Rotation',
+    'block_type.core': 'Core',
+    'block_type.plyo': 'Plyometrics',
+    'block_type.sprint': 'Sprints',
+    'block_type.cod': 'Change of direction',
+    'block_type.conditioning': 'Conditioning',
+    'block_type.mobility': 'Mobility',
+    'prescription.rounds': '{{rounds}} rounds · {{work}}s work / {{rest}}s rest',
     'session_type.training': 'Training',
     'session_type.recovery': 'Recovery',
 

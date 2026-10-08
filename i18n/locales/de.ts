@@ -139,6 +139,20 @@ const de: Record<TranslationKeys, string> = {
     'movement_pattern.other': 'Sonstige',
 
     // ── Session type ─────────────────────────────────────────────────────
+    'session_type.speed': 'Sprint-Einheit',
+    'session_type.mobility': 'Mobility-Einheit',
+    'session_type.conditioning': 'Conditioning-Einheit',
+    'block_type.push': 'Push',
+    'block_type.pull': 'Pull',
+    'block_type.lower_body': 'Unterkörper',
+    'block_type.rotation': 'Rotation',
+    'block_type.core': 'Core',
+    'block_type.plyo': 'Sprungkraft',
+    'block_type.sprint': 'Sprints',
+    'block_type.cod': 'Richtungswechsel',
+    'block_type.conditioning': 'Conditioning',
+    'block_type.mobility': 'Mobility',
+    'prescription.rounds': '{{rounds}} Runden · {{work}}s Arbeit / {{rest}}s Pause',
     'session_type.training': 'Training',
     'session_type.recovery': 'Regeneration',
 
