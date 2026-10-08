@@ -5,6 +5,8 @@ import { JempDialog } from '@/components/ui/jemp-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UNIT_LABELS } from '@/constants/assessment-constants';
 import { CATEGORY_SVG_ICONS } from '@/constants/category-icons';
+import { pillarSourceStatus } from '@/lib/pillar-score';
+import { useUserCategoryLevelsQuery } from '@/queries/use-user-category-levels-query';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { displayMetricValue } from '@/helpers/units';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -23,7 +25,7 @@ import Animated, { Easing, Extrapolation, interpolate, runOnJS, useAnimatedReact
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Fixed chip order — data order is not deterministic enough to drive the UI
-const CATEGORY_ORDER = ['strength', 'jumps', 'lower_body_plyometrics', 'upper_body_plyometrics', 'mobility'];
+const CATEGORY_ORDER = ['strength', 'lower_body_plyometrics', 'upper_body_plyometrics', 'sprints', 'cod', 'conditioning', 'jumps', 'mobility'];
 
 const CATEGORY_ANIMATIONS: Record<string, object> = {
     strength: require('@/assets/animations/strength.json'),
@@ -31,6 +33,9 @@ const CATEGORY_ANIMATIONS: Record<string, object> = {
     lower_body_plyometrics: require('@/assets/animations/lower_plyo.json'),
     upper_body_plyometrics: require('@/assets/animations/upper_plyo.json'),
     mobility: require('@/assets/animations/mobility.json'),
+    sprints: require('@/assets/animations/lower_plyo.json'),
+    cod: require('@/assets/animations/lower_plyo.json'),
+    conditioning: require('@/assets/animations/lower_plyo.json'),
 };
 const categoryOrder = (slug: string) => {
     const i = CATEGORY_ORDER.indexOf(slug);
@@ -51,6 +56,7 @@ export default function AssessmentsScreen() {
     const { data: hasHadPlan, isLoading: hasHadPlanLoading } = useHasHadPlanQuery(profile?.id);
     const isLoading = assessmentsLoading || hasHadPlanLoading;
 
+    const { data: categoryLevels } = useUserCategoryLevelsQuery(profile?.id);
     const all = userAssessments ?? [];
     const pending = all.filter(ua => ua.status !== 'completed');
     const completedItems = all.filter(ua => ua.status === 'completed');
@@ -61,8 +67,17 @@ export default function AssessmentsScreen() {
         if (!grouped.has(slug)) grouped.set(slug, []);
         grouped.get(slug)!.push(ua);
     }
+    // "Empfohlen für dich" (Spec §5.5): unsichere Säulen (geschätzt/veraltet)
+    // rücken nach vorn — das Assessment, das die unsicherste Säule messbar
+    // macht, steht zuerst.
+    const levelMeta = (categoryLevels as any)?.__meta as Record<string, { source: 'self_estimate' | 'measured'; measuredAt: string | null }> | undefined;
+    const needsMeasure = (slug: string) => {
+        const m = levelMeta?.[slug];
+        const status = m ? pillarSourceStatus(m.source, m.measuredAt, new Date()) : 'estimated';
+        return status !== 'measured';
+    };
     const categorySlugs = [...grouped.keys()].sort(
-        (a, b) => categoryOrder(a) - categoryOrder(b),
+        (a, b) => (needsMeasure(b) ? 1 : 0) - (needsMeasure(a) ? 1 : 0) || categoryOrder(a) - categoryOrder(b),
     );
 
     const selected = useAssessmentsUiStore(s => s.selectedCategory);

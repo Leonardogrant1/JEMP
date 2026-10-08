@@ -179,6 +179,8 @@ export default function ProgressScreen() {
                         <CategoryStatGrid
                             levels={categoryLevels ?? {}}
                             trends={hideHistory ? {} : categoryTrends}
+                            visibleSlugs={pillarWeights && pillarWeights.length > 0 ? pillarWeights.map((w) => w.slug) : undefined}
+                            meta={(categoryLevels as any)?.__meta}
                             history={hideHistory ? {} : historyData ?? {}}
                             selected={selectedCategory}
                             onSelect={setSelectedCategory}
