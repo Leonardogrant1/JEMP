@@ -329,6 +329,14 @@ export default function AssessmentScreen() {
                     )}
                 </View>
 
+                {/* Anleitung inline (QA 08.10.): gleiches Muster wie der RST-Flow —
+                    gekappt auf 3 Zeilen, der volle Text bleibt hinter dem (i). */}
+                {description ? (
+                    <JempText type="body-sm" color={theme.textMuted} numberOfLines={3} style={styles.descriptionInline}>
+                        {description}
+                    </JempText>
+                ) : null}
+
                 {/* Explainer video — pinned below the header, outside the centered content */}
                 {(assessment.video_storage_path || assessment.youtube_url) && (
                     <Pressable
@@ -802,6 +810,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingVertical: 8,
     },
+    descriptionInline: { marginTop: 4, lineHeight: 19 },
 
     videoBtn: {
         flexDirection: 'row',
