@@ -763,7 +763,7 @@ export default function AssessmentScreen() {
                 message={description}
                 buttonLabel={t('ui.got_it')}
                 icon="information-circle-outline"
-                iconColor={Cyan[500]}
+                iconColor={GradientMid}
                 onDismiss={() => setShowInfo(false)}
             />
 
