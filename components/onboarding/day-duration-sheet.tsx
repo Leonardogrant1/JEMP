@@ -32,7 +32,7 @@ export function DayDurationSheet({ visible, dayLabel, currentMinutes, defaultMin
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
             <Pressable style={styles.backdrop} onPress={onClose}>
                 <Pressable style={[styles.sheet, { backgroundColor: theme.surface }]} onPress={() => {}}>
-                    <JempText type="h3" style={styles.title}>{t('day_duration.title')}</JempText>
+                    <JempText type="h2" style={styles.title}>{t('day_duration.title')}</JempText>
                     <JempText type="body-sm" color={theme.textMuted} style={styles.subtitle}>{dayLabel}</JempText>
                     <View style={styles.options}>
                         <Pressable
