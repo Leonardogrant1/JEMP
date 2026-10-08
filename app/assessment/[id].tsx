@@ -1,4 +1,3 @@
-import InfoIcon from '@/assets/icons/info.svg';
 import { AchievementCelebration } from '@/components/achievements/achievement-celebration';
 import { JempText } from '@/components/jemp-text';
 import { JempDialog } from '@/components/ui/jemp-dialog';
@@ -81,7 +80,7 @@ export default function AssessmentScreen() {
     // Units follow the profile preference — no in-screen toggles
     const weightUnit: 'kg' | 'lbs' = unitSystem === 'imperial' ? 'lbs' : 'kg';
     const [showOneRmWarning, setShowOneRmWarning] = useState(false);
-    const [showInfo, setShowInfo] = useState(false);
+    const [descExpanded, setDescExpanded] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const [celebrationUnlocks, setCelebrationUnlocks] = useState<AchievementDef[] | null>(null);
     const [showVideo, setShowVideo] = useState(false);
@@ -113,7 +112,7 @@ export default function AssessmentScreen() {
                             <Ionicons name="chevron-back" size={24} color={theme.text} />
                         </Pressable>
                         <Skeleton width={150} height={20} borderRadius={10} />
-                        <Skeleton width={22} height={22} borderRadius={11} />
+                        <View style={{ width: 24 }} />
                     </View>
                     <View style={styles.content}>
                         <View style={styles.skeletonRow}>
@@ -320,21 +319,22 @@ export default function AssessmentScreen() {
                         <Ionicons name="chevron-back" size={24} color={theme.text} />
                     </Pressable>
                     <JempText type="body-l" color={theme.text}>{assessmentName}</JempText>
-                    {description ? (
-                        <Pressable onPress={() => setShowInfo(true)} hitSlop={12}>
-                            <InfoIcon width={22} height={22} color={Cyan[500]} />
-                        </Pressable>
-                    ) : (
-                        <View style={{ width: 24 }} />
-                    )}
+                    <View style={{ width: 24 }} />
                 </View>
 
-                {/* Anleitung inline (QA 08.10.): gleiches Muster wie der RST-Flow —
-                    gekappt auf 3 Zeilen, der volle Text bleibt hinter dem (i). */}
+                {/* Anleitung inline (QA 08.10.): 3 Zeilen gekappt, Tap klappt den
+                    vollen Text aus — ersetzt den alten (i)-Dialog. */}
                 {description ? (
-                    <JempText type="body-sm" color={theme.textMuted} numberOfLines={3} style={styles.descriptionInline}>
-                        {description}
-                    </JempText>
+                    <Pressable onPress={() => setDescExpanded((v) => !v)}>
+                        <JempText
+                            type="body-sm"
+                            color={theme.textMuted}
+                            numberOfLines={descExpanded ? undefined : 3}
+                            style={styles.descriptionInline}
+                        >
+                            {description}
+                        </JempText>
+                    </Pressable>
                 ) : null}
 
                 {/* Explainer video — pinned below the header, outside the centered content */}
@@ -745,16 +745,6 @@ export default function AssessmentScreen() {
                     router.back();
                     router.push('/achievements');
                 }}
-            />
-
-            <JempDialog
-                visible={showInfo}
-                title={assessmentName}
-                message={description}
-                buttonLabel={t('ui.got_it')}
-                icon="information-circle-outline"
-                iconColor={Cyan[500]}
-                onDismiss={() => setShowInfo(false)}
             />
 
             <JempDialog
