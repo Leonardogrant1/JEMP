@@ -80,11 +80,21 @@ export function composeWeek(input: {
   if (n === 0) return new Map()
 
   // ── 1. Primary-Rotation (lower/push/pull), heavy ──────────────────────────
+  // Slot-Sequenz zuerst; der Lower-Primary wird auf den heavy_lower-Tag des
+  // Placements ausgerichtet (der trägt die Spieltags-Schutzlogik) — zwei
+  // Wahrheiten für "schwerer Beintag" darf es nicht geben (E2E-Befund Task 12).
+  const slots = days.map((_, i) => PRIMARY_ROTATION[i % PRIMARY_ROTATION.length])
+  const heavyIdx = days.findIndex((d) => d.heavy_lower)
+  if (heavyIdx !== -1 && slots[heavyIdx] !== 'lower_body') {
+    const lowerIdx = slots.indexOf('lower_body')
+    if (lowerIdx !== -1) { slots[lowerIdx] = slots[heavyIdx]; slots[heavyIdx] = 'lower_body' }
+  }
+
   const coverage: Record<Coarse, number> = { squat: 0, hinge: 0, push: 0, pull: 0 }
   let lowerCount = 0
   const primaryCoarse: Coarse[] = []
   const primaryBlocks = days.map((_, i) => {
-    const slot = PRIMARY_ROTATION[i % PRIMARY_ROTATION.length]
+    const slot = slots[i]
     let c: Coarse
     if (slot === 'lower_body') { c = lowerCount % 2 === 0 ? 'squat' : 'hinge'; lowerCount++ }
     else if (slot === 'push') c = 'push'
@@ -134,8 +144,20 @@ export function composeWeek(input: {
     }
   }
   distribute(budget.lower_body_plyometrics ?? 0, plyoLowerAssigned, idxByPreference(isLowerPrimary))
-  // upper-Plyo: Nicht-Push-Tage zuerst, Push-Tage als Fallback.
-  distribute(budget.upper_body_plyometrics ?? 0, plyoUpperAssigned, idxByPreference((i) => !isPushPrimary(i)))
+  // upper-Plyo: Tage ohne lower-Plyo (max 1 Plyo-Block/Session, E2E-Befund) und
+  // ohne Push-Primary zuerst; Push-Tage als Fallback. Reicht es nicht, wird ein
+  // lower-Tag zu upper umgewidmet — die geclampte upper-Säule geht nie verloren.
+  const upperOrder = days.map((_, i) => i)
+    .filter((i) => !plyoLowerAssigned.has(days[i].day_of_week))
+    .sort((a, b) => (isPushPrimary(a) ? 1 : 0) - (isPushPrimary(b) ? 1 : 0))
+  distribute(budget.upper_body_plyometrics ?? 0, plyoUpperAssigned, upperOrder)
+  if (plyoUpperAssigned.size < (budget.upper_body_plyometrics ?? 0)) {
+    for (const dow of [...plyoLowerAssigned].reverse()) {
+      if (plyoUpperAssigned.size >= (budget.upper_body_plyometrics ?? 0)) break
+      plyoLowerAssigned.delete(dow)
+      plyoUpperAssigned.add(dow)
+    }
+  }
 
   // §1.6.1 Deckel: Tag mit upper-Plyo UND Push-Primary → Push-Primary auf 'normal'.
   days.forEach((d, i) => {

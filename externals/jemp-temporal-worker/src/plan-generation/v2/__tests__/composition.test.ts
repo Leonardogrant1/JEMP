@@ -143,3 +143,27 @@ describe('focusBlockBudget (§1.4)', () => {
     expect(level1.upper_body_plyometrics).toBe(1)
   })
 })
+
+describe('composeWeek Alignment-Fixes (Task 12 E2E-Befunde)', () => {
+  it('Lower-Primary liegt auf dem heavy_lower-Tag des Placements', () => {
+    const days = [trainingDay(1), trainingDay(5), trainingDay(6)]
+    ;(days[2] as any).heavy_lower = true // Placement hat Samstag gewählt (Spieltags-Schutz)
+    const week = composeWeek({ trainingDays: days, pillarLevels: {}, hasSpeedSession: false })
+    const heavyLowerDay = [...week.entries()].find(([, bl]) =>
+      contentOf(bl).some((b) => b.block_type === 'lower_body' && b.emphasis === 'heavy'))?.[0]
+    expect(heavyLowerDay).toBe(6)
+  })
+
+  it('lower- und upper-Plyo kollidieren nie am selben Tag — upper geht nicht verloren', () => {
+    const week = composeWeek({
+      trainingDays: [1, 3, 5].map((d) => trainingDay(d, 75)),
+      pillarLevels: { lower_body_plyometrics: 1, upper_body_plyometrics: 1 }, hasSpeedSession: true,
+    })
+    const plyoBlocks = [...week.values()].flatMap((bl) => contentOf(bl).filter((b) => b.block_type === 'plyo'))
+    const variants = plyoBlocks.map((b) => b.variant).sort()
+    expect(variants).toEqual(['lower', 'upper'])
+    for (const [, bl] of week) {
+      expect(contentOf(bl).filter((b) => b.block_type === 'plyo').length).toBeLessThanOrEqual(1)
+    }
+  })
+})
