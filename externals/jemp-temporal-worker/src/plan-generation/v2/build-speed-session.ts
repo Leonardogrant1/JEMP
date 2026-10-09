@@ -2,7 +2,7 @@
 // picks by ascending intensity then slug so the same input yields the same session.
 
 import type { PlacedDay } from '../week-layout'
-import type { V2Exercise } from './pool'
+import { legacyBlockAllows, type V2Exercise } from './pool'
 
 type PlannedExercise = {
   exercise_slug: string
@@ -70,6 +70,10 @@ export function buildSpeedSession(input: {
       (e.category_slug === 'lower_body_plyometrics' && e.sprint_type === null && e.measurement_type === 'time'))
     .sort(byIntensityThenSlug)
   const mobilityPool = exercises.filter((e) => e.category_slug === 'mobility').sort(byIntensityThenSlug)
+  // Legacy-Block-Tag respektieren (QA 09.10.): dynamische Drills ins Warmup,
+  // statische Stretches/Atemübungen nur ins Cooldown.
+  const warmupMobility = mobilityPool.filter((e) => legacyBlockAllows(e, 'warmup'))
+  const cooldownMobility = mobilityPool.filter((e) => legacyBlockAllows(e, 'cooldown'))
   // Sprint-Technik-Drills (A-/B-Skips, Wall Drills — Kategorie sprints ohne
   // sprint_type): gehören laut Spec in den Drill-Teil des Speed-Warmups.
   const drillPool = exercises
@@ -100,10 +104,12 @@ export function buildSpeedSession(input: {
     target_sets: maintenance ? 2 : 3,
     target_rest_seconds: 90,
   }))
-  const warmupExercises = [...mobilityPool.slice(0, 2), ...drillPool.slice(0, 2)].map((e, i) => ({
+  const warmupPicks = warmupMobility.slice(0, 2)
+  const warmupExercises = [...warmupPicks, ...drillPool.slice(0, 2)].map((e, i) => ({
     ...baseExercise(e, i), target_duration_seconds: 45, target_rest_seconds: 15,
   }))
-  const cooldownExercises = mobilityPool.slice(2, 4).map((e, i) => ({
+  const warmupSlugs = new Set(warmupPicks.map((e) => e.slug))
+  const cooldownExercises = cooldownMobility.filter((e) => !warmupSlugs.has(e.slug)).slice(0, 2).map((e, i) => ({
     ...baseExercise(e, i), target_duration_seconds: 45, target_rest_seconds: 15,
   }))
 

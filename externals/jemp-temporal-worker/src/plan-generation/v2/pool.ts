@@ -37,8 +37,9 @@ const OPTIONAL_REGIONS = new Set(['bicep', 'tricep', 'forearm', 'shoulder'])
 const PLYO_CATEGORIES = new Set(['jumps', 'lower_body_plyometrics'])
 
 /** Legacy-Block-Tag steuert Warmup/Cooldown-Eignung; ohne Tag (null/leer)
- *  bleibt das bisherige Verhalten (beide erlaubt). */
-function legacyBlockAllows(ex: V2Exercise, slug: string): boolean {
+ *  bleibt das bisherige Verhalten (beide erlaubt). Exportiert, damit die
+ *  Prebuilt-Builder (Speed/Conditioning) denselben Filter nutzen. */
+export function legacyBlockAllows(ex: V2Exercise, slug: string): boolean {
   if (!ex.legacy_block_slugs || ex.legacy_block_slugs.length === 0) return true
   return ex.legacy_block_slugs.includes(slug)
 }

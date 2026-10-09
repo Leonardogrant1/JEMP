@@ -35,6 +35,19 @@ describe('buildSpeedSession', () => {
     const r = buildSpeedSession({ day: day(), exercises: [ex({ slug: 'hip_cars', category_slug: 'mobility' })], levels: { sprints: 2, cod: 2 }, allowMaxVelocity: true, orderIndex: 0 })
     expect(r).toBeNull()
   })
+
+  it('hält cooldown-only Mobility (Box Breathing) aus dem Warmup, Warmup-only aus dem Cooldown (QA 09.10.)', () => {
+    const pool = [
+      ...basePool,
+      ex({ slug: 'box_breathing', category_slug: 'mobility', measurement_type: 'duration', intensity_score: 1, legacy_block_slugs: ['cooldown'] }),
+      ex({ slug: 'arm_circle', category_slug: 'mobility', measurement_type: 'duration', intensity_score: 1, legacy_block_slugs: ['warmup'] }),
+    ]
+    const r = buildSpeedSession({ day: day(), exercises: pool, levels: { sprints: 2, cod: 2 }, allowMaxVelocity: true, orderIndex: 0 })!
+    const warmup = r.session.blocks.find((b: any) => b.block_type === 'warmup')!.exercises.map((e: any) => e.exercise_slug)
+    const cooldown = r.session.blocks.find((b: any) => b.block_type === 'cooldown')!.exercises.map((e: any) => e.exercise_slug)
+    expect(warmup).not.toContain('box_breathing')
+    expect(cooldown).not.toContain('arm_circle')
+  })
 })
 
 describe('speed session warmup drills (QA 08.10.: A-Skip = Sprint-Warmup)', () => {

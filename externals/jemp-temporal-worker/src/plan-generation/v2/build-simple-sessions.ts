@@ -2,7 +2,7 @@
 // Pure — picks by ascending intensity then slug; formats are the prescription.
 
 import type { PlacedDay } from '../week-layout'
-import type { V2Exercise } from './pool'
+import { legacyBlockAllows, type V2Exercise } from './pool'
 import type { PlannedSessionLike } from './build-speed-session'
 
 const byIntensityThenSlug = (a: V2Exercise, b: V2Exercise) =>
@@ -67,6 +67,10 @@ export function buildConditioningSession(input: {
   if (pool.length < 3) return null
 
   const mobilityPool = exercises.filter((e) => e.category_slug === 'mobility').sort(byIntensityThenSlug)
+  // Legacy-Block-Tag respektieren (QA 09.10.): kein Box Breathing im Warmup
+  const warmupPicks = mobilityPool.filter((e) => legacyBlockAllows(e, 'warmup')).slice(0, 2)
+  const warmupSlugs = new Set(warmupPicks.map((e) => e.slug))
+  const cooldownPicks = mobilityPool.filter((e) => legacyBlockAllows(e, 'cooldown') && !warmupSlugs.has(e.slug)).slice(0, 2)
   const intense = pool.filter((e) => (e.intensity_score ?? 0) >= 5)
   const format = intense.length >= 4 ? CONDITIONING_FORMATS.circuit_40_20 : CONDITIONING_FORMATS.interval_30_30
   const picked = pool.slice(0, Math.min(5, Math.max(3, pool.length)))
@@ -84,7 +88,7 @@ export function buildConditioningSession(input: {
       blocks: [
         {
           block_type: 'warmup', order_index: 0, focused_category_slug: 'mobility',
-          exercises: mobilityPool.slice(0, 2).map((e, i) => durationExercise(e, i, 45, 15)),
+          exercises: warmupPicks.map((e, i) => durationExercise(e, i, 45, 15)),
         },
         {
           block_type: 'conditioning', order_index: 1, focused_category_slug: 'lower_body_plyometrics',
@@ -95,7 +99,7 @@ export function buildConditioningSession(input: {
         },
         {
           block_type: 'cooldown', order_index: 2, focused_category_slug: 'mobility',
-          exercises: mobilityPool.slice(2, 4).map((e, i) => durationExercise(e, i, 45, 15)),
+          exercises: cooldownPicks.map((e, i) => durationExercise(e, i, 45, 15)),
         },
       ],
     },
