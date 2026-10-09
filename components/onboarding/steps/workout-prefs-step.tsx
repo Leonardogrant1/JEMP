@@ -8,6 +8,7 @@ import { Colors, GradientMid } from '@/constants/theme';
 import { computeLoadProfile, maxWorkoutDays, MIN_WORKOUT_DAYS } from '@/lib/load-profile';
 import { computeWeekComposition, extraSessionAllowance } from '@/lib/week-allocation';
 import { DayDurationSheet } from '@/components/onboarding/day-duration-sheet';
+import { JempDialog } from '@/components/ui/jemp-dialog';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTrainingAnimationBySlug } from '@/hooks/use-training-animation';
 import { supabase } from '@/services/supabase/client';
@@ -39,6 +40,7 @@ export function WorkoutPrefsStep() {
     const sprintsCoveredByClub = useOnboardingStore((s) => s.sprints_covered_by_club);
     const dayDurations = useOnboardingStore((s) => s.preferred_day_durations);
     const [durationSheetDay, setDurationSheetDay] = useState<number | null>(null);
+    const [showCapInfo, setShowCapInfo] = useState(false);
     const storedDuration = useOnboardingStore((s) => s.preferred_session_duration);
     const storedDayEnvironments = useOnboardingStore((s) => s.dayEnvironments);
     const environmentIds = useOnboardingStore((s) => s.environmentIds);
@@ -110,6 +112,7 @@ export function WorkoutPrefsStep() {
         const active = selectedDays.has(dow);
         if (!active && atCap) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            setShowCapInfo(true);
             return;
         }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -300,6 +303,16 @@ export function WorkoutPrefsStep() {
                     setStore({ preferred_day_durations: minutes === null ? (rest.length > 0 ? rest : null) : [...rest, { day_of_week: durationSheetDay, minutes }] });
                 }}
                 onClose={() => setDurationSheetDay(null)}
+            />
+
+            <JempDialog
+                visible={showCapInfo}
+                title={t('plan.schedule_cap_title')}
+                message={t(loadProfile !== 'low' ? 'plan.schedule_cap_body_load' : 'plan.schedule_cap_body_free', { count: maxDays })}
+                buttonLabel={t('ui.got_it')}
+                icon="information-circle-outline"
+                iconColor={GradientMid}
+                onDismiss={() => setShowCapInfo(false)}
             />
         </ScrollView>
     );

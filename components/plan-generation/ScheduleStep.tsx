@@ -9,6 +9,7 @@ import { useTrainingAnimation } from '@/hooks/use-training-animation';
 import { computeLoadProfile, maxWorkoutDays, MIN_WORKOUT_DAYS } from '@/lib/load-profile';
 import { computeWeekComposition, extraSessionAllowance } from '@/lib/week-allocation';
 import { DayDurationSheet } from '@/components/onboarding/day-duration-sheet';
+import { JempDialog } from '@/components/ui/jemp-dialog';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlanWizardStore } from '@/stores/plan-wizard-store';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +36,7 @@ export function ScheduleStep() {
     } = usePlanWizardStore();
     const trainingAnimation = useTrainingAnimation(profile?.sport);
     const [durationSheetDay, setDurationSheetDay] = useState<number | null>(null);
+    const [showCapInfo, setShowCapInfo] = useState(false);
     const sportKind = getSportKind(selectedSportSlug);
 
     // Env-Auswahl pro Tag lohnt nur, wenn mehrere Trainingsorte gewählt sind
@@ -54,6 +56,7 @@ export function ScheduleStep() {
         const active = preferredDays.has(dow);
         if (!active && atCap) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            setShowCapInfo(true);
             return;
         }
         if (!active) {
@@ -228,6 +231,16 @@ export function ScheduleStep() {
                 defaultMinutes={preferredDuration === '30min' ? 30 : preferredDuration === '45min' ? 45 : preferredDuration === '90min' ? 90 : 60}
                 onSelect={(minutes) => { if (durationSheetDay !== null) setDayDuration(durationSheetDay, minutes); }}
                 onClose={() => setDurationSheetDay(null)}
+            />
+
+            <JempDialog
+                visible={showCapInfo}
+                title={t('plan.schedule_cap_title')}
+                message={t(loadProfile !== 'low' ? 'plan.schedule_cap_body_load' : 'plan.schedule_cap_body_free', { count: maxDays })}
+                buttonLabel={t('ui.got_it')}
+                icon="information-circle-outline"
+                iconColor={GradientMid}
+                onDismiss={() => setShowCapInfo(false)}
             />
         </ScrollView>
     );
