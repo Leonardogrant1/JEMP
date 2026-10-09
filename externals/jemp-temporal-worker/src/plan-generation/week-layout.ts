@@ -102,6 +102,9 @@ export type PlacedDay = {
   carries_conditioning_finisher: boolean
   heavy_lower: boolean
   suppress_micro_dose: boolean
+  /** Flexible-Window (Spec 2026-10-09): erlaubte Wochentage für die flexible
+   *  Ausführung; day_of_week bleibt die Empfehlung. undefined = fest gepinnt. */
+  flexible_window?: number[]
 }
 export type WeekPlacement = { days: PlacedDay[]; carrier: SpeedCarrier; notes: string[] }
 
@@ -246,11 +249,18 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
     }
   }
 
+  // Flexible-Window (Spec 2026-10-09): Speed darf an jedem legalen Wochentag
+  // ausgeführt werden (72h-/Spieltags-Regel über alle 7 Tage, nicht nur die
+  // gewählten); Mobility jederzeit. day_of_week bleibt die Empfehlung.
+  const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7]
+  const speedWindow = ALL_DAYS.filter(speedLegal)
+
   const days: PlacedDay[] = []
   for (const d of speedDays) days.push({
     day_of_week: d, session_type: 'speed', minutes: Math.min(minutesFor(input, d), 40),
     dose: gameWeek ? 'maintenance' : 'normal',
     carries_sprint_block: false, carries_conditioning_finisher: false, heavy_lower: false, suppress_micro_dose: false,
+    flexible_window: speedWindow,
   })
   if (conditioningDay !== null) days.push({
     day_of_week: conditioningDay, session_type: 'conditioning', minutes: minutesFor(input, conditioningDay),
@@ -266,6 +276,7 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
   if (mobilityDay !== null) days.push({
     day_of_week: mobilityDay, session_type: 'mobility', minutes: 20, dose: 'normal',
     carries_sprint_block: false, carries_conditioning_finisher: false, heavy_lower: false, suppress_micro_dose: false,
+    flexible_window: ALL_DAYS,
   })
 
   days.sort((a, b) => a.day_of_week - b.day_of_week)

@@ -129,6 +129,8 @@ export async function savePlan(input: {
         estimated_duration_minutes: nz(aiSession.estimated_duration_minutes),
         pause_between_sets: aiSession.pause_between_sets > 0 ? aiSession.pause_between_sets : 90,
         environment_id: (aiSession as any).environment_id ?? environmentIds[0] ?? null,
+        // Flexible-Window (Spec 2026-10-09): Sprint/Mobility als Wochen-To-do
+        flexible_window: (aiSession as any).flexible_window ?? null,
       })
       .select('id')
       .single()

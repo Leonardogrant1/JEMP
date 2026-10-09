@@ -36,6 +36,8 @@ export type PlannedSessionLike = {
   description: string
   pause_between_sets: number
   dropped_blocks?: Array<{ block_type: string; reason: 'time' | 'coverage' }>
+  /** Flexible-Window (Spec 2026-10-09): erlaubte Wochentage; day_of_week = Empfehlung. */
+  flexible_window?: number[]
   blocks: PlannedBlock[]
 }
 
@@ -129,6 +131,7 @@ export function buildSpeedSession(input: {
       session_type: 'speed',
       description: 'Antritt, Richtungswechsel und Laufmechanik — draußen, ohne Equipment.',
       pause_between_sets: 120,
+      flexible_window: day.flexible_window,
       blocks,
     },
     notes,

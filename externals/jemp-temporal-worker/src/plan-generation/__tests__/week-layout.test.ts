@@ -500,3 +500,32 @@ describe('review follow-up: cap low=5 and level-3 conditioning pierces damping',
     expect(placed.days.some((d) => d.carries_conditioning_finisher)).toBe(false)
   })
 })
+
+describe('flexible_window (Spec 2026-10-09: Sprint/Mobility als Wochen-To-do)', () => {
+  it('Speed-Tag trägt das legale Fenster: alle 7 Tage minus Spieltag minus <72h davor', () => {
+    const input = {
+      available_days: [1, 3, 5], load_profile: 'high' as const,
+      pillar_levels: { sprints: 3 as const }, sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([{ day_of_week: 6, type: 'game', intensity: 10 }]),
+    }
+    const placed = placeWeek(input, allocateDays(input))
+    const speedDay = placed.days.find((d) => d.session_type === 'speed')!
+    // Spiel Samstag(6): illegal sind 4,5 (<72h) und 6 selbst; Mittwoch(3) ist
+    // exakt 72h davor und damit legal (bestehende speedLegal-Semantik) → {1,2,3,7}
+    expect([...(speedDay as any).flexible_window].sort()).toEqual([1, 2, 3, 7])
+  })
+
+  it('Mobility-Tag trägt alle 7 Tage als Fenster; Workouts bleiben gepinnt (kein Fenster)', () => {
+    const input = {
+      available_days: [1, 3, 5], load_profile: 'low' as const,
+      pillar_levels: { mobility: 2 as const, strength: 2 as const }, sprints_covered_by_club: false,
+      session_minutes: 60, weekly_schedule: schedule([]),
+    }
+    const placed = placeWeek(input, allocateDays(input))
+    const mob = placed.days.find((d) => d.session_type === 'mobility')!
+    expect((mob as any).flexible_window).toEqual([1, 2, 3, 4, 5, 6, 7])
+    for (const d of placed.days.filter((x) => x.session_type === 'training')) {
+      expect((d as any).flexible_window).toBeUndefined()
+    }
+  })
+})

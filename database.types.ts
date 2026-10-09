@@ -1577,6 +1577,7 @@ export type Database = {
           dropped_blocks: Json | null
           environment_id: string
           estimated_duration_minutes: number | null
+          flexible_window: number[] | null
           id: string
           mode_slug: string | null
           name: string
@@ -1593,6 +1594,7 @@ export type Database = {
           dropped_blocks?: Json | null
           environment_id: string
           estimated_duration_minutes?: number | null
+          flexible_window?: number[] | null
           id?: string
           mode_slug?: string | null
           name: string
@@ -1609,6 +1611,7 @@ export type Database = {
           dropped_blocks?: Json | null
           environment_id?: string
           estimated_duration_minutes?: number | null
+          flexible_window?: number[] | null
           id?: string
           mode_slug?: string | null
           name?: string

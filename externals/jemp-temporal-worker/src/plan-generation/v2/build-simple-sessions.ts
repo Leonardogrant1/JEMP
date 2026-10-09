@@ -43,6 +43,7 @@ export function buildMobilitySession(input: {
       session_type: 'mobility',
       description: 'Beweglichkeit und Regeneration — ruhiger Reiz am Ruhetag.',
       pause_between_sets: 15,
+      flexible_window: day.flexible_window,
       blocks: [{
         block_type: 'mobility', order_index: 0, focused_category_slug: 'mobility',
         exercises: picked.map((e, i) => durationExercise(e, i, 45, 15)),

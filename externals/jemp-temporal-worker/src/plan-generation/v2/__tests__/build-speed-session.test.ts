@@ -61,3 +61,10 @@ describe('speed session warmup drills (QA 08.10.: A-Skip = Sprint-Warmup)', () =
         expect(warmupSlugs).toContain('a_skip_drill');
     });
 });
+
+describe('flexible_window Durchreichung (Spec 2026-10-09)', () => {
+  it('die Speed-Session trägt das Fenster des Tages', () => {
+    const r = buildSpeedSession({ day: day({ flexible_window: [1, 2, 3, 7] }), exercises: basePool, levels: { sprints: 2, cod: 2 }, allowMaxVelocity: true, orderIndex: 0 })!
+    expect(r.session.flexible_window).toEqual([1, 2, 3, 7])
+  })
+})
