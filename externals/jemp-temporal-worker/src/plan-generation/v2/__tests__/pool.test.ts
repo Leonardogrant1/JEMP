@@ -50,6 +50,21 @@ describe('warmup CNS micro-dose pool (QA-Befund 08.10.)', () => {
     });
 });
 
+describe('Isolations-Leck im Push/Pull-Fallback (QA 09.10.)', () => {
+    it('Seitheben (shoulder, kein Pattern) matcht optional — nicht push', () => {
+        const raise = ex({ slug: 'dumbbell_lateral_raise', body_region: 'shoulder' });
+        expect(exerciseMatchesBlock(raise, block('optional'))).toBe(true);
+        expect(exerciseMatchesBlock(raise, block('push', 'push_vertical'))).toBe(false);
+    });
+    it('pattern-lose Arm-Isolation verschmutzt Push/Pull-Fallback nicht', () => {
+        expect(exerciseMatchesBlock(ex({ slug: 'tricep_pushdown', body_region: 'tricep' }), block('push', 'push_vertical'))).toBe(false);
+        expect(exerciseMatchesBlock(ex({ slug: 'dumbbell_curl', body_region: 'bicep' }), block('pull', 'pull_vertical'))).toBe(false);
+    });
+    it('untagged Brust-Compound behält den Push-Fallback', () => {
+        expect(exerciseMatchesBlock(ex({ slug: 'machine_press', body_region: 'chest' }), block('push', 'push_vertical'))).toBe(true);
+    });
+});
+
 describe('optional block (User-Plan: Arme raus aus Accessory)', () => {
     it('Arm-Isolation matcht optional, nicht mehr accessory', () => {
         const curl = ex({ slug: 'dumbbell_biceps_curl', body_region: 'bicep' });

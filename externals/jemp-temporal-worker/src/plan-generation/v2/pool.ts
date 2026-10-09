@@ -26,9 +26,11 @@ export type V2Exercise = {
 }
 
 const ACCESSORY_REGIONS = new Set(['groin', 'hip', 'calf', 'ankle'])
-// Optional-Block (Kür): isolierte Arm-Arbeit — bewusst getrennt vom
+// Optional-Block (Kür): isolierte Small-Muscle-Arbeit — bewusst getrennt vom
 // funktionellen Accessory, damit Show-Muskeln nie Prophylaxe verdrängen.
-const OPTIONAL_REGIONS = new Set(['bicep', 'tricep', 'forearm'])
+// 'shoulder' (QA 09.10.): pattern-lose Schulter-Übungen sind Isolationen
+// (Seitheben) — echte Presses tragen seit dem Backfill push_vertical.
+const OPTIONAL_REGIONS = new Set(['bicep', 'tricep', 'forearm', 'shoulder'])
 const PLYO_CATEGORIES = new Set(['jumps', 'lower_body_plyometrics'])
 
 /** Coarse pattern for untagged exercises (legacy derivation). */
@@ -41,10 +43,14 @@ export function exerciseMatchesBlock(ex: V2Exercise, blockDef: PlannedWorkoutBlo
   switch (blockDef.block_type) {
     case 'push':
       if (ex.strength_pattern !== null) return ex.strength_pattern === blockDef.variant
+      // Isolations-Leck (QA 09.10.): Optional-Regionen (bicep/tricep/shoulder…)
+      // mappen coarse auf push/pull — sie gehören aber in den Optional-Block.
       return ex.category_slug === 'strength' && coarsePattern(ex) === 'push'
+        && !OPTIONAL_REGIONS.has(effectiveRegion(ex) ?? '')
     case 'pull':
       if (ex.strength_pattern !== null) return ex.strength_pattern === blockDef.variant
       return ex.category_slug === 'strength' && coarsePattern(ex) === 'pull'
+        && !OPTIONAL_REGIONS.has(effectiveRegion(ex) ?? '')
     case 'lower_body': {
       if (ex.strength_pattern !== null) return ex.strength_pattern === blockDef.variant
       const coarse = blockDef.variant === 'knee_dominant' ? 'squat' : 'hinge'
