@@ -59,6 +59,9 @@ const en = {
     'category.lower_body_plyometrics_desc': 'Reactive strength and speed in the lower body — e.g. for sprints.',
     'category.upper_body_plyometrics_desc': 'Explosive upper body power — e.g. for striking, throwing.',
     'category.mobility_desc': 'Flexibility, joint stability and body control.',
+    'category.sprints_desc': 'Acceleration and top speed — linear sprinting speed in open space.',
+    'category.cod_desc': 'Change of direction — decelerate, redirect and re-accelerate explosively.',
+    'category.conditioning_desc': 'Conditioning and repeat-effort capacity — stay fresh for the full game.',
 
     // ── Sport groups ─────────────────────────────────────────────────────
     'sport_group.martial_arts': 'Martial Arts',

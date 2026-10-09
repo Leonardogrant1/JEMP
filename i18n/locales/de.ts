@@ -60,6 +60,9 @@ const de: Record<TranslationKeys, string> = {
     'category.lower_body_plyometrics_desc': 'Reaktivkraft und Schnelligkeit im Unterkörper — z.B. für Sprints.',
     'category.upper_body_plyometrics_desc': 'Explosive Kraft im Oberkörper — z.B. für Schlagbewegungen, Würfe.',
     'category.mobility_desc': 'Beweglichkeit, Gelenkstabilität und Körperkontrolle.',
+    'category.sprints_desc': 'Antritt und Maximalgeschwindigkeit — lineare Schnelligkeit auf freier Strecke.',
+    'category.cod_desc': 'Richtungswechsel — abbremsen, umsteuern und wieder explosiv beschleunigen.',
+    'category.conditioning_desc': 'Ausdauer und Wiederholungsfähigkeit — frisch bleiben über die volle Spielzeit.',
     'category.overall': 'Gesamt',
 
     // ── Sport groups ─────────────────────────────────────────────────────
