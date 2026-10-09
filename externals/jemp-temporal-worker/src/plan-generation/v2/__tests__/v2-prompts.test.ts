@@ -51,3 +51,13 @@ describe('V2_SESSION_PROMPT Hierarchie (§1.3/§3.1)', () => {
     expect(p).not.toMatch(/85\s?%/)
   })
 })
+
+describe('plyo-light Prompt (Review-Fix #5: kein "submaximal" am PAP-Tag)', () => {
+  it('plyo mit emphasis light bekommt explosive Qualitäts-Anweisung statt "submaximal"', () => {
+    const p = prompt([withEmphasis('plyo', 'light', 'lower'), withEmphasis('lower_body', 'heavy', 'knee_dominant')])
+    const plyoLine = p.split('\n').find((l) => l.includes('`plyo`'))!
+    expect(plyoLine).not.toMatch(/submaximal/)
+    expect(plyoLine).toMatch(/explosiv/i)
+    expect(plyoLine).toMatch(/volle Pausen/)
+  })
+})

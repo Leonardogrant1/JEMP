@@ -111,3 +111,25 @@ describe('optional block (User-Plan: Arme raus aus Accessory)', () => {
         expect(exerciseMatchesBlock(cope, block('optional'))).toBe(false);
     });
 });
+
+describe('buildBlockPools core-Fallback (Review-Fix #1: dünner Varianten-Pool)', () => {
+  it('fällt auf den ungefilterten Core-Pool zurück, wenn die Variante <2 Übungen hat', () => {
+    const exercises = [
+      ex({ slug: 'dead_bug', core_type: 'stability', movement_type: 'sagittal' }),
+      ex({ slug: 'plank', core_type: 'stability', movement_type: 'sagittal' }),
+      ex({ slug: 'single_chop', core_type: 'power', movement_type: 'transverse' }),
+    ]
+    const pools = buildBlockPools(exercises as any, [block('core', 'transverse')])
+    // nur 1 transverse → Fallback: alle 3 Core-Übungen
+    expect(pools.get('core' as any)!.length).toBe(3)
+  })
+  it('behält die Varianten-Filterung, wenn der Pool groß genug ist', () => {
+    const exercises = [
+      ex({ slug: 'chop_a', core_type: 'power', movement_type: 'transverse' }),
+      ex({ slug: 'chop_b', core_type: 'power', movement_type: 'transverse' }),
+      ex({ slug: 'plank', core_type: 'stability', movement_type: 'sagittal' }),
+    ]
+    const pools = buildBlockPools(exercises as any, [block('core', 'transverse')])
+    expect(pools.get('core' as any)!.map((e: any) => e.slug).sort()).toEqual(['chop_a', 'chop_b'])
+  })
+})

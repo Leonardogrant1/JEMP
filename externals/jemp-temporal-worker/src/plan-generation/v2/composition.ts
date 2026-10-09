@@ -116,9 +116,16 @@ export function composeWeek(input: {
     return { block_type: b.block_type, variant: b.variant, emphasis: 'normal' as const }
   })
 
-  // ── 3. Core-Tage: 2–3× pro Woche ──────────────────────────────────────────
+  // ── 3. Core-Tage: 2–3× pro Woche, Ebene rotiert (§1.5/§1.7) ──────────────
+  // transverse zuerst (die am meisten vernachlässigte, sportrelevanteste Ebene),
+  // dann sagittal, dritter Tag generisch (LLM wählt — fängt frontal mit ab).
+  // Sport-spezifischer Mix bleibt Post-v1 (Spec §4); dünne Varianten-Pools
+  // fallen in buildBlockPools auf den ungefilterten Core-Pool zurück.
+  const CORE_VARIANT_ROTATION: (string | null)[] = ['transverse', 'sagittal', null]
   const coreCount = Math.min(n, 3)
-  const coreDays = new Set(days.slice(0, coreCount).map((d) => d.day_of_week))
+  const coreVariantByDay = new Map<number, string | null>()
+  days.slice(0, coreCount).forEach((d, i) => coreVariantByDay.set(d.day_of_week, CORE_VARIANT_ROTATION[i % 3]))
+  const coreDays = new Set(coreVariantByDay.keys())
 
   // ── 4. Fokus-Budget (§1.4) + Verteilung auf Tage ──────────────────────────
   const totalContentSlots = days.reduce((s, d) => s + contentBlockCount(d.minutes), 0)
@@ -176,7 +183,9 @@ export function composeWeek(input: {
       : plyoUpperAssigned.has(dow)
         ? { block_type: 'plyo', variant: 'upper', emphasis: 'light' as const }
         : null
-    const core = coreDays.has(dow) ? { block_type: 'core', variant: null, emphasis: 'normal' as const } : null
+    const core = coreDays.has(dow)
+      ? { block_type: 'core', variant: coreVariantByDay.get(dow) ?? null, emphasis: 'normal' as const }
+      : null
 
     // Priorität: primary > komplement > plyo > core > Füller (accessory, optional).
     // (conditioning-in-Training läuft über carries_conditioning_finisher, nicht hier.)

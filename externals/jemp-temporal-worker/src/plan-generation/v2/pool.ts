@@ -117,7 +117,14 @@ export function buildBlockPools(
 ): Map<WorkoutBlockType, V2Exercise[]> {
   const pools = new Map<WorkoutBlockType, V2Exercise[]>()
   for (const b of blocks) {
-    pools.set(b.block_type, exercises.filter((ex) => exerciseMatchesBlock(ex, b)))
+    let pool = exercises.filter((ex) => exerciseMatchesBlock(ex, b))
+    // Review-Fix #1: Core-Varianten-Pools können bei jungem Katalog dünn sein —
+    // unter 2 Übungen fällt der Block auf den ungefilterten Core-Pool zurück,
+    // statt pre-gedroppt zu werden (Ebenen-Präferenz ist weich, §1.7).
+    if (b.block_type === 'core' && b.variant && pool.length < 2) {
+      pool = exercises.filter((ex) => exerciseMatchesBlock(ex, { ...b, variant: null }))
+    }
+    pools.set(b.block_type, pool)
   }
   return pools
 }

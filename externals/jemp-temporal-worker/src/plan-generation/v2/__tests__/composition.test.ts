@@ -182,3 +182,14 @@ describe('composeWeek Füller: accessory + optional (User-Feature Arm-Block)', (
     expect(c.length).toBeLessThanOrEqual(3)
   })
 })
+
+describe('Core-Varianten-Rotation (Review-Fix #1, §1.5/§1.7)', () => {
+  it('rotiert die Core-Ebene über die Woche: transverse und sagittal kommen vor', () => {
+    const week = composeWeek({ trainingDays: [1, 3, 5].map((d) => trainingDay(d)), pillarLevels: {}, hasSpeedSession: false })
+    const coreVariants = [1, 3, 5]
+      .map((d) => contentOf(week.get(d)!).find((b) => b.block_type === 'core')?.variant)
+      .filter((v) => v !== undefined)
+    expect(coreVariants).toContain('transverse')
+    expect(coreVariants).toContain('sagittal')
+  })
+})

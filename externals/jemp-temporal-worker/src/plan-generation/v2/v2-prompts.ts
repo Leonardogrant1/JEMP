@@ -39,7 +39,11 @@ export function V2_SESSION_PROMPT(input: {
     const emphasis = b.emphasis === 'heavy'
       ? ' — PRIMARY (die Hauptübung der Session): 4–5 Sätze, 3–5 Wiederholungen, schwer, lange Pausen, höchste Übungsqualität'
       : b.emphasis === 'light'
-        ? ' — Ergänzung: 2 Sätze, submaximal'
+        // Review-Fix #5: Plyo ist nie "submaximal in der Ausführung" — wenig
+        // Volumen, aber jede Wiederholung explosiv (PAP vor dem Primary).
+        ? (b.block_type === 'plyo'
+          ? ' — 2–3 Sätze à 3–5 explosive Wiederholungen, volle Pausen — Qualität vor Volumen'
+          : ' — Ergänzung: 2 Sätze, submaximal')
         : (b.block_type === 'warmup' || b.block_type === 'cooldown') ? ''
           : ' — Sekundär: 3 Sätze, solide, nicht ans Limit'
     return `- \`${b.block_type}\`${variant}${emphasis}`
