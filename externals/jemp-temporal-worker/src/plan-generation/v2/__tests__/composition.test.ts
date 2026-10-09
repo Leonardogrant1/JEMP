@@ -167,3 +167,18 @@ describe('composeWeek Alignment-Fixes (Task 12 E2E-Befunde)', () => {
     }
   })
 })
+
+describe('composeWeek Füller: accessory + optional (User-Feature Arm-Block)', () => {
+  it('lange Sessions füllen Rest-Slots mit accessory, dann optional', () => {
+    const week = composeWeek({ trainingDays: [1, 3, 5].map((d) => trainingDay(d, 75)), pillarLevels: {}, hasSpeedSession: false })
+    const all = [1, 3, 5].flatMap((d) => contentOf(week.get(d)!))
+    expect(all.some((b) => b.block_type === 'accessory')).toBe(true)
+    expect(all.some((b) => b.block_type === 'optional')).toBe(true)
+  })
+  it('kurze Sessions (30min) haben keine Füller — Primary/Komplement/Core gehen vor', () => {
+    const week = composeWeek({ trainingDays: [trainingDay(1, 30)], pillarLevels: {}, hasSpeedSession: false })
+    const c = contentOf(week.get(1)!)
+    expect(c.some((b) => b.block_type === 'optional')).toBe(false)
+    expect(c.length).toBeLessThanOrEqual(3)
+  })
+})

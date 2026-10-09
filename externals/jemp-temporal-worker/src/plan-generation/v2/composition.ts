@@ -178,18 +178,24 @@ export function composeWeek(input: {
         : null
     const core = coreDays.has(dow) ? { block_type: 'core', variant: null, emphasis: 'normal' as const } : null
 
-    // Priorität: primary > komplement > plyo > core.
+    // Priorität: primary > komplement > plyo > core > Füller (accessory, optional).
     // (conditioning-in-Training läuft über carries_conditioning_finisher, nicht hier.)
+    // Füller: Prophylaxe (accessory) vor Kür (optional/Arme) — nur wenn Slots übrig,
+    // kurze Sessions bekommen sie nie (User-Feature Arm-Block bleibt erhalten).
     const picks: PlannedWorkoutBlock[] = [primaryBlocks[i] as PlannedWorkoutBlock, complementBlocks[i] as PlannedWorkoutBlock]
     if (plyo) picks.push(plyo as PlannedWorkoutBlock)
     if (core) picks.push(core as PlannedWorkoutBlock)
+    picks.push({ block_type: 'accessory', variant: null, emphasis: 'light' } as PlannedWorkoutBlock)
+    picks.push({ block_type: 'optional', variant: null, emphasis: 'light' } as PlannedWorkoutBlock)
     const selected = picks.slice(0, slots)
 
-    // Workout-Reihenfolge: plyo (vor primary), primary, komplement, core.
+    // Workout-Reihenfolge: plyo (vor primary), primary, komplement, core, Füller.
     const inSelected = (bt: string) => selected.filter((b) => b.block_type === bt)
     ordered.push(...inSelected('plyo'))
     for (const bt of ['push', 'pull', 'lower_body']) ordered.push(...inSelected(bt))
     ordered.push(...inSelected('core'))
+    ordered.push(...inSelected('accessory'))
+    ordered.push(...inSelected('optional'))
 
     result.set(dow, [
       { block_type: 'warmup', variant: null, emphasis: 'normal' } as PlannedWorkoutBlock,
