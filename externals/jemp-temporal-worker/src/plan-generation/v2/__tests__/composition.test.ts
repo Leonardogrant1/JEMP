@@ -87,7 +87,7 @@ describe('focusBlockBudget (§1.4)', () => {
     const b = focusBlockBudget({ lower_body_plyometrics: 3, upper_body_plyometrics: 2, conditioning: 2 }, 6, false)
     expect(b.lower_body_plyometrics).toBe(3)
     expect(sum(b)).toBe(6)
-    expect(b.conditioning).toBeLessThan(b.lower_body_plyometrics)
+    expect(b.conditioning ?? 0).toBeLessThan(b.lower_body_plyometrics ?? 0)
   })
 
   it('sehr knappes Budget: nur die höchsten Level bekommen ihren Block', () => {
