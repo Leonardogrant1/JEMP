@@ -1,6 +1,7 @@
 import GameIcon from '@/assets/icons/game.svg';
 import Logo from '@/assets/icons/logo.svg';
 import { JempText } from '@/components/jemp-text';
+import { JempDialog } from '@/components/ui/jemp-dialog';
 import { CATEGORY_SVG_ICONS } from '@/constants/category-icons';
 import { Colors, GradientMid } from '@/constants/theme';
 import { DAY_KEYS, dowToDayKey, getWeekDays, toDateStr } from '@/helpers/date-helpers';
@@ -35,7 +36,7 @@ export default function SessionRescheduleScreen() {
     const router = useRouter();
     const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
 
-    const { sessions } = usePlan();
+    const { sessions, planSessions } = usePlan();
     const { profile } = useCurrentUser();
     const trainingAnimation = useTrainingAnimation(profile?.sport);
     const { mutate: rescheduleSession } = useRescheduleSession();
@@ -44,6 +45,7 @@ export default function SessionRescheduleScreen() {
     // Ausgewählter Ziel-Tag — alles (Tag, Scope, Confirm) in einer Ansicht
     const [pendingDate, setPendingDate] = useState<string | null>(null);
     const [scope, setScope] = useState<'single' | 'all'>('single');
+    const [showWindowBlocked, setShowWindowBlocked] = useState(false);
 
     const weekDays = getWeekDays(new Date());
 
@@ -108,6 +110,16 @@ export default function SessionRescheduleScreen() {
         ? currentSession.scheduled_at.split('T')[0]
         : null;
 
+    // Flexible-Window (Spec 2026-10-09): flexible Sessions dürfen nur auf Tage
+    // innerhalb ihres Fensters verschoben werden — gleiche Regel wie die
+    // "Starten"-Karte, hier für den manuellen Verschiebe-Weg.
+    const flexibleWindow = currentSession?.workout_plan_session_id
+        ? planSessions.find((ps) => ps.id === currentSession.workout_plan_session_id)?.flexible_window ?? null
+        : null;
+    const toDow = (d: Date) => ((d.getDay() + 6) % 7) + 1;
+    const isWindowBlocked = (day: Date) =>
+        !!flexibleWindow && flexibleWindow.length > 0 && !flexibleWindow.includes(toDow(day));
+
     // Mehrere Sessions pro Tag sind erlaubt — belegte Tage werden nicht mehr
     // gesperrt, sondern zeigen Chips mit den dort geplanten Sessions
     // (inklusive der Session, die gerade verschoben wird, auf ihrem Tag)
@@ -122,7 +134,7 @@ export default function SessionRescheduleScreen() {
 
     const hasSelectableDays = weekDays.some((day) => {
         const dateStr = toDateStr(day);
-        return dateStr >= todayStr && dateStr !== currentSessionDateStr;
+        return dateStr >= todayStr && dateStr !== currentSessionDateStr && !isWindowBlocked(day);
     });
 
     // Day name for the "all X sessions" scope label
@@ -168,6 +180,7 @@ export default function SessionRescheduleScreen() {
                                                 const isCurrentDay = dateStr === currentSessionDateStr;
                                                 const isToday = dateStr === todayStr;
                                                 const isSelected = dateStr === pendingDate;
+                                                const windowBlocked = !isPast && !isCurrentDay && isWindowBlocked(day);
                                                 const isDisabled = isPast || isCurrentDay;
                                                 const daySessions = sessionsByDate.get(dateStr) ?? [];
                                                 const dayVariant = getDayVariant(day, profile?.weekly_schedule, profile?.sport?.slug);
@@ -176,7 +189,9 @@ export default function SessionRescheduleScreen() {
                                                     <TouchableOpacity
                                                         key={dateStr}
                                                         disabled={isDisabled}
-                                                        onPress={() => handleSelectDay(dateStr)}
+                                                        // Fenster-gesperrte Tage sind tappbar, aber statt Auswahl
+                                                        // kommt der Erklär-Dialog (72h-Regel) — wie bei der Karte.
+                                                        onPress={() => windowBlocked ? setShowWindowBlocked(true) : handleSelectDay(dateStr)}
                                                         activeOpacity={0.7}
                                                         style={[
                                                             styles.dayRow,
@@ -186,7 +201,7 @@ export default function SessionRescheduleScreen() {
                                                                 // Tag der Session gedimmt, heute nur übers "Heute"-Label
                                                                 backgroundColor: isSelected ? `${GradientMid}18` : 'transparent',
                                                                 borderColor: isSelected ? GradientMid : theme.borderDivider,
-                                                                opacity: isPast || isCurrentDay ? 0.35 : 1,
+                                                                opacity: isPast || isCurrentDay || windowBlocked ? 0.35 : 1,
                                                             },
                                                         ]}
                                                     >
@@ -201,6 +216,9 @@ export default function SessionRescheduleScreen() {
                                                                 <JempText type="caption" color={GradientMid}>
                                                                     {t('ui.today')}
                                                                 </JempText>
+                                                            )}
+                                                            {windowBlocked && (
+                                                                <Ionicons name="lock-closed" size={13} color={theme.textSubtle} />
                                                             )}
                                                         </View>
 
@@ -324,6 +342,16 @@ export default function SessionRescheduleScreen() {
                     </Reanimated.View>
                 </Pressable>
             </Pressable>
+
+            <JempDialog
+                visible={showWindowBlocked}
+                title={t('plan.flexible_blocked_title')}
+                message={t(currentSession?.session_type === 'speed' ? 'plan.flexible_blocked_speed' : 'plan.flexible_blocked_generic')}
+                buttonLabel={t('ui.got_it')}
+                icon="information-circle-outline"
+                iconColor={GradientMid}
+                onDismiss={() => setShowWindowBlocked(false)}
+            />
         </Reanimated.View>
     );
 }
