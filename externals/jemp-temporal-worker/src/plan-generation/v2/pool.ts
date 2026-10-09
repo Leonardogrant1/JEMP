@@ -23,6 +23,9 @@ export type V2Exercise = {
   max_level: number
   intensity_score: number | null
   measurement_type: string | null
+  /** Legacy block_type-Zuordnung (warmup/cooldown/…) — steuert, ob eine
+   *  Mobility-Übung ins Warmup oder Cooldown darf. null = kein Tag, Fallback. */
+  legacy_block_slugs: string[] | null
 }
 
 const ACCESSORY_REGIONS = new Set(['groin', 'hip', 'calf', 'ankle'])
@@ -32,6 +35,13 @@ const ACCESSORY_REGIONS = new Set(['groin', 'hip', 'calf', 'ankle'])
 // (Seitheben) — echte Presses tragen seit dem Backfill push_vertical.
 const OPTIONAL_REGIONS = new Set(['bicep', 'tricep', 'forearm', 'shoulder'])
 const PLYO_CATEGORIES = new Set(['jumps', 'lower_body_plyometrics'])
+
+/** Legacy-Block-Tag steuert Warmup/Cooldown-Eignung; ohne Tag (null/leer)
+ *  bleibt das bisherige Verhalten (beide erlaubt). */
+function legacyBlockAllows(ex: V2Exercise, slug: string): boolean {
+  if (!ex.legacy_block_slugs || ex.legacy_block_slugs.length === 0) return true
+  return ex.legacy_block_slugs.includes(slug)
+}
 
 /** Coarse pattern for untagged exercises (legacy derivation). */
 function coarsePattern(ex: V2Exercise): string | null {
@@ -75,14 +85,16 @@ export function exerciseMatchesBlock(ex: V2Exercise, blockDef: PlannedWorkoutBlo
         && region !== null && OPTIONAL_REGIONS.has(region)
     }
     case 'warmup':
-      if (ex.category_slug === 'mobility') return true
+      // Mobility nur ins Warmup, wenn der Legacy-Tag es erlaubt (QA 09.10.):
+      // statische Stretches/Atemübungen sind cooldown-only getaggt.
+      if (ex.category_slug === 'mobility') return legacyBlockAllows(ex, 'warmup')
       // CNS-Mikro-Dosis (QA 08.10.): Sprint-Technik-Drills (Ministeps, Skips)
       // leben seit der Rekategorisierung in 'sprints' — ohne diesen Zweig
       // hätte der Warmup-Prompt einen leeren Drill-Pool.
       if (ex.category_slug === 'sprints' && ex.sprint_type === null && (ex.intensity_score ?? 10) <= 3) return true
       return PLYO_CATEGORIES.has(ex.category_slug) && ex.sprint_type === null && (ex.intensity_score ?? 10) <= 3
     case 'cooldown':
-      return ex.category_slug === 'mobility'
+      return ex.category_slug === 'mobility' && legacyBlockAllows(ex, 'cooldown')
     default:
       return false
   }

@@ -103,10 +103,11 @@ export async function prepareGenerationV2(
   const notes: string[] = []
 
   // ── 1. Exercises incl. v2 metadata, filtered for the user ────────────────
-  const [{ data: exerciseRows }, { data: exerciseEnvRows }, { data: exerciseEquipRows }] = await Promise.all([
+  const [{ data: exerciseRows }, { data: exerciseEnvRows }, { data: exerciseEquipRows }, { data: exerciseBlockRows }] = await Promise.all([
     supabase.from('exercises').select('id, slug, name, body_region, dominant_region, strength_pattern, plyo_type, core_type, sprint_type, covered_patterns, laterality, min_level, max_level, intensity_score, measurement_type, categories(id, slug)'),
     supabase.from('exercise_environments').select('exercise_id, environment_id'),
     supabase.from('exercise_equipments').select('exercise_id, equipment_id'),
+    supabase.from('exercise_blocks').select('exercise_id, block_types(slug)'),
   ])
 
   const envByExercise = new Map<string, Set<string>>()
@@ -118,6 +119,14 @@ export async function prepareGenerationV2(
   for (const r of exerciseEquipRows ?? []) {
     if (!equipByExercise.has(r.exercise_id)) equipByExercise.set(r.exercise_id, new Set())
     equipByExercise.get(r.exercise_id)!.add(r.equipment_id)
+  }
+  // Legacy block_type-Tags (warmup/cooldown-Eignung für Mobility, QA 09.10.)
+  const blocksByExercise = new Map<string, string[]>()
+  for (const r of exerciseBlockRows ?? []) {
+    const slug = (r.block_types as { slug?: string } | null)?.slug
+    if (!slug) continue
+    if (!blocksByExercise.has(r.exercise_id)) blocksByExercise.set(r.exercise_id, [])
+    blocksByExercise.get(r.exercise_id)!.push(slug)
   }
   // Lean v2 re-implementation of the legacy equipment/env/level filter —
   // deliberate duplication so the legacy closure stays untouched (plan ruling).
@@ -139,6 +148,7 @@ export async function prepareGenerationV2(
     covered_patterns: row.covered_patterns, laterality: row.laterality,
     min_level: row.min_level, max_level: row.max_level,
     intensity_score: row.intensity_score, measurement_type: row.measurement_type,
+    legacy_block_slugs: blocksByExercise.get(row.id) ?? null,
   })
 
   const exercises: V2Exercise[] = (exerciseRows ?? []).filter(makeExerciseFilter(filterMaps, null)).map(toV2)

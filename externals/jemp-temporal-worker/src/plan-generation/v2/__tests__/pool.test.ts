@@ -50,6 +50,29 @@ describe('warmup CNS micro-dose pool (QA-Befund 08.10.)', () => {
     });
 });
 
+describe('mobility warmup/cooldown nach Legacy-Block-Tag (QA 09.10. — Box Breathing)', () => {
+    it('cooldown-only Übung (Atemübung) matcht cooldown, nicht warmup', () => {
+        const breathing = ex({ slug: 'box_breathing', category_slug: 'mobility', legacy_block_slugs: ['cooldown'] });
+        expect(exerciseMatchesBlock(breathing, block('warmup'))).toBe(false);
+        expect(exerciseMatchesBlock(breathing, block('cooldown'))).toBe(true);
+    });
+    it('warmup-only Drill matcht warmup, nicht cooldown', () => {
+        const drill = ex({ slug: 'arm_circle', category_slug: 'mobility', legacy_block_slugs: ['warmup'] });
+        expect(exerciseMatchesBlock(drill, block('warmup'))).toBe(true);
+        expect(exerciseMatchesBlock(drill, block('cooldown'))).toBe(false);
+    });
+    it('Übung mit beiden Tags matcht beide Blöcke', () => {
+        const both = ex({ slug: 'cat_cow_stretch', category_slug: 'mobility', legacy_block_slugs: ['cooldown', 'warmup'] });
+        expect(exerciseMatchesBlock(both, block('warmup'))).toBe(true);
+        expect(exerciseMatchesBlock(both, block('cooldown'))).toBe(true);
+    });
+    it('ohne Tag-Info: beide erlaubt (Fallback, bisheriges Verhalten)', () => {
+        const untagged = ex({ slug: 'x', category_slug: 'mobility', legacy_block_slugs: null });
+        expect(exerciseMatchesBlock(untagged, block('warmup'))).toBe(true);
+        expect(exerciseMatchesBlock(untagged, block('cooldown'))).toBe(true);
+    });
+});
+
 describe('Isolations-Leck im Push/Pull-Fallback (QA 09.10.)', () => {
     it('Seitheben (shoulder, kein Pattern) matcht optional — nicht push', () => {
         const raise = ex({ slug: 'dumbbell_lateral_raise', body_region: 'shoulder' });
