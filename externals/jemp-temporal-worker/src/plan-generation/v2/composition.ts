@@ -90,7 +90,7 @@ export function composeWeek(input: {
     primaryCoarse.push(c)
     coverage[c] += 1
     const b = coarseToBlock(c, i % 2 === 0)
-    return { block_type: b.block_type, variant: b.variant, emphasis: 'heavy' as const }
+    return { block_type: b.block_type, variant: b.variant, emphasis: 'heavy' as 'heavy' | 'normal' | 'light' }
   })
 
   // ── 2. Komplement-Kraftblock je Tag (coverage-greedy, ≠ Primary-Block-Typ) ─
@@ -114,23 +114,33 @@ export function composeWeek(input: {
   const freeSlots = Math.max(0, totalContentSlots - reserved)
   const budget = focusBlockBudget(input.pillarLevels, freeSlots, input.hasSpeedSession)
 
-  // Fokus-Block-Instanzen round-robin verteilen (max 1 je Typ pro Tag).
+  // Fokus-Block-Instanzen verteilen (max 1 je Typ pro Tag), nach Tages-Präferenz
+  // (§1.6.1): lower-Plyo bevorzugt auf Lower-Primary-Tage (Potenzierung),
+  // upper-Plyo bevorzugt WEG von Push-Primary-Tagen (ZNS-Schutz Oberkörper).
   const plyoLowerAssigned = new Set<number>()
   const plyoUpperAssigned = new Set<number>()
   const conditioningAssigned = new Set<number>()
-  const distribute = (count: number, target: Set<number>) => {
-    let placed = 0, guard = 0
-    while (placed < count && guard < count * n + n) {
-      for (const d of days) {
-        if (placed >= count) break
-        if (!target.has(d.day_of_week)) { target.add(d.day_of_week); placed++ }
-      }
-      guard++
+  const isLowerPrimary = (i: number) => primaryCoarse[i] === 'squat' || primaryCoarse[i] === 'hinge'
+  const isPushPrimary = (i: number) => primaryCoarse[i] === 'push'
+  const idxByPreference = (prefer: (i: number) => boolean) =>
+    days.map((_, i) => i).sort((a, b) => (prefer(a) ? 0 : 1) - (prefer(b) ? 0 : 1))
+  const distribute = (count: number, target: Set<number>, order: number[]) => {
+    let placed = 0
+    for (const i of order) {
+      if (placed >= count) break
+      const dow = days[i].day_of_week
+      if (!target.has(dow)) { target.add(dow); placed++ }
     }
   }
-  distribute(budget.lower_body_plyometrics ?? 0, plyoLowerAssigned)
-  distribute(budget.upper_body_plyometrics ?? 0, plyoUpperAssigned)
-  distribute(budget.conditioning ?? 0, conditioningAssigned)
+  distribute(budget.lower_body_plyometrics ?? 0, plyoLowerAssigned, idxByPreference(isLowerPrimary))
+  // upper-Plyo: Nicht-Push-Tage zuerst, Push-Tage als Fallback.
+  distribute(budget.upper_body_plyometrics ?? 0, plyoUpperAssigned, idxByPreference((i) => !isPushPrimary(i)))
+  distribute(budget.conditioning ?? 0, conditioningAssigned, days.map((_, i) => i))
+
+  // §1.6.1 Deckel: Tag mit upper-Plyo UND Push-Primary → Push-Primary auf 'normal'.
+  days.forEach((d, i) => {
+    if (plyoUpperAssigned.has(d.day_of_week) && isPushPrimary(i)) primaryBlocks[i].emphasis = 'normal'
+  })
 
   // ── 5. Pro Tag: Slots nach Priorität füllen, in Workout-Reihenfolge ordnen ─
   const result = new Map<number, PlannedWorkoutBlock[]>()

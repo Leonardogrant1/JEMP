@@ -70,6 +70,42 @@ describe('composeWeek (§1.1–1.3)', () => {
   })
 })
 
+describe('composeWeek Plyo-Platzierung (§1.6.1, Review Focus 1)', () => {
+  const dayOfPrimary = (blocks: any[], bt: string) => contentOf(blocks).find((b) => b.block_type === bt && b.emphasis !== undefined)
+
+  it('4 Tage, upper-Plyo 2: liegt auf Nicht-Push-Tagen, Push-Primary bleibt heavy', () => {
+    const week = composeWeek({
+      trainingDays: [1, 2, 4, 6].map((d) => trainingDay(d)),
+      pillarLevels: { upper_body_plyometrics: 2 }, hasSpeedSession: false,
+    })
+    for (const [, blocks] of week) {
+      const hasUpperPlyo = contentOf(blocks).some((b) => b.block_type === 'plyo' && b.variant === 'upper')
+      const pushPrimary = contentOf(blocks).find((b) => b.block_type === 'push' && b.emphasis === 'heavy')
+      // Wo Upper-Plyo liegt, ist kein heavy Push-Primary (Platzierung weicht aus)
+      if (hasUpperPlyo && pushPrimary) expect(pushPrimary.emphasis).not.toBe('heavy')
+    }
+    // Push-Primaries bleiben grundsätzlich heavy, wenn kein Upper-Plyo am Tag
+    const heavyPush = [...week.values()].some((bl) => contentOf(bl).some((b) => b.block_type === 'push' && b.emphasis === 'heavy'))
+    expect(heavyPush).toBe(true)
+  })
+
+  it('2 Tage, upper-Plyo 3: Kollision unvermeidbar → Deckel (Push-Primary normal) + Säule nicht verloren', () => {
+    const week = composeWeek({
+      trainingDays: [trainingDay(1), trainingDay(4)],
+      pillarLevels: { upper_body_plyometrics: 3 }, hasSpeedSession: false,
+    })
+    const upperPlyoBlocks = [...week.values()].flatMap((bl) => contentOf(bl).filter((b) => b.block_type === 'plyo' && b.variant === 'upper'))
+    expect(upperPlyoBlocks.length).toBeGreaterThanOrEqual(1) // Hauptsäule nicht verloren
+    // Der Tag mit Push-Primary UND Upper-Plyo hat den Primary auf 'normal' gedämpft
+    for (const [, blocks] of week) {
+      const c = contentOf(blocks)
+      const hasUpperPlyo = c.some((b) => b.block_type === 'plyo' && b.variant === 'upper')
+      const push = c.find((b) => b.block_type === 'push')
+      if (hasUpperPlyo && push) expect(push.emphasis).toBe('normal')
+    }
+  })
+})
+
 describe('focusBlockBudget (§1.4)', () => {
   it('erfüllt alle Wünsche, wenn das Budget reicht', () => {
     const b = focusBlockBudget({ lower_body_plyometrics: 3, conditioning: 2 }, 6, false)
