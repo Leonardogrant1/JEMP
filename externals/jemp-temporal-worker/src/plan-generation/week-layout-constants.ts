@@ -16,6 +16,11 @@ export const BLOCK_MINUTES: Record<WorkoutBlockType, number> = {
   warmup: 8, push: 9, pull: 9, lower_body: 10, rotation: 5, core: 5, plyo: 6, accessory: 6, optional: 5, cooldown: 4,
 }
 export const MAINTENANCE_DOSE_FACTOR = 0.7
+/** Kompakt-Modus (QA 09.10.): kurze Sessions rechnen Content-Blöcke mit 0.7
+ *  (2 Sätze, Supersätze, kürzere Pausen) — sonst bleibt bei 30 min nach dem
+ *  geschützten Kern (Warmup/Lower/Cooldown) kein Platz für irgendetwas. */
+export const COMPACT_SESSION_THRESHOLD_MINUTES = 45
+export const COMPACT_DOSE_FACTOR = 0.7
 export const INTEGRATED_SPRINT_BLOCK_MINUTES = 12
 export const CONDITIONING_FINISHER_MINUTES = 10
 /** Drop order when no coverage/rotation signal decides (lowest value drops first). */

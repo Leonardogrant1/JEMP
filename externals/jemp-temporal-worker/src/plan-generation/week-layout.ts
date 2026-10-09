@@ -9,7 +9,7 @@ export function circularDayDistance(from: number, to: number): number {
 }
 
 import type { WeeklySchedule } from './types'
-import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, WORKOUT_BLOCK_SEQUENCE, BLOCK_MINUTES, MAINTENANCE_DOSE_FACTOR, INTEGRATED_SPRINT_BLOCK_MINUTES, CONDITIONING_FINISHER_MINUTES, DROP_PRIORITY, BLOCK_TO_PILLAR } from './week-layout-constants'
+import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, WORKOUT_BLOCK_SEQUENCE, BLOCK_MINUTES, MAINTENANCE_DOSE_FACTOR, COMPACT_SESSION_THRESHOLD_MINUTES, INTEGRATED_SPRINT_BLOCK_MINUTES, CONDITIONING_FINISHER_MINUTES, DROP_PRIORITY, BLOCK_TO_PILLAR } from './week-layout-constants'
 
 export type NewSessionType = 'training' | 'speed' | 'mobility' | 'conditioning'
 export type PillarSlug =
@@ -331,12 +331,14 @@ export type FinalWorkout = {
 
 export function estimateMinutes(
   blocks: PlannedWorkoutBlock[], dose: 'normal' | 'maintenance', carriesSprintBlock: boolean,
-  carriesConditioningFinisher = false,
+  carriesConditioningFinisher = false, compact = false,
 ): number {
   const content = blocks.reduce((sum, b) => {
     const base = BLOCK_MINUTES[b.block_type]
+    // Kompakt und Maintenance stapeln sich nicht — beide stehen für dieselbe
+    // Reduktion (weniger Sätze, kürzere Pausen).
     const scaled = (b.block_type === 'warmup' || b.block_type === 'cooldown') ? base
-      : dose === 'maintenance' ? base * MAINTENANCE_DOSE_FACTOR : base
+      : (dose === 'maintenance' || compact) ? base * MAINTENANCE_DOSE_FACTOR : base
     return sum + scaled
   }, 0)
   return Math.round(content
@@ -366,7 +368,8 @@ export function applyScalingLevers(
 
     const droppable = () => blocks.filter((b) => !protectedTypes.has(b.block_type))
 
-    while (estimateMinutes(blocks, day.dose, day.carries_sprint_block, day.carries_conditioning_finisher) > day.minutes && droppable().length > 0) {
+    const compact = day.minutes <= COMPACT_SESSION_THRESHOLD_MINUTES
+    while (estimateMinutes(blocks, day.dose, day.carries_sprint_block, day.carries_conditioning_finisher, compact) > day.minutes && droppable().length > 0) {
       const candidates = droppable()
       // (a) coverage: variants already seen this week drop first
       const covered = candidates.filter((b) => b.variant !== null && coveredVariants.has(b.variant))
@@ -385,7 +388,7 @@ export function applyScalingLevers(
       dropped.push({ block_type: victim.block_type, reason: 'time' })
     }
 
-    const estimated = estimateMinutes(blocks, day.dose, day.carries_sprint_block, day.carries_conditioning_finisher)
+    const estimated = estimateMinutes(blocks, day.dose, day.carries_sprint_block, day.carries_conditioning_finisher, compact)
     if (estimated > day.minutes) {
       notes.push(`Tag ${day.day_of_week}: Budget ${day.minutes} min nicht erreichbar (geschützter Kern ${estimated} min)`)
     }

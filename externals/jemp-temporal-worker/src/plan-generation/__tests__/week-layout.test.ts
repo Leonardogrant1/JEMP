@@ -240,8 +240,10 @@ describe('scaling levers (§2.9)', () => {
   })
 
   it('maintenance dose reduces drops', () => {
-    const normal = placedWeek([1], 1); normal.days[0].minutes = 45
-    const game = placedWeek([1], 1); game.days[0].minutes = 45; (game.days[0] as any).dose = 'maintenance'
+    // 50 min: oberhalb der Kompakt-Schwelle, damit maintenance vs normal
+    // unterscheidbar bleibt (≤45 skaliert beide identisch).
+    const normal = placedWeek([1], 1); normal.days[0].minutes = 50
+    const game = placedWeek([1], 1); game.days[0].minutes = 50; (game.days[0] as any).dose = 'maintenance'
     const nDropped = applyScalingLevers(normal, planWorkoutBlocks(normal)).workouts[0].dropped.length
     const gDropped = applyScalingLevers(game, planWorkoutBlocks(game)).workouts[0].dropped.length
     expect(gDropped).toBeLessThan(nDropped)
@@ -258,8 +260,9 @@ describe('scaling levers (§2.9)', () => {
   })
 
   it('tiny budget stops at protected floor', () => {
+    // 15 min: unter dem kompakten geschützten Kern (Warmup 8 + Lower 7 + Cooldown 4 = 19)
     const placement = placedWeek([1], 1)
-    placement.days[0].minutes = 20
+    placement.days[0].minutes = 15
     const { workouts, notes } = applyScalingLevers(placement, planWorkoutBlocks(placement))
     const kept = workouts[0].blocks.map((b) => b.block_type)
     expect(kept).toEqual(expect.arrayContaining(['warmup', 'lower_body', 'cooldown']))
@@ -269,6 +272,23 @@ describe('scaling levers (§2.9)', () => {
   it('adds the integrated sprint block minutes on the carrier day', () => {
     const blocks = fullBlocks()
     expect(estimateMinutes(blocks, 'normal', true) - estimateMinutes(blocks, 'normal', false)).toBe(12)
+  })
+
+  it('kompakt skaliert Content-Blöcke mit 0.7 — Warmup/Cooldown bleiben voll', () => {
+    const blocks = fullBlocks()
+    const full = estimateMinutes(blocks, 'normal', false)
+    const compact = estimateMinutes(blocks, 'normal', false, false, true)
+    // Warmup (8) + Cooldown (4) unskaliert, Rest × 0.7
+    expect(compact).toBe(Math.round((full - 12) * 0.7 + 12))
+  })
+
+  it('30-min-Session behält im Kompakt-Modus einen Oberkörper-Block', () => {
+    const placement = placedWeek([1], 1)
+    placement.days[0].minutes = 30
+    const { workouts } = applyScalingLevers(placement, planWorkoutBlocks(placement))
+    const kept = workouts[0].blocks.map((b) => b.block_type)
+    expect(workouts[0].estimated_minutes).toBeLessThanOrEqual(30)
+    expect(kept.some((b) => b === 'push' || b === 'pull')).toBe(true)
   })
 })
 
@@ -388,8 +408,9 @@ describe('review fixes (phase 2a final review)', () => {
   })
 
   it('I6: drop priority respects pillar levels — emphasized plyo survives over pull', () => {
+    // 35 min: eng genug, dass plyo ohne Level-Schutz auch im Kompakt-Modus fällt
     const placement = placedWeek([1], 1)
-    placement.days[0].minutes = 45
+    placement.days[0].minutes = 35
     const noLevels = applyScalingLevers(placement, planWorkoutBlocks(placement))
     expect(noLevels.workouts[0].dropped.map((d) => d.block_type)).toContain('plyo')
     const withLevels = applyScalingLevers(placement, planWorkoutBlocks(placement), { lower_body_plyometrics: 3 })

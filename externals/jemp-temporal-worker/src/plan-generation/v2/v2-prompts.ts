@@ -2,6 +2,7 @@
 // engine — the LLM only chooses exercises and prescriptions within each block.
 
 import type { FinalWorkout, PlacedDay, PlannedWorkoutBlock } from '../week-layout'
+import { COMPACT_SESSION_THRESHOLD_MINUTES } from '../week-layout-constants'
 
 const VARIANT_LABELS: Record<string, string> = {
   push_vertical: 'vertikaler Push (Overhead-Familie)',
@@ -43,6 +44,12 @@ export function V2_SESSION_PROMPT(input: {
     ? `\n- Diese Session trägt den integrierten Sprint-Block: Füge direkt nach dem Warmup einen \`sprint\`-Block ein (10–15 min, 3–5 Antritte, volle Pausen). Pool: ${sprintPoolLine}`
     : ''
 
+  // Kompakt-Modus (QA 09.10.): kurze Sessions — die Blockliste ist bereits
+  // auf das Zeitbudget gekürzt, die Verschreibung muss mitziehen.
+  const compact = day.minutes <= COMPACT_SESSION_THRESHOLD_MINUTES
+    ? '\n- KOMPAKT-SESSION: 2 Sätze pro Übung (SCHWERPUNKT-Block: 3), Push/Pull als Supersatz verschreiben (notes), Pausen 60–90 s. Keine Zusatzübungen.'
+    : ''
+
   return `Du bist ein professioneller Athletiktrainer. Die BLOCK-STRUKTUR dieser Session ist fest vorgegeben — wähle NUR die Übungen und Verschreibungen pro Block.
 
 ## Nutzerdaten
@@ -54,7 +61,7 @@ ${weekSummary}
 ## Diese Session (Tag ${day.day_of_week}, ${day.minutes} min, Dosis: ${day.dose})
 Blöcke in GENAU dieser Reihenfolge — jeder Block MUSS vorkommen, keine zusätzlichen Blöcke:
 ${blockLines}
-${microDose}${sprintBlock}
+${microDose}${sprintBlock}${compact}
 
 ## Übungspools pro Block (NUR daraus wählen)
 ${poolLines.join('\n')}
