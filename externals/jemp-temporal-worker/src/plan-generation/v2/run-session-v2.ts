@@ -7,6 +7,7 @@ import type OpenAI from 'openai'
 import type { FinalWorkout, PlacedDay } from '../week-layout'
 import type { PlannedSessionLike } from './build-speed-session'
 import { buildConditioningFinisherBlock } from './build-simple-sessions'
+import { trainingSessionTitle } from './session-title'
 import { V2_SESSION_PROMPT } from './v2-prompts'
 
 function toEnum(values: string[]): z.ZodTypeAny {
@@ -165,6 +166,9 @@ export async function runSessionV2(
 
   return {
     ...(lastSession as any),
+    // Name deterministisch überschreiben (QA 09.10.): der LLM-Name schleuste
+    // Sportart und Tag-Nummer ein — der Titel nennt nur den Trainingsinhalt.
+    name: trainingSessionTitle(blocks, day),
     blocks,
     day_of_week: day.day_of_week,
     order_index: orderIndex,
