@@ -272,7 +272,7 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
 }
 
 export type WorkoutBlockType =
-  | 'warmup' | 'push' | 'pull' | 'lower_body' | 'rotation' | 'plyo' | 'accessory' | 'optional' | 'cooldown'
+  | 'warmup' | 'push' | 'pull' | 'lower_body' | 'core' | 'conditioning' | 'plyo' | 'accessory' | 'optional' | 'cooldown' | 'rotation'
 export type PlannedWorkoutBlock = {
   block_type: WorkoutBlockType
   variant: string | null

@@ -236,9 +236,10 @@ describe('planWorkoutBlocks (§2.4)', () => {
 describe('scaling levers (§2.9)', () => {
   const fullBlocks = () => planWorkoutBlocks(placedWeek([1], 1)).get(1)!
 
-  it('estimates the full workout at the sum of block minutes', () => {
-    expect(estimateMinutes(fullBlocks(), 'normal', false)).toBe(
-      Object.values(BLOCK_MINUTES).reduce((a, b) => a + b, 0)) // 62
+  it('estimates the full workout at the sum of its block minutes', () => {
+    const blocks = fullBlocks()
+    expect(estimateMinutes(blocks, 'normal', false)).toBe(
+      blocks.reduce((a, b) => a + BLOCK_MINUTES[b.block_type], 0))
   })
 
   it('drops blocks until the budget fits, never warmup/cooldown/heavy lower', () => {

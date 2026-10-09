@@ -27,7 +27,7 @@ export const WORKOUT_BLOCK_SEQUENCE: WorkoutBlockType[] =
   ['warmup', 'push', 'pull', 'lower_body', 'rotation', 'plyo', 'accessory', 'optional', 'cooldown']
 
 export const BLOCK_MINUTES: Record<WorkoutBlockType, number> = {
-  warmup: 8, push: 9, pull: 9, lower_body: 10, rotation: 7, plyo: 6, accessory: 6, optional: 5, cooldown: 4,
+  warmup: 8, push: 9, pull: 9, lower_body: 10, core: 5, conditioning: 10, plyo: 6, accessory: 6, optional: 5, cooldown: 4, rotation: 7,
 }
 export const MAINTENANCE_DOSE_FACTOR = 0.7
 /** Kompakt-Modus (QA 09.10.): kurze Sessions rechnen Content-Blöcke mit 0.7

@@ -11,12 +11,22 @@ describe('exerciseMatchesBlock', () => {
     expect(exerciseMatchesBlock(ex({ slug: 'machine_press', body_region: 'chest' }), block('push', 'push_vertical'))).toBe(true)
   })
   it('keeps sprints out of plyo pools', () => {
-    expect(exerciseMatchesBlock(ex({ slug: 'sprint_10m', category_slug: 'lower_body_plyometrics', sprint_type: 'acceleration' }), block('plyo', 'maximal'))).toBe(false)
+    expect(exerciseMatchesBlock(ex({ slug: 'sprint_10m', category_slug: 'lower_body_plyometrics', sprint_type: 'acceleration' }), block('plyo', 'lower'))).toBe(false)
   })
-  it('rotation nimmt Rotations-Pattern UND Core-Übungen (Core-Merge QA 09.10.)', () => {
-    expect(exerciseMatchesBlock(ex({ slug: 'pallof_press', strength_pattern: 'rotation' }), block('rotation'))).toBe(true)
-    expect(exerciseMatchesBlock(ex({ slug: 'copenhagen_plank', core_type: 'stability' }), block('rotation'))).toBe(true)
-    expect(exerciseMatchesBlock(ex({ slug: 'machine_press', body_region: 'chest' }), block('rotation'))).toBe(false)
+  it('plyo-Variante nach Säule (§1.6): lower=lbp/jumps, upper=ubp', () => {
+    expect(exerciseMatchesBlock(ex({ slug: 'box_jump', category_slug: 'lower_body_plyometrics' }), block('plyo', 'lower'))).toBe(true)
+    expect(exerciseMatchesBlock(ex({ slug: 'box_jump', category_slug: 'lower_body_plyometrics' }), block('plyo', 'upper'))).toBe(false)
+    expect(exerciseMatchesBlock(ex({ slug: 'clap_push_up', category_slug: 'upper_body_plyometrics' }), block('plyo', 'upper'))).toBe(true)
+    expect(exerciseMatchesBlock(ex({ slug: 'clap_push_up', category_slug: 'upper_body_plyometrics' }), block('plyo', 'lower'))).toBe(false)
+  })
+  it('core: Zugehörigkeit via core_type, Verfeinerung via movement_type + is_explosive (§2.3)', () => {
+    expect(exerciseMatchesBlock(ex({ slug: 'pallof', core_type: 'stability', movement_type: 'transverse' }), block('core', 'transverse'))).toBe(true)
+    expect(exerciseMatchesBlock(ex({ slug: 'plank', core_type: 'stability', movement_type: 'sagittal' }), block('core', 'transverse'))).toBe(false)
+    expect(exerciseMatchesBlock(ex({ slug: 'plank', core_type: 'stability', movement_type: 'sagittal' }), block('core', 'sagittal'))).toBe(true)
+    expect(exerciseMatchesBlock(ex({ slug: 'box_pushoff', core_type: 'power', movement_type: 'sagittal', is_explosive: true }), block('core', 'explosive'))).toBe(true)
+    expect(exerciseMatchesBlock(ex({ slug: 'plank', core_type: 'stability', is_explosive: false }), block('core', 'explosive'))).toBe(false)
+    expect(exerciseMatchesBlock(ex({ slug: 'any_core', core_type: 'stability' }), block('core'))).toBe(true) // kein Mix gefordert
+    expect(exerciseMatchesBlock(ex({ slug: 'bench', body_region: 'chest' }), block('core'))).toBe(false) // keine Core-Übung
   })
   it('matches lower_body variants with coarse fallback', () => {
     expect(exerciseMatchesBlock(ex({ slug: 'back_squat', strength_pattern: 'knee_dominant' }), block('lower_body', 'knee_dominant'))).toBe(true)

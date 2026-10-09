@@ -104,7 +104,7 @@ export async function prepareGenerationV2(
 
   // ── 1. Exercises incl. v2 metadata, filtered for the user ────────────────
   const [{ data: exerciseRows }, { data: exerciseEnvRows }, { data: exerciseEquipRows }, { data: exerciseBlockRows }] = await Promise.all([
-    supabase.from('exercises').select('id, slug, name, body_region, dominant_region, strength_pattern, plyo_type, core_type, sprint_type, covered_patterns, laterality, min_level, max_level, intensity_score, measurement_type, categories(id, slug)'),
+    supabase.from('exercises').select('id, slug, name, body_region, dominant_region, strength_pattern, plyo_type, core_type, sprint_type, covered_patterns, laterality, min_level, max_level, intensity_score, measurement_type, movement_type, is_explosive, categories(id, slug)'),
     supabase.from('exercise_environments').select('exercise_id, environment_id'),
     supabase.from('exercise_equipments').select('exercise_id, equipment_id'),
     supabase.from('exercise_blocks').select('exercise_id, block_types(slug)'),
@@ -149,6 +149,7 @@ export async function prepareGenerationV2(
     min_level: row.min_level, max_level: row.max_level,
     intensity_score: row.intensity_score, measurement_type: row.measurement_type,
     legacy_block_slugs: blocksByExercise.get(row.id) ?? null,
+    movement_type: row.movement_type ?? 'sagittal', is_explosive: row.is_explosive ?? false,
   })
 
   const exercises: V2Exercise[] = (exerciseRows ?? []).filter(makeExerciseFilter(filterMaps, null)).map(toV2)

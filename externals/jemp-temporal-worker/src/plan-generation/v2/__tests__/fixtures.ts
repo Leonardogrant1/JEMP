@@ -4,7 +4,7 @@ export const ex = (over: Partial<any>): any => ({
   dominant_region: null, strength_pattern: null, plyo_type: null, core_type: null,
   sprint_type: null, covered_patterns: null, laterality: null,
   min_level: 1, max_level: 100, intensity_score: 5, measurement_type: 'reps',
-  legacy_block_slugs: null, ...over,
+  legacy_block_slugs: null, movement_type: 'sagittal', is_explosive: false, ...over,
 })
 
 export const day = (over: Partial<any> = {}): any => ({

@@ -26,6 +26,10 @@ export type V2Exercise = {
   /** Legacy block_type-Zuordnung (warmup/cooldown/…) — steuert, ob eine
    *  Mobility-Übung ins Warmup oder Cooldown darf. null = kein Tag, Fallback. */
   legacy_block_slugs: string[] | null
+  /** Bewegungsebene (§2.1): sagittal|frontal|transverse. */
+  movement_type: string
+  /** Dynamik (§2.2): ballistisch ausgeführt. */
+  is_explosive: boolean
 }
 
 const ACCESSORY_REGIONS = new Set(['groin', 'hip', 'calf', 'ankle'])
@@ -67,14 +71,20 @@ export function exerciseMatchesBlock(ex: V2Exercise, blockDef: PlannedWorkoutBlo
       const coarse = blockDef.variant === 'knee_dominant' ? 'squat' : 'hinge'
       return ex.category_slug === 'strength' && coarsePattern(ex) === coarse
     }
-    case 'rotation':
-      // Core-Merge (QA 09.10.): Rotationspower (strength_pattern) ODER
-      // Rumpfstabilität (core_type) — beide ohne Fallback, Tag erforderlich.
-      return ex.strength_pattern === 'rotation' || ex.core_type !== null
+    case 'core': {
+      // Composition-Rework (§1.5/§2.3): core_type ist das Zugehörigkeits-Gate
+      // ("ist Core-Übung"); Verfeinerung über movement_type + is_explosive.
+      if (ex.core_type === null) return false
+      if (!blockDef.variant) return true // kein Mix gefordert → jede Core-Übung
+      if (blockDef.variant === 'explosive') return ex.is_explosive === true
+      return ex.movement_type === blockDef.variant // 'sagittal'|'frontal'|'transverse'
+    }
     case 'plyo':
+      // Variante = Säule (§1.6): lower = lower_body_plyometrics/jumps, upper = upper_body_plyometrics.
       if (ex.sprint_type !== null) return false // sprints never fill plyo blocks
-      if (ex.plyo_type !== null) return ex.plyo_type === blockDef.variant && PLYO_CATEGORIES.has(ex.category_slug)
-      return PLYO_CATEGORIES.has(ex.category_slug)
+      if (blockDef.variant === 'upper') return ex.category_slug === 'upper_body_plyometrics'
+      if (blockDef.variant === 'lower') return PLYO_CATEGORIES.has(ex.category_slug)
+      return PLYO_CATEGORIES.has(ex.category_slug) || ex.category_slug === 'upper_body_plyometrics'
     case 'accessory': {
       const region = effectiveRegion(ex)
       return ex.category_slug === 'strength' && ex.strength_pattern === null && ex.core_type === null
