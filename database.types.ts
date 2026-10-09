@@ -510,6 +510,7 @@ export type Database = {
             | Database["public"]["Enums"]["exercise_image_group"]
             | null
           intensity_score: number | null
+          is_explosive: boolean
           is_sport_specific: boolean
           laterality: Database["public"]["Enums"]["laterality"]
           max_level: number
@@ -518,6 +519,7 @@ export type Database = {
           movement_pattern:
             | Database["public"]["Enums"]["movement_pattern"]
             | null
+          movement_type: Database["public"]["Enums"]["movement_type"]
           name: string
           plyo_type: Database["public"]["Enums"]["plyo_type"] | null
           slug: string
@@ -547,6 +549,7 @@ export type Database = {
             | Database["public"]["Enums"]["exercise_image_group"]
             | null
           intensity_score?: number | null
+          is_explosive?: boolean
           is_sport_specific?: boolean
           laterality?: Database["public"]["Enums"]["laterality"]
           max_level: number
@@ -555,6 +558,7 @@ export type Database = {
           movement_pattern?:
             | Database["public"]["Enums"]["movement_pattern"]
             | null
+          movement_type?: Database["public"]["Enums"]["movement_type"]
           name: string
           plyo_type?: Database["public"]["Enums"]["plyo_type"] | null
           slug: string
@@ -584,6 +588,7 @@ export type Database = {
             | Database["public"]["Enums"]["exercise_image_group"]
             | null
           intensity_score?: number | null
+          is_explosive?: boolean
           is_sport_specific?: boolean
           laterality?: Database["public"]["Enums"]["laterality"]
           max_level?: number
@@ -592,6 +597,7 @@ export type Database = {
           movement_pattern?:
             | Database["public"]["Enums"]["movement_pattern"]
             | null
+          movement_type?: Database["public"]["Enums"]["movement_type"]
           name?: string
           plyo_type?: Database["public"]["Enums"]["plyo_type"] | null
           slug?: string
@@ -2160,6 +2166,7 @@ export type Database = {
         | "mobility"
         | "cardio"
         | "other"
+      movement_type: "sagittal" | "frontal" | "transverse"
       plan_status: "draft" | "active" | "paused" | "completed" | "archived"
       plyo_type: "maximal" | "submaximal"
       score_source: "self_estimate" | "measured"
@@ -2400,6 +2407,7 @@ export const Constants = {
         "cardio",
         "other",
       ],
+      movement_type: ["sagittal", "frontal", "transverse"],
       plan_status: ["draft", "active", "paused", "completed", "archived"],
       plyo_type: ["maximal", "submaximal"],
       score_source: ["self_estimate", "measured"],
