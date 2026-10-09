@@ -13,8 +13,9 @@ describe('exerciseMatchesBlock', () => {
   it('keeps sprints out of plyo pools', () => {
     expect(exerciseMatchesBlock(ex({ slug: 'sprint_10m', category_slug: 'lower_body_plyometrics', sprint_type: 'acceleration' }), block('plyo', 'maximal'))).toBe(false)
   })
-  it('matches core by core_type and rotation only by tag', () => {
-    expect(exerciseMatchesBlock(ex({ slug: 'copenhagen_plank', core_type: 'stability' }), block('core', 'stability'))).toBe(true)
+  it('rotation nimmt Rotations-Pattern UND Core-Übungen (Core-Merge QA 09.10.)', () => {
+    expect(exerciseMatchesBlock(ex({ slug: 'pallof_press', strength_pattern: 'rotation' }), block('rotation'))).toBe(true)
+    expect(exerciseMatchesBlock(ex({ slug: 'copenhagen_plank', core_type: 'stability' }), block('rotation'))).toBe(true)
     expect(exerciseMatchesBlock(ex({ slug: 'machine_press', body_region: 'chest' }), block('rotation'))).toBe(false)
   })
   it('matches lower_body variants with coarse fallback', () => {

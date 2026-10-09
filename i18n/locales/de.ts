@@ -148,7 +148,7 @@ const de: Record<TranslationKeys, string> = {
     'block_type.push': 'Push',
     'block_type.pull': 'Pull',
     'block_type.lower_body': 'Unterkörper',
-    'block_type.rotation': 'Rotation',
+    'block_type.rotation': 'Rotation & Core',
     'block_type.core': 'Core',
     'block_type.plyo': 'Sprungkraft',
     'block_type.sprint': 'Sprints',

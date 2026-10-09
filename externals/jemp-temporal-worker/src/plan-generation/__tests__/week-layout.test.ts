@@ -179,7 +179,7 @@ describe('planWorkoutBlocks (§2.4)', () => {
   it('emits the full block sequence for every workout', () => {
     const plan = planWorkoutBlocks(placedWeek([1, 4], 1))
     expect(plan.get(1)!.map((b) => b.block_type)).toEqual(
-      ['warmup','push','pull','lower_body','rotation','core','plyo','accessory','optional','cooldown'])
+      ['warmup','push','pull','lower_body','rotation','plyo','accessory','optional','cooldown'])
   })
 
   it('rotates push/pull variants across the week and covers both axes', () => {
@@ -197,12 +197,11 @@ describe('planWorkoutBlocks (§2.4)', () => {
     expect(plan.get(1)!.find((b) => b.block_type === 'lower_body')!).toMatchObject({ variant: 'hinge', emphasis: 'light' })
   })
 
-  it('rotates plyo and core variants', () => {
+  it('rotates plyo variants; core-Block ist in rotation verschmolzen (QA 09.10.)', () => {
     const plan = planWorkoutBlocks(placedWeek([1, 3, 5], 1))
     const plyos = [1, 3, 5].map((d) => plan.get(d)!.find((b) => b.block_type === 'plyo')!.variant)
     expect(plyos).toEqual(['maximal', 'submaximal', 'maximal'])
-    const cores = [1, 3, 5].map((d) => plan.get(d)!.find((b) => b.block_type === 'core')!.variant)
-    expect(cores).toEqual(['stability', 'power', 'stability'])
+    expect(plan.get(1)!.some((b) => (b.block_type as string) === 'core')).toBe(false)
   })
 
   it('only plans blocks for training days', () => {

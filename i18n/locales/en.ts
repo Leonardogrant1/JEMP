@@ -146,7 +146,7 @@ const en = {
     'block_type.push': 'Push',
     'block_type.pull': 'Pull',
     'block_type.lower_body': 'Lower body',
-    'block_type.rotation': 'Rotation',
+    'block_type.rotation': 'Rotation & Core',
     'block_type.core': 'Core',
     'block_type.plyo': 'Plyometrics',
     'block_type.sprint': 'Sprints',

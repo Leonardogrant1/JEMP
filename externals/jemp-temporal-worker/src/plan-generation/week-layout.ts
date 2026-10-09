@@ -272,7 +272,7 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
 }
 
 export type WorkoutBlockType =
-  | 'warmup' | 'push' | 'pull' | 'lower_body' | 'rotation' | 'core' | 'plyo' | 'accessory' | 'optional' | 'cooldown'
+  | 'warmup' | 'push' | 'pull' | 'lower_body' | 'rotation' | 'plyo' | 'accessory' | 'optional' | 'cooldown'
 export type PlannedWorkoutBlock = {
   block_type: WorkoutBlockType
   variant: string | null
@@ -295,7 +295,6 @@ export function planWorkoutBlocks(placement: WeekPlacement): Map<number, Planned
           else { variant = 'hinge'; emphasis = 'light' }
           break
         case 'plyo': variant = i % 2 === 0 ? 'maximal' : 'submaximal'; break
-        case 'core': variant = i % 2 === 0 ? 'stability' : 'power'; break
         default: variant = null
       }
       return { block_type: bt, variant, emphasis }

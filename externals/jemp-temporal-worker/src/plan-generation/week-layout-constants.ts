@@ -9,11 +9,13 @@ export const FATIGUE_COST: Record<NewSessionType, number> = {
   mobility: 0, conditioning: 2, training: 3, speed: 4,
 }
 
+// Core in Rotation verschmolzen (QA 09.10.): der rotation-Block deckt jetzt
+// Rotationspower UND Rumpfstabilität ab — ein eigener core-Block entfällt.
 export const WORKOUT_BLOCK_SEQUENCE: WorkoutBlockType[] =
-  ['warmup', 'push', 'pull', 'lower_body', 'rotation', 'core', 'plyo', 'accessory', 'optional', 'cooldown']
+  ['warmup', 'push', 'pull', 'lower_body', 'rotation', 'plyo', 'accessory', 'optional', 'cooldown']
 
 export const BLOCK_MINUTES: Record<WorkoutBlockType, number> = {
-  warmup: 8, push: 9, pull: 9, lower_body: 10, rotation: 5, core: 5, plyo: 6, accessory: 6, optional: 5, cooldown: 4,
+  warmup: 8, push: 9, pull: 9, lower_body: 10, rotation: 7, plyo: 6, accessory: 6, optional: 5, cooldown: 4,
 }
 export const MAINTENANCE_DOSE_FACTOR = 0.7
 /** Kompakt-Modus (QA 09.10.): kurze Sessions rechnen Content-Blöcke mit 0.7
@@ -24,7 +26,7 @@ export const COMPACT_DOSE_FACTOR = 0.7
 export const INTEGRATED_SPRINT_BLOCK_MINUTES = 12
 export const CONDITIONING_FINISHER_MINUTES = 10
 /** Drop order when no coverage/rotation signal decides (lowest value drops first). */
-export const DROP_PRIORITY: WorkoutBlockType[] = ['optional', 'accessory', 'rotation', 'core', 'plyo', 'pull', 'push']
+export const DROP_PRIORITY: WorkoutBlockType[] = ['optional', 'accessory', 'rotation', 'plyo', 'pull', 'push']
 
 /** Block → pillar mapping for the §2.9(b) drop priority. Unmapped blocks count as level 1. */
 export const BLOCK_TO_PILLAR: Partial<Record<WorkoutBlockType, PillarSlug>> = {

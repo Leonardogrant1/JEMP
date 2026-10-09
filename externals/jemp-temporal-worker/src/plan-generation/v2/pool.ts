@@ -67,9 +67,9 @@ export function exerciseMatchesBlock(ex: V2Exercise, blockDef: PlannedWorkoutBlo
       return ex.category_slug === 'strength' && coarsePattern(ex) === coarse
     }
     case 'rotation':
-      return ex.strength_pattern === 'rotation' // rotation needs the tag — no fallback
-    case 'core':
-      return ex.core_type === blockDef.variant // core needs the tag — no fallback
+      // Core-Merge (QA 09.10.): Rotationspower (strength_pattern) ODER
+      // Rumpfstabilität (core_type) — beide ohne Fallback, Tag erforderlich.
+      return ex.strength_pattern === 'rotation' || ex.core_type !== null
     case 'plyo':
       if (ex.sprint_type !== null) return false // sprints never fill plyo blocks
       if (ex.plyo_type !== null) return ex.plyo_type === blockDef.variant && PLYO_CATEGORIES.has(ex.category_slug)
