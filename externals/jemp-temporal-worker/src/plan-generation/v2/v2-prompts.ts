@@ -13,6 +13,11 @@ const VARIANT_LABELS: Record<string, string> = {
   hinge: 'hüft-dominant (Hinge-Familie)',
   maximal: 'maximal (weit/hoch, volle Erholung)',
   submaximal: 'submaximal (rhythmisch, federnd)',
+  lower: 'Unterkörper-Explosivität (Sprünge)',
+  upper: 'Oberkörper-Explosivität (Würfe, Plyo-Push)',
+  sagittal: 'sagittal (Anti-Extension/linear)',
+  frontal: 'frontal (lateral/Anti-Lateral)',
+  transverse: 'transversal (rotierend/Anti-Rotation)',
   stability: 'Stabilität (Anti-Bewegung)',
   power: 'Power (explosiv)',
 }
@@ -28,13 +33,25 @@ export function V2_SESSION_PROMPT(input: {
 }): string {
   const { workout, day, poolLines, sprintPoolLine, userContext, weekSummary, previousSummaries } = input
 
+  // Volumen-Hierarchie (§1.3): heavy = Primary (die Session), normal = Sekundär, light = Ergänzung.
   const blockLines = workout.blocks.map((b: PlannedWorkoutBlock) => {
     const variant = b.variant ? ` — Variante: ${VARIANT_LABELS[b.variant] ?? b.variant}` : ''
     const emphasis = b.emphasis === 'heavy'
-      ? ' — SCHWERPUNKT: höchste Übungsqualität, 3–5 Wiederholungen, lange Pausen'
-      : b.emphasis === 'light' ? ' — leicht: Technik/Volumen, submaximal' : ''
+      ? ' — PRIMARY (die Hauptübung der Session): 4–5 Sätze, 3–5 Wiederholungen, schwer, lange Pausen, höchste Übungsqualität'
+      : b.emphasis === 'light'
+        ? ' — Ergänzung: 2 Sätze, submaximal'
+        : (b.block_type === 'warmup' || b.block_type === 'cooldown') ? ''
+          : ' — Sekundär: 3 Sätze, solide, nicht ans Limit'
     return `- \`${b.block_type}\`${variant}${emphasis}`
   }).join('\n')
+
+  // §1.6.1 Oberkörper-Deckel: Plyo-Push/Würfe + Drücken in derselben Session —
+  // der Oberkörper erholt sich in-session langsamer als die Streckerkette.
+  const hasUpperPlyo = workout.blocks.some((b) => b.block_type === 'plyo' && b.variant === 'upper')
+  const hasPush = workout.blocks.some((b) => b.block_type === 'push')
+  const upperCap = hasUpperPlyo && hasPush
+    ? '\n- OBERKÖRPER-DECKEL: Der plyo-Block (Oberkörper) max 3×3 Wiederholungen; die push-Übungen danach nicht über ~85 % Intensität (keine Maximalversuche).'
+    : ''
 
   const microDose = !day.suppress_micro_dose
     ? '\n- Das Warmup MUSS eine CNS-Mikro-Dosis enthalten (schnelle Ministeps / 1–2 kurze Antritte aus dem Warmup-Pool).'
@@ -61,7 +78,7 @@ ${weekSummary}
 ## Diese Session (Tag ${day.day_of_week}, ${day.minutes} min, Dosis: ${day.dose})
 Blöcke in GENAU dieser Reihenfolge — jeder Block MUSS vorkommen, keine zusätzlichen Blöcke:
 ${blockLines}
-${microDose}${sprintBlock}${compact}
+${microDose}${sprintBlock}${compact}${upperCap}
 
 ## Übungspools pro Block (NUR daraus wählen)
 ${poolLines.join('\n')}
