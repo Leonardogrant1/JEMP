@@ -15,7 +15,7 @@ export type ActivePlan = Pick<
 
 export type PlanSession = Pick<
     Tables<'workout_plan_sessions'>,
-    'id' | 'name' | 'description' | 'session_type' | 'day_of_week' | 'estimated_duration_minutes'
+    'id' | 'name' | 'description' | 'session_type' | 'day_of_week' | 'estimated_duration_minutes' | 'flexible_window'
 > & { primary_exercise_slug?: string | null; primary_image_group?: string | null; mode_slug?: string | null; focus_categories?: string[] };
 
 export type SessionStatus = Enums<'session_status'>;
