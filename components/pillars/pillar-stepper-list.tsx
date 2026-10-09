@@ -91,12 +91,14 @@ export function PillarStepperList({ pillars, levels, budget, onChange }: Props) 
                                         : <Ionicons name="fitness-outline" size={22} color={level >= 2 ? GradientMid : theme.textMuted} />}
                                 </View>
                                 <View style={styles.labelCol}>
-                                    <View style={styles.labelRow}>
-                                        <JempText type="body-l" color={theme.text}>{pillar.label}</JempText>
-                                        <Pressable onPress={() => setInfoPillar(pillar)} hitSlop={10}>
-                                            <Ionicons name="information-circle-outline" size={15} color={theme.textSubtle} />
-                                        </Pressable>
-                                    </View>
+                                    {/* Ganze Label-Zeile öffnet den Info-Dialog — das (i) allein war
+                                        zu klein und kollidierte bei langen Labels mit dem −-Button. */}
+                                    <Pressable onPress={() => setInfoPillar(pillar)} hitSlop={6} style={styles.labelRow}>
+                                        <JempText type="body-l" color={theme.text} numberOfLines={1} style={styles.labelText}>
+                                            {pillar.label}
+                                        </JempText>
+                                        <Ionicons name="information-circle-outline" size={15} color={theme.textSubtle} />
+                                    </Pressable>
                                     <JempText type="caption" color={level >= 2 ? GradientMid : theme.textSubtle}>
                                         {t(`pillars.level_${level}`)}
                                     </JempText>
@@ -160,7 +162,8 @@ const styles = StyleSheet.create({
     },
     iconBox: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
     labelCol: { flex: 1, gap: 2 },
-    labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
+    labelText: { flexShrink: 1 },
     stepper: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     stepBtn: {
         width: 30, height: 30, borderRadius: 15, borderWidth: 1.5,
