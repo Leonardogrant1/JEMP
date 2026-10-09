@@ -108,33 +108,32 @@ describe('composeWeek Plyo-Platzierung (§1.6.1, Review Focus 1)', () => {
 
 describe('focusBlockBudget (§1.4)', () => {
   it('erfüllt alle Wünsche, wenn das Budget reicht', () => {
-    const b = focusBlockBudget({ lower_body_plyometrics: 3, conditioning: 2 }, 6, false)
-    expect(b).toEqual({ lower_body_plyometrics: 3, conditioning: 2 })
+    const b = focusBlockBudget({ lower_body_plyometrics: 3, upper_body_plyometrics: 2 }, 6, false)
+    expect(b).toEqual({ lower_body_plyometrics: 3, upper_body_plyometrics: 2 })
   })
 
   it('min 1 pro gesetzter Säule', () => {
-    const b = focusBlockBudget({ lower_body_plyometrics: 1, upper_body_plyometrics: 1, conditioning: 1 }, 3, false)
-    expect(b).toEqual({ lower_body_plyometrics: 1, upper_body_plyometrics: 1, conditioning: 1 })
+    const b = focusBlockBudget({ lower_body_plyometrics: 1, upper_body_plyometrics: 1 }, 2, false)
+    expect(b).toEqual({ lower_body_plyometrics: 1, upper_body_plyometrics: 1 })
   })
 
   it('Clamp: knappes Budget kürzt niedrigste zuerst, Schwerpunkt überlebt', () => {
-    // Wünsche 3+2+2 = 7, Budget 6: min-1 je (3 verbraucht), Rest 3 nach Level:
-    // lower(3) voll, upper(+1→2), conditioning bleibt 1.
-    const b = focusBlockBudget({ lower_body_plyometrics: 3, upper_body_plyometrics: 2, conditioning: 2 }, 6, false)
-    expect(b.lower_body_plyometrics).toBe(3)
-    expect(sum(b)).toBe(6)
-    expect(b.conditioning ?? 0).toBeLessThan(b.lower_body_plyometrics ?? 0)
+    // Wünsche 3+2 = 5, Budget 3: min-1 je (2 verbraucht), Rest 1 → lower(+1→2), upper bleibt 1.
+    const b = focusBlockBudget({ lower_body_plyometrics: 3, upper_body_plyometrics: 2 }, 3, false)
+    expect(sum(b)).toBe(3)
+    expect(b.lower_body_plyometrics ?? 0).toBeGreaterThan(b.upper_body_plyometrics ?? 0)
   })
 
   it('sehr knappes Budget: nur die höchsten Level bekommen ihren Block', () => {
-    const b = focusBlockBudget({ lower_body_plyometrics: 3, upper_body_plyometrics: 2, conditioning: 1 }, 2, false)
-    expect(sum(b)).toBeLessThanOrEqual(2)
-    expect(b.lower_body_plyometrics ?? 0).toBeGreaterThanOrEqual(b.conditioning ?? 0)
+    const b = focusBlockBudget({ lower_body_plyometrics: 3, upper_body_plyometrics: 1 }, 1, false)
+    expect(sum(b)).toBeLessThanOrEqual(1)
+    expect(b.lower_body_plyometrics ?? 0).toBeGreaterThanOrEqual(b.upper_body_plyometrics ?? 0)
   })
 
-  it('ignoriert Nicht-Content-Säulen (sprints/cod/mobility)', () => {
-    const b = focusBlockBudget({ sprints: 3, cod: 2, mobility: 2, conditioning: 1 }, 6, false)
-    expect(b).toEqual({ conditioning: 1 })
+  it('ignoriert Nicht-Content-Säulen (sprints/cod/mobility/conditioning)', () => {
+    // conditioning läuft über carries_conditioning_finisher, nicht über composeWeek.
+    const b = focusBlockBudget({ sprints: 3, cod: 2, mobility: 2, conditioning: 2, lower_body_plyometrics: 1 }, 6, false)
+    expect(b).toEqual({ lower_body_plyometrics: 1 })
   })
 
   it('ZNS-Schutz: Plyo −1 bei Speed-Session, aber min 1 wenn gesetzt', () => {
@@ -142,8 +141,5 @@ describe('focusBlockBudget (§1.4)', () => {
     expect(withSpeed.lower_body_plyometrics).toBe(2)
     const level1 = focusBlockBudget({ upper_body_plyometrics: 1 }, 6, true)
     expect(level1.upper_body_plyometrics).toBe(1)
-    // conditioning ist nicht ZNS-betroffen
-    const cond = focusBlockBudget({ conditioning: 2 }, 6, true)
-    expect(cond.conditioning).toBe(2)
   })
 })

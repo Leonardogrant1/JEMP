@@ -10,6 +10,7 @@ export function circularDayDistance(from: number, to: number): number {
 
 import type { WeeklySchedule } from './types'
 import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, WORKOUT_BLOCK_SEQUENCE, BLOCK_MINUTES, MAINTENANCE_DOSE_FACTOR, COMPACT_SESSION_THRESHOLD_MINUTES, INTEGRATED_SPRINT_BLOCK_MINUTES, CONDITIONING_FINISHER_MINUTES, DROP_PRIORITY, BLOCK_TO_PILLAR } from './week-layout-constants'
+import { composeWeek } from './v2/composition'
 
 export type NewSessionType = 'training' | 'speed' | 'mobility' | 'conditioning'
 export type PillarSlug =
@@ -329,44 +330,35 @@ export function estimateMinutes(
     + (carriesConditioningFinisher ? CONDITIONING_FINISHER_MINUTES : 0))
 }
 
+// Composition-Rework (§3.2): applyScalingLevers ist auf einen Minuten-Sanity-
+// Clamp reduziert — composeWeek liefert bereits schlanke Sessions, hier wird nur
+// gedroppt, falls die Blöcke das Zeitbudget doch sprengen. Geschützt: warmup,
+// cooldown und der Primary (emphasis 'heavy'). Drop-Reihenfolge: verzichtbarste
+// zuerst (conditioning → optional → accessory → core → plyo → Komplement-Kraft).
+const SANITY_DROP_ORDER: WorkoutBlockType[] =
+  ['conditioning', 'optional', 'accessory', 'core', 'plyo', 'pull', 'push', 'lower_body']
+
 export function applyScalingLevers(
   placement: WeekPlacement, blockPlan: Map<number, PlannedWorkoutBlock[]>,
-  pillarLevels: PillarLevels = {},
+  _pillarLevels: PillarLevels = {},
 ): { workouts: FinalWorkout[]; notes: string[] } {
-  // Drop priority (b) per spec §2.9: lowest pillar levels drop first — user
-  // emphases survive. Blocks without a pillar mapping count as level 1.
-  const levelOf = (bt: WorkoutBlockType): number => {
-    const pillar = BLOCK_TO_PILLAR[bt]
-    return pillar ? (pillarLevels[pillar] ?? 1) : 1
-  }
   const notes: string[] = []
-  const coveredVariants = new Set<string>() // in-plan coverage ledger
-  let previousDrops = new Set<WorkoutBlockType>() // in-plan drop rotation
-
   const workouts: FinalWorkout[] = []
   for (const day of placement.days.filter((d) => d.session_type === 'training')) {
     const blocks = [...(blockPlan.get(day.day_of_week) ?? [])]
     const dropped: DroppedBlock[] = []
-    const protectedTypes = new Set<WorkoutBlockType>(['warmup', 'cooldown', 'lower_body'])
-
-    const droppable = () => blocks.filter((b) => !protectedTypes.has(b.block_type))
+    const isProtected = (b: PlannedWorkoutBlock) =>
+      b.block_type === 'warmup' || b.block_type === 'cooldown' || b.emphasis === 'heavy'
 
     const compact = day.minutes <= COMPACT_SESSION_THRESHOLD_MINUTES
-    while (estimateMinutes(blocks, day.dose, day.carries_sprint_block, day.carries_conditioning_finisher, compact) > day.minutes && droppable().length > 0) {
-      const candidates = droppable()
-      // (a) coverage: variants already seen this week drop first
-      const covered = candidates.filter((b) => b.variant !== null && coveredVariants.has(b.variant))
-      // (c) drop rotation: avoid re-dropping last workout's drops when alternatives exist
-      const pickFrom = (list: PlannedWorkoutBlock[]) => {
-        const fresh = list.filter((b) => !previousDrops.has(b.block_type))
-        return (fresh.length > 0 ? fresh : list)
-      }
-      const pool = covered.length > 0 ? pickFrom(covered) : pickFrom(candidates)
-      // (b) lowest pillar level first (user emphases survive), fixed priority as final tiebreak
-      pool.sort((a, b) =>
-        levelOf(a.block_type) - levelOf(b.block_type) ||
-        DROP_PRIORITY.indexOf(a.block_type) - DROP_PRIORITY.indexOf(b.block_type))
-      const victim = pool[0]
+    const over = () => estimateMinutes(blocks, day.dose, day.carries_sprint_block, day.carries_conditioning_finisher, compact) > day.minutes
+    while (over()) {
+      const droppable = blocks.filter((b) => !isProtected(b))
+      if (droppable.length === 0) break
+      droppable.sort((a, b) =>
+        (SANITY_DROP_ORDER.indexOf(a.block_type) === -1 ? 99 : SANITY_DROP_ORDER.indexOf(a.block_type)) -
+        (SANITY_DROP_ORDER.indexOf(b.block_type) === -1 ? 99 : SANITY_DROP_ORDER.indexOf(b.block_type)))
+      const victim = droppable[0]
       blocks.splice(blocks.indexOf(victim), 1)
       dropped.push({ block_type: victim.block_type, reason: 'time' })
     }
@@ -375,8 +367,6 @@ export function applyScalingLevers(
     if (estimated > day.minutes) {
       notes.push(`Tag ${day.day_of_week}: Budget ${day.minutes} min nicht erreichbar (geschützter Kern ${estimated} min)`)
     }
-    for (const b of blocks) if (b.variant) coveredVariants.add(b.variant)
-    previousDrops = new Set(dropped.map((d) => d.block_type))
     workouts.push({ day_of_week: day.day_of_week, blocks, dropped, estimated_minutes: estimated })
   }
   return { workouts, notes }
@@ -392,7 +382,12 @@ export type WeekLayout = {
 export function buildWeekLayout(input: WeekLayoutInput): WeekLayout {
   const allocation = allocateDays(input)
   const placement = placeWeek(input, allocation)
-  const blockPlan = planWorkoutBlocks(placement)
+  // Composition-Rework (§1): Woche als Ganzes komponieren statt feste Pflichtsequenz.
+  const blockPlan = composeWeek({
+    trainingDays: placement.days.filter((d) => d.session_type === 'training'),
+    pillarLevels: input.pillar_levels,
+    hasSpeedSession: placement.days.some((d) => d.session_type === 'speed'),
+  })
   const { workouts, notes } = applyScalingLevers(placement, blockPlan, input.pillar_levels)
   return { placement, workouts, carrier: placement.carrier, notes: [...placement.notes, ...notes] }
 }

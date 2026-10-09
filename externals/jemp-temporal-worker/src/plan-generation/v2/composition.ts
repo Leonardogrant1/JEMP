@@ -6,8 +6,10 @@ import type { PillarLevels, PillarSlug, PlacedDay, PlannedWorkoutBlock } from '.
 import { PRIMARY_ROTATION, contentBlockCount } from '../week-layout-constants'
 
 /** Fokus-Säulen, die Content-Blöcke INNERHALB einer Training-Session erzeugen.
- *  sprints/cod/mobility werden vom Week-Layout als eigene Session-Typen platziert. */
-const CONTENT_FOCUS_PILLARS: PillarSlug[] = ['lower_body_plyometrics', 'upper_body_plyometrics', 'conditioning']
+ *  sprints/cod/mobility werden vom Week-Layout als eigene Session-Typen platziert.
+ *  conditioning läuft über den bestehenden carries_conditioning_finisher-
+ *  Mechanismus (placeWeek), nicht über composeWeek — daher hier nicht gelistet. */
+const CONTENT_FOCUS_PILLARS: PillarSlug[] = ['lower_body_plyometrics', 'upper_body_plyometrics']
 const PLYO_PILLARS: PillarSlug[] = ['lower_body_plyometrics', 'upper_body_plyometrics']
 
 const sumValues = (r: Record<string, number>) => Object.values(r).reduce((a, b) => a + b, 0)
@@ -119,7 +121,6 @@ export function composeWeek(input: {
   // upper-Plyo bevorzugt WEG von Push-Primary-Tagen (ZNS-Schutz Oberkörper).
   const plyoLowerAssigned = new Set<number>()
   const plyoUpperAssigned = new Set<number>()
-  const conditioningAssigned = new Set<number>()
   const isLowerPrimary = (i: number) => primaryCoarse[i] === 'squat' || primaryCoarse[i] === 'hinge'
   const isPushPrimary = (i: number) => primaryCoarse[i] === 'push'
   const idxByPreference = (prefer: (i: number) => boolean) =>
@@ -135,7 +136,6 @@ export function composeWeek(input: {
   distribute(budget.lower_body_plyometrics ?? 0, plyoLowerAssigned, idxByPreference(isLowerPrimary))
   // upper-Plyo: Nicht-Push-Tage zuerst, Push-Tage als Fallback.
   distribute(budget.upper_body_plyometrics ?? 0, plyoUpperAssigned, idxByPreference((i) => !isPushPrimary(i)))
-  distribute(budget.conditioning ?? 0, conditioningAssigned, days.map((_, i) => i))
 
   // §1.6.1 Deckel: Tag mit upper-Plyo UND Push-Primary → Push-Primary auf 'normal'.
   days.forEach((d, i) => {
@@ -155,25 +155,19 @@ export function composeWeek(input: {
         ? { block_type: 'plyo', variant: 'upper', emphasis: 'light' as const }
         : null
     const core = coreDays.has(dow) ? { block_type: 'core', variant: null, emphasis: 'normal' as const } : null
-    const conditioning = conditioningAssigned.has(dow)
-      ? { block_type: 'conditioning', variant: null, emphasis: 'light' as const } : null
 
-    // Priorität: primary > komplement > plyo > core > conditioning.
+    // Priorität: primary > komplement > plyo > core.
+    // (conditioning-in-Training läuft über carries_conditioning_finisher, nicht hier.)
     const picks: PlannedWorkoutBlock[] = [primaryBlocks[i] as PlannedWorkoutBlock, complementBlocks[i] as PlannedWorkoutBlock]
     if (plyo) picks.push(plyo as PlannedWorkoutBlock)
     if (core) picks.push(core as PlannedWorkoutBlock)
-    if (conditioning) picks.push(conditioning as PlannedWorkoutBlock)
     const selected = picks.slice(0, slots)
 
-    // Workout-Reihenfolge: plyo (vor primary), primary, komplement, core, conditioning.
-    const WORKOUT_ORDER = ['plyo', 'push', 'pull', 'lower_body', 'core', 'conditioning']
+    // Workout-Reihenfolge: plyo (vor primary), primary, komplement, core.
     const inSelected = (bt: string) => selected.filter((b) => b.block_type === bt)
-    // plyo zuerst
     ordered.push(...inSelected('plyo'))
-    // primary + komplement in Block-Typ-Reihenfolge push/pull/lower
     for (const bt of ['push', 'pull', 'lower_body']) ordered.push(...inSelected(bt))
     ordered.push(...inSelected('core'))
-    ordered.push(...inSelected('conditioning'))
 
     result.set(dow, [
       { block_type: 'warmup', variant: null, emphasis: 'normal' } as PlannedWorkoutBlock,

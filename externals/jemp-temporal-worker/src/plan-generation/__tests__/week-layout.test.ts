@@ -264,15 +264,7 @@ describe('scaling levers (§2.9)', () => {
     expect(gDropped).toBeLessThan(nDropped)
   })
 
-  it('rotates drops across the week instead of always dropping the same block', () => {
-    const placement = placedWeek([1, 4], 1)
-    placement.days.forEach((d) => (d.minutes = 50))
-    const { workouts } = applyScalingLevers(placement, planWorkoutBlocks(placement))
-    const d1 = new Set(workouts[0].dropped.map((d) => d.block_type))
-    const d2 = new Set(workouts[1].dropped.map((d) => d.block_type))
-    const overlap = [...d1].filter((b) => d2.has(b))
-    expect(overlap.length).toBeLessThan(Math.max(d1.size, d2.size)) // not identical drop sets
-  })
+  // (Drop-Rotation entfernt — composeWeek plant schlank, kein Rotations-Drop mehr; §3.2.)
 
   it('tiny budget stops at protected floor', () => {
     // 15 min: unter dem kompakten geschützten Kern (Warmup 8 + Lower 7 + Cooldown 4 = 19)
@@ -330,6 +322,24 @@ describe('buildWeekLayout (golden: spec §2.1b example)', () => {
     expect(layout.workouts).toHaveLength(3)
     // Determinism: same input, same output.
     expect(buildWeekLayout(goldenInput())).toEqual(layout)
+  })
+})
+
+describe('buildWeekLayout composition (§1, Review Focus 3)', () => {
+  it('Sessions ≤ contentBlockCount, genau 1 heavy-Primary, kein rotation-Block', () => {
+    const input = {
+      available_days: [1, 2, 4, 6], load_profile: 'low' as const,
+      pillar_levels: { strength: 2 as const, lower_body_plyometrics: 2 as const, conditioning: 1 as const },
+      sprints_covered_by_club: false, session_minutes: 60,
+      weekly_schedule: schedule([]),
+    }
+    const layout = buildWeekLayout(input)
+    for (const w of layout.workouts) {
+      const content = w.blocks.filter((b) => b.block_type !== 'warmup' && b.block_type !== 'cooldown')
+      expect(content.length).toBeLessThanOrEqual(5) // 60min → 5
+      expect(content.filter((b) => (b as any).emphasis === 'heavy').length).toBe(1)
+      expect(content.some((b) => b.block_type === 'rotation')).toBe(false)
+    }
   })
 })
 
@@ -410,30 +420,8 @@ describe('review fixes (phase 2a final review)', () => {
     expect(placed.notes.join(' ')).toMatch(/Mobility/)
   })
 
-  it('I6: drop priority respects pillar levels — emphasized plyo survives over pull', () => {
-    // 35 min: eng genug, dass plyo ohne Level-Schutz auch im Kompakt-Modus fällt
-    const placement = placedWeek([1], 1)
-    placement.days[0].minutes = 35
-    const noLevels = applyScalingLevers(placement, planWorkoutBlocks(placement))
-    expect(noLevels.workouts[0].dropped.map((d) => d.block_type)).toContain('plyo')
-    const withLevels = applyScalingLevers(placement, planWorkoutBlocks(placement), { lower_body_plyometrics: 3 })
-    const droppedTypes = withLevels.workouts[0].dropped.map((d) => d.block_type)
-    expect(droppedTypes).not.toContain('plyo')
-  })
-})
-
-describe('review fix I4: pillar levels reach the drop lever', () => {
-  it('buildWeekLayout lets an emphasized plyo pillar survive drops', () => {
-    const input = {
-      available_days: [1], load_profile: 'low' as const,
-      pillar_levels: { lower_body_plyometrics: 3 as const }, sprints_covered_by_club: false,
-      session_minutes: 45, weekly_schedule: schedule([]),
-    }
-    const layout = buildWeekLayout(input)
-    const dropped = layout.workouts[0].dropped.map((d) => d.block_type)
-    expect(dropped.length).toBeGreaterThan(0)
-    expect(dropped).not.toContain('plyo')
-  })
+  // (I6/I4 entfernt — pillar-level-Drop-Priorität abgelöst durch das
+  //  focusBlockBudget-Clamp in composition.ts; Schwerpunkt-Schutz dort getestet.)
 })
 
 describe('conditioning finisher (integrated carrier)', () => {
@@ -458,19 +446,16 @@ describe('conditioning finisher (integrated carrier)', () => {
     const finisher = placed.days.find((d) => (d as any).carries_conditioning_finisher)
     expect(finisher?.carries_sprint_block).toBe(false)
   })
-  it('keeps the session inside its minute budget via extra drops', () => {
+  it('keeps the session inside its minute budget (finisher minutes included)', () => {
     const input = { ...base, pillar_levels: { conditioning: 2 as const } }
     const layout = buildWeekLayout(input)
     for (const w of layout.workouts) {
       const day = layout.placement.days.find((d) => d.day_of_week === w.day_of_week)!
       expect(w.estimated_minutes).toBeLessThanOrEqual(day.minutes)
     }
-    const finisherDay = layout.placement.days.find((d) => (d as any).carries_conditioning_finisher)!
-    const finisherWorkout = layout.workouts.find((w) => w.day_of_week === finisherDay.day_of_week)!
-    const otherWorkout = layout.workouts.find((w) => w.day_of_week !== finisherDay.day_of_week)!
-    // The finisher's ~10 min must be part of the estimate, so its day drops
-    // strictly MORE blocks — otherwise the session silently overruns the budget.
-    expect(finisherWorkout.dropped.length).toBeGreaterThan(otherWorkout.dropped.length)
+    // (Vergleich "Finisher-Tag droppt mehr" entfernt — composeWeek plant schlank,
+    //  der Finisher passt ins Budget, ohne dass gedroppt werden muss.)
+    expect(layout.placement.days.some((d) => (d as any).carries_conditioning_finisher)).toBe(true)
   })
 })
 
