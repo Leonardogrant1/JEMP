@@ -859,6 +859,7 @@ const de: Record<TranslationKeys, string> = {
     'planGeneration.saving': 'Plan wird gespeichert',
     'planGeneration.error_title': 'Plangenerierung fehlgeschlagen',
     'planGeneration.error_generic': 'Etwas ist schiefgelaufen. Bitte erneut versuchen.',
+    'planGeneration.retry': 'Erneut versuchen',
     'planGeneration.hint': 'Dein Plan wird erstellt',
     'planGeneration.hint_tap': 'Fortschritt ansehen',
     'planGeneration.notify_hint': 'Du wirst benachrichtigt, wenn dein Plan fertig ist.',

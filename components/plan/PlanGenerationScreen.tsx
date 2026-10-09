@@ -1,14 +1,17 @@
-import { Colors, GradientMid } from "@/constants/theme";
+import { Colors, GRADIENT, GradientMid } from "@/constants/theme";
 import { getStageLabel } from "@/helpers/plan-generation-helpers";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { startPlanGeneration } from "@/lib/start-plan-generation";
 import { usePlanGenerationStore } from "@/stores/plan-generation-store";
+import { useToastStore } from "@/stores/toast-store";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "expo-router";
 import LottieView from "lottie-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import Animated, { FadeIn, FadeInDown, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { JempText } from "../jemp-text";
 import { useTabBarInset } from "../tab-bar";
@@ -160,9 +163,35 @@ export function PlanGenerationScreen({ preview = false }: { preview?: boolean } 
                 )}
 
                 {isError && (
-                    <JempText type="caption" color="#ef4444" style={styles.pgHint}>
-                        {job?.error ?? t('planGeneration.error_generic')}
-                    </JempText>
+                    <>
+                        <JempText type="caption" color="#ef4444" style={styles.pgHint}>
+                            {job?.error ?? t('planGeneration.error_generic')}
+                        </JempText>
+                        {/* Retry (QA 09.10.): ohne diese Buttons hing der Tab bis zum
+                            App-Neustart im Fehler-Screen fest. Kein Paywall-Gate —
+                            die fehlgeschlagene Generierung war bereits freigegeben. */}
+                        <Pressable
+                            onPress={() => {
+                                usePlanGenerationStore.getState().clear();
+                                startPlanGeneration().catch(() => {
+                                    useToastStore.getState().show(t('ui.plan_generate_start_error'));
+                                });
+                            }}
+                            style={styles.pgRetryBtn}
+                        >
+                            <LinearGradient colors={GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.pgRetryGradient}>
+                                <Ionicons name="refresh" size={18} color="#fff" />
+                                <JempText type="button" color="#fff">{t('planGeneration.retry')}</JempText>
+                            </LinearGradient>
+                        </Pressable>
+                        <Pressable
+                            onPress={() => usePlanGenerationStore.getState().clear()}
+                            style={styles.pgDismissBtn}
+                            hitSlop={8}
+                        >
+                            <JempText type="body-sm" color={theme.textMuted}>{t('ui.close')}</JempText>
+                        </Pressable>
+                    </>
                 )}
             </Animated.View>
             )}
@@ -183,4 +212,7 @@ const styles = StyleSheet.create({
     pgPhaseLabel: { fontSize: 18, lineHeight: 26 },
     pgPhaseDone: { textDecorationLine: 'line-through', opacity: 0.6 },
     pgHint: { textAlign: 'center', marginTop: 4 },
+    pgRetryBtn: { borderRadius: 100, overflow: 'hidden', marginTop: 16, alignSelf: 'center' },
+    pgRetryGradient: { height: 48, paddingHorizontal: 28, borderRadius: 100, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' },
+    pgDismissBtn: { alignSelf: 'center', paddingVertical: 10 },
 })

@@ -857,6 +857,7 @@ const en = {
     'planGeneration.saving': 'Saving plan',
     'planGeneration.error_title': 'Plan generation failed',
     'planGeneration.error_generic': 'Something went wrong. Please try again.',
+    'planGeneration.retry': 'Try again',
     'planGeneration.hint': 'Your plan is being created',
     'planGeneration.hint_tap': 'View progress',
     'planGeneration.notify_hint': 'You\'ll be notified when your plan is ready.',
