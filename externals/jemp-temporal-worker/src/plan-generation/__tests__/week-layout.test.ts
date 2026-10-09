@@ -1,6 +1,22 @@
 import { describe, it, expect } from 'vitest'
 import { circularDayDistance, effectiveSpeedLevel, allocateDays, placeWeek, planWorkoutBlocks, estimateMinutes, applyScalingLevers, buildWeekLayout } from '../week-layout'
-import { BLOCK_MINUTES } from '../week-layout-constants'
+import { BLOCK_MINUTES, contentBlockCount, PRIMARY_ROTATION } from '../week-layout-constants'
+
+describe('contentBlockCount (§1.2 Session-Größe)', () => {
+  it('staffelt die Content-Blockzahl nach Dauer', () => {
+    expect(contentBlockCount(30)).toBe(3)
+    expect(contentBlockCount(45)).toBe(4)
+    expect(contentBlockCount(60)).toBe(5)
+    expect(contentBlockCount(90)).toBe(6)
+  })
+  it('Schwellen: <=30→3, <=45→4, <=60→5, sonst 6', () => {
+    expect(contentBlockCount(40)).toBe(4)
+    expect(contentBlockCount(75)).toBe(6)
+  })
+  it('PRIMARY_ROTATION ist lower/push/pull', () => {
+    expect(PRIMARY_ROTATION).toEqual(['lower_body', 'push', 'pull'])
+  })
+})
 
 // Module-scope helper — Task 5's tests reuse it.
 const placedWeek = (days: number[], heavy: number) => ({

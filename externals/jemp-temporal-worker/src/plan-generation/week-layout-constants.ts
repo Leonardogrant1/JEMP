@@ -4,6 +4,18 @@ import type { NewSessionType, WorkoutBlockType, PillarSlug } from './week-layout
 export const WORKOUT_DAY_CAP = { low: 5, medium: 3, high: 2 } as const
 export const MIN_WORKOUT_DAYS = 2
 
+// Session-Composition-Rework (Spec 2026-10-09 §1.1/§1.2).
+/** Primary-Rotation über die Trainingstage — sichert die Kraft-Basis, säulenunabhängig. */
+export const PRIMARY_ROTATION = ['lower_body', 'push', 'pull'] as const
+
+/** Content-Blöcke (ohne Warmup/Cooldown) nach Session-Dauer: ≤30→3, ≤45→4, ≤60→5, sonst 6. */
+export function contentBlockCount(minutes: number): number {
+  if (minutes <= 30) return 3
+  if (minutes <= 45) return 4
+  if (minutes <= 60) return 5
+  return 6
+}
+
 /** Fatigue cost per session type (spec §2.1b) — placement currency, not minutes. */
 export const FATIGUE_COST: Record<NewSessionType, number> = {
   mobility: 0, conditioning: 2, training: 3, speed: 4,
