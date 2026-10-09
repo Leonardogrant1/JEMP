@@ -57,17 +57,20 @@ export function allocateDays(input: WeekLayoutInput): DayAllocation {
   let speedDays = 0
   let carrier: SpeedCarrier = speedLevel === 0 ? 'none' : 'micro'
 
+  // Sprints immer standalone (QA 09.10.): ist kein eigener Tag frei, bleibt es
+  // bei der CNS-Mikro-Dosis im Warmup — nie ein integrierter Sprint-Block in
+  // einer Workout-Session.
   if (speedLevel === 3) {
     if (workouts - 1 >= MIN_WORKOUT_DAYS) {
       workouts -= 1
       spare += 1
     }
     if (spare > 0) { speedDays = 1; spare -= 1; carrier = 'standalone' }
-    else carrier = 'integrated' // 2-day edge case (spec §2.1a)
+    else carrier = 'micro' // 2-day edge case: keine Standalone möglich → Mikro-Dosis
     if (carrier === 'standalone' && spare > 0) { speedDays += 1; spare -= 1 } // second day: surplus only
   } else if (speedLevel === 2) {
     if (spare > 0) { speedDays = 1; spare -= 1; carrier = 'standalone' }
-    else carrier = 'integrated'
+    else carrier = 'micro'
   }
 
   // Conditioning own day (damping §2.2): level 2 only at low weekly load;
@@ -129,10 +132,6 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
   // window, it is used with a note (72h protection outranks post-game comfort).
   const speedLegal = (day: number) => gameFwd(day) >= 3 && !gameDays.includes(day)
 
-  // A day qualifies for the block-sized integrated sprint volume only ≥72h
-  // before a game — otherwise the carrier degrades to micro (spec §2.1b.5).
-  const integratedLegal = (day: number) => gameFwd(day) >= 3
-
   let carrier = allocation.carrier
   let speedDayCount = allocation.speed_days
   // Sanitize: game/tournament days are never schedulable, even if the user
@@ -161,8 +160,9 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
       speedDayCount -= 1
     }
     if (speedDays.length === 0) {
-      carrier = pool.some(integratedLegal) ? 'integrated' : 'micro'
-      notes.push('Speed: kein legales Fenster (72h-Regel) — Standalone zu ' + carrier + ' degradiert')
+      // Sprints bleiben standalone — kein legales Fenster → nur Mikro-Dosis (QA 09.10.)
+      carrier = 'micro'
+      notes.push('Speed: kein legales Fenster (72h-Regel) — Standalone zu micro degradiert')
     } else if (speedDayCount > 0) {
       notes.push(`Speed: ${speedDayCount} reservierte(r) Speed-Tag(e) ohne legales Fenster — Tag bleibt frei`)
     }
@@ -211,18 +211,6 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
   if (heavyDay !== null && dayAfterGame(heavyDay)) {
     notes.push(`Heavy-Lower: Tag ${heavyDay} liegt direkt nach einem Spiel — einzige Option`)
   }
-  let sprintBlockDay: number | null = null
-  if (carrier === 'integrated') {
-    const legalCarriers = trainingDays.filter(integratedLegal).sort((a, b) =>
-      afterPenalty(a) - afterPenalty(b) || gameFwdFinite(b) - gameFwdFinite(a) ||
-      minutesFor(input, b) - minutesFor(input, a) || a - b)
-    if (legalCarriers.length > 0) sprintBlockDay = legalCarriers[0]
-    else {
-      carrier = 'micro'
-      notes.push('Speed: kein Workout-Tag ≥72h vor dem Spiel — integrierter Block zu micro degradiert')
-    }
-  }
-
   // 3b. Conditioning finisher day (spec §2.1a fallback "finisher-scale content"):
   //     conditioning level >= 2 without an own day, damped away at high load
   //     (§2.2 — club training covers it). Never on the sprint-carrier day
@@ -233,7 +221,7 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
   const finisherAllowed = conditioningLevel === 3 || (conditioningLevel === 2 && input.load_profile !== 'high')
   if (!allocation.conditioning_day && finisherAllowed) {
     const candidates = trainingDays
-      .filter((d) => d !== sprintBlockDay && gameDays.every((g) => circularDayDistance(d, g) !== 1))
+      .filter((d) => gameDays.every((g) => circularDayDistance(d, g) !== 1))
       .sort((a, b) => gameFwdFinite(b) - gameFwdFinite(a) || minutesFor(input, b) - minutesFor(input, a) || a - b)
     finisherDay = candidates[0] ?? null
     if (finisherDay === null) notes.push('Conditioning: kein geeigneter Finisher-Tag — entfällt diese Woche')
@@ -269,15 +257,11 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
   })
   for (const d of trainingDays) days.push({
     day_of_week: d, session_type: 'training', minutes: minutesFor(input, d), dose: 'normal',
-    carries_sprint_block: d === sprintBlockDay,
+    carries_sprint_block: false,
     carries_conditioning_finisher: d === finisherDay,
-    heavy_lower: d === heavyDay || (d === sprintBlockDay && heavyDay === null),
+    heavy_lower: d === heavyDay,
     suppress_micro_dose: speedDays.some((s) => circularDayDistance(s, d) === 1),
   })
-  if (sprintBlockDay !== null && heavyDay !== null && sprintBlockDay !== heavyDay) {
-    // One consolidated high day (spec §2.5): the sprint-block day IS the heavy day.
-    for (const day of days) if (day.session_type === 'training') day.heavy_lower = day.day_of_week === sprintBlockDay
-  }
   if (mobilityDay !== null) days.push({
     day_of_week: mobilityDay, session_type: 'mobility', minutes: 20, dose: 'normal',
     carries_sprint_block: false, carries_conditioning_finisher: false, heavy_lower: false, suppress_micro_dose: false,

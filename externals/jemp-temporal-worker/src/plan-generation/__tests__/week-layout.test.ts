@@ -46,11 +46,12 @@ describe('allocateDays (§2.1a)', () => {
     const surplus = allocateDays({ ...base, available_days: [1, 3, 5, 7], load_profile: 'medium', pillar_levels: { sprints: 2 } })
     expect(surplus).toMatchObject({ workouts: 3, speed_days: 1, carrier: 'standalone' })
     const noSurplus = allocateDays({ ...base, available_days: [1, 3, 5, 7], load_profile: 'low', pillar_levels: { sprints: 2 } })
-    expect(noSurplus).toMatchObject({ workouts: 4, speed_days: 0, carrier: 'integrated' })
+    // Sprints immer standalone (QA 09.10.): ohne Extra-Tag nur Mikro-Dosis, nie integrierter Block
+    expect(noSurplus).toMatchObject({ workouts: 4, speed_days: 0, carrier: 'micro' })
   })
-  it('level 3 with only 2 days falls back to an integrated block (min 2 workouts wins)', () => {
+  it('level 3 with only 2 days degrades to micro dose — never an integrated sprint block', () => {
     const a = allocateDays({ ...base, available_days: [2, 5], load_profile: 'high', pillar_levels: { sprints: 3 } })
-    expect(a).toMatchObject({ workouts: 2, speed_days: 0, carrier: 'integrated' })
+    expect(a).toMatchObject({ workouts: 2, speed_days: 0, carrier: 'micro' })
   })
   it('level 1 is micro-dose only; level 0 is none', () => {
     expect(allocateDays({ ...base, available_days: [1, 4], load_profile: 'low', pillar_levels: { sprints: 1 } }).carrier).toBe('micro')
@@ -150,17 +151,15 @@ describe('placeWeek (§2.1b)', () => {
     if (nextDay) expect(nextDay.suppress_micro_dose).toBe(true)
   })
 
-  it('integrated carrier puts sprint block and heavy lower on the game-farthest day', () => {
+  it('never puts a sprint block inside a workout — sprints are standalone only (QA 09.10.)', () => {
     const input = {
       available_days: [1, 3], load_profile: 'high' as const,
       pillar_levels: { sprints: 3 as const }, sprints_covered_by_club: false, session_minutes: 60,
       weekly_schedule: schedule([{ day_of_week: 6, type: 'game', intensity: 10 }]),
     }
-    const alloc = { workouts: 2, speed_days: 0, conditioning_day: false, mobility_day: false, carrier: 'integrated' as const }
+    const alloc = { workouts: 2, speed_days: 0, conditioning_day: false, mobility_day: false, carrier: 'micro' as const }
     const placed = placeWeek(input, alloc)
-    const carrierDay = placed.days.find((d) => d.carries_sprint_block)
-    expect(carrierDay?.day_of_week).toBe(1) // Monday is farthest from Saturday's game
-    expect(carrierDay?.heavy_lower).toBe(true) // one consolidated high day (spec §2.5)
+    expect(placed.days.some((d) => d.carries_sprint_block)).toBe(false)
   })
 
   it('per-day minutes override the global duration', () => {
@@ -371,18 +370,6 @@ describe('review fixes (phase 2a final review)', () => {
     const placed = placeWeek(input, alloc)
     expect(placed.carrier).toBe('micro')
     expect(placed.days.some((d) => d.carries_sprint_block)).toBe(false)
-  })
-
-  it('I3: integrated sprint block prefers the longest day', () => {
-    const input = {
-      available_days: [1, 4], load_profile: 'high' as const,
-      pillar_levels: { sprints: 2 as const }, sprints_covered_by_club: false, session_minutes: 60,
-      day_minutes: [{ day_of_week: 1, minutes: 45 }, { day_of_week: 4, minutes: 90 }],
-      weekly_schedule: schedule([]),
-    }
-    const alloc = { workouts: 2, speed_days: 0, conditioning_day: false, mobility_day: false, carrier: 'integrated' as const }
-    const placed = placeWeek(input, alloc)
-    expect(placed.days.find((d) => d.carries_sprint_block)?.day_of_week).toBe(4)
   })
 
   it('I4: heavy lower avoids the morning after the match when alternatives exist, notes otherwise', () => {
