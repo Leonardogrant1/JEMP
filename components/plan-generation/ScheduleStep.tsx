@@ -1,14 +1,12 @@
 import GameIcon from '@/assets/icons/game.svg';
 import { JempText } from '@/components/jemp-text';
-import { SelectableChip } from '@/components/ui/selectable-chip';
-import { DURATIONS, WEEK_DAYS } from '@/constants/plan-generation-constants';
+import { WEEK_DAYS } from '@/constants/plan-generation-constants';
 import { getSportKind } from '@/constants/sports';
 import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTrainingAnimation } from '@/hooks/use-training-animation';
 import { computeLoadProfile, maxWorkoutDays, MIN_WORKOUT_DAYS } from '@/lib/load-profile';
 import { computeWeekComposition, extraSessionAllowance } from '@/lib/week-allocation';
-import { DayDurationSheet } from '@/components/onboarding/day-duration-sheet';
 import { JempDialog } from '@/components/ui/jemp-dialog';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlanWizardStore } from '@/stores/plan-wizard-store';
@@ -28,14 +26,12 @@ export function ScheduleStep() {
     const { profile } = useCurrentUser();
     const {
         preferredDays, togglePreferredDay,
-        preferredDuration, setPreferredDuration,
         selectedEnvIds, allEnvs,
         dayEnvMap,
         sportSessions, selectedSportSlug,
-        pillarLevels, sprintClub, dayDurations, setDayDuration,
+        pillarLevels, sprintClub, dayDurations,
     } = usePlanWizardStore();
     const trainingAnimation = useTrainingAnimation(profile?.sport);
-    const [durationSheetDay, setDurationSheetDay] = useState<number | null>(null);
     const [showCapInfo, setShowCapInfo] = useState(false);
     const sportKind = getSportKind(selectedSportSlug);
 
@@ -52,6 +48,8 @@ export function ScheduleStep() {
     const overCap = preferredDays.size > maxDays;
     const missingDays = MIN_WORKOUT_DAYS - preferredDays.size;
 
+    // Tap öffnet immer den Tag-Editor (Ort + Dauer); Abwählen passiert dort
+    // über "Tag leeren" (QA 09.10. — Dauer pro Tag statt globaler Auswahl).
     function handleDayPress(dow: number) {
         const active = preferredDays.has(dow);
         if (!active && atCap) {
@@ -59,18 +57,9 @@ export function ScheduleStep() {
             setShowCapInfo(true);
             return;
         }
-        if (!active) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            togglePreferredDay(dow);
-            if (multiEnv) router.push(`/training-day-editor?day=${dow}`);
-            return;
-        }
-        if (multiEnv) {
-            router.push(`/training-day-editor?day=${dow}`);
-        } else {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            togglePreferredDay(dow);
-        }
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        if (!active) togglePreferredDay(dow);
+        router.push(`/training-day-editor?day=${dow}`);
     }
 
     return (
@@ -146,6 +135,13 @@ export function ScheduleStep() {
                                 {active
                                     ? (
                                         <>
+                                            {/* Dauer-Override nur anzeigen — geändert wird sie im Tag-Editor */}
+                                            {(() => {
+                                                const override = dayDurations.find((d) => d.day_of_week === dow);
+                                                return override
+                                                    ? <JempText type="caption" color={GradientMid}>{`${override.minutes}m`}</JempText>
+                                                    : null;
+                                            })()}
                                             {env && (
                                                 <Ionicons name={env.icon as any} size={15} color={theme.textMuted} />
                                             )}
@@ -189,49 +185,6 @@ export function ScheduleStep() {
                     );
                 })()}
             </View>
-
-            <View style={styles.durationSection}>
-                <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
-                    {t('plan.schedule_duration_label')}
-                </JempText>
-                <View style={styles.durationRow}>
-                    {DURATIONS.map(d => (
-                        <SelectableChip
-                            key={d.value}
-                            label={d.label}
-                            selected={preferredDuration === d.value}
-                            onPress={() => setPreferredDuration(d.value)}
-                            style={styles.durationChip}
-                        />
-                    ))}
-                </View>
-                {preferredDays.size > 0 && (
-                    <View style={styles.durationRow}>
-                        {[...preferredDays].sort((a, b) => a - b).map((dow) => {
-                            const override = dayDurations.find((d) => d.day_of_week === dow);
-                            const dayLabel = t(WEEK_DAYS.find((d) => d.dow === dow)?.key ?? '');
-                            return (
-                                <SelectableChip
-                                    key={dow}
-                                    label={override ? `${dayLabel} ${override.minutes}m` : dayLabel}
-                                    selected={!!override}
-                                    onPress={() => setDurationSheetDay(dow)}
-                                    style={styles.durationChip}
-                                />
-                            );
-                        })}
-                    </View>
-                )}
-            </View>
-
-            <DayDurationSheet
-                visible={durationSheetDay !== null}
-                dayLabel={durationSheetDay !== null ? t(WEEK_DAYS.find((d) => d.dow === durationSheetDay)?.key ?? '') : ''}
-                currentMinutes={dayDurations.find((d) => d.day_of_week === durationSheetDay)?.minutes ?? null}
-                defaultMinutes={preferredDuration === '30min' ? 30 : preferredDuration === '45min' ? 45 : preferredDuration === '90min' ? 90 : 60}
-                onSelect={(minutes) => { if (durationSheetDay !== null) setDayDuration(durationSheetDay, minutes); }}
-                onClose={() => setDurationSheetDay(null)}
-            />
 
             <JempDialog
                 visible={showCapInfo}

@@ -1,19 +1,16 @@
 import GameIcon from '@/assets/icons/game.svg';
 import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
-import { SelectableChip } from '@/components/ui/selectable-chip';
 import { ENV_ICONS } from '@/constants/environment-icons';
 import { getSportKind } from '@/constants/sports';
 import { Colors, GradientMid } from '@/constants/theme';
 import { computeLoadProfile, maxWorkoutDays, MIN_WORKOUT_DAYS } from '@/lib/load-profile';
 import { computeWeekComposition, extraSessionAllowance } from '@/lib/week-allocation';
-import { DayDurationSheet } from '@/components/onboarding/day-duration-sheet';
 import { JempDialog } from '@/components/ui/jemp-dialog';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTrainingAnimationBySlug } from '@/hooks/use-training-animation';
 import { supabase } from '@/services/supabase/client';
 import { useOnboardingStore } from '@/stores/onboarding-store';
-import { SessionDuration } from '@/types/database';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
@@ -23,13 +20,6 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, TouchableOpacity, View, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-const DURATIONS: { value: SessionDuration; label: string }[] = [
-    { value: '30min', label: '30 min' },
-    { value: '45min', label: '45 min' },
-    { value: '60min', label: '60 min' },
-    { value: '90min', label: '90 min' },
-];
-
 type EnvItem = { id: string; slug: string; name_i18n: Record<string, string> | null };
 
 export function WorkoutPrefsStep() {
@@ -38,9 +28,8 @@ export function WorkoutPrefsStep() {
     const storedDays = useOnboardingStore((s) => s.preferred_workout_days);
     const pillarLevels = useOnboardingStore((s) => s.pillarLevels);
     const sprintsCoveredByClub = useOnboardingStore((s) => s.sprints_covered_by_club);
-    const dayDurations = useOnboardingStore((s) => s.preferred_day_durations);
-    const [durationSheetDay, setDurationSheetDay] = useState<number | null>(null);
     const [showCapInfo, setShowCapInfo] = useState(false);
+    const dayDurations = useOnboardingStore((s) => s.preferred_day_durations);
     const storedDuration = useOnboardingStore((s) => s.preferred_session_duration);
     const storedDayEnvironments = useOnboardingStore((s) => s.dayEnvironments);
     const environmentIds = useOnboardingStore((s) => s.environmentIds);
@@ -63,8 +52,14 @@ export function WorkoutPrefsStep() {
         { value: 7, label: t('onboarding.workout_prefs_day_sun') },
     ];
 
-    const [selectedDuration, setSelectedDuration] = useState<SessionDuration | null>(storedDuration ?? null);
     const [environments, setEnvironments] = useState<EnvItem[]>([]);
+
+    // Dauer wird pro Tag im Tag-Editor gewählt — global bleibt nur noch der
+    // 60-min-Fallback für Tage ohne Override (QA 09.10.).
+    useEffect(() => {
+        if (!storedDuration) setStore({ preferred_session_duration: '60min' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Tage + Env-Zuordnung leben direkt im Store — der training-day-editor-Sheet
     // schreibt dorthin, die Rows spiegeln seine Änderungen live
@@ -88,11 +83,10 @@ export function WorkoutPrefsStep() {
     useEffect(() => {
         setCanContinue(
             selectedDays.size >= MIN_WORKOUT_DAYS
-            && selectedDays.size <= maxDays
-            && selectedDuration !== null,
+            && selectedDays.size <= maxDays,
         );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [storedDays, selectedDuration, maxDays]);
+    }, [storedDays, maxDays]);
 
     useEffect(() => {
         if (environmentIds.length > 1) {
@@ -106,8 +100,8 @@ export function WorkoutPrefsStep() {
         }
     }, [environmentIds]);
 
-    // Wizard-Logik: neuer Tag → an + (bei mehreren Orten) Sheet zur Ort-Wahl;
-    // aktiver Tag → Sheet (dort „Tag leeren") bzw. bei einem Ort direkt abwählen
+    // Tap öffnet immer den Tag-Editor (Ort + Dauer); Abwählen passiert dort
+    // über "Tag leeren" (QA 09.10. — Dauer pro Tag statt globaler Auswahl).
     function handleDayPress(dow: number) {
         const active = selectedDays.has(dow);
         if (!active && atCap) {
@@ -116,24 +110,8 @@ export function WorkoutPrefsStep() {
             return;
         }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        if (!active) {
-            setStore({ preferred_workout_days: [...(storedDays ?? []), dow] });
-            if (multiEnv) router.push(`/training-day-editor?day=${dow}&source=onboarding`);
-            return;
-        }
-        if (multiEnv) {
-            router.push(`/training-day-editor?day=${dow}&source=onboarding`);
-            return;
-        }
-        setStore({
-            preferred_workout_days: (storedDays ?? []).filter((d) => d !== dow),
-            dayEnvironments: storedDayEnvironments.filter((de) => de.day_of_week !== dow),
-        });
-    }
-
-    function selectDuration(value: SessionDuration) {
-        setSelectedDuration(value);
-        setStore({ preferred_session_duration: value });
+        if (!active) setStore({ preferred_workout_days: [...(storedDays ?? []), dow] });
+        router.push(`/training-day-editor?day=${dow}&source=onboarding`);
     }
 
     return (
@@ -222,15 +200,12 @@ export function WorkoutPrefsStep() {
                                         />
                                     );
                                 })()}
+                                {/* Dauer-Override nur anzeigen — geändert wird sie im Tag-Editor */}
                                 {active && (() => {
                                     const override = (dayDurations ?? []).find((d) => d.day_of_week === dow);
-                                    return (
-                                        <Pressable onPress={() => setDurationSheetDay(dow)} hitSlop={8}>
-                                            {override
-                                                ? <JempText type="caption" color={GradientMid}>{`${override.minutes}m`}</JempText>
-                                                : <Ionicons name="time-outline" size={15} color={theme.textMuted} />}
-                                        </Pressable>
-                                    );
+                                    return override
+                                        ? <JempText type="caption" color={GradientMid}>{`${override.minutes}m`}</JempText>
+                                        : null;
                                 })()}
                                 {active
                                     ? <Ionicons name="checkmark-circle" size={16} color={GradientMid} />
@@ -274,36 +249,6 @@ export function WorkoutPrefsStep() {
                     );
                 })()}
             </Animated.View>
-
-            <Animated.View entering={FadeInDown.delay(480).duration(500).springify()} style={styles.section}>
-                <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
-                    {t('onboarding.workout_prefs_duration_label')}
-                </JempText>
-                <View style={styles.durationRow}>
-                    {DURATIONS.map((d) => (
-                        <SelectableChip
-                            key={d.value}
-                            label={d.label}
-                            selected={selectedDuration === d.value}
-                            onPress={() => selectDuration(d.value)}
-                            style={styles.durationChip}
-                        />
-                    ))}
-                </View>
-            </Animated.View>
-
-            <DayDurationSheet
-                visible={durationSheetDay !== null}
-                dayLabel={DAYS.find((d) => d.value === durationSheetDay)?.label ?? ''}
-                currentMinutes={(dayDurations ?? []).find((d) => d.day_of_week === durationSheetDay)?.minutes ?? null}
-                defaultMinutes={selectedDuration === '30min' ? 30 : selectedDuration === '45min' ? 45 : selectedDuration === '90min' ? 90 : 60}
-                onSelect={(minutes) => {
-                    if (durationSheetDay === null) return;
-                    const rest = (dayDurations ?? []).filter((d) => d.day_of_week !== durationSheetDay);
-                    setStore({ preferred_day_durations: minutes === null ? (rest.length > 0 ? rest : null) : [...rest, { day_of_week: durationSheetDay, minutes }] });
-                }}
-                onClose={() => setDurationSheetDay(null)}
-            />
 
             <JempDialog
                 visible={showCapInfo}

@@ -476,7 +476,9 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
             await supabase.from('user_profiles')
                 .update({
                     preferred_workout_days: [...preferredDays].sort((a, b) => a - b),
-                    preferred_session_duration: preferredDuration,
+                    // Dauer wird seit 09.10. pro Tag im Tag-Editor gewählt; die
+                    // globale Dauer bleibt als Fallback für Tage ohne Override.
+                    preferred_session_duration: preferredDuration ?? '60min',
                     schedule_notes: scheduleNotes.trim() || null,
                     sprints_covered_by_club: sprintClub,
                     sprint_distance: sprintDistance,

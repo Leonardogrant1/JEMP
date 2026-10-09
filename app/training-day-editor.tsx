@@ -47,10 +47,13 @@ export default function TrainingDayEditorScreen() {
         preferredDays, togglePreferredDay,
         selectedEnvIds, allEnvs,
         dayEnvMap, toggleDayEnv,
+        dayDurations, setDayDuration, preferredDuration,
     } = usePlanWizardStore();
     const obEnvIds = useOnboardingStore((s) => s.environmentIds);
     const obDayEnvs = useOnboardingStore((s) => s.dayEnvironments);
     const obDays = useOnboardingStore((s) => s.preferred_workout_days);
+    const obDayDurations = useOnboardingStore((s) => s.preferred_day_durations);
+    const obDuration = useOnboardingStore((s) => s.preferred_session_duration);
     const obSet = useOnboardingStore((s) => s.set);
 
     // Im Onboarding liegen nur Env-IDs im Store — Details (Name/Slug) nachladen
@@ -77,6 +80,28 @@ export default function TrainingDayEditorScreen() {
     const activeEnvId = isOnboarding
         ? obDayEnvs.find(de => de.day_of_week === dayNum)?.environment_id ?? null
         : dayEnvMap[dayNum] ?? null;
+    // Env-Wahl lohnt nur bei mehreren Trainingsorten — sonst zeigt das Sheet nur die Dauer
+    const showEnvSection = selectedEnvs.length > 1;
+
+    // Dauer an diesem Tag (QA 09.10.): Dauer wird pro Tag im Sheet gewählt,
+    // die globale Auswahl unten im Step ist entfallen.
+    const DURATION_OPTIONS = [30, 45, 60, 90];
+    const globalDuration = isOnboarding ? obDuration : preferredDuration;
+    const defaultMinutes = globalDuration === '30min' ? 30 : globalDuration === '45min' ? 45 : globalDuration === '90min' ? 90 : 60;
+    const currentMinutes = isOnboarding
+        ? (obDayDurations ?? []).find((d) => d.day_of_week === dayNum)?.minutes ?? null
+        : dayDurations.find((d) => d.day_of_week === dayNum)?.minutes ?? null;
+
+    function handleSelectDuration(minutes: number | null) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        if (!isOnboarding) { setDayDuration(dayNum, minutes); return; }
+        const rest = (obDayDurations ?? []).filter((d) => d.day_of_week !== dayNum);
+        obSet({
+            preferred_day_durations: minutes === null
+                ? (rest.length > 0 ? rest : null)
+                : [...rest, { day_of_week: dayNum, minutes }],
+        });
+    }
 
     const translateY = useSharedValue(400);
     const overlayOpacity = useSharedValue(0);
@@ -150,11 +175,13 @@ export default function TrainingDayEditorScreen() {
                                 {t(dayKey as any).toUpperCase()}
                             </JempText>
                         )}
-                        <JempText type="body-sm" color={theme.textMuted}>
-                            {t('onboarding.workout_prefs_env_hint')}
-                        </JempText>
+                        {showEnvSection && (
+                            <JempText type="body-sm" color={theme.textMuted}>
+                                {t('onboarding.workout_prefs_env_hint')}
+                            </JempText>
+                        )}
 
-                        <View>
+                        {showEnvSection && <View>
                             {selectedEnvs.map((env, index) => {
                                 const active = activeEnvId === env.id;
                                 return (
@@ -181,6 +208,29 @@ export default function TrainingDayEditorScreen() {
                                     </View>
                                 );
                             })}
+                        </View>}
+
+                        <JempText type="caption" color={theme.textSubtle} style={styles.durationLabel}>
+                            {t('day_duration.title').toUpperCase()}
+                        </JempText>
+                        <View style={styles.durationRow}>
+                            <Pressable
+                                onPress={() => handleSelectDuration(null)}
+                                style={[styles.durationChip, { borderColor: currentMinutes === null ? GradientMid : theme.borderDivider }]}
+                            >
+                                <JempText type="body-sm" color={currentMinutes === null ? GradientMid : theme.text}>
+                                    {t('day_duration.standard', { minutes: defaultMinutes })}
+                                </JempText>
+                            </Pressable>
+                            {DURATION_OPTIONS.map((m) => (
+                                <Pressable
+                                    key={m}
+                                    onPress={() => handleSelectDuration(m)}
+                                    style={[styles.durationChip, { borderColor: currentMinutes === m ? GradientMid : theme.borderDivider }]}
+                                >
+                                    <JempText type="body-sm" color={currentMinutes === m ? GradientMid : theme.text}>{`${m} min`}</JempText>
+                                </Pressable>
+                            ))}
                         </View>
 
                         <Pressable onPress={handleClose} style={styles.doneBtn}>
@@ -270,6 +320,22 @@ const styles = StyleSheet.create({
         height: StyleSheet.hairlineWidth,
         // Einzug auf Texthöhe: row-padding 4 + Icon 24 + gap 14
         marginLeft: 42,
+    },
+    durationLabel: {
+        letterSpacing: 1.5,
+        fontSize: 11,
+        marginTop: 8,
+    },
+    durationRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    durationChip: {
+        borderWidth: 1.5,
+        borderRadius: 100,
+        paddingVertical: 8,
+        paddingHorizontal: 14,
     },
     doneBtn: {
         borderRadius: 100,
