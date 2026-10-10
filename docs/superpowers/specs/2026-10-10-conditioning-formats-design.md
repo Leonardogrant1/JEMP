@@ -95,9 +95,9 @@ Bewusst nicht persistiert: das gewählte Format (Rotation hängt nur an `planCou
 
 ## 4. Builder-Umbau (`build-simple-sessions.ts`)
 
-`buildConditioningSession` bekommt `format: ConditioningFormat` + `sportGroup` + `equipmentSlugs` als Input und delegiert an drei Format-Builder:
+`buildConditioningSession` bekommt `format: ConditioningFormat` + `planCount` + `sportGroup` + `runAnchor` (easy_jog aus dem Outdoor-Pool, null = kein Outdoor) als Input und delegiert an drei Format-Builder. Equipment-Verfügbarkeit braucht KEINEN eigenen Input: der Übungs-Pool ist bereits equipment-/env-gefiltert — eine Maschinen-Übung im Pool heißt, der User hat die Maschine.
 
-- `buildExtensiveBlock` — Varianten-Kette aus §1.1. Braucht Environment-Info: `prepare-v2` reicht wie bei der Speed-Session den env-gefilterten Pool plus ein Flag `hasOutdoor` durch.
+- `buildExtensiveBlock` — Varianten-Kette aus §1.1 (`runAnchor` gesetzt → Lauf; Maschinen-Slug im Pool → Maschine; sonst Zirkel).
 - `buildIntensiveBlock` — heutige Logik, unverändert extrahiert.
 - `buildRoundsBlock` — §1.3.
 
@@ -135,12 +135,12 @@ Alle: `body_region: 'full_body'`, `exercise_type: 'dynamic'`, keine `strength_pa
 
 ### 7.3 App-Folgen
 
-- Equipment-Picker (Onboarding + Profil): neue Slugs brauchen Icon-Mapping + i18n-Label; ohne Icon greift der Fallback — prüfen, dass er existiert.
+- Equipment-Picker (Onboarding + Profil): Labels kommen aus `equipments.name_i18n` (DB), ein Icon-Mapping existiert in der App nicht — neue Geräte erscheinen automatisch, sobald die Migration live ist. Kein App-Code nötig außer dem Re-Prompt.
 - Bestandsuser haben die neuen Equipments nicht angehakt → der bestehende **Re-Prompt-Hook** (Equipment-Onboarding-Fix) soll einmalig erneut fragen, sobald die neuen Equipments live sind.
 
 ## 8. Worker-Plumbing
 
-- `prepare-v2`: lädt `sport_conditioning_weights` (ein Select, gecacht pro Lauf), zählt `workout_plans` des Users, reicht `{ format, planCount, sportGroup, equipmentSlugs, hasOutdoor }` an die Builder.
+- `prepare-v2`: lädt `sport_conditioning_weights` (ein Select, gecacht pro Lauf), zählt `workout_plans` des Users, reicht `{ format, planCount, sportGroup, runAnchor }` an die Builder; der Finisher bekommt `{ format, offset }` über den `V2SessionContext`.
 - `types.ts` / Workflow-Input: unverändert — alles wird in `prepare-v2` aus der DB abgeleitet.
 - Mit `sport_plane_weights` (nächste Design-Runde) teilt sich diese Tabelle den Lade-/Normalisierungs-Helper (`loadGroupWeights(table, groupName, fallback)`), aber nicht das Schema.
 
