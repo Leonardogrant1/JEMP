@@ -72,6 +72,20 @@ Jedes Workout wird aus Bausteinen komponiert — deterministisch, ohne KI. Die A
 
 Die Leitplanke hinter allem: **Was gefährlich wäre, wenn es schiefgeht (72 h, Spieltage, Kraft-Floor, Muster-Abdeckung), garantiert Code. Die KI entscheidet nur, wo ein Fehler höchstens suboptimal ist.**
 
+## Conditioning: drei Formate
+
+Conditioning heißt für Athleten: **Leistung wiederholen können** — nach dem zehnten Sprint noch so schnell sein wie beim ersten. Dahinter stehen zwei trainierbare Teile: die aerobe Basis (wie schnell du dich zwischen harten Aktionen erholst) und die wiederholte Belastung (wie lange du hohe Intensität hältst). Der Generator kennt dafür drei Formate:
+
+| Format | Was passiert | Trainiert |
+| --- | --- | --- |
+| **Basis** (extensiv) | Länger und moderat — Dauerlauf (outdoor, gedeckelt bei 35 min), Maschine (3×7 min auf Laufband/Rad/Ruderergometer) oder lockerer Zirkel | aerobe Basis |
+| **Intervalle** (intensiv) | 30/30 oder 40/20 — kurz hart, kurz Pause, mehrfach | wiederholte Belastung |
+| **Rounds** | 3 min Arbeit / 1 min Rundenpause — EINE Tätigkeit pro Runde (Boxsack, Shadow Boxing, Seil) | Wettkampfrunden |
+
+Welches Format eine Woche bekommt, bestimmt die **Sportart**: Jede Sportgruppe hat eine Gewichtung (Fußball überwiegend Intervalle über solider Basis, Kampfsport zur Hälfte Rounds, Ausdauersport überwiegend Basis), und die Formate rotieren von Plan zu Plan entlang dieser Gewichtung. Der 10-Minuten-Finisher im Workout kennt nur Intervalle und Rounds — für einen Basis-Reiz ist er zu kurz. Und maximal schwere Sprungübungen sind aus allen Conditioning-Blöcken verbannt: Im Intervall trainieren sie weder Explosivität noch Ausdauer gut.
+
+Geplant: Später verschieben RST-Testdaten (Repeated Sprint Test) die Gewichtung individuell — ein Athlet mit hohem Leistungsabfall über die Läufe bekommt mehr Basis.
+
 ## Beispielwoche: Kickboxer, 4 Tage
 
 Test-User: Kickboxen, Teamtraining Mo/Mi/Fr (→ Belastung *medium*, Deckel 3 Workouts), 4 Tage angehakt (Di/Do/Sa/So), Prioritäten: Mobility 3, Sprints 2, Conditioning 2, Rest 1.
@@ -98,7 +112,7 @@ Zu sehen: Die zwei Unterkörper-Leads (Do Hüftbeuge, Sa Kniebeuge) liegen exakt
 | --- | --- | --- | --- |
 | Sprints | Mikro-Dosis im Warmup | eigener Tag nur bei Überschuss-Tag, sonst Mikro-Dosis | eigener Tag garantiert (opfert notfalls ein Workout) |
 | Plyo (unten/oben) | 1 Block/Woche | 2 Blöcke/Woche | 3 Blöcke **+ führt 1 Session** (Plyo schwer, Kraft an dem Tag Erhaltung) |
-| Conditioning | — | Finisher im Workout (entfällt bei high Load — der Verein deckt es dann); eigener Tag nur bei low Load | eigener Tag, wenn ein Tag frei ist; sonst Finisher (durchbricht die high-Load-Dämpfung) |
+| Conditioning | — | Finisher im Workout (entfällt bei high Load — der Verein deckt es dann); eigener Tag nur bei low Load | eigener Tag, wenn ein Tag frei ist; sonst Finisher (durchbricht die high-Load-Dämpfung) — das Format (Basis/Intervalle/Rounds) rotiert nach Sportart-Gewichtung, s. oben |
 | Mobility | — | eigene 20-min-Einheit, gratis auf Ruhetag | wie Level 2 |
 | COD | fließt ins Sprint-Level ein (max. beider Werte) + COD-Teil der Sprint-Einheit | ebenso, mehr Anteil | ebenso |
 | Kraft | Basis jeder Session (Lead + Begleitblock) | Kraft weicht nie: Begleitblock fällt nicht für Fokus-Blöcke, Kompakt-Sessions behalten Push+Pull | zusätzlich 1 Doppel-Kraft-Tag/Woche (auch der Begleitblock schwer) — entfällt bei hoher Vereinslast |
