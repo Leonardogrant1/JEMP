@@ -154,6 +154,9 @@ export async function savePlan(input: {
           order_index: block.order_index,
           block_type_id: blockTypeId,
           focused_category_id: categoryMap.get(block.focused_category_slug) ?? null,
+          // Emphasis der Komposition (heavy/normal/light) — App-seitig für die
+          // "harter Beintag"-Warnung beim Verschieben flexibler Sprint-Sessions
+          emphasis: (block as any).emphasis ?? null,
         }
       })
       .filter(Boolean) as Array<{

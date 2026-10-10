@@ -469,6 +469,32 @@ export type Database = {
           },
         ]
       }
+      exercise_regions: {
+        Row: {
+          exercise_id: string
+          region: Database["public"]["Enums"]["body_region"]
+          role: Database["public"]["Enums"]["exercise_region_role"]
+        }
+        Insert: {
+          exercise_id: string
+          region: Database["public"]["Enums"]["body_region"]
+          role?: Database["public"]["Enums"]["exercise_region_role"]
+        }
+        Update: {
+          exercise_id?: string
+          region?: Database["public"]["Enums"]["body_region"]
+          role?: Database["public"]["Enums"]["exercise_region_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_regions_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exercise_sport_groups: {
         Row: {
           exercise_id: string
@@ -1521,6 +1547,7 @@ export type Database = {
         Row: {
           block_type_id: string | null
           created_at: string | null
+          emphasis: string | null
           focused_category_id: string | null
           id: string
           order_index: number
@@ -1530,6 +1557,7 @@ export type Database = {
         Insert: {
           block_type_id?: string | null
           created_at?: string | null
+          emphasis?: string | null
           focused_category_id?: string | null
           id?: string
           order_index: number
@@ -1539,6 +1567,7 @@ export type Database = {
         Update: {
           block_type_id?: string | null
           created_at?: string | null
+          emphasis?: string | null
           focused_category_id?: string | null
           id?: string
           order_index?: number
@@ -2142,6 +2171,7 @@ export type Database = {
         | "adductor"
         | "sprint_drills"
         | "mobility_development"
+      exercise_region_role: "primary" | "secondary"
       gender: "male" | "female" | "other"
       laterality: "bilateral" | "unilateral" | "alternating"
       load_type: "bodyweight" | "kg" | "percent_1rm" | "rpe" | "pace"
@@ -2381,6 +2411,7 @@ export const Constants = {
         "sprint_drills",
         "mobility_development",
       ],
+      exercise_region_role: ["primary", "secondary"],
       gender: ["male", "female", "other"],
       laterality: ["bilateral", "unilateral", "alternating"],
       load_type: ["bodyweight", "kg", "percent_1rm", "rpe", "pace"],

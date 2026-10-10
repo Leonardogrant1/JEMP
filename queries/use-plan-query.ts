@@ -34,6 +34,7 @@ async function fetchActivePlan(userId: string) {
                 id, plan_id, name, description, session_type, day_of_week,
                 estimated_duration_minutes, mode_slug, flexible_window,
                 workout_plan_session_blocks(
+                    emphasis,
                     block_type:block_types(slug),
                     workout_plan_session_block_exercises(order_index, exercise:exercises(slug, image_group, category:categories(slug)))
                 )
@@ -80,7 +81,10 @@ async function fetchActivePlan(userId: string) {
         planSessions: (planSessionsRes.data ?? []).map(ps => {
             const blocks = (ps as any).workout_plan_session_blocks ?? [];
             const { slug, imageGroup } = extractPrimaryExerciseInfo(blocks);
-            return { ...ps, primary_exercise_slug: slug, primary_image_group: imageGroup, focus_categories: extractFocusCategories(blocks) };
+            // Harter Beintag = Lower-Body-Block als heavy Primary (Komposition
+            // persistiert die Emphasis) — Basis der Sprint-Abstands-Warnung
+            const hasHeavyLower = blocks.some((b: any) => b.block_type?.slug === 'lower_body' && b.emphasis === 'heavy');
+            return { ...ps, primary_exercise_slug: slug, primary_image_group: imageGroup, focus_categories: extractFocusCategories(blocks), has_heavy_lower: hasHeavyLower };
         }),
     };
 }

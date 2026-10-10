@@ -89,6 +89,31 @@ export type V2SessionContext = {
   conditioningFinisherPool: string[]
 }
 
+/**
+ * Überträgt die Emphasis der Komposition (heavy/normal/light) auf die vom LLM
+ * gelieferten Blöcke — das LLM-Schema kennt keine Emphasis, die App braucht sie
+ * aber persistiert (z. B. "harter Beintag"-Warnung beim Sprint-Verschieben).
+ * Doppelte block_types werden in Auftretensreihenfolge zugeordnet; Blöcke ohne
+ * geplantes Gegenstück (sprint, conditioning-Finisher) bleiben unberührt.
+ */
+export function attachBlockEmphasis(
+  blocks: Array<{ block_type: string; emphasis?: string }>,
+  planned: Array<{ block_type: string; emphasis?: string }>,
+): void {
+  const queues = new Map<string, (string | undefined)[]>()
+  for (const p of planned) {
+    const q = queues.get(p.block_type) ?? []
+    q.push(p.emphasis)
+    queues.set(p.block_type, q)
+  }
+  for (const b of blocks) {
+    const q = queues.get(b.block_type)
+    if (!q || q.length === 0) continue
+    const emphasis = q.shift()
+    if (emphasis) b.emphasis = emphasis
+  }
+}
+
 export async function runSessionV2(
   input: V2SessionContext & {
     userContext: string
@@ -152,6 +177,7 @@ export async function runSessionV2(
   // Deterministic conditioning finisher (integrated carrier): appended in code
   // before the cooldown — its minutes were already budgeted by the layout engine.
   const blocks = [...(lastSession as any).blocks]
+  attachBlockEmphasis(blocks, workout.blocks as any)
   if (day.carries_conditioning_finisher) {
     const cooldownIdx = blocks.findIndex((b: any) => b.block_type === 'cooldown')
     const insertAt = cooldownIdx === -1 ? blocks.length : cooldownIdx

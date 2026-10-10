@@ -1,8 +1,8 @@
 import { JempText } from '@/components/jemp-text';
 import { EmptyPlanCard } from '@/components/plan/EmptyPlanCard';
+import { FlexibleWeekList } from '@/components/plan/FlexibleWeekList';
 import { PlanCompletedCard } from '@/components/plan/PlanCompletedCard';
 import { PlanGenerationScreen } from '@/components/plan/PlanGenerationScreen';
-import { FlexibleSessionCard } from '@/components/plan/FlexibleSessionCard';
 import { PlanSessionCard } from '@/components/plan/PlanSessionCard';
 import { SessionCard } from '@/components/plan/SessionCard';
 import { SessionPager } from '@/components/plan/SessionPager';
@@ -110,18 +110,6 @@ export default function PlanScreen() {
         }
         return set;
     }, [sessions, weekDays, planSessionByDow]);
-
-    // Flexible Wochen-Sessions (Spec 2026-10-09): Instanzen dieser Woche, deren
-    // Plan-Template ein flexible_window trägt — als To-do-Karten unterhalb des
-    // Tages-Contents, zusätzlich zur normalen Tagesansicht am Empfehlungstag.
-    const flexibleThisWeek = useMemo(() => {
-        const planById = new Map(planSessions.map(ps => [ps.id, ps]));
-        const weekSet = new Set(weekDays.map(toDateStr));
-        return sessions
-            .map(s => ({ session: s, window: s.workout_plan_session_id ? planById.get(s.workout_plan_session_id)?.flexible_window ?? null : null }))
-            .filter(({ session: s, window: w }) =>
-                !!w && w.length > 0 && !!s.scheduled_at && weekSet.has(toDateStr(new Date(s.scheduled_at))));
-    }, [sessions, planSessions, weekDays]);
 
     // Sessions for the tapped day
     const selectedDayStr = toDateStr(selectedDay);
@@ -310,17 +298,8 @@ export default function PlanScreen() {
                                 {renderSelectedDayContent()}
                             </Reanimated.View>
 
-                            {/* Flexible Wochen-Sessions (Sprint/Mobility als To-do) */}
-                            {flexibleThisWeek.length > 0 && (
-                                <View style={styles.flexibleSection}>
-                                    <JempText type="caption" color={theme.textMuted} style={styles.flexibleLabel}>
-                                        {t('plan.flexible_title').toUpperCase()}
-                                    </JempText>
-                                    {flexibleThisWeek.map(({ session: s, window: w }) => (
-                                        <FlexibleSessionCard key={s.id} session={s} window={w!} theme={theme} />
-                                    ))}
-                                </View>
-                            )}
+                            {/* Flexible Wochen-Sessions (Sprint/Mobility) als To-do-Checkliste */}
+                            <FlexibleWeekList theme={theme} />
                         </>
                     )}
                 </View>
@@ -345,8 +324,6 @@ const styles = StyleSheet.create({
     centered: { paddingTop: 60, alignItems: 'center', flex: 1, justifyContent: "center" },
 
     dayContent: { flex: 1, gap: 20 },
-    flexibleSection: { gap: 10 },
-    flexibleLabel: { letterSpacing: 1.2, fontSize: 11 },
 
     // Loading skeleton
     skeletonWeekRow: { flexDirection: 'row', gap: 4 },

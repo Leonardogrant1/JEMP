@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findV2Violations, buildV2SessionSchema } from '../run-session-v2'
+import { findV2Violations, buildV2SessionSchema, attachBlockEmphasis } from '../run-session-v2'
 
 const session = (blocks: Array<{ block_type: string; slugs: string[] }>): any => ({
   name: 'W', mode_slug: 'full', estimated_duration_minutes: 60, day_of_week: 1,
@@ -61,5 +61,52 @@ describe('buildV2SessionSchema', () => {
       { block_type: 'push', slugs: ['bench_press'] },
     ])
     expect(schema.safeParse(foreign).success).toBe(false)
+  })
+})
+
+describe('attachBlockEmphasis', () => {
+  const planned = [
+    { block_type: 'warmup' },
+    { block_type: 'plyo', emphasis: 'light' },
+    { block_type: 'lower_body', emphasis: 'heavy' },
+    { block_type: 'push', emphasis: 'normal' },
+    { block_type: 'cooldown' },
+  ] as any
+
+  it('copies emphasis from the planned composition onto LLM blocks by block_type', () => {
+    const blocks = [
+      { block_type: 'warmup', order_index: 0 },
+      { block_type: 'plyo', order_index: 1 },
+      { block_type: 'lower_body', order_index: 2 },
+      { block_type: 'push', order_index: 3 },
+      { block_type: 'cooldown', order_index: 4 },
+    ] as any
+    attachBlockEmphasis(blocks, planned)
+    expect(blocks.map((b: any) => b.emphasis ?? null)).toEqual([null, 'light', 'heavy', 'normal', null])
+  })
+
+  it('leaves blocks without a planned counterpart (sprint, finisher) untouched', () => {
+    const blocks = [
+      { block_type: 'sprint', order_index: 0 },
+      { block_type: 'lower_body', order_index: 1 },
+      { block_type: 'conditioning', order_index: 2 },
+    ] as any
+    attachBlockEmphasis(blocks, planned)
+    expect(blocks[0].emphasis).toBeUndefined()
+    expect(blocks[1].emphasis).toBe('heavy')
+    expect(blocks[2].emphasis).toBeUndefined()
+  })
+
+  it('assigns duplicate block_types in order of occurrence', () => {
+    const twoAccessories = [
+      { block_type: 'accessory', emphasis: 'normal' },
+      { block_type: 'accessory', emphasis: 'light' },
+    ] as any
+    const blocks = [
+      { block_type: 'accessory', order_index: 0 },
+      { block_type: 'accessory', order_index: 1 },
+    ] as any
+    attachBlockEmphasis(blocks, twoAccessories)
+    expect(blocks.map((b: any) => b.emphasis)).toEqual(['normal', 'light'])
   })
 })

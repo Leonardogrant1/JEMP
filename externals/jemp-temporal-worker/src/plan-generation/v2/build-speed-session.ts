@@ -2,7 +2,7 @@
 // picks by ascending intensity then slug so the same input yields the same session.
 
 import type { PlacedDay } from '../week-layout'
-import { legacyBlockAllows, type V2Exercise } from './pool'
+import { legacyBlockAllows, SPEED_FRAMING_SLUGS, type V2Exercise } from './pool'
 
 type PlannedExercise = {
   exercise_slug: string
@@ -38,6 +38,9 @@ export type PlannedSessionLike = {
   dropped_blocks?: Array<{ block_type: string; reason: 'time' | 'coverage' }>
   /** Flexible-Window (Spec 2026-10-09): erlaubte Wochentage; day_of_week = Empfehlung. */
   flexible_window?: number[]
+  /** Explizite Session-Umgebung (Sprint-Env-Fix 09.10.: Speed = Outdoor);
+   *  fehlt sie, fällt save-plan auf die erste User-Umgebung zurück. */
+  environment_id?: string
   blocks: PlannedBlock[]
 }
 
@@ -53,14 +56,27 @@ function baseExercise(ex: V2Exercise, order: number): PlannedExercise {
   }
 }
 
+// Slug-Anker des Coaching-Templates (09.10.): Traben rahmt die Session,
+// Steigerungsläufe schließen die Warmup-Rampe ab. Die Menge dieser Anker
+// (SPEED_FRAMING_SLUGS in pool.ts) hält sie aus den Workout-Warmups heraus.
+const EASY_JOG_SLUG = 'easy_jog'
+const BUILD_UP_RUN_SLUG = 'build_up_run'
+// Kampfsportler sprinten bevorzugt bergauf/Treppe (hohe Kraftkomponente,
+// geringe Aufprall-Last) — Feld-/Teamsportler flach.
+const COMBAT_SPRINT_PREFERENCE = ['hill_sprint', 'stair_sprint']
+
 export function buildSpeedSession(input: {
   day: PlacedDay
   exercises: V2Exercise[]
   levels: { sprints: number; cod: number }
   allowMaxVelocity: boolean
   orderIndex: number
+  /** Outdoor-Umgebung der Session (Sprint-Env-Fix 09.10.) */
+  environmentId?: string
+  /** sports.group_name — steuert die Wahl der Haupt-Sprintübung. */
+  sportGroup?: string
 }): { session: PlannedSessionLike; notes: string[] } | null {
-  const { day, exercises, levels, allowMaxVelocity, orderIndex } = input
+  const { day, exercises, levels, allowMaxVelocity, orderIndex, environmentId, sportGroup } = input
   const notes: string[] = []
 
   const sprintPool = exercises
@@ -72,14 +88,21 @@ export function buildSpeedSession(input: {
       (e.category_slug === 'lower_body_plyometrics' && e.sprint_type === null && e.measurement_type === 'time'))
     .sort(byIntensityThenSlug)
   const mobilityPool = exercises.filter((e) => e.category_slug === 'mobility').sort(byIntensityThenSlug)
-  // Legacy-Block-Tag respektieren (QA 09.10.): dynamische Drills ins Warmup,
-  // statische Stretches/Atemübungen nur ins Cooldown.
-  const warmupMobility = mobilityPool.filter((e) => legacyBlockAllows(e, 'warmup'))
   const cooldownMobility = mobilityPool.filter((e) => legacyBlockAllows(e, 'cooldown'))
-  // Sprint-Technik-Drills (A-/B-Skips, Wall Drills — Kategorie sprints ohne
-  // sprint_type): gehören laut Spec in den Drill-Teil des Speed-Warmups.
+  const jog = exercises.find((e) => e.slug === EASY_JOG_SLUG) ?? null
+  const buildUpRun = exercises.find((e) => e.slug === BUILD_UP_RUN_SLUG) ?? null
+  // Dynamische Mobility (Leg Swings, Hüftöffner, Ankle Rockers): warmup-getaggt
+  // aus mobility ODER lower_body_plyometrics (Leg Swings leben dort).
+  const dynamicPool = exercises
+    .filter((e) => !SPEED_FRAMING_SLUGS.has(e.slug) && e.sprint_type === null)
+    .filter((e) => (e.category_slug === 'mobility' || e.category_slug === 'lower_body_plyometrics') && legacyBlockAllows(e, 'warmup'))
+    .filter((e) => (e.intensity_score ?? 10) <= 3)
+    .sort(byIntensityThenSlug)
+  // Lauf-ABC (A-/B-Skips, High Knees, Butt Kicks): Kategorie sprints ohne
+  // sprint_type, warmup-getaggt. Intensität 4–5 ist hier normal — kein ≤3-Gate.
   const drillPool = exercises
-    .filter((e) => e.category_slug === 'sprints' && e.sprint_type === null && (e.intensity_score ?? 10) <= 3)
+    .filter((e) => e.category_slug === 'sprints' && e.sprint_type === null && legacyBlockAllows(e, 'warmup'))
+    .filter((e) => !SPEED_FRAMING_SLUGS.has(e.slug))
     .sort(byIntensityThenSlug)
 
   if (sprintPool.length === 0 && codPool.length === 0) {
@@ -87,33 +110,52 @@ export function buildSpeedSession(input: {
   }
   if (!allowMaxVelocity) notes.push('Speed: Max-Velocity gesperrt (kein gemessener Sprint-Wert oder Distanz <20m)')
 
-  // Content split proportional to the two pillar levels (spec §2.5).
-  const totalMain = 4
-  const levelSum = Math.max(1, levels.sprints + levels.cod)
-  let sprintCount = Math.round((levels.sprints / levelSum) * totalMain)
-  sprintCount = Math.min(Math.max(sprintCount, sprintPool.length > 0 ? 1 : 0), sprintPool.length)
-  const codCount = Math.min(totalMain - sprintCount, codPool.length)
-
   const maintenance = day.dose === 'maintenance'
-  const sprintExercises = sprintPool.slice(0, sprintCount).map((e, i) => ({
-    ...baseExercise(e, i),
-    target_sets: maintenance ? 2 : 4,
-    target_distance_meters: maintenance ? 20 : 30,
-    target_rest_seconds: 120,
-  }))
+
+  // Hauptteil (Template 09.10.): GENAU EINE Antritts-Übung, 6–8 Starts à ~20m,
+  // volle Pausen — Qualität schlägt Volumen (~150m Gesamtstrecke). Die Übung
+  // passt zum Sportler: Kampfsport → Berg-/Treppensprint, sonst flacher Antritt.
+  const combatPick = sportGroup === 'combat_sports'
+    ? COMBAT_SPRINT_PREFERENCE.map((slug) => sprintPool.find((e) => e.slug === slug)).find(Boolean)
+    : undefined
+  const mainSprint = combatPick ?? sprintPool[0]
+  const sprintExercises = mainSprint ? [{
+    ...baseExercise(mainSprint, 0),
+    target_sets: maintenance ? 3 : 7,
+    target_distance_meters: 20,
+    target_rest_seconds: 150,
+  }] : []
+
+  // COD optional: max 2 Drills, 4–6 Wiederholungen gesamt, volle Pausen.
+  const codCount = levels.cod > 0 ? Math.min(2, codPool.length) : 0
   const codExercises = codPool.slice(0, codCount).map((e, i) => ({
     ...baseExercise(e, i),
-    target_sets: maintenance ? 2 : 3,
-    target_rest_seconds: 90,
+    target_sets: maintenance ? 2 : (codCount === 1 ? 5 : 3),
+    target_rest_seconds: 120,
   }))
-  const warmupPicks = warmupMobility.slice(0, 2)
-  const warmupExercises = [...warmupPicks, ...drillPool.slice(0, 2)].map((e, i) => ({
-    ...baseExercise(e, i), target_duration_seconds: 45, target_rest_seconds: 15,
-  }))
-  const warmupSlugs = new Set(warmupPicks.map((e) => e.slug))
-  const cooldownExercises = cooldownMobility.filter((e) => !warmupSlugs.has(e.slug)).slice(0, 2).map((e, i) => ({
-    ...baseExercise(e, i), target_duration_seconds: 45, target_rest_seconds: 15,
-  }))
+
+  // Warmup-Rampe: Traben → dynamische Mobility → Lauf-ABC → Steigerungsläufe.
+  // Kalt sprinten ist der direkteste Weg zum Hamstring-Riss — der Warmup ist
+  // hier Programm, kein Vorgeplänkel.
+  const warmupExercises = [
+    ...(jog ? [{ ...baseExercise(jog, 0), target_duration_seconds: 240, target_rest_seconds: 0 }] : []),
+    ...dynamicPool.slice(0, 2).map((e) => ({ ...baseExercise(e, 0), target_duration_seconds: 45, target_rest_seconds: 15 })),
+    ...drillPool.slice(0, 2).map((e) => ({ ...baseExercise(e, 0), target_sets: 2, target_distance_meters: 20, target_rest_seconds: 30 })),
+    ...(buildUpRun ? [{ ...baseExercise(buildUpRun, 0), target_sets: 3, target_distance_meters: 30, target_rest_seconds: 60 }] : []),
+  ].map((e, i) => ({ ...e, order_index: i }))
+  const warmupSlugs = new Set(warmupExercises.map((e) => e.exercise_slug))
+
+  // Cooldown: Auslaufen + ruhige Mobility gezielt für Hüftbeuger/Hamstrings —
+  // kein intensives Dehnen direkt nach maximaler Belastung.
+  const targeted = (e: V2Exercise) => /hip|hamstring/.test(e.slug) ? 0 : 1
+  const cooldownExercises = [
+    ...(jog ? [{ ...baseExercise(jog, 0), target_duration_seconds: 180, target_rest_seconds: 0 }] : []),
+    ...cooldownMobility
+      .filter((e) => !warmupSlugs.has(e.slug))
+      .sort((a, b) => targeted(a) - targeted(b) || byIntensityThenSlug(a, b))
+      .slice(0, 2)
+      .map((e) => ({ ...baseExercise(e, 0), target_duration_seconds: 45, target_rest_seconds: 15 })),
+  ].map((e, i) => ({ ...e, order_index: i }))
 
   const blocks: PlannedBlock[] = []
   blocks.push({ block_type: 'warmup', order_index: 0, focused_category_slug: 'mobility', exercises: warmupExercises })
@@ -132,6 +174,7 @@ export function buildSpeedSession(input: {
       description: 'Antritt, Richtungswechsel und Laufmechanik — draußen, ohne Equipment.',
       pause_between_sets: 120,
       flexible_window: day.flexible_window,
+      ...(environmentId ? { environment_id: environmentId } : {}),
       blocks,
     },
     notes,

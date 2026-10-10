@@ -8,6 +8,7 @@ import { DAY_KEYS, dowToDayKey, getWeekDays, toDateStr } from '@/helpers/date-he
 import { getDayVariant } from '@/helpers/session-helpers';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTrainingAnimation } from '@/hooks/use-training-animation';
+import { getFlexibleDayWarnings } from '@/lib/flexible-session-warnings';
 import LottieView from 'lottie-react-native';
 import { useRescheduleAllSessions } from '@/mutations/use-reschedule-all-sessions';
 import { useRescheduleSession } from '@/mutations/use-reschedule-session';
@@ -27,6 +28,9 @@ import Reanimated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+// Amber für weiche Hinweise — bewusst kein Rot, es ist kein Blocker
+const WARN_COLOR = '#F59E0B';
+
 export default function SessionRescheduleScreen() {
     const { t } = useTranslation();
     const insets = useSafeAreaInsets();
@@ -39,8 +43,9 @@ export default function SessionRescheduleScreen() {
     const { sessions, planSessions } = usePlan();
     const { profile } = useCurrentUser();
     const trainingAnimation = useTrainingAnimation(profile?.sport);
-    const { mutate: rescheduleSession } = useRescheduleSession();
-    const { mutate: rescheduleAll } = useRescheduleAllSessions();
+    const { mutate: rescheduleSession, isPending: isRescheduling } = useRescheduleSession();
+    const { mutate: rescheduleAll, isPending: isReschedulingAll } = useRescheduleAllSessions();
+    const isBusy = isRescheduling || isReschedulingAll;
 
     // Ausgewählter Ziel-Tag — alles (Tag, Scope, Confirm) in einer Ansicht
     const [pendingDate, setPendingDate] = useState<string | null>(null);
@@ -78,21 +83,28 @@ export default function SessionRescheduleScreen() {
     }
 
     function handleConfirm() {
-        if (!pendingDate) return;
+        if (!pendingDate || isBusy) return;
         const session = sessions.find((s) => s.id === sessionId);
         if (!session) return;
+        // "Heute starten"-Shortcut: liegt der Ziel-Tag auf heute, bleibt das
+        // Sheet bis zum Mutations-Erfolg offen und ersetzt sich dann durch die
+        // Session — sonst würde der onSuccess-Callback nach dem Unmount verpuffen.
+        const startToday = pendingDate === todayStr;
+        const onSuccess = startToday
+            ? () => router.replace(`/session/${sessionId}`)
+            : undefined;
         if (scope === 'all') {
             rescheduleAll(
                 { originalScheduledAt: session.scheduled_at!, newDate: pendingDate },
-                { onSuccess: () => useToastStore.getState().show(t('ui.sessions_rescheduled_all', { day: originalDayName })) },
+                { onSuccess: onSuccess ?? (() => useToastStore.getState().show(t('ui.sessions_rescheduled_all', { day: originalDayName }))) },
             );
         } else {
             rescheduleSession(
                 { sessionId, newDate: pendingDate, originalScheduledAt: session.scheduled_at! },
-                { onSuccess: () => useToastStore.getState().show(t('ui.session_rescheduled')) },
+                { onSuccess: onSuccess ?? (() => useToastStore.getState().show(t('ui.session_rescheduled'))) },
             );
         }
-        handleClose();
+        if (!startToday) handleClose();
     }
 
     const sheetStyle = useAnimatedStyle(() => ({
@@ -131,6 +143,31 @@ export default function SessionRescheduleScreen() {
         if (list) list.push(s);
         else sessionsByDate.set(dateStr, [s]);
     }
+
+    // Weiche Warnungen (Spec 2026-10-09): Sprint auf Workout-Tag bzw. direkt
+    // neben dem harten Beintag — Hinweis unter der Tagesliste, kein Blocker.
+    const weekSet = new Set(weekDays.map(toDateStr));
+    const inWeek = (s: WorkoutSession) => !!s.scheduled_at && weekSet.has(s.scheduled_at.split('T')[0]);
+    // Beintag über die echte Wochen-Instanz (kann selbst verschoben sein),
+    // Fallback auf den Template-Tag
+    const heavyLowerPlan = planSessions.find((ps) => ps.has_heavy_lower);
+    const heavyInstance = heavyLowerPlan
+        ? sessions.find((s) => s.workout_plan_session_id === heavyLowerPlan.id && inWeek(s))
+        : null;
+    const heavyLowerDow = heavyInstance?.scheduled_at
+        ? toDow(new Date(heavyInstance.scheduled_at.split('T')[0]))
+        : heavyLowerPlan?.day_of_week ?? null;
+    const heavyLowerDayName = heavyLowerDow !== null ? t(`plan.day_${heavyLowerDow}` as never) : '';
+    const dayWarnings = (!flexibleWindow || flexibleWindow.length === 0 || !pendingDate || !currentSession)
+        ? []
+        : getFlexibleDayWarnings({
+            sessionType: currentSession.session_type ?? '',
+            targetDow: toDow(new Date(pendingDate)),
+            workoutDows: sessions
+                .filter((s) => s.session_type === 'training' && s.status === 'scheduled' && inWeek(s))
+                .map((s) => toDow(new Date(s.scheduled_at!.split('T')[0]))),
+            heavyLowerDow,
+        });
 
     const hasSelectableDays = weekDays.some((day) => {
         const dateStr = toDateStr(day);
@@ -290,6 +327,22 @@ export default function SessionRescheduleScreen() {
                                         </View>
                                     )}
 
+                                    {/* Weiche Warnungen zum gewählten Tag (nur flexible Sprint-Sessions) */}
+                                    {dayWarnings.length > 0 && (
+                                        <View style={styles.warnBox}>
+                                            {dayWarnings.map((w) => (
+                                                <View key={w} style={styles.warnRow}>
+                                                    <Ionicons name="warning-outline" size={14} color={WARN_COLOR} />
+                                                    <JempText type="caption" color={theme.textMuted} style={styles.warnText}>
+                                                        {w === 'near_heavy_lower'
+                                                            ? t('plan.flexible_warn_near_heavy_lower', { day: heavyLowerDayName })
+                                                            : t('plan.flexible_warn_workout_same_day')}
+                                                    </JempText>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    )}
+
                                     {hasSelectableDays && (
                                         <>
                                             <View style={styles.scopeOptions}>
@@ -329,11 +382,13 @@ export default function SessionRescheduleScreen() {
                                             </View>
 
                                             <Pressable
-                                                style={[styles.confirmBtn, { opacity: pendingDate ? 1 : 0.4 }]}
-                                                disabled={!pendingDate}
+                                                style={[styles.confirmBtn, { opacity: pendingDate && !isBusy ? 1 : 0.4 }]}
+                                                disabled={!pendingDate || isBusy}
                                                 onPress={handleConfirm}
                                             >
-                                                <JempText type="button" color="#fff">{t('ui.confirm')}</JempText>
+                                                <JempText type="button" color="#fff">
+                                                    {pendingDate === todayStr ? t('ui.session_reschedule_start_today') : t('ui.confirm')}
+                                                </JempText>
                                             </Pressable>
                                         </>
                                     )}
@@ -471,6 +526,18 @@ const styles = StyleSheet.create({
     emptyState: {
         paddingVertical: 32,
         alignItems: 'center',
+    },
+    warnBox: {
+        gap: 6,
+        marginTop: -6,
+    },
+    warnRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 6,
+    },
+    warnText: {
+        flex: 1,
     },
     emptyText: {
         textAlign: 'center',

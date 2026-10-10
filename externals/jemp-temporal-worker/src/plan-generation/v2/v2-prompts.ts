@@ -3,6 +3,7 @@
 
 import type { FinalWorkout, PlacedDay, PlannedWorkoutBlock } from '../week-layout'
 import { COMPACT_SESSION_THRESHOLD_MINUTES } from '../week-layout-constants'
+import { sessionPrepRegions } from './pool'
 
 const VARIANT_LABELS: Record<string, string> = {
   push_vertical: 'vertikaler Push (Overhead-Familie)',
@@ -65,6 +66,13 @@ export function V2_SESSION_PROMPT(input: {
     ? `\n- Diese Session trägt den integrierten Sprint-Block: Füge direkt nach dem Warmup einen \`sprint\`-Block ein (10–15 min, 3–5 Antritte, volle Pausen). Pool: ${sprintPoolLine}`
     : ''
 
+  // Region-Targeting (09.10., v1-Parität): Warmup bereitet vor, Cooldown dehnt
+  // aus, was heute trainiert wird — die Pools sind bereits darauf verengt.
+  const prepRegions = [...sessionPrepRegions(workout.blocks)]
+  const prepLine = prepRegions.length > 0
+    ? `\n- Warmup & Cooldown GEZIELT: Das Warmup bereitet dynamisch die heute belasteten Regionen vor (${prepRegions.join(', ')}), das Cooldown dehnt genau diese ruhig aus — keine generischen Füller.`
+    : ''
+
   // Kompakt-Modus (QA 09.10.): kurze Sessions — die Blockliste ist bereits
   // auf das Zeitbudget gekürzt, die Verschreibung muss mitziehen.
   const compact = day.minutes <= COMPACT_SESSION_THRESHOLD_MINUTES
@@ -82,7 +90,7 @@ ${weekSummary}
 ## Diese Session (Tag ${day.day_of_week}, ${day.minutes} min, Dosis: ${day.dose})
 Blöcke in GENAU dieser Reihenfolge — jeder Block MUSS vorkommen, keine zusätzlichen Blöcke:
 ${blockLines}
-${microDose}${sprintBlock}${compact}${upperCap}
+${microDose}${sprintBlock}${compact}${upperCap}${prepLine}
 
 ## Übungspools pro Block (NUR daraus wählen)
 ${poolLines.join('\n')}

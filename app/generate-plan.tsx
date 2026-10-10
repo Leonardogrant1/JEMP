@@ -12,6 +12,7 @@ import { WizardProgress } from '@/components/plan-generation/WizardProgress';
 import { Colors, GRADIENT } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { computeLoadProfile, maxWorkoutDays, MIN_WORKOUT_DAYS } from '@/lib/load-profile';
+import { extraSessionAllowance } from '@/lib/week-allocation';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlanWizardStore } from '@/stores/plan-wizard-store';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,7 +39,7 @@ export default function GeneratePlanScreen() {
 
     const {
         phase, loading, isSaving, saveError,
-        selectedEnvIds, pillarLevels, sprintClubAnswered, sprintDistance,
+        selectedEnvIds, pillarLevels, sprintClubAnswered, sprintDistance, sprintClub,
         preferredDays, preferredDuration, sportSessions,
         initialize, goBack, goNext, generate,
     } = usePlanWizardStore();
@@ -55,11 +56,19 @@ export default function GeneratePlanScreen() {
         phase === 'environment' ? selectedEnvIds.size > 0 :
         phase === 'goals' ? pillarLevels.length > 0 :
         phase === 'sprint-context' ? (sprintClubAnswered && sprintDistance !== null) :
-        phase === 'schedule' ? (
-            preferredDays.size >= MIN_WORKOUT_DAYS
-            && preferredDays.size <= maxWorkoutDays(computeLoadProfile(sportSessions).load_profile)
-            && preferredDuration !== null
-        ) :
+        phase === 'schedule' ? (() => {
+            // Gleiche Rechnung wie das Cap im ScheduleStep: Workout-Cap plus
+            // Extra-Tage für Speed/Conditioning — sonst sperrt der Button
+            // eine Auswahl, die der Step gerade noch erlaubt hat.
+            const loadProfile = computeLoadProfile(sportSessions).load_profile;
+            const wizardLevelMap: Record<string, 1 | 2 | 3> = {};
+            pillarLevels.forEach((l) => { wizardLevelMap[l.slug] = l.level; });
+            const maxDays = maxWorkoutDays(loadProfile)
+                + extraSessionAllowance({ loadProfile, pillarLevels: wizardLevelMap, sprintsCoveredByClub: sprintClub });
+            return preferredDays.size >= MIN_WORKOUT_DAYS
+                && preferredDays.size <= maxDays
+                && preferredDuration !== null;
+        })() :
         true;
 
     function handleBack() {

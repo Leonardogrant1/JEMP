@@ -133,3 +133,97 @@ describe('buildBlockPools core-Fallback (Review-Fix #1: dünner Varianten-Pool)'
     expect(pools.get('core' as any)!.map((e: any) => e.slug).sort()).toEqual(['chop_a', 'chop_b'])
   })
 })
+
+describe('warmup/cooldown region matching (09.10.: v1-Regression behoben)', () => {
+    const mobility = (slug: string, region: string | null, tags: string[] = ['warmup', 'cooldown'], dominant: string | null = null) =>
+        ex({ slug, category_slug: 'mobility', body_region: region, dominant_region: dominant, intensity_score: 2, legacy_block_slugs: tags });
+
+    const catalog = [
+        mobility('hip_90_90', 'hip'),
+        mobility('hamstring_sweep', 'hamstring'),
+        mobility('ankle_rocker', 'ankle'),
+        mobility('shoulder_dislocate', 'shoulder'),
+        mobility('thoracic_opener', 'thoracic'),
+        mobility('box_breathing', 'full_body', ['cooldown']),
+    ];
+
+    it('Beintag: Warmup-Pool enthält Hüfte/Hamstring/Ankle, nicht Schulter/Thorax', () => {
+        const pools = buildBlockPools(catalog as any, [block('warmup'), block('lower_body'), block('cooldown')]);
+        const warmup = pools.get('warmup' as any)!.map((e: any) => e.slug);
+        expect(warmup).toEqual(expect.arrayContaining(['hip_90_90', 'hamstring_sweep', 'ankle_rocker']));
+        expect(warmup).not.toContain('shoulder_dislocate');
+        expect(warmup).not.toContain('thoracic_opener');
+    });
+
+    it('Push-Tag: Cooldown-Pool dehnt Schulter/Thorax, nicht Hamstring', () => {
+        const pools = buildBlockPools(catalog as any, [block('warmup'), block('push'), block('cooldown')]);
+        const cooldown = pools.get('cooldown' as any)!.map((e: any) => e.slug);
+        expect(cooldown).toEqual(expect.arrayContaining(['shoulder_dislocate', 'thoracic_opener']));
+        expect(cooldown).not.toContain('hamstring_sweep');
+    });
+
+    it('full_body ohne dominant_region passt immer (Breathing bleibt im Cooldown)', () => {
+        const pools = buildBlockPools(catalog as any, [block('warmup'), block('push'), block('cooldown')]);
+        expect(pools.get('cooldown' as any)!.map((e: any) => e.slug)).toContain('box_breathing');
+    });
+
+    it('Fallback: unter 2 regionalen Treffern bleibt der volle Pool', () => {
+        const thin = [mobility('shoulder_dislocate', 'shoulder'), mobility('thoracic_opener', 'thoracic'), mobility('neck_roll', 'neck')];
+        const pools = buildBlockPools(thin as any, [block('warmup'), block('lower_body'), block('cooldown')]);
+        expect(pools.get('warmup' as any)!.length).toBe(3);
+    });
+});
+
+describe('speed framing exercises stay out of workout warmups (09.10.)', () => {
+    it('easy_jog und build_up_run erscheinen nie im Workout-Warmup-Pool', () => {
+        const catalog = [
+            ex({ slug: 'easy_jog', category_slug: 'sprints', sprint_type: null, intensity_score: 2, legacy_block_slugs: ['warmup', 'cooldown'] }),
+            ex({ slug: 'build_up_run', category_slug: 'sprints', sprint_type: null, intensity_score: 5, legacy_block_slugs: ['warmup'] }),
+            ex({ slug: 'ministep_drill', category_slug: 'sprints', sprint_type: null, intensity_score: 2, legacy_block_slugs: ['warmup'] }),
+            ex({ slug: 'hip_90_90', category_slug: 'mobility', body_region: 'hip', intensity_score: 2, legacy_block_slugs: ['warmup'] }),
+        ];
+        const pools = buildBlockPools(catalog as any, [block('warmup'), block('lower_body'), block('cooldown')]);
+        const warmup = pools.get('warmup' as any)!.map((e: any) => e.slug);
+        expect(warmup).not.toContain('easy_jog');
+        expect(warmup).not.toContain('build_up_run');
+        expect(warmup).toContain('ministep_drill');
+    });
+});
+
+describe('exercise_regions treibt das Region-Matching (10.10.)', () => {
+    const warmupMob = (slug: string, over: any = {}) =>
+        ex({ slug, category_slug: 'mobility', intensity_score: 2, legacy_block_slugs: ['warmup'], ...over });
+    const lowerDay = [block('warmup'), block('lower_body'), block('cooldown')];
+
+    it('secondary-Region zählt: Übung mit primary shoulder + secondary hamstring matcht den Beintag', () => {
+        const catalog = [
+            warmupMob('shoulder_to_ham', { body_region: 'shoulder', regions: [{ region: 'shoulder', role: 'primary' }, { region: 'hamstring', role: 'secondary' }] }),
+            warmupMob('hip_a', { body_region: 'hip', regions: [{ region: 'hip', role: 'primary' }] }),
+            warmupMob('hip_b', { body_region: 'hip', regions: [{ region: 'hip', role: 'primary' }] }),
+        ];
+        const warmup = buildBlockPools(catalog as any, lowerDay).get('warmup' as any)!.map((e: any) => e.slug);
+        expect(warmup).toContain('shoulder_to_ham');
+    });
+
+    it('regions hat Vorrang vor den alten Spalten', () => {
+        const catalog = [
+            // Spalte sagt hip (würde matchen), regions sagt nur shoulder → raus
+            warmupMob('stale_column', { body_region: 'hip', regions: [{ region: 'shoulder', role: 'primary' }] }),
+            warmupMob('hip_a', { body_region: 'hip', regions: [{ region: 'hip', role: 'primary' }] }),
+            warmupMob('hip_b', { body_region: 'hip', regions: [{ region: 'hip', role: 'primary' }] }),
+        ];
+        const warmup = buildBlockPools(catalog as any, lowerDay).get('warmup' as any)!.map((e: any) => e.slug);
+        expect(warmup).not.toContain('stale_column');
+    });
+
+    it('full_body-Row matcht immer; ohne regions-Daten gilt der Spalten-Fallback', () => {
+        const catalog = [
+            warmupMob('universal', { body_region: 'full_body', regions: [{ region: 'full_body', role: 'primary' }] }),
+            warmupMob('legacy_only', { body_region: 'hamstring', regions: null }),
+            warmupMob('hip_a', { body_region: 'hip', regions: [{ region: 'hip', role: 'primary' }] }),
+        ];
+        const warmup = buildBlockPools(catalog as any, lowerDay).get('warmup' as any)!.map((e: any) => e.slug);
+        expect(warmup).toContain('universal');
+        expect(warmup).toContain('legacy_only');
+    });
+});

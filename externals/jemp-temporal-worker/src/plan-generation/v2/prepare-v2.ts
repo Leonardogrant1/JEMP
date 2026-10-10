@@ -103,12 +103,16 @@ export async function prepareGenerationV2(
   const notes: string[] = []
 
   // ── 1. Exercises incl. v2 metadata, filtered for the user ────────────────
-  const [{ data: exerciseRows }, { data: exerciseEnvRows }, { data: exerciseEquipRows }, { data: exerciseBlockRows }] = await Promise.all([
+  const [{ data: exerciseRows }, { data: exerciseEnvRows }, { data: exerciseEquipRows }, { data: exerciseBlockRows }, { data: environmentRows }] = await Promise.all([
     supabase.from('exercises').select('id, slug, name, body_region, dominant_region, strength_pattern, plyo_type, core_type, sprint_type, covered_patterns, laterality, min_level, max_level, intensity_score, measurement_type, movement_type, is_explosive, categories(id, slug)'),
     supabase.from('exercise_environments').select('exercise_id, environment_id'),
     supabase.from('exercise_equipments').select('exercise_id, equipment_id'),
     supabase.from('exercise_blocks').select('exercise_id, block_types(slug)'),
+    supabase.from('environments').select('id, slug'),
   ])
+  // exercise_regions (10.10.): betroffene Regionen inkl. primary/secondary —
+  // eigener Call, damit der destrukturierte Promise.all-Block lesbar bleibt.
+  const { data: exerciseRegionRows } = await supabase.from('exercise_regions').select('exercise_id, region, role')
 
   const envByExercise = new Map<string, Set<string>>()
   for (const r of exerciseEnvRows ?? []) {
@@ -119,6 +123,11 @@ export async function prepareGenerationV2(
   for (const r of exerciseEquipRows ?? []) {
     if (!equipByExercise.has(r.exercise_id)) equipByExercise.set(r.exercise_id, new Set())
     equipByExercise.get(r.exercise_id)!.add(r.equipment_id)
+  }
+  const regionsByExercise = new Map<string, Array<{ region: string; role: string }>>()
+  for (const r of exerciseRegionRows ?? []) {
+    if (!regionsByExercise.has(r.exercise_id)) regionsByExercise.set(r.exercise_id, [])
+    regionsByExercise.get(r.exercise_id)!.push({ region: r.region, role: r.role })
   }
   // Legacy block_type-Tags (warmup/cooldown-Eignung für Mobility, QA 09.10.)
   const blocksByExercise = new Map<string, string[]>()
@@ -150,6 +159,7 @@ export async function prepareGenerationV2(
     intensity_score: row.intensity_score, measurement_type: row.measurement_type,
     legacy_block_slugs: blocksByExercise.get(row.id) ?? null,
     movement_type: row.movement_type ?? 'sagittal', is_explosive: row.is_explosive ?? false,
+    regions: regionsByExercise.get(row.id) ?? null,
   })
 
   const exercises: V2Exercise[] = (exerciseRows ?? []).filter(makeExerciseFilter(filterMaps, null)).map(toV2)
@@ -167,6 +177,15 @@ export async function prepareGenerationV2(
     return byEnvCache.get(envId)!
   }
 
+  // Sprint-Env-Fix (09.10.): Sprinten braucht nur freie Fläche — die Speed-
+  // Session zieht IMMER aus dem Outdoor-Pool, unabhängig von den gewählten
+  // Umgebungen. Level-Gate und ortsgebundenes Equipment filtern weiter (Sleds
+  // bleiben im Gym), Bodyweight-Sprints sind für jeden User sichtbar.
+  const outdoorEnvId = (environmentRows ?? []).find((e) => e.slug === 'outdoor')?.id ?? null
+  const speedExercises: V2Exercise[] = outdoorEnvId
+    ? (exerciseRows ?? []).filter(makeExerciseFilter(filterMaps, outdoorEnvId)).map(toV2)
+    : exercises
+
   // ── 2. Measured sprint value within the aging window (max-velocity gate) ──
   const since = new Date(Date.now() - MEASURED_SPRINT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString()
   const { data: sprintEntries } = await supabase
@@ -180,13 +199,8 @@ export async function prepareGenerationV2(
   const allowMaxVelocity = hasMeasuredSprint && input.sprint_distance !== null && input.sprint_distance !== 'under_20m'
 
   // ── 3. Deterministic week layout ─────────────────────────────────────────
-  // Sprinttauglich = keine Tages-Umgebung gesetzt oder Outdoor — der Speed-Tag
-  // soll bevorzugt dort liegen, wo echte Antritte möglich sind.
-  const envSlugById = new Map(input.environment_ids.map((id, i) => [id, input.environment_slugs[i]]))
-  const sprintFriendlyDays = input.preferred_workout_days.filter((d) => {
-    const envId = dayEnvById.get(d)
-    return !envId || envSlugById.get(envId) === 'outdoor'
-  })
+  // (Sprint-Env-Fix 09.10.: sprint_friendly_days entfällt — die Speed-Session
+  // ist immer outdoor, jeder Tag ist sprinttauglich.)
   const layout: WeekLayout = buildWeekLayout({
     available_days: input.preferred_workout_days,
     weekly_schedule: input.weekly_schedule ?? { sessions: [], notes: null },
@@ -195,7 +209,6 @@ export async function prepareGenerationV2(
     sprints_covered_by_club: input.sprints_covered_by_club,
     session_minutes: input.max_session_duration,
     day_minutes: input.day_minutes,
-    sprint_friendly_days: sprintFriendlyDays,
   })
   notes.push(...layout.notes)
 
@@ -208,9 +221,11 @@ export async function prepareGenerationV2(
     const dayExercises = exercisesForDay(day.day_of_week)
     if (day.session_type === 'speed') {
       const r = buildSpeedSession({
-        day, exercises: dayExercises,
+        day, exercises: speedExercises,
         levels: { sprints: input.pillar_levels.sprints ?? 0, cod: input.pillar_levels.cod ?? 0 },
         allowMaxVelocity, orderIndex: orderIndex++,
+        environmentId: outdoorEnvId ?? undefined,
+        sportGroup: input.sport_group_name || undefined,
       })
       if (r) { prebuiltSessions.push(r.session); notes.push(...r.notes) }
       else notes.push(`Speed-Session Tag ${day.day_of_week}: Pool leer — Session entfällt`)

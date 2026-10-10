@@ -68,3 +68,78 @@ describe('flexible_window Durchreichung (Spec 2026-10-09)', () => {
     expect(r.session.flexible_window).toEqual([1, 2, 3, 7])
   })
 })
+
+describe('speed session outdoor environment (Sprint-Env-Fix 09.10.)', () => {
+    it('stempelt die übergebene Outdoor-Umgebung auf die Session', () => {
+        const r = buildSpeedSession({ day: day(), exercises: basePool, levels: { sprints: 2, cod: 1 }, allowMaxVelocity: true, orderIndex: 0, environmentId: 'env-outdoor-uuid' })!;
+        expect((r.session as any).environment_id).toBe('env-outdoor-uuid');
+    });
+    it('lässt environment_id weg, wenn keine übergeben wird (Fallback in save-plan)', () => {
+        const r = buildSpeedSession({ day: day(), exercises: basePool, levels: { sprints: 2, cod: 1 }, allowMaxVelocity: true, orderIndex: 0 })!;
+        expect((r.session as any).environment_id).toBeUndefined();
+    });
+});
+
+describe('speed session coaching template (09.10.: Warmup-Rampe, Qualitäts-Volumen, gezielter Cooldown)', () => {
+    const templatePool = [
+        ex({ slug: 'easy_jog', category_slug: 'sprints', intensity_score: 2, measurement_type: 'duration', legacy_block_slugs: ['warmup', 'cooldown'] }),
+        ex({ slug: 'leg_swing_front_to_back', category_slug: 'lower_body_plyometrics', intensity_score: 2, measurement_type: 'duration', legacy_block_slugs: ['warmup'] }),
+        ex({ slug: 'ankle_cars', category_slug: 'mobility', intensity_score: 1, measurement_type: 'duration', legacy_block_slugs: ['warmup', 'cooldown'] }),
+        ex({ slug: 'a_skip_drill', category_slug: 'sprints', intensity_score: 4, measurement_type: 'reps_or_duration', legacy_block_slugs: ['warmup'] }),
+        ex({ slug: 'b_skip_drill', category_slug: 'sprints', intensity_score: 5, measurement_type: 'reps_or_duration', legacy_block_slugs: ['warmup'] }),
+        ex({ slug: 'build_up_run', category_slug: 'sprints', intensity_score: 5, measurement_type: 'distance', legacy_block_slugs: ['warmup'] }),
+        ex({ slug: 'sprint_10m', sprint_type: 'acceleration', category_slug: 'sprints', intensity_score: 7, measurement_type: 'distance' }),
+        ex({ slug: 'acceleration_sprint_10m', sprint_type: 'acceleration', category_slug: 'sprints', intensity_score: 7, measurement_type: 'distance' }),
+        ex({ slug: 'hill_sprint', sprint_type: 'acceleration', category_slug: 'sprints', intensity_score: 8, measurement_type: 'distance' }),
+        ex({ slug: 'pro_agility_shuttle', category_slug: 'cod', intensity_score: 8, measurement_type: 'reps_or_duration' }),
+        ex({ slug: 'lateral_shuffle', category_slug: 'cod', intensity_score: 5, measurement_type: 'time' }),
+        ex({ slug: 'hip_flexor_lunge_stretch', category_slug: 'mobility', intensity_score: 2, measurement_type: 'duration', legacy_block_slugs: ['cooldown'] }),
+        ex({ slug: 'hamstring_foam_roll', category_slug: 'mobility', intensity_score: 2, measurement_type: 'duration', legacy_block_slugs: ['cooldown'] }),
+        ex({ slug: 'box_breathing', category_slug: 'mobility', intensity_score: 1, measurement_type: 'duration', legacy_block_slugs: ['cooldown'] }),
+    ];
+    const build = () => buildSpeedSession({ day: day(), exercises: templatePool, levels: { sprints: 2, cod: 1 }, allowMaxVelocity: false, orderIndex: 0 })!;
+
+    it('Warmup-Rampe: Traben → dynamische Mobility → Lauf-ABC → Steigerungsläufe als letztes', () => {
+        const warmup = build().session.blocks.find((b: any) => b.block_type === 'warmup')!.exercises.map((e: any) => e.exercise_slug);
+        expect(warmup[0]).toBe('easy_jog');
+        expect(warmup[warmup.length - 1]).toBe('build_up_run');
+        expect(warmup).toContain('a_skip_drill');
+        const dynIdx = warmup.findIndex((s: string) => s === 'leg_swing_front_to_back' || s === 'ankle_cars');
+        expect(dynIdx).toBeGreaterThan(0);
+        expect(dynIdx).toBeLessThan(warmup.indexOf('a_skip_drill'));
+    });
+
+    it('Hauptteil: genau EINE Antritts-Übung, 6–8 Starts, 20m, volle Pausen (≥150s)', () => {
+        const sprint = build().session.blocks.find((b: any) => b.block_type === 'sprint')!.exercises;
+        expect(sprint).toHaveLength(1);
+        expect(sprint[0].target_sets).toBeGreaterThanOrEqual(6);
+        expect(sprint[0].target_sets).toBeLessThanOrEqual(8);
+        expect(sprint[0].target_distance_meters).toBe(20);
+        expect(sprint[0].target_rest_seconds).toBeGreaterThanOrEqual(150);
+    });
+
+    it('Hauptübung passt zum Sportler: Kampfsportler bekommen den Bergsprint, Teamsportler den flachen Antritt', () => {
+        const combat = buildSpeedSession({ day: day(), exercises: templatePool, levels: { sprints: 2, cod: 1 }, allowMaxVelocity: false, orderIndex: 0, sportGroup: 'combat_sports' })!;
+        const combatSprint = combat.session.blocks.find((b: any) => b.block_type === 'sprint')!.exercises;
+        expect(combatSprint.map((e: any) => e.exercise_slug)).toEqual(['hill_sprint']);
+        const team = buildSpeedSession({ day: day(), exercises: templatePool, levels: { sprints: 2, cod: 1 }, allowMaxVelocity: false, orderIndex: 0, sportGroup: 'team_sports' })!;
+        const teamSprint = team.session.blocks.find((b: any) => b.block_type === 'sprint')!.exercises;
+        expect(teamSprint[0].exercise_slug).not.toBe('hill_sprint');
+    });
+
+    it('COD-Block: max 2 Drills, 4–6 Wiederholungen gesamt', () => {
+        const cod = build().session.blocks.find((b: any) => b.block_type === 'cod')!.exercises;
+        expect(cod.length).toBeLessThanOrEqual(2);
+        const totalSets = cod.reduce((s: number, e: any) => s + e.target_sets, 0);
+        expect(totalSets).toBeGreaterThanOrEqual(4);
+        expect(totalSets).toBeLessThanOrEqual(6);
+    });
+
+    it('Cooldown: Auslaufen + Hüftbeuger/Hamstring vor generischer Mobility', () => {
+        const cooldown = build().session.blocks.find((b: any) => b.block_type === 'cooldown')!.exercises.map((e: any) => e.exercise_slug);
+        expect(cooldown[0]).toBe('easy_jog');
+        expect(cooldown).toContain('hip_flexor_lunge_stretch');
+        expect(cooldown).toContain('hamstring_foam_roll');
+        expect(cooldown).not.toContain('box_breathing');
+    });
+});
