@@ -8,6 +8,18 @@ import type { PlannedSessionLike } from './build-speed-session'
 const byIntensityThenSlug = (a: V2Exercise, b: V2Exercise) =>
   (a.intensity_score ?? 5) - (b.intensity_score ?? 5) || a.slug.localeCompare(b.slug)
 
+// Conditioning trainiert Intensität über Zeit bei sicherer Technik — nicht
+// maximale Last (QA 10.10.). Maximal-Plyo gehört in den Plyo-Block (wenige
+// Qualitäts-Wdh, volle Pause), nie ins Intervall; der Intensitäts-Cap hält
+// auch submaximale Grenzfälle (z. B. reaktive Single-Leg-Jumps) draußen.
+const CONDITIONING_MAX_INTENSITY = 7
+const isConditioningExercise = (e: V2Exercise) =>
+  (e.category_slug === 'lower_body_plyometrics' || e.category_slug === 'conditioning') &&
+  e.sprint_type === null &&
+  e.plyo_type !== 'maximal' &&
+  (e.intensity_score ?? 5) <= CONDITIONING_MAX_INTENSITY &&
+  (e.measurement_type === 'duration' || e.measurement_type === 'reps_or_duration')
+
 /** Conditioning formats (spec §2.6): the format is the prescription, exercises fill it. */
 export const CONDITIONING_FORMATS = {
   interval_30_30: { work: 30, rest: 30, rounds: 10 },
@@ -59,12 +71,7 @@ export function buildConditioningSession(input: {
   orderIndex: number
 }): { session: PlannedSessionLike; notes: string[] } | null {
   const { day, exercises, orderIndex } = input
-  const pool = exercises
-    .filter((e) =>
-      (e.category_slug === 'lower_body_plyometrics' || e.category_slug === 'conditioning') &&
-      e.sprint_type === null &&
-      (e.measurement_type === 'duration' || e.measurement_type === 'reps_or_duration'))
-    .sort(byIntensityThenSlug)
+  const pool = exercises.filter(isConditioningExercise).sort(byIntensityThenSlug)
   if (pool.length < 3) return null
 
   const mobilityPool = exercises.filter((e) => e.category_slug === 'mobility').sort(byIntensityThenSlug)
@@ -136,11 +143,5 @@ export function buildConditioningFinisherBlock(
 
 /** Shared conditioning pool filter (used by the standalone session and the finisher). */
 export function conditioningPoolSlugs(exercises: V2Exercise[]): string[] {
-  return exercises
-    .filter((e) =>
-      (e.category_slug === 'lower_body_plyometrics' || e.category_slug === 'conditioning') &&
-      e.sprint_type === null &&
-      (e.measurement_type === 'duration' || e.measurement_type === 'reps_or_duration'))
-    .sort(byIntensityThenSlug)
-    .map((e) => e.slug)
+  return exercises.filter(isConditioningExercise).sort(byIntensityThenSlug).map((e) => e.slug)
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildMobilitySession, buildConditioningSession, buildConditioningFinisherBlock } from '../build-simple-sessions'
+import { buildMobilitySession, buildConditioningSession, buildConditioningFinisherBlock, conditioningPoolSlugs } from '../build-simple-sessions'
 import { ex, day } from './fixtures'
 
 describe('buildMobilitySession', () => {
@@ -34,6 +34,37 @@ describe('buildConditioningSession', () => {
   it('returns null and a note when the pool is empty', () => {
     const r = buildConditioningSession({ day: day(), exercises: [ex({ slug: 'bench_press', category_slug: 'strength' })], orderIndex: 0 })
     expect(r).toBeNull()
+  })
+})
+
+describe('conditioningPoolSlugs — kein Maximal-Plyo im Intervall (QA 10.10.)', () => {
+  const base = { category_slug: 'lower_body_plyometrics', measurement_type: 'reps_or_duration' as const }
+  const pool = [
+    ex({ ...base, slug: 'bulgarian_split_squat_high_knee_jump', plyo_type: 'maximal', intensity_score: 8 }),
+    ex({ ...base, slug: 'single_leg_reactive_box_jump', plyo_type: 'submaximal', intensity_score: 9 }),
+    ex({ ...base, slug: 'pogos', plyo_type: 'submaximal', intensity_score: 5 }),
+    ex({ slug: 'burpee', category_slug: 'conditioning', measurement_type: 'reps_or_duration', intensity_score: 6 }),
+    ex({ slug: 'burpee_broad_jump', category_slug: 'conditioning', measurement_type: 'reps_or_duration', intensity_score: 8 }),
+  ]
+  it('schließt plyo_type maximal aus', () => {
+    expect(conditioningPoolSlugs(pool)).not.toContain('bulgarian_split_squat_high_knee_jump')
+  })
+  it('schließt Intensität > 7 aus (auch submaximal/conditioning)', () => {
+    const slugs = conditioningPoolSlugs(pool)
+    expect(slugs).not.toContain('single_leg_reactive_box_jump')
+    expect(slugs).not.toContain('burpee_broad_jump')
+  })
+  it('behält zyklische submaximale Plyos und Conditioning-Übungen', () => {
+    expect(conditioningPoolSlugs(pool)).toEqual(expect.arrayContaining(['pogos', 'burpee']))
+  })
+  it('buildConditioningSession nutzt denselben Filter', () => {
+    const filler = ['jumping_jacks', 'bear_crawl', 'mountain_climber']
+      .map((slug) => ex({ slug, category_slug: 'conditioning', measurement_type: 'duration', intensity_score: 4 }))
+    const r = buildConditioningSession({ day: day({ session_type: 'conditioning', minutes: 30 }), exercises: [...pool, ...filler], orderIndex: 0 })!
+    const blockOut = r.session.blocks.find((b: any) => b.block_type === 'conditioning')!
+    const chosen = blockOut.exercises.map((e: any) => e.exercise_slug)
+    expect(chosen).not.toContain('bulgarian_split_squat_high_knee_jump')
+    expect(chosen).not.toContain('single_leg_reactive_box_jump')
   })
 })
 
