@@ -34,7 +34,7 @@ Dauerarbeit bei moderater Intensität (RPE 4–6, „Nasenatmung möglich"). Nur
 
 | Variante | Bedingung | Verschreibung |
 |---|---|---|
-| **Lauf** | Session-Environment ist outdoor, oder User hat `outdoor` als Environment | `easy_jog` als Kern: Dauerlauf über `day.minutes − 8` Minuten (Warmup/Cooldown-Abzug), ein Block, eine Übung. `easy_jog` lebt in der `sprints`-Kategorie und wird wie im Speed-Builder als Anker-Slug geholt, nicht über den Conditioning-Pool. |
+| **Lauf** | Session-Environment ist outdoor, oder User hat `outdoor` als Environment | `easy_jog` als Kern: Dauerlauf über `min(35, day.minutes − 8)` Minuten (Warmup/Cooldown-Abzug, **Deckel 35 min**) — ein Block, eine Übung. Wer 60 min eingestellt hat, erwartet Krafttraining, keinen einstündigen Lauf; der Rest bleibt unverplant und `estimated_duration_minutes` wird entsprechend kürzer gesetzt. `easy_jog` lebt in der `sprints`-Kategorie und wird wie im Speed-Builder als Anker-Slug geholt, nicht über den Conditioning-Pool. |
 | **Maschine** | User-Equipment enthält `treadmill`, `stationary_bike`, `air_bike` oder `rowing_erg` | 3 × 7 min Arbeit / 90 s locker auf EINER Maschine (deterministische Wahl: niedrigste Intensität zuerst, Rotation über `planCount`) |
 | **Zirkel** | sonst | 3 Stationen × 3 min Arbeit / 60 s Wechsel, 2 Runden — aus dem Extensiv-Pool: Conditioning-Pool-Übungen mit `measurement_type` Dauer und Intensität ≤ 5 (z. B. `jump_rope_standard`, `shadow_boxing`, `bear_crawl`, `jumping_jacks`, `mountain_climber`) |
 
@@ -46,9 +46,10 @@ Bestehende Formate bleiben unverändert: `interval_30_30` (30 s Arbeit / 30 s Pa
 
 ### 1.3 `rounds` — Rundenformat (Kampfsport-nah)
 
-Simuliert Wettkampfrunden: **3 min Arbeit / 1 min Rundenpause × 3–5 Runden** (Standalone: 4–5 Runden je nach `day.minutes`; Finisher: 2 Runden). Innerhalb einer Runde 3 Übungen à 60 s am Stück (Datenmodell: 3 Exercises mit `target_duration_seconds: 60`, `target_rest_seconds: 0` auf den ersten beiden, 60 auf der letzten, `target_rounds` = Rundenzahl — die Rundenpause hängt an der letzten Station).
+Simuliert Wettkampfrunden: **3 min Arbeit / 1 min Rundenpause × 3–5 Runden** (Standalone: 4–5 Runden je nach `day.minutes`; Finisher: 2 Runden). Eine echte Runde ist **drei Minuten eine Tätigkeit** — die Authentizität ist der Grund, warum das Format existiert:
 
-Übungswahl aus dem Conditioning-Pool; bei `sport_group_name = 'combat_sports'` wird `heavy_bag_work` (falls Equipment vorhanden) bzw. `shadow_boxing` als erste Station gesetzt (analog `COMBAT_SPRINT_PREFERENCE`).
+- **Standard:** EINE Übung pro Runde — `target_duration_seconds: 180`, `target_rest_seconds: 60`, `target_rounds` = Rundenzahl. Rundentauglich sind Übungen, die 3 min am Stück tragen (Allowlist `ROUNDS_CONTINUOUS_SLUGS`): `heavy_bag_work`, `shadow_boxing`, `jump_rope_standard`, `air_bike_ride`, `rowing_erg`, `stationary_bike_ride`. Auswahl: bei `sport_group_name = 'combat_sports'` Priorität `heavy_bag_work` → `shadow_boxing` (analog `COMBAT_SPRINT_PREFERENCE`); sonst Rotation über `planCount`. Bei ≥ 4 Runden dürfen zwei verschiedene rundentaugliche Übungen alternieren (zwei Blöcke-Einträge mit halbierter Rundenzahl).
+- **Fallback (Dreiteilung):** Nur wenn der gefilterte Pool keine rundentaugliche Übung hergibt, wird die Runde aus 3 Conditioning-Pool-Übungen à 60 s gebaut (`target_rest_seconds: 0` auf den ersten beiden, 60 auf der letzten — die Rundenpause hängt an der letzten Station). Das fühlt sich nach Circuit an, nicht nach Runde, und ist bewusst letzte Wahl.
 
 ## 2. Sportgruppen-Gewichte
 
@@ -70,10 +71,10 @@ Seed (Gewichte pro Gruppe, Summe 100):
 
 | group_name | extensive | intensive | rounds | Begründung |
 |---|---|---|---|---|
-| team_sports | 30 | 60 | 10 | Spiel = wiederholte Sprints/Aktionen; Basis als Unterbau |
+| team_sports | 40 | 55 | 5 | Die aerobe Basis trägt über 90 Minuten die Erholung zwischen den Aktionen — halbe Leistung, nicht nur Unterbau. Rounds minimal: das Spiel kennt keine Wettkampfrunden. |
 | combat_sports | 25 | 25 | 50 | Rundenstruktur ist das Spiel; Basis + Intervalle als Unterbau |
-| racket_sports | 30 | 60 | 10 | Ballwechsel = kurze harte Aktionen, Pausenstruktur ähnlich Rounds |
-| athletics | 30 | 70 | 0 | Sprint/Sprung/Wurf: Qualität wiederholen |
+| racket_sports | 25 | 45 | 30 | Ein Satz ist strukturell näher an Runden als an 30/30-Intervallen |
+| athletics | 50 | 50 | 0 | Ein Sprinter braucht kaum Intervall-Conditioning — er braucht Erholung zwischen Qualitätsläufen |
 | endurance | 60 | 40 | 0 | Basis dominiert, Intervalle ergänzen |
 | strength | 40 | 60 | 0 | GPP: Erholungsfähigkeit fürs Training selbst |
 | other | 40 | 50 | 10 | neutraler Default |
@@ -85,7 +86,7 @@ Fehlt eine Gruppe in der Tabelle (oder `sport_group_name` leer), gilt der `other
 Pläne sind Ein-Wochen-Templates — echte Mehr-Wochen-Verteilung kommt erst mit Multi-Week-Templates (deferred). v1 rotiert über Plan-Generationen:
 
 1. **`planCount`** = Anzahl bisheriger `workout_plans` des Users (Query in `prepare-v2`, wo bereits der SupabaseClient lebt). Deterministisch, kein neuer Zustand.
-2. Aus den Gewichten wird ein **10-Slot-Zyklus** gebaut: Slots per Largest-Remainder auf die Formate verteilt, dann gleichmäßig verschränkt (stärkstes Format zuerst, deterministische Reihenfolge — kein `Math.random`). Beispiel team_sports (30/60/10): `[i, e, i, i, e, i, r, i, e, i]`.
+2. Aus den Gewichten wird ein **10-Slot-Zyklus** gebaut: Slots per Largest-Remainder auf die Formate verteilt (bei Remainder-Gleichstand gewinnt das Format mit dem **kleineren** Gewicht, damit kleine Gewichte wie `rounds: 5` nicht systematisch auf 0 Slots fallen), dann gleichmäßig verschränkt (stärkstes Format zuerst, deterministische Reihenfolge — kein `Math.random`). Beispiel team_sports (40/55/5 → i: 5, e: 4, r: 1): `[i, e, i, e, i, e, i, e, i, r]`.
 3. **Standalone-Session:** Format = `cycle[planCount % 10]`. Hat die Woche zwei Conditioning-Slots (heute nicht möglich, zukunftssicher), bekommen sie `cycle[planCount]` und das nächste davon verschiedene Format im Zyklus.
 4. **Finisher:** dominantes Format aus {intensive, rounds} nach Gewicht; bei Gleichstand intensive. Zusätzlich wird die heutige **alphabetische Übungs-Monotonie** behoben: Auswahl-Offset = `planCount % poolLänge` statt `sort().slice(0, 3)` (sortiert bleibt der Pool — rotiert wird der Startpunkt).
 5. Nicht füllbare Formate degradieren entlang `extensive → intensive`, `rounds → intensive` (Log-Notiz; `intensive` ist immer füllbar, sonst entfällt die Session wie heute bei Pool < 3).
@@ -156,8 +157,8 @@ Die Ableitung ist ein **Multiplikator auf die Sportgruppen-Gewichte**, kein eige
 
 **Tests (vitest, deterministisch):**
 - Zyklus-Bau: Gewichte → 10-Slot-Zyklus (Largest Remainder, Verschränkung, weight 0 nie enthalten), `planCount`-Rotation stabil.
-- Extensive-Varianten-Kette: outdoor → Lauf; Maschine bei Equipment; sonst Zirkel; Pool < 3 → Degradierung auf intensive mit Notiz.
-- Rounds-Block: Rundenstruktur (3×60 s, Pause an letzter Station), combat bevorzugt heavy_bag/shadow_boxing.
+- Extensive-Varianten-Kette: outdoor → Lauf; Maschine bei Equipment; sonst Zirkel; Pool < 3 → Degradierung auf intensive mit Notiz. Lauf-Deckel: 60-min-Tag → 35 min Dauerlauf, `estimated_duration_minutes` schrumpft mit.
+- Rounds-Block: Standard EINE Übung à 180 s / 60 s Pause; combat bevorzugt heavy_bag → shadow_boxing; Dreiteilungs-Fallback (3×60 s, Pause an letzter Station) nur ohne rundentaugliche Übung im Pool.
 - Finisher: dominantes Format, Rotations-Offset statt Alphabet (Monotonie-Regression pinnen).
 - Degradierungs-Notizen tauchen in `notes` auf.
 
