@@ -10,28 +10,72 @@ const trainingDay = (dow: number, minutes = 60): any => ({
 const contentOf = (blocks: any[]) => blocks.filter((b) => b.block_type !== 'warmup' && b.block_type !== 'cooldown')
 const KRAFT = new Set(['knee_dominant', 'hinge', 'push_horizontal', 'push_vertical', 'pull_horizontal', 'pull_vertical'])
 
-/** grobe Mustergruppe aus Block+Variant */
-const coarse = (b: any): string | null => {
-  if (b.block_type === 'lower_body') return b.variant === 'hinge' ? 'hinge' : 'squat'
-  if (b.block_type === 'push') return 'push'
-  if (b.block_type === 'pull') return 'pull'
-  return null
-}
+/** grobe Mustergruppen aus den Pattern-Anforderungen des Blocks (Spec 2026-10-10) */
+const coarse = (b: any): string[] => (b.patterns ?? []).map((p: any) =>
+  p.pattern === 'knee_dominant' ? 'squat' : p.pattern === 'hinge' ? 'hinge' : p.pattern.startsWith('push') ? 'push' : 'pull')
+const isStrength = (b: any) => b.block_type === 'lower_strength' || b.block_type === 'upper_strength'
 
-describe('composeWeek (§1.1–1.3)', () => {
-  it('rotiert Primary lower/push/pull über die Woche, je genau einer, heavy', () => {
+describe('composeWeek Lead-Rotation (Spec 2026-10-10 §2)', () => {
+  it('alterniert Lower/Upper-Lead über die Woche, je genau ein heavy Lead', () => {
     const week = composeWeek({ trainingDays: [1, 3, 5].map((d) => trainingDay(d)), pillarLevels: {}, hasSpeedSession: false })
-    const primaries = [1, 3, 5].map((d) => contentOf(week.get(d)!).find((b) => b.emphasis === 'heavy'))
-    expect(primaries.map((b) => b!.block_type)).toEqual(['lower_body', 'push', 'pull'])
+    const leads = [1, 3, 5].map((d) => contentOf(week.get(d)!).find((b) => b.emphasis === 'heavy'))
+    expect(leads.map((b) => b!.block_type)).toEqual(['lower_strength', 'upper_strength', 'lower_strength'])
     for (const d of [1, 3, 5]) {
       expect(contentOf(week.get(d)!).filter((b) => b.emphasis === 'heavy').length).toBe(1)
     }
   })
 
+  it('jede Session enthält beide Kraftblöcke (lange Tage); Begleitblock ist normal', () => {
+    const week = composeWeek({ trainingDays: [trainingDay(2), trainingDay(4)], pillarLevels: {}, hasSpeedSession: false })
+    for (const blocks of week.values()) {
+      const strength = contentOf(blocks).filter(isStrength)
+      expect(strength).toHaveLength(2)
+      expect(strength.filter((b) => b.emphasis === 'heavy')).toHaveLength(1)
+      expect(strength.filter((b) => b.emphasis === 'normal')).toHaveLength(1)
+    }
+  })
+
+  it('Upper-Lead fordert Push UND Pull; heavy-Seite alterniert über Upper-Leads (Pull zuerst, §1.2-Bias)', () => {
+    const days = [1, 2, 3, 4].map((d) => trainingDay(d)) // leads: L,U,L,U
+    const week = composeWeek({ trainingDays: days, pillarLevels: {}, hasSpeedSession: false })
+    const upperLead = (dow: number) => week.get(dow)!.find((b) => b.block_type === 'upper_strength' && b.emphasis === 'heavy')!
+    const p1 = upperLead(2).patterns!
+    expect(p1.map((p: any) => p.pattern.split('_')[0]).sort()).toEqual(['pull', 'push'])
+    expect(p1.find((p: any) => p.emphasis === 'heavy')!.pattern).toMatch(/^pull/)
+    expect(upperLead(4).patterns!.find((p: any) => p.emphasis === 'heavy')!.pattern).toMatch(/^push/)
+  })
+
+  it('Lower-LEADS alternieren hinge → knee; Begleit-Lower zählt separat (Review 10.10.)', () => {
+    const days = [1, 2, 3, 4].map((d) => trainingDay(d)) // lower-leads: Tag 1 + 3
+    const week = composeWeek({ trainingDays: days, pillarLevels: {}, hasSpeedSession: false })
+    const lowerLead = (dow: number) => week.get(dow)!.find((b) => b.block_type === 'lower_strength' && b.emphasis === 'heavy')!
+    expect(lowerLead(1).patterns![0].pattern).toBe('hinge')          // hintere Kette zuerst
+    expect(lowerLead(3).patterns![0].pattern).toBe('knee_dominant')
+    const companion = week.get(2)!.find((b) => b.block_type === 'lower_strength' && b.emphasis === 'normal')!
+    expect(companion.patterns![0].pattern).toBe('knee_dominant')     // gegenläufiger Start
+  })
+
+  it('Kompakt-Session: Begleit-Upper schrumpft auf Pull (Push fällt zuerst)', () => {
+    const week = composeWeek({ trainingDays: [trainingDay(1, 40), trainingDay(3, 40)], pillarLevels: {}, hasSpeedSession: false })
+    const companionUpper = [...week.values()].flat()
+      .find((b) => b.block_type === 'upper_strength' && b.emphasis === 'normal')!
+    expect(companionUpper.patterns).toHaveLength(1)
+    expect(companionUpper.patterns![0].pattern).toMatch(/^pull/)
+  })
+
+  it('1-Tages-Woche: Lower-Lead heavy, Kraft nie weggeschnitten (Floor §3.2)', () => {
+    const week = composeWeek({ trainingDays: [trainingDay(3, 30)], pillarLevels: { lower_body_plyometrics: 2 }, hasSpeedSession: false })
+    const strength = contentOf(week.get(3)!).filter(isStrength)
+    expect(strength.length).toBeGreaterThanOrEqual(1)
+    expect(strength[0]).toMatchObject({ block_type: 'lower_strength', emphasis: 'heavy' })
+  })
+})
+
+describe('composeWeek (§1.1–1.3)', () => {
   it('deckt über die Woche alle vier Kraftmuster ab (squat/hinge/push/pull)', () => {
     const week = composeWeek({ trainingDays: [1, 3, 5].map((d) => trainingDay(d)), pillarLevels: {}, hasSpeedSession: false })
     const covered = new Set<string>()
-    for (const d of [1, 3, 5]) for (const b of contentOf(week.get(d)!)) { const c = coarse(b); if (c) covered.add(c) }
+    for (const d of [1, 3, 5]) for (const b of contentOf(week.get(d)!)) for (const c of coarse(b)) covered.add(c)
     expect(covered).toEqual(new Set(['squat', 'hinge', 'push', 'pull']))
   })
 
@@ -50,7 +94,7 @@ describe('composeWeek (§1.1–1.3)', () => {
     const week = composeWeek({ trainingDays: [1, 3, 5].map((d) => trainingDay(d)), pillarLevels: { conditioning: 1 }, hasSpeedSession: false })
     const allBlocks = [1, 3, 5].flatMap((d) => contentOf(week.get(d)!))
     expect(allBlocks.some((b) => b.block_type === 'plyo')).toBe(false)
-    const covered = new Set(allBlocks.map(coarse).filter(Boolean))
+    const covered = new Set(allBlocks.flatMap(coarse))
     expect(covered).toEqual(new Set(['squat', 'hinge', 'push', 'pull']))
   })
 
@@ -70,39 +114,35 @@ describe('composeWeek (§1.1–1.3)', () => {
   })
 })
 
-describe('composeWeek Plyo-Platzierung (§1.6.1, Review Focus 1)', () => {
-  const dayOfPrimary = (blocks: any[], bt: string) => contentOf(blocks).find((b) => b.block_type === bt && b.emphasis !== undefined)
+describe('composeWeek Plyo-Platzierung (§1.6.1 übersetzt, Spec 2026-10-10 §2.3)', () => {
+  const pushHeavyIn = (blocks: any[]) => contentOf(blocks).some((b) =>
+    b.block_type === 'upper_strength' && (b.patterns ?? []).some((p: any) => p.pattern.startsWith('push') && p.emphasis === 'heavy'))
 
-  it('4 Tage, upper-Plyo 2: liegt auf Nicht-Push-Tagen, Push-Primary bleibt heavy', () => {
+  it('Deckel: wo Upper-Plyo liegt, ist kein Push-Pattern heavy — und mind. ein Upper-Plyo-Block existiert', () => {
+    // 4 Tage: Upper-Leads Tag 2 (pull-heavy) und Tag 4 (push-heavy). Lower-Plyo
+    // belegt die Lower-Lead-Tage; Upper-Plyo 3 muss damit auch auf Tag 4 (push-
+    // heavy) ausweichen → Dämpfung greift dort.
     const week = composeWeek({
-      trainingDays: [1, 2, 4, 6].map((d) => trainingDay(d)),
-      pillarLevels: { upper_body_plyometrics: 2 }, hasSpeedSession: false,
-    })
-    for (const [, blocks] of week) {
-      const hasUpperPlyo = contentOf(blocks).some((b) => b.block_type === 'plyo' && b.variant === 'upper')
-      const pushPrimary = contentOf(blocks).find((b) => b.block_type === 'push' && b.emphasis === 'heavy')
-      // Wo Upper-Plyo liegt, ist kein heavy Push-Primary (Platzierung weicht aus)
-      if (hasUpperPlyo && pushPrimary) expect(pushPrimary.emphasis).not.toBe('heavy')
-    }
-    // Push-Primaries bleiben grundsätzlich heavy, wenn kein Upper-Plyo am Tag
-    const heavyPush = [...week.values()].some((bl) => contentOf(bl).some((b) => b.block_type === 'push' && b.emphasis === 'heavy'))
-    expect(heavyPush).toBe(true)
-  })
-
-  it('2 Tage, upper-Plyo 3: Kollision unvermeidbar → Deckel (Push-Primary normal) + Säule nicht verloren', () => {
-    const week = composeWeek({
-      trainingDays: [trainingDay(1), trainingDay(4)],
-      pillarLevels: { upper_body_plyometrics: 3 }, hasSpeedSession: false,
+      trainingDays: [1, 2, 3, 4].map((d) => trainingDay(d)),
+      pillarLevels: { lower_body_plyometrics: 2, upper_body_plyometrics: 3 }, hasSpeedSession: false,
     })
     const upperPlyoBlocks = [...week.values()].flatMap((bl) => contentOf(bl).filter((b) => b.block_type === 'plyo' && b.variant === 'upper'))
-    expect(upperPlyoBlocks.length).toBeGreaterThanOrEqual(1) // Hauptsäule nicht verloren
-    // Der Tag mit Push-Primary UND Upper-Plyo hat den Primary auf 'normal' gedämpft
+    expect(upperPlyoBlocks.length).toBeGreaterThanOrEqual(1) // Säule nie verloren
     for (const [, blocks] of week) {
-      const c = contentOf(blocks)
-      const hasUpperPlyo = c.some((b) => b.block_type === 'plyo' && b.variant === 'upper')
-      const push = c.find((b) => b.block_type === 'push')
-      if (hasUpperPlyo && push) expect(push.emphasis).toBe('normal')
+      const hasUpperPlyo = contentOf(blocks).some((b) => b.block_type === 'plyo' && b.variant === 'upper')
+      if (hasUpperPlyo) expect(pushHeavyIn(blocks)).toBe(false)
     }
+  })
+
+  it('ohne Upper-Plyo am Tag bleibt der Push-heavy Upper-Lead unangetastet', () => {
+    const week = composeWeek({
+      trainingDays: [1, 2, 3, 4].map((d) => trainingDay(d)),
+      pillarLevels: { upper_body_plyometrics: 1 }, hasSpeedSession: false,
+    })
+    // Ein Block reicht für Tag ohne Push-heavy — Tag 4 (push-heavy) bleibt frei und heavy
+    const day4 = week.get(4)!
+    const hasPlyo = contentOf(day4).some((b) => b.block_type === 'plyo')
+    if (!hasPlyo) expect(pushHeavyIn(day4)).toBe(true)
   })
 })
 
@@ -145,13 +185,13 @@ describe('focusBlockBudget (§1.4)', () => {
 })
 
 describe('composeWeek Alignment-Fixes (Task 12 E2E-Befunde)', () => {
-  it('Lower-Primary liegt auf dem heavy_lower-Tag des Placements', () => {
+  it('Lower-Lead liegt auf dem heavy_lower-Tag des Placements', () => {
     const days = [trainingDay(1), trainingDay(5), trainingDay(6)]
-    ;(days[2] as any).heavy_lower = true // Placement hat Samstag gewählt (Spieltags-Schutz)
+    ;(days[1] as any).heavy_lower = true // Placement hat Freitag gewählt (Spieltags-Schutz)
     const week = composeWeek({ trainingDays: days, pillarLevels: {}, hasSpeedSession: false })
-    const heavyLowerDay = [...week.entries()].find(([, bl]) =>
-      contentOf(bl).some((b) => b.block_type === 'lower_body' && b.emphasis === 'heavy'))?.[0]
-    expect(heavyLowerDay).toBe(6)
+    const lowerLeadDays = [...week.entries()].filter(([, bl]) =>
+      contentOf(bl).some((b) => b.block_type === 'lower_strength' && b.emphasis === 'heavy')).map(([d]) => d)
+    expect(lowerLeadDays).toContain(5)
   })
 
   it('lower- und upper-Plyo kollidieren nie am selben Tag — upper geht nicht verloren', () => {

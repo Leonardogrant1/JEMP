@@ -349,7 +349,7 @@ export function estimateMinutes(
 // cooldown und der Primary (emphasis 'heavy'). Drop-Reihenfolge: verzichtbarste
 // zuerst (conditioning → optional → accessory → core → plyo → Komplement-Kraft).
 const SANITY_DROP_ORDER: WorkoutBlockType[] =
-  ['conditioning', 'optional', 'accessory', 'core', 'plyo', 'pull', 'push', 'lower_body']
+  ['conditioning', 'optional', 'accessory', 'core', 'plyo', 'upper_strength', 'lower_strength', 'pull', 'push', 'lower_body']
 
 export function applyScalingLevers(
   placement: WeekPlacement, blockPlan: Map<number, PlannedWorkoutBlock[]>,

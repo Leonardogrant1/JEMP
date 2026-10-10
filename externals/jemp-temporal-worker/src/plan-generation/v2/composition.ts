@@ -3,7 +3,7 @@
 // Fokus-Blöcke nach Wochen-Budget, Core als Standard-Block.
 
 import type { PillarLevels, PillarSlug, PlacedDay, PlannedWorkoutBlock } from '../week-layout'
-import { PRIMARY_ROTATION, contentBlockCount } from '../week-layout-constants'
+import { COMPACT_SESSION_THRESHOLD_MINUTES, contentBlockCount } from '../week-layout-constants'
 
 /** Fokus-Säulen, die Content-Blöcke INNERHALB einer Training-Session erzeugen.
  *  sprints/cod/mobility werden vom Week-Layout als eigene Session-Typen platziert.
@@ -56,18 +56,12 @@ export function focusBlockBudget(
   return result
 }
 
-// Grundmuster (coarse) ↔ Block-Typ/Variante für Primary + Komplement.
-type Coarse = 'squat' | 'hinge' | 'push' | 'pull'
-const COARSE_ORDER: Coarse[] = ['squat', 'hinge', 'push', 'pull']
-const coarseToBlock = (c: Coarse, axisToggle: boolean): { block_type: string; variant: string } => {
-  switch (c) {
-    case 'squat': return { block_type: 'lower_body', variant: 'knee_dominant' }
-    case 'hinge': return { block_type: 'lower_body', variant: 'hinge' }
-    case 'push': return { block_type: 'push', variant: axisToggle ? 'push_vertical' : 'push_horizontal' }
-    case 'pull': return { block_type: 'pull', variant: axisToggle ? 'pull_horizontal' : 'pull_vertical' }
-  }
-}
-const blockTypeOfCoarse = (c: Coarse) => (c === 'squat' || c === 'hinge') ? 'lower_body' : c
+// Lead-Rotation (Spec 2026-10-10 §2): lower ↔ upper; die Kraftmuster leben
+// als Pattern-Anforderungen IM Block, nicht mehr als eigene Block-Typen.
+const STRENGTH_LEAD_ROTATION = ['lower_strength', 'upper_strength'] as const
+// Pro Tag eine vertikale + eine horizontale Achse (wie das alte coarse-Pairing).
+const upperAxes = (i: number): { push: string; pull: string } =>
+  i % 2 === 0 ? { push: 'push_vertical', pull: 'pull_horizontal' } : { push: 'push_horizontal', pull: 'pull_vertical' }
 
 /** §1.1–1.7: komponiert pro Trainingstag die Blockliste (inkl. warmup/cooldown). */
 export function composeWeek(input: {
@@ -79,41 +73,50 @@ export function composeWeek(input: {
   const n = days.length
   if (n === 0) return new Map()
 
-  // ── 1. Primary-Rotation (lower/push/pull), heavy ──────────────────────────
-  // Slot-Sequenz zuerst; der Lower-Primary wird auf den heavy_lower-Tag des
-  // Placements ausgerichtet (der trägt die Spieltags-Schutzlogik) — zwei
-  // Wahrheiten für "schwerer Beintag" darf es nicht geben (E2E-Befund Task 12).
-  const slots = days.map((_, i) => PRIMARY_ROTATION[i % PRIMARY_ROTATION.length])
+  // ── 1. Lead-Rotation (Spec 2026-10-10 §2.1): lower ↔ upper, der heavy_lower-
+  // Tag des Placements bekommt den Lower-Lead per Slot-Tausch (eine Wahrheit
+  // für den schweren Beintag, E2E-Befund Task 12 bleibt gültig).
+  const leads: string[] = days.map((_, i) => STRENGTH_LEAD_ROTATION[i % 2])
   const heavyIdx = days.findIndex((d) => d.heavy_lower)
-  if (heavyIdx !== -1 && slots[heavyIdx] !== 'lower_body') {
-    const lowerIdx = slots.indexOf('lower_body')
-    if (lowerIdx !== -1) { slots[lowerIdx] = slots[heavyIdx]; slots[heavyIdx] = 'lower_body' }
+  if (heavyIdx !== -1 && leads[heavyIdx] !== 'lower_strength') {
+    const lowerIdx = leads.indexOf('lower_strength')
+    if (lowerIdx !== -1) { leads[lowerIdx] = leads[heavyIdx]; leads[heavyIdx] = 'lower_strength' }
   }
 
-  const coverage: Record<Coarse, number> = { squat: 0, hinge: 0, push: 0, pull: 0 }
-  let lowerCount = 0
-  const primaryCoarse: Coarse[] = []
-  const primaryBlocks = days.map((_, i) => {
-    const slot = slots[i]
-    let c: Coarse
-    if (slot === 'lower_body') { c = lowerCount % 2 === 0 ? 'squat' : 'hinge'; lowerCount++ }
-    else if (slot === 'push') c = 'push'
-    else c = 'pull'
-    primaryCoarse.push(c)
-    coverage[c] += 1
-    const b = coarseToBlock(c, i % 2 === 0)
-    return { block_type: b.block_type, variant: b.variant, emphasis: 'heavy' as 'heavy' | 'normal' | 'light' }
-  })
+  // Alternierungs-Zähler PRO ROLLE (Review 10.10.): Lead und Begleit zählen
+  // getrennt — sonst frisst der Begleitblock den Lead-Slot und ein Muster ist
+  // 4 Wochen lang nie heavy. Biases bei nur einem Lead pro Region/Woche:
+  // hinge-heavy (hintere Kette) und pull-heavy (Schulterbalance) zuerst (§1.2).
+  let lowerLeadCount = 0
+  const nextLowerLeadPattern = () => (lowerLeadCount++ % 2 === 0 ? 'hinge' : 'knee_dominant')
+  let lowerCompanionCount = 0
+  const nextLowerCompanionPattern = () => (lowerCompanionCount++ % 2 === 0 ? 'knee_dominant' : 'hinge')
+  let upperLeadCount = 0
 
-  // ── 2. Komplement-Kraftblock je Tag (coverage-greedy, ≠ Primary-Block-Typ) ─
-  const complementBlocks = days.map((_, i) => {
-    const primaryBt = blockTypeOfCoarse(primaryCoarse[i])
-    const candidates = COARSE_ORDER.filter((c) => blockTypeOfCoarse(c) !== primaryBt)
-    candidates.sort((a, b) => coverage[a] - coverage[b] || COARSE_ORDER.indexOf(a) - COARSE_ORDER.indexOf(b))
-    const pick = candidates[0]
-    coverage[pick] += 1
-    const b = coarseToBlock(pick, i % 2 === 1)
-    return { block_type: b.block_type, variant: b.variant, emphasis: 'normal' as const }
+  const leadBlocks: PlannedWorkoutBlock[] = []
+  const companionBlocks: PlannedWorkoutBlock[] = []
+  days.forEach((day, i) => {
+    const axes = upperAxes(i)
+    const compact = day.minutes <= COMPACT_SESSION_THRESHOLD_MINUTES
+    if (leads[i] === 'lower_strength') {
+      leadBlocks.push({ block_type: 'lower_strength', variant: null, emphasis: 'heavy', patterns: [{ pattern: nextLowerLeadPattern(), emphasis: 'heavy' }] } as PlannedWorkoutBlock)
+      companionBlocks.push({
+        block_type: 'upper_strength', variant: null, emphasis: 'normal',
+        // Begleit-Upper: Push+Pull als Antagonisten-Paar; Kompakt: nur Pull (§2.2)
+        patterns: compact ? [{ pattern: axes.pull, emphasis: 'normal' }]
+          : [{ pattern: axes.push, emphasis: 'normal' }, { pattern: axes.pull, emphasis: 'normal' }],
+      } as PlannedWorkoutBlock)
+    } else {
+      const pullHeavy = upperLeadCount++ % 2 === 0 // §1.2: beginnt Pull-heavy
+      leadBlocks.push({
+        block_type: 'upper_strength', variant: null, emphasis: 'heavy',
+        patterns: [
+          { pattern: axes.push, emphasis: pullHeavy ? 'normal' : 'heavy' },
+          { pattern: axes.pull, emphasis: pullHeavy ? 'heavy' : 'normal' },
+        ],
+      } as PlannedWorkoutBlock)
+      companionBlocks.push({ block_type: 'lower_strength', variant: null, emphasis: 'normal', patterns: [{ pattern: nextLowerCompanionPattern(), emphasis: 'normal' }] } as PlannedWorkoutBlock)
+    }
   })
 
   // ── 3. Core-Tage: 2–3× pro Woche, Ebene rotiert (§1.5/§1.7) ──────────────
@@ -138,8 +141,10 @@ export function composeWeek(input: {
   // upper-Plyo bevorzugt WEG von Push-Primary-Tagen (ZNS-Schutz Oberkörper).
   const plyoLowerAssigned = new Set<number>()
   const plyoUpperAssigned = new Set<number>()
-  const isLowerPrimary = (i: number) => primaryCoarse[i] === 'squat' || primaryCoarse[i] === 'hinge'
-  const isPushPrimary = (i: number) => primaryCoarse[i] === 'push'
+  const isLowerPrimary = (i: number) => leads[i] === 'lower_strength'
+  // "Push-Primary" heißt jetzt: Upper-Lead mit heavy Push-Pattern (§2.3).
+  const isPushPrimary = (i: number) => leads[i] === 'upper_strength'
+    && (leadBlocks[i].patterns ?? []).some((p) => p.pattern.startsWith('push') && p.emphasis === 'heavy')
   const idxByPreference = (prefer: (i: number) => boolean) =>
     days.map((_, i) => i).sort((a, b) => (prefer(a) ? 0 : 1) - (prefer(b) ? 0 : 1))
   const distribute = (count: number, target: Set<number>, order: number[]) => {
@@ -166,9 +171,14 @@ export function composeWeek(input: {
     }
   }
 
-  // §1.6.1 Deckel: Tag mit upper-Plyo UND Push-Primary → Push-Primary auf 'normal'.
+  // §1.6.1 Deckel (übersetzt, §2.3): Tag mit Upper-Plyo UND Push-heavy im
+  // Upper-Lead → Push-Pattern auf 'normal' dämpfen; bleibt kein heavy Pattern,
+  // sinkt auch die Block-Emphasis (die Session hat dann keinen Kraft-Lead-Peak).
   days.forEach((d, i) => {
-    if (plyoUpperAssigned.has(d.day_of_week) && isPushPrimary(i)) primaryBlocks[i].emphasis = 'normal'
+    if (!plyoUpperAssigned.has(d.day_of_week) || !isPushPrimary(i)) return
+    leadBlocks[i].patterns = leadBlocks[i].patterns!.map((p) =>
+      p.pattern.startsWith('push') ? { ...p, emphasis: 'normal' as const } : p)
+    if (!leadBlocks[i].patterns!.some((p) => p.emphasis === 'heavy')) leadBlocks[i].emphasis = 'normal'
   })
 
   // ── 5. Pro Tag: Slots nach Priorität füllen, in Workout-Reihenfolge ordnen ─
@@ -187,21 +197,21 @@ export function composeWeek(input: {
       ? { block_type: 'core', variant: coreVariantByDay.get(dow) ?? null, emphasis: 'normal' as const }
       : null
 
-    // Priorität: primary > komplement > plyo > core > Füller (accessory, optional).
-    // (conditioning-in-Training läuft über carries_conditioning_finisher, nicht hier.)
-    // Füller: Prophylaxe (accessory) vor Kür (optional/Arme) — nur wenn Slots übrig,
-    // kurze Sessions bekommen sie nie (User-Feature Arm-Block bleibt erhalten).
-    const picks: PlannedWorkoutBlock[] = [primaryBlocks[i] as PlannedWorkoutBlock, complementBlocks[i] as PlannedWorkoutBlock]
+    // Slot-Priorität (§2.2): Lead > Fokus (Plyo) > Begleit-Kraft > Core > Füller.
+    // Der Begleitblock weicht den Fokus-Blöcken ZUERST — der Lead fällt nie.
+    const picks: PlannedWorkoutBlock[] = [leadBlocks[i]]
     if (plyo) picks.push(plyo as PlannedWorkoutBlock)
+    picks.push(companionBlocks[i])
     if (core) picks.push(core as PlannedWorkoutBlock)
     picks.push({ block_type: 'accessory', variant: null, emphasis: 'light' } as PlannedWorkoutBlock)
     picks.push({ block_type: 'optional', variant: null, emphasis: 'light' } as PlannedWorkoutBlock)
     const selected = picks.slice(0, slots)
 
-    // Workout-Reihenfolge: plyo (vor primary), primary, komplement, core, Füller.
+    // Workout-Reihenfolge: plyo (PAP vor dem Heben), Lead, Begleit, core, Füller.
     const inSelected = (bt: string) => selected.filter((b) => b.block_type === bt)
     ordered.push(...inSelected('plyo'))
-    for (const bt of ['push', 'pull', 'lower_body']) ordered.push(...inSelected(bt))
+    ordered.push(...selected.filter((b) => b === leadBlocks[i]))
+    ordered.push(...selected.filter((b) => b === companionBlocks[i]))
     ordered.push(...inSelected('core'))
     ordered.push(...inSelected('accessory'))
     ordered.push(...inSelected('optional'))
