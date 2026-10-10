@@ -278,3 +278,42 @@ describe('Säulen-Lead + Kraft-Floor (Spec 2026-10-10 §3, Review-Fassung)', () 
     expect([...week.values()].flat().filter((b) => b.block_type === 'plyo' && b.emphasis === 'heavy')).toHaveLength(0)
   })
 })
+
+describe('48h-Garantie für schwere Leads (Review 10.10.)', () => {
+  /** [dow, region] aller schweren Kraft-Leads; Verletzung = gleiche Region auf
+   *  kalendarisch benachbarten Tagen (zirkulär — das Template wiederholt sich). */
+  const heavyLeads = (week: Map<number, any[]>) => [...week.entries()].flatMap(([dow, blocks]) =>
+    blocks.filter((b) => isStrength(b) && b.emphasis === 'heavy').map((b) => [dow, b.block_type] as [number, string]))
+  const calDist = (a: number, b: number) => { const f = ((b - a) % 7 + 7) % 7; return Math.min(f, 7 - f) }
+  const noAdjacentSameRegion = (week: Map<number, any[]>) => {
+    const hl = heavyLeads(week)
+    for (let i = 0; i < hl.length; i++) for (let j = i + 1; j < hl.length; j++) {
+      if (hl[i][1] === hl[j][1] && calDist(hl[i][0], hl[j][0]) <= 1) return false
+    }
+    return true
+  }
+
+  it('Do/Sa/So mit Beintag Sa: keine zwei schweren Beintage auf Nachbartagen (Review-Szenario)', () => {
+    const days = [trainingDay(4), trainingDay(6), trainingDay(7)]
+    ;(days[1] as any).heavy_lower = true
+    const week = composeWeek({ trainingDays: days, pillarLevels: {}, hasSpeedSession: false })
+    // Sa behält den schweren Lower-Lead (Spieltags-Schutz)
+    expect(week.get(6)!.some((b) => b.block_type === 'lower_strength' && b.emphasis === 'heavy')).toBe(true)
+    // So ist NICHT auch lower-heavy
+    expect(week.get(7)!.some((b) => b.block_type === 'lower_strength' && b.emphasis === 'heavy')).toBe(false)
+    expect(noAdjacentSameRegion(week)).toBe(true)
+  })
+
+  it('drei aufeinanderfolgende Tage (Fr/Sa/So, Beintag Sa): Auflösung ohne Nachbarschafts-Verletzung', () => {
+    const days = [trainingDay(5), trainingDay(6), trainingDay(7)]
+    ;(days[1] as any).heavy_lower = true
+    const week = composeWeek({ trainingDays: days, pillarLevels: {}, hasSpeedSession: false })
+    expect(week.get(6)!.some((b) => b.block_type === 'lower_strength' && b.emphasis === 'heavy')).toBe(true)
+    expect(noAdjacentSameRegion(week)).toBe(true)
+  })
+
+  it('Wochenrand zählt: Mo und So gelten als benachbart (Template wiederholt sich)', () => {
+    const week = composeWeek({ trainingDays: [trainingDay(1), trainingDay(4), trainingDay(7)], pillarLevels: {}, hasSpeedSession: false })
+    expect(noAdjacentSameRegion(week)).toBe(true)
+  })
+})

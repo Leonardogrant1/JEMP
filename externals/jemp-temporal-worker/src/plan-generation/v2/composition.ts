@@ -78,9 +78,42 @@ export function composeWeek(input: {
   // für den schweren Beintag, E2E-Befund Task 12 bleibt gültig).
   const leads: string[] = days.map((_, i) => STRENGTH_LEAD_ROTATION[i % 2])
   const heavyIdx = days.findIndex((d) => d.heavy_lower)
+  const calDist = (a: number, b: number) => { const f = ((b - a) % 7 + 7) % 7; return Math.min(f, 7 - f) }
   if (heavyIdx !== -1 && leads[heavyIdx] !== 'lower_strength') {
-    const lowerIdx = leads.indexOf('lower_strength')
-    if (lowerIdx !== -1) { leads[lowerIdx] = leads[heavyIdx]; leads[heavyIdx] = 'lower_strength' }
+    // Review 10.10.: der KALENDARISCH NÄCHSTE Lower-Slot tauscht — der erste
+    // in Index-Reihenfolge ließ zwei schwere Beintage auf Nachbartagen zurück
+    // (Do/Sa/So, Beintag Sa → Upper,Lower,Lower).
+    const lowerIdx = leads
+      .map((l, i) => (l === 'lower_strength' ? i : -1)).filter((i) => i !== -1)
+      .sort((a, b) => calDist(days[a].day_of_week, days[heavyIdx].day_of_week) - calDist(days[b].day_of_week, days[heavyIdx].day_of_week))[0]
+    if (lowerIdx !== undefined) { leads[lowerIdx] = leads[heavyIdx]; leads[heavyIdx] = 'lower_strength' }
+  }
+
+  // Expliziter 48h-Check (Review 10.10.): nie dieselbe Region an kalendarisch
+  // benachbarten Tagen heavy — zirkulär, weil das Wochen-Template sich
+  // wiederholt (So→Mo zählt). Die Garantie war vorher nur konstruktiv über die
+  // Alternierung gesichert und wurde vom Heavy-Alignment still gebrochen.
+  // Auflösung: benachbarten Nicht-Beintag-Lead zur anderen Region flippen;
+  // erzeugt jeder Flip eine neue Verletzung, wird der Lead stattdessen auf
+  // 'normal' demotiert (Erhaltungsdosis schlägt 48h-Bruch).
+  const demotedLeads = new Set<number>()
+  const findAdjacentSame = (ls: string[]): [number, number] | null => {
+    for (let i = 0; i < days.length; i++) {
+      for (let j = i + 1; j < days.length; j++) {
+        if (demotedLeads.has(i) || demotedLeads.has(j)) continue
+        if (ls[i] === ls[j] && calDist(days[i].day_of_week, days[j].day_of_week) <= 1) return [i, j]
+      }
+    }
+    return null
+  }
+  for (let guard = 0; guard < days.length; guard++) {
+    const pair = findAdjacentSame(leads)
+    if (!pair) break
+    const offender = pair[1] === heavyIdx ? pair[0] : pair[1]
+    const flipped = [...leads]
+    flipped[offender] = leads[offender] === 'lower_strength' ? 'upper_strength' : 'lower_strength'
+    if (findAdjacentSame(flipped) === null) leads[offender] = flipped[offender]
+    else demotedLeads.add(offender)
   }
 
   // Alternierungs-Zähler PRO ROLLE (Review 10.10.): Lead und Begleit zählen
@@ -98,8 +131,11 @@ export function composeWeek(input: {
   days.forEach((day, i) => {
     const axes = upperAxes(i)
     const compact = day.minutes <= COMPACT_SESSION_THRESHOLD_MINUTES
+    // 48h-Demote (letzte Instanz des Checks oben): Lead bleibt, aber als
+    // Erhaltungsdosis — kein zweiter schwerer Reiz derselben Region <48h.
+    const leadEmphasis: 'heavy' | 'normal' = demotedLeads.has(i) ? 'normal' : 'heavy'
     if (leads[i] === 'lower_strength') {
-      leadBlocks.push({ block_type: 'lower_strength', variant: null, emphasis: 'heavy', patterns: [{ pattern: nextLowerLeadPattern(), emphasis: 'heavy' }] } as PlannedWorkoutBlock)
+      leadBlocks.push({ block_type: 'lower_strength', variant: null, emphasis: leadEmphasis, patterns: [{ pattern: nextLowerLeadPattern(), emphasis: leadEmphasis }] } as PlannedWorkoutBlock)
       companionBlocks.push({
         block_type: 'upper_strength', variant: null, emphasis: 'normal',
         // Begleit-Upper: Push+Pull als Antagonisten-Paar; Kompakt: nur Pull (§2.2)
@@ -109,10 +145,10 @@ export function composeWeek(input: {
     } else {
       const pullHeavy = upperLeadCount++ % 2 === 0 // §1.2: beginnt Pull-heavy
       leadBlocks.push({
-        block_type: 'upper_strength', variant: null, emphasis: 'heavy',
+        block_type: 'upper_strength', variant: null, emphasis: leadEmphasis,
         patterns: [
-          { pattern: axes.push, emphasis: pullHeavy ? 'normal' : 'heavy' },
-          { pattern: axes.pull, emphasis: pullHeavy ? 'heavy' : 'normal' },
+          { pattern: axes.push, emphasis: leadEmphasis === 'normal' ? 'normal' : (pullHeavy ? 'normal' : 'heavy') },
+          { pattern: axes.pull, emphasis: leadEmphasis === 'normal' ? 'normal' : (pullHeavy ? 'heavy' : 'normal') },
         ],
       } as PlannedWorkoutBlock)
       companionBlocks.push({ block_type: 'lower_strength', variant: null, emphasis: 'normal', patterns: [{ pattern: nextLowerCompanionPattern(), emphasis: 'normal' }] } as PlannedWorkoutBlock)
