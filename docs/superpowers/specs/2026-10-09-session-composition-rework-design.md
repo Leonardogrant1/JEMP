@@ -1,5 +1,7 @@
 # Session Composition Rework (Primary-Rotation, Fokus-Block-Budget, Movement-Type) — Design
 
+> §1.1–§1.3 und §1.6.1 sind durch `docs/superpowers/specs/2026-10-10-upper-lower-strength-blocks-design.md` ersetzt (Upper/Lower-Strength-Blöcke, Lead-Rotation, Säulen-Lead + Kraft-Floor).
+
 **Status:** Design (Brainstorming abgeschlossen 2026-10-09)
 **Branch:** feat/session-structure
 **Ersetzt:** Teile von `2026-10-07-session-structure-redesign-design.md` — §1.2 (feste Block-Sequenz), §1.3 (Exercise-Metadaten, erweitert), §2.4 (Pattern-Blocks), §2.9 (Scaling-Lever). Der Rest jenes Specs (Säulen, Session-Types, Fatigue/Week-Layout, Scores, Rollout) bleibt gültig.
