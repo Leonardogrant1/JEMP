@@ -83,7 +83,9 @@ async function fetchActivePlan(userId: string) {
             const { slug, imageGroup } = extractPrimaryExerciseInfo(blocks);
             // Harter Beintag = Lower-Body-Block als heavy Primary (Komposition
             // persistiert die Emphasis) — Basis der Sprint-Abstands-Warnung
-            const hasHeavyLower = blocks.some((b: any) => b.block_type?.slug === 'lower_body' && b.emphasis === 'heavy');
+            // lower_strength = neue Welt (Spec 2026-10-10), lower_body = Alt-Pläne
+            const hasHeavyLower = blocks.some((b: any) =>
+                (b.block_type?.slug === 'lower_strength' || b.block_type?.slug === 'lower_body') && b.emphasis === 'heavy');
             return { ...ps, primary_exercise_slug: slug, primary_image_group: imageGroup, focus_categories: extractFocusCategories(blocks), has_heavy_lower: hasHeavyLower };
         }),
     };

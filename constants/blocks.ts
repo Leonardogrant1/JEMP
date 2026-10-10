@@ -13,6 +13,7 @@ export function isContentBlock(slug: string | null | undefined): boolean {
  *  dann v2-Blöcke nach visueller Aussagekraft. */
 export const HERO_BLOCK_ORDER: string[] = [
     'primary', 'secondary', 'accessory',
+    'lower_strength', 'upper_strength',
     'lower_body', 'push', 'pull', 'sprint', 'plyo', 'cod', 'rotation', 'core', 'conditioning', 'mobility', 'optional',
 ];
 

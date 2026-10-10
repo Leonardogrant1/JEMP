@@ -48,3 +48,14 @@ describe('isProgressBlock (Review I6: Fortschritt ohne Conditioning/Mobility)', 
         expect(isProgressBlock('warmup')).toBe(false);
     });
 });
+
+describe('v2 Kraftblöcke (Spec 2026-10-10)', () => {
+    it('HERO_BLOCK_ORDER enthält die v2-Kraftblöcke vor plyo', () => {
+        const lower = HERO_BLOCK_ORDER.indexOf('lower_strength');
+        const upper = HERO_BLOCK_ORDER.indexOf('upper_strength');
+        expect(lower).toBeGreaterThan(-1);
+        expect(upper).toBeGreaterThan(-1);
+        expect(lower).toBeLessThan(HERO_BLOCK_ORDER.indexOf('plyo'));
+        expect(upper).toBeLessThan(HERO_BLOCK_ORDER.indexOf('plyo'));
+    });
+});

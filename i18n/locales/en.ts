@@ -146,6 +146,8 @@ const en = {
     'block_type.push': 'Push',
     'block_type.pull': 'Pull',
     'block_type.lower_body': 'Lower body',
+    'block_type.lower_strength': 'Lower-Body Strength',
+    'block_type.upper_strength': 'Upper-Body Strength',
     'block_type.rotation': 'Rotation',
     'block_type.core': 'Core',
     'block_type.plyo': 'Plyometrics',
