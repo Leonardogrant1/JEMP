@@ -259,22 +259,42 @@ export function buildConditioningSession(input: ConditioningSessionInput): { ses
 export function buildConditioningFinisherBlock(
   poolSlugs: string[],
   orderIndex: number,
+  format: 'intensive' | 'rounds' = 'intensive',
+  offset = 0,
 ): { block_type: string; order_index: number; focused_category_slug: string; exercises: any[] } | null {
   if (poolSlugs.length < 2) return null
-  const format = CONDITIONING_FORMATS.interval_30_30
-  const picked = [...poolSlugs].sort().slice(0, 3)
-  return {
-    block_type: 'conditioning',
-    order_index: orderIndex,
-    focused_category_slug: 'lower_body_plyometrics',
-    exercises: picked.map((slug, i) => ({
-      exercise_slug: slug, order_index: i, notes: '',
-      target_sets: 1, target_reps_min: -1, target_reps_max: -1,
-      target_duration_seconds: format.work, target_distance_meters: -1,
-      target_rest_seconds: format.rest, target_load_type: 'bodyweight' as const,
-      target_load_value: -1, target_rounds: Math.max(4, Math.round(format.rounds / 2)),
-    })),
+
+  const finisherExercise = (slug: string, i: number, work: number, rest: number, rounds: number) => ({
+    exercise_slug: slug, order_index: i, notes: '',
+    target_sets: 1, target_reps_min: -1, target_reps_max: -1,
+    target_duration_seconds: work, target_distance_meters: -1,
+    target_rest_seconds: rest, target_load_type: 'bodyweight' as const,
+    target_load_value: -1, target_rounds: rounds,
+  })
+  const block = (exercises: any[]) => ({
+    block_type: 'conditioning', order_index: orderIndex,
+    focused_category_slug: 'lower_body_plyometrics', exercises,
+  })
+
+  // Rounds-Finisher (Spec §3.4): eine Runden-Übung, 2 × 3 min — nur wenn der
+  // Pool eine rundentaugliche Übung hergibt, sonst Intervall-Verhalten.
+  if (format === 'rounds') {
+    const candidates = poolSlugs.filter((s) => ROUNDS_CONTINUOUS_SLUGS.includes(s)).sort()
+    const pick = candidates.find((s) => s === 'heavy_bag_work')
+      ?? candidates.find((s) => s === 'shadow_boxing')
+      ?? candidates[offset % Math.max(1, candidates.length)]
+    if (pick) return block([finisherExercise(pick, 0, 180, 60, 2)])
   }
+
+  // Intervall (Monotonie-Fix Spec §3.4): sortiert bleibt der Pool, rotiert wird
+  // der Startpunkt — statt des alten alphabetischen slice(0, 3).
+  const sorted = [...poolSlugs].sort()
+  const count = Math.min(3, sorted.length)
+  const start = offset % sorted.length
+  const picked = Array.from({ length: count }, (_, i) => sorted[(start + i) % sorted.length])
+  const intervalFormat = CONDITIONING_FORMATS.interval_30_30
+  return block(picked.map((slug, i) =>
+    finisherExercise(slug, i, intervalFormat.work, intervalFormat.rest, Math.max(4, Math.round(intervalFormat.rounds / 2)))))
 }
 
 /** Shared conditioning pool filter (used by the standalone session and the finisher). */

@@ -117,7 +117,7 @@ describe('buildConditioningSession — Rounds (Spec §1.3)', () => {
     const block = r.session.blocks.find((b: any) => b.block_type === 'conditioning')!
     expect(block.exercises).toHaveLength(2)
     expect(block.exercises.map((e: any) => e.exercise_slug)).toEqual(['heavy_bag_work', 'shadow_boxing'])
-    expect(block.exercises[0].target_rounds + block.exercises[1].target_rounds).toBe(5)
+    expect(block.exercises.reduce((s: number, e: any) => s + e.target_rounds, 0)).toBe(5)
   })
   it('Fallback-Dreiteilung ohne rundentaugliche Übung: 3×60 s, Pause an letzter Station', () => {
     const r = buildConditioningSession({ day: day({ minutes: 30 }), exercises: pool, orderIndex: 0, format: 'rounds' })!
@@ -156,6 +156,33 @@ describe('conditioningPoolSlugs — kein Maximal-Plyo im Intervall (QA 10.10.)',
     const chosen = blockOut.exercises.map((e: any) => e.exercise_slug)
     expect(chosen).not.toContain('bulgarian_split_squat_high_knee_jump')
     expect(chosen).not.toContain('single_leg_reactive_box_jump')
+  })
+})
+
+describe('buildConditioningFinisherBlock — Format + Rotation (Spec §3.4)', () => {
+  const pool = ['burpee', 'jump_rope_standard', 'bear_crawl', 'mountain_climber', 'jumping_jacks']
+  it('Offset rotiert den Startpunkt — Monotonie-Regression', () => {
+    const p0 = buildConditioningFinisherBlock(pool, 7, 'intensive', 0)!
+    const p2 = buildConditioningFinisherBlock(pool, 7, 'intensive', 2)!
+    expect(p0.exercises[0].exercise_slug).not.toBe(p2.exercises[0].exercise_slug)
+    expect(p2.exercises).toHaveLength(3)
+  })
+  it('Pool-Länge 2 + Offset: keine Duplikate (Review Focus 5)', () => {
+    const b = buildConditioningFinisherBlock(['burpee', 'bear_crawl'], 7, 'intensive', 1)!
+    const slugs = b.exercises.map((e: any) => e.exercise_slug)
+    expect(new Set(slugs).size).toBe(slugs.length)
+  })
+  it('rounds-Finisher: eine Übung, 180/60, 2 Runden, bevorzugt heavy_bag_work', () => {
+    const b = buildConditioningFinisherBlock([...pool, 'heavy_bag_work', 'shadow_boxing'], 7, 'rounds', 0)!
+    expect(b.exercises).toHaveLength(1)
+    expect(b.exercises[0].exercise_slug).toBe('heavy_bag_work')
+    expect(b.exercises[0].target_duration_seconds).toBe(180)
+    expect(b.exercises[0].target_rounds).toBe(2)
+  })
+  it('rounds ohne rundentaugliche Übung → intensive-Verhalten', () => {
+    const b = buildConditioningFinisherBlock(['burpee', 'bear_crawl', 'mountain_climber'], 7, 'rounds', 0)!
+    expect(b.exercises.length).toBeGreaterThanOrEqual(2)
+    expect(b.exercises[0].target_duration_seconds).toBe(30)
   })
 })
 

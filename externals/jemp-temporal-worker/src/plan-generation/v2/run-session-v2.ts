@@ -101,6 +101,10 @@ export type V2SessionContext = {
   sprintPool: string[]
   /** Pool for the deterministic conditioning finisher (appended in code, not by the LLM). */
   conditioningFinisherPool: string[]
+  /** Finisher-Format nach Sportgewichtung (Spec 2026-10-10 §3.4) — default intensive. */
+  conditioningFinisherFormat?: 'intensive' | 'rounds'
+  /** Rotations-Offset (= planCount) gegen die alphabetische Übungs-Monotonie. */
+  conditioningFinisherOffset?: number
   /** Pattern-Anforderungen der Kraftblöcke (Spec 2026-10-10 §1.2) — slugs als
    *  string[] wegen der Temporal-Payload-Serialisierung. */
   patternReqs?: Array<{ block_type: string; pattern: string; emphasis: 'heavy' | 'normal'; slugs: string[] }>
@@ -206,7 +210,9 @@ export async function runSessionV2(
   if (day.carries_conditioning_finisher) {
     const cooldownIdx = blocks.findIndex((b: any) => b.block_type === 'cooldown')
     const insertAt = cooldownIdx === -1 ? blocks.length : cooldownIdx
-    const finisher = buildConditioningFinisherBlock(input.conditioningFinisherPool, insertAt)
+    const finisher = buildConditioningFinisherBlock(
+      input.conditioningFinisherPool, insertAt,
+      input.conditioningFinisherFormat ?? 'intensive', input.conditioningFinisherOffset ?? 0)
     if (finisher) {
       blocks.splice(insertAt, 0, finisher)
       blocks.forEach((b: any, i: number) => { b.order_index = i })
