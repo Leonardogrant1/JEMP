@@ -110,3 +110,24 @@ describe('attachBlockEmphasis', () => {
     expect(blocks.map((b: any) => b.emphasis)).toEqual(['normal', 'light'])
   })
 })
+
+describe('Pattern-Anforderungen im Validator (Spec 2026-10-10 §1.2)', () => {
+  const reqs = [
+    { block_type: 'upper_strength', pattern: 'push_vertical', emphasis: 'heavy', slugs: new Set(['ohp']) },
+    { block_type: 'upper_strength', pattern: 'pull_horizontal', emphasis: 'normal', slugs: new Set(['row']) },
+  ] as any
+  const upPools = new Map([['upper_strength', { slugs: new Set(['ohp', 'row', 'bench']) }]])
+  it('ok, wenn jedes Pattern vertreten ist', () => {
+    const s = session([{ block_type: 'upper_strength', slugs: ['ohp', 'row'] }])
+    expect(findV2Violations(s, upPools as any, ['upper_strength'], reqs)).toEqual([])
+  })
+  it('Verletzung, wenn Pull fehlt (zwei Push-Übungen)', () => {
+    const s = session([{ block_type: 'upper_strength', slugs: ['ohp', 'bench'] }])
+    expect(findV2Violations(s, upPools as any, ['upper_strength'], reqs).join(' ')).toMatch(/pull_horizontal/)
+  })
+  it('fehlender Block erzeugt keine doppelte Pattern-Meldung (wird oben gemeldet)', () => {
+    const s = session([])
+    const v = findV2Violations(s, upPools as any, ['upper_strength'], reqs)
+    expect(v.filter((x) => /pull_horizontal/.test(x))).toHaveLength(0)
+  })
+})

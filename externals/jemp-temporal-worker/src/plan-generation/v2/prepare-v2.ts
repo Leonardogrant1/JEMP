@@ -7,7 +7,7 @@ import type OpenAI from 'openai'
 import { buildWeekLayout, type PillarLevels, type WeekLayout } from '../week-layout'
 import type { PrepareResult, SessionBuildInput } from '../generate-plan'
 import type { PlanGenerationInput } from '../types'
-import { buildBlockPools, preDropEmptyPools, type V2Exercise } from './pool'
+import { buildBlockPools, preDropEmptyPools, strengthPatternPools, type V2Exercise } from './pool'
 import { buildSpeedSession, type PlannedSessionLike } from './build-speed-session'
 import { buildMobilitySession, buildConditioningSession, conditioningPoolSlugs } from './build-simple-sessions'
 import type { V2SessionContext } from './run-session-v2'
@@ -248,11 +248,29 @@ export async function prepareGenerationV2(
       .filter((e) => e.sprint_type !== null && (allowMaxVelocity || e.sprint_type !== 'max_velocity'))
       .map((e) => e.slug)
     const finisherPoolSlugs = conditioningPoolSlugs(dayExercises)
+    // Pattern-Anforderungen der Kraftblöcke (Spec 2026-10-10 §1.2) + Pre-Degrade:
+    // ein Pattern ohne Pool-Übungen wird aus Block UND Anforderungen entfernt
+    // (Note), statt das LLM in eine unerfüllbare Validator-Schleife zu zwingen.
+    const patternReqs: NonNullable<V2SessionContext['patternReqs']> = []
+    for (const block of workout.blocks) {
+      if (!block.patterns || block.patterns.length === 0) continue
+      const perPattern = strengthPatternPools(dayExercises, block.patterns)
+      const kept = block.patterns.filter((p) => {
+        const slugs = (perPattern.get(p.pattern) ?? []).map((e) => e.slug)
+        if (slugs.length === 0) {
+          notes.push(`Tag ${workout.day_of_week}: Pattern ${p.pattern} ohne Pool-Übungen — Anforderung entfällt`)
+          return false
+        }
+        patternReqs.push({ block_type: block.block_type, pattern: p.pattern, emphasis: p.emphasis, slugs })
+        return true
+      })
+      block.patterns = kept
+    }
     const pools = buildBlockPools(dayExercises, workout.blocks)
     const poolRecord: Record<string, string[]> = {}
     for (const [bt, pool] of pools) poolRecord[bt] = pool.map((e) => e.slug)
     notes.push(...preDropEmptyPools(workout, poolRecord).map((n) => `Tag ${workout.day_of_week}: ${n}`))
-    const v2: V2SessionContext = { workout, day, pools: poolRecord, sprintPool: sprintPoolSlugs, conditioningFinisherPool: finisherPoolSlugs }
+    const v2: V2SessionContext = { workout, day, pools: poolRecord, sprintPool: sprintPoolSlugs, conditioningFinisherPool: finisherPoolSlugs, patternReqs }
     return {
       spec: { day_of_week: workout.day_of_week, mode_slug: day.dose === 'maintenance' ? 'reduced' : 'full' },
       duration: { min: Math.max(20, day.minutes - 10), max: day.minutes },

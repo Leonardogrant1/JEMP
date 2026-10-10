@@ -48,10 +48,15 @@ export function buildV2SessionSchema(blockTypes: string[], exerciseSlugs: string
   })
 }
 
+/** Pattern-Anforderung eines Kraftblocks (Spec 2026-10-10 §1.2) in Validator-
+ *  Sicht; über die Activity-Grenze reisen die slugs als string[] (V2SessionContext). */
+export type PatternRequirement = { block_type: string; pattern: string; emphasis: 'heavy' | 'normal'; slugs: Set<string> }
+
 export function findV2Violations(
   session: { blocks: Array<{ block_type: string; exercises: Array<{ exercise_slug: string }> }> },
   pools: Map<string, { slugs: Set<string> }>,
   expectedBlocks: string[],
+  patternReqs: PatternRequirement[] = [],
 ): string[] {
   const violations: string[] = []
   const seen = session.blocks.map((b) => b.block_type)
@@ -74,6 +79,15 @@ export function findV2Violations(
       }
     }
   }
+  // Spec 2026-10-10 §1.2: jedes geforderte Kraftmuster ist mit ≥1 Übung aus
+  // seinem Pattern-Pool vertreten (fehlende Blöcke werden oben schon gemeldet).
+  for (const req of patternReqs) {
+    const b = session.blocks.find((x) => x.block_type === req.block_type)
+    if (!b) continue
+    if (!b.exercises.some((e) => req.slugs.has(e.exercise_slug))) {
+      violations.push(`Block "${req.block_type}": kein ${req.pattern} vertreten — wähle 1 Übung aus: ${[...req.slugs].slice(0, 12).join(', ')}`)
+    }
+  }
   return violations
 }
 
@@ -87,6 +101,9 @@ export type V2SessionContext = {
   sprintPool: string[]
   /** Pool for the deterministic conditioning finisher (appended in code, not by the LLM). */
   conditioningFinisherPool: string[]
+  /** Pattern-Anforderungen der Kraftblöcke (Spec 2026-10-10 §1.2) — slugs als
+   *  string[] wegen der Temporal-Payload-Serialisierung. */
+  patternReqs?: Array<{ block_type: string; pattern: string; emphasis: 'heavy' | 'normal'; slugs: string[] }>
 }
 
 /**
@@ -124,6 +141,7 @@ export async function runSessionV2(
   openai: OpenAI,
 ): Promise<PlannedSessionLike> {
   const { workout, day, pools, sprintPool, userContext, weekSummary, previousSummaries, orderIndex } = input
+  const patternReqs: PatternRequirement[] = (input.patternReqs ?? []).map((r) => ({ ...r, slugs: new Set(r.slugs) }))
 
   const expectedBlocks = workout.blocks.map((b) => b.block_type as string)
   if (day.carries_sprint_block && sprintPool.length > 0) {
@@ -167,7 +185,7 @@ export async function runSessionV2(
       continue
     }
     lastSession = JSON.parse(choice.message.content)
-    const violations = findV2Violations(lastSession as any, poolMap, expectedBlocks)
+    const violations = findV2Violations(lastSession as any, poolMap, expectedBlocks, patternReqs)
     if (violations.length === 0) break
     feedback = violations.map((v) => `- ${v}`).join('\n')
     console.warn(`runSessionV2 day ${day.day_of_week} attempt ${attempt}: ${violations.length} violations`)
