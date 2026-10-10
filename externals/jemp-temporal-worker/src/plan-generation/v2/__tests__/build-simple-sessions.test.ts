@@ -37,6 +37,58 @@ describe('buildConditioningSession', () => {
   })
 })
 
+describe('buildConditioningSession — Formate (Spec 2026-10-10)', () => {
+  const circuitPool = ['burpee', 'jumping_jacks', 'jump_rope_standard', 'bear_crawl']
+    .map((slug) => ex({ slug, category_slug: 'conditioning', measurement_type: 'duration', intensity_score: 4 }))
+  const runAnchor = ex({ slug: 'easy_jog', category_slug: 'sprints', measurement_type: 'duration', intensity_score: 2 })
+  const machine = ex({ slug: 'rowing_erg', category_slug: 'conditioning', measurement_type: 'duration', intensity_score: 5 })
+
+  it('extensiv + runAnchor → Dauerlauf mit 35-min-Deckel (Review Focus 2/Spec §1.1)', () => {
+    const r = buildConditioningSession({ day: day({ session_type: 'conditioning', minutes: 60 }), exercises: circuitPool, orderIndex: 0, format: 'extensive', runAnchor })!
+    const block = r.session.blocks.find((b: any) => b.block_type === 'conditioning')!
+    expect(block.exercises).toHaveLength(1)
+    expect(block.exercises[0].exercise_slug).toBe('easy_jog')
+    expect(block.exercises[0].target_duration_seconds).toBe(35 * 60)
+    expect(r.session.estimated_duration_minutes).toBe(43)
+    expect(r.session.name).toBe('Conditioning — Basis')
+    expect(r.session.description).toContain('bewusst kürzer')
+  })
+  it('extensiv ohne Deckel: 30-min-Tag → 22 min Lauf, keine Deckel-Erklärung', () => {
+    const r = buildConditioningSession({ day: day({ session_type: 'conditioning', minutes: 30 }), exercises: circuitPool, orderIndex: 0, format: 'extensive', runAnchor })!
+    const block = r.session.blocks.find((b: any) => b.block_type === 'conditioning')!
+    expect(block.exercises[0].target_duration_seconds).toBe(22 * 60)
+    expect(r.session.description).not.toContain('bewusst kürzer')
+  })
+  it('extensiv ohne Outdoor → Maschine (3×7 min / 90 s), Pool-Präsenz = Verfügbarkeit (Review Focus 1)', () => {
+    const r = buildConditioningSession({ day: day({ minutes: 45 }), exercises: [...circuitPool, machine], orderIndex: 0, format: 'extensive', runAnchor: null })!
+    const block = r.session.blocks.find((b: any) => b.block_type === 'conditioning')!
+    expect(block.exercises).toHaveLength(1)
+    expect(block.exercises[0].exercise_slug).toBe('rowing_erg')
+    expect(block.exercises[0].target_duration_seconds).toBe(420)
+    expect(block.exercises[0].target_rounds).toBe(3)
+  })
+  it('extensiv ohne Outdoor und Maschine → Zirkel 3×180 s, Rotation über planCount', () => {
+    const r0 = buildConditioningSession({ day: day({ minutes: 45 }), exercises: circuitPool, orderIndex: 0, format: 'extensive', runAnchor: null, planCount: 0 })!
+    const r1 = buildConditioningSession({ day: day({ minutes: 45 }), exercises: circuitPool, orderIndex: 0, format: 'extensive', runAnchor: null, planCount: 1 })!
+    const slugs = (r: any) => r.session.blocks.find((b: any) => b.block_type === 'conditioning')!.exercises.map((e: any) => e.exercise_slug)
+    expect(slugs(r0)).toHaveLength(3)
+    expect(slugs(r0)[0]).not.toBe(slugs(r1)[0]) // Offset rotiert
+    const first = r0.session.blocks.find((b: any) => b.block_type === 'conditioning')!.exercises[0]
+    expect(first.target_duration_seconds).toBe(180)
+    expect(first.target_rounds).toBe(2)
+  })
+  it('extensiv unfüllbar → degradiert auf intensiv mit Note', () => {
+    const tiny = circuitPool.slice(0, 2).map((e) => ({ ...e, intensity_score: 7 })) // Zirkel braucht ≤5 und ≥3
+    const r = buildConditioningSession({ day: day({ minutes: 30 }), exercises: [...tiny, ...circuitPool.slice(0, 1)], orderIndex: 0, format: 'extensive', runAnchor: null })!
+    expect(r.notes.some((n) => n.includes('degradiert'))).toBe(true)
+    expect(r.session.name).toBe('Conditioning — Intervalle')
+  })
+  it('default-Format bleibt intensiv (Back-Compat)', () => {
+    const r = buildConditioningSession({ day: day({ minutes: 30 }), exercises: circuitPool, orderIndex: 0 })!
+    expect(r.session.name).toBe('Conditioning — Intervalle')
+  })
+})
+
 describe('conditioningPoolSlugs — kein Maximal-Plyo im Intervall (QA 10.10.)', () => {
   const base = { category_slug: 'lower_body_plyometrics', measurement_type: 'reps_or_duration' as const }
   const pool = [
