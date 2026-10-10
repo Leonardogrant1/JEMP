@@ -27,7 +27,17 @@ export const WORKOUT_BLOCK_SEQUENCE: WorkoutBlockType[] =
   ['warmup', 'push', 'pull', 'lower_body', 'rotation', 'plyo', 'accessory', 'optional', 'cooldown']
 
 export const BLOCK_MINUTES: Record<WorkoutBlockType, number> = {
-  warmup: 8, push: 9, pull: 9, lower_body: 10, core: 5, conditioning: 10, plyo: 6, accessory: 6, optional: 5, cooldown: 4, rotation: 7,
+  warmup: 8, push: 9, pull: 9, lower_body: 10, lower_strength: 10, upper_strength: 12,
+  core: 5, conditioning: 10, plyo: 6, accessory: 6, optional: 5, cooldown: 4, rotation: 7,
+}
+
+/** Minuten eines Blocks — Kraftblöcke skalieren mit der Pattern-Zahl
+ *  (Review 10.10.: der Pull-only-Begleitblock darf nicht wie 2 Übungen zählen). */
+export function blockMinutes(b: { block_type: WorkoutBlockType; patterns?: Array<{ pattern: string }> }): number {
+  if ((b.block_type === 'upper_strength' || b.block_type === 'lower_strength') && b.patterns?.length === 1) {
+    return b.block_type === 'upper_strength' ? 6 : BLOCK_MINUTES.lower_strength
+  }
+  return BLOCK_MINUTES[b.block_type]
 }
 export const MAINTENANCE_DOSE_FACTOR = 0.7
 /** Kompakt-Modus (QA 09.10.): kurze Sessions rechnen Content-Blöcke mit 0.7

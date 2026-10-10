@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { circularDayDistance, effectiveSpeedLevel, allocateDays, placeWeek, planWorkoutBlocks, estimateMinutes, applyScalingLevers, buildWeekLayout } from '../week-layout'
-import { BLOCK_MINUTES, contentBlockCount, PRIMARY_ROTATION } from '../week-layout-constants'
+import { BLOCK_MINUTES, blockMinutes, contentBlockCount, PRIMARY_ROTATION } from '../week-layout-constants'
 
 describe('contentBlockCount (§1.2 Session-Größe)', () => {
   it('staffelt die Content-Blockzahl nach Dauer', () => {
@@ -523,5 +523,31 @@ describe('flexible_window (Spec 2026-10-09: Sprint/Mobility als Wochen-To-do)', 
     for (const d of placed.days.filter((x) => x.session_type === 'training')) {
       expect((d as any).flexible_window).toBeUndefined()
     }
+  })
+})
+
+describe('strength block minutes (Spec 2026-10-10)', () => {
+  it('estimateMinutes kennt lower_strength/upper_strength', () => {
+    const blocks = [
+      { block_type: 'warmup', variant: null, emphasis: 'normal' },
+      { block_type: 'lower_strength', variant: null, emphasis: 'heavy' },
+      { block_type: 'upper_strength', variant: null, emphasis: 'normal' },
+      { block_type: 'cooldown', variant: null, emphasis: 'normal' },
+    ] as any
+    // 8 + 10 + 12 + 4 = 34
+    expect(estimateMinutes(blocks, 'normal', false)).toBe(34)
+  })
+
+  it('blockMinutes skaliert Kraftblöcke nach Pattern-Zahl (Kompakt-Begleitblock = 1 Pattern)', () => {
+    expect(blockMinutes({ block_type: 'upper_strength', variant: null, emphasis: 'normal', patterns: [{ pattern: 'pull_vertical', emphasis: 'normal' }] } as any)).toBe(6)
+    expect(blockMinutes({ block_type: 'upper_strength', variant: null, emphasis: 'heavy', patterns: [{ pattern: 'push_vertical', emphasis: 'heavy' }, { pattern: 'pull_horizontal', emphasis: 'normal' }] } as any)).toBe(12)
+    expect(blockMinutes({ block_type: 'core', variant: null, emphasis: 'normal' } as any)).toBe(5)
+  })
+
+  it('estimateMinutes nutzt die Pattern-Skalierung (Pull-only-Begleit zählt 6, nicht 12)', () => {
+    const blocks = [
+      { block_type: 'upper_strength', variant: null, emphasis: 'normal', patterns: [{ pattern: 'pull_vertical', emphasis: 'normal' }] },
+    ] as any
+    expect(estimateMinutes(blocks, 'normal', false)).toBe(6)
   })
 })

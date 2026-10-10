@@ -9,7 +9,7 @@ export function circularDayDistance(from: number, to: number): number {
 }
 
 import type { WeeklySchedule } from './types'
-import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, WORKOUT_BLOCK_SEQUENCE, BLOCK_MINUTES, MAINTENANCE_DOSE_FACTOR, COMPACT_SESSION_THRESHOLD_MINUTES, INTEGRATED_SPRINT_BLOCK_MINUTES, CONDITIONING_FINISHER_MINUTES, DROP_PRIORITY, BLOCK_TO_PILLAR } from './week-layout-constants'
+import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, WORKOUT_BLOCK_SEQUENCE, BLOCK_MINUTES, blockMinutes, MAINTENANCE_DOSE_FACTOR, COMPACT_SESSION_THRESHOLD_MINUTES, INTEGRATED_SPRINT_BLOCK_MINUTES, CONDITIONING_FINISHER_MINUTES, DROP_PRIORITY, BLOCK_TO_PILLAR } from './week-layout-constants'
 import { composeWeek } from './v2/composition'
 
 export type NewSessionType = 'training' | 'speed' | 'mobility' | 'conditioning'
@@ -280,11 +280,17 @@ export function placeWeek(input: WeekLayoutInput, allocation: DayAllocation): We
 }
 
 export type WorkoutBlockType =
-  | 'warmup' | 'push' | 'pull' | 'lower_body' | 'core' | 'conditioning' | 'plyo' | 'accessory' | 'optional' | 'cooldown' | 'rotation'
+  | 'warmup' | 'push' | 'pull' | 'lower_body' | 'lower_strength' | 'upper_strength'
+  | 'core' | 'conditioning' | 'plyo' | 'accessory' | 'optional' | 'cooldown' | 'rotation'
+/** Pattern-Anforderung eines Kraftblocks (Spec 2026-10-10 §1.2) — Generator-
+ *  intern, nicht persistiert. */
+export type BlockPattern = { pattern: string; emphasis: 'heavy' | 'normal' }
+
 export type PlannedWorkoutBlock = {
   block_type: WorkoutBlockType
   variant: string | null
   emphasis: 'heavy' | 'normal' | 'light'
+  patterns?: BlockPattern[]
 }
 
 export function planWorkoutBlocks(placement: WeekPlacement): Map<number, PlannedWorkoutBlock[]> {
@@ -325,7 +331,7 @@ export function estimateMinutes(
   carriesConditioningFinisher = false, compact = false,
 ): number {
   const content = blocks.reduce((sum, b) => {
-    const base = BLOCK_MINUTES[b.block_type]
+    const base = blockMinutes(b)
     // Kompakt und Maintenance stapeln sich nicht — beide stehen für dieselbe
     // Reduktion (weniger Sätze, kürzere Pausen).
     const scaled = (b.block_type === 'warmup' || b.block_type === 'cooldown') ? base
