@@ -35,3 +35,14 @@ describe('trainingSessionTitle', () => {
     expect(trainingSessionTitle(blocks('warmup', 'cooldown'), day())).toBe('Ganzkörper')
   })
 })
+
+describe('Titel für upper/lower_strength (Spec 2026-10-10)', () => {
+  it('Kraft-Titel aus lower/upper_strength', () => {
+    expect(trainingSessionTitle([{ block_type: 'lower_strength' }, { block_type: 'core' }] as any, {})).toBe('Kraft & Rumpf')
+  })
+  it('Plyo-Lead-Session führt mit Explosivität', () => {
+    expect(trainingSessionTitle([
+      { block_type: 'plyo', emphasis: 'heavy' }, { block_type: 'upper_strength' },
+    ] as any, {})).toBe('Explosivität & Kraft')
+  })
+})

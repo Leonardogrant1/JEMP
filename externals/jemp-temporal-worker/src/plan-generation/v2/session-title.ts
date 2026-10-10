@@ -2,16 +2,19 @@
 // inhalt — nie die Sportart, nie die Tag-Nummer. Ersetzt den frei vom LLM
 // erzeugten Namen, der beides eingeschleust hatte.
 
-type TitleBlock = { block_type: string }
+type TitleBlock = { block_type: string; emphasis?: string }
 type TitleDay = { carries_conditioning_finisher?: boolean }
 
-const STRENGTH_BLOCKS = new Set(['push', 'pull', 'lower_body'])
+const STRENGTH_BLOCKS = new Set(['push', 'pull', 'lower_body', 'lower_strength', 'upper_strength'])
 
 export function trainingSessionTitle(blocks: TitleBlock[], day: TitleDay): string {
   const types = new Set(blocks.map((b) => b.block_type))
+  // Säulen-Lead (Spec 2026-10-10 §3.1): führt Plyo die Session, führt es den Titel.
+  const plyoLead = blocks.some((b) => b.block_type === 'plyo' && b.emphasis === 'heavy')
   const themes: string[] = []
+  if (plyoLead) themes.push('Explosivität')
   if ([...types].some((t) => STRENGTH_BLOCKS.has(t))) themes.push('Kraft')
-  if (types.has('plyo')) themes.push('Explosivität')
+  if (types.has('plyo') && !plyoLead) themes.push('Explosivität')
   if (types.has('rotation') || types.has('core')) themes.push('Rumpf')
   if (types.has('conditioning') || day.carries_conditioning_finisher) themes.push('Kondition')
 

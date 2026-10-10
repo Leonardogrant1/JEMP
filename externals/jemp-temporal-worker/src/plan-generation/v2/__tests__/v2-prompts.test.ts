@@ -61,3 +61,36 @@ describe('plyo-light Prompt (Review-Fix #5: kein "submaximal" am PAP-Tag)', () =
     expect(plyoLine).toMatch(/volle Pausen/)
   })
 })
+
+describe('Pattern-Blockzeilen (Spec 2026-10-10)', () => {
+  const upperLead = {
+    block_type: 'upper_strength', variant: null, emphasis: 'heavy',
+    patterns: [
+      { pattern: 'push_vertical', emphasis: 'heavy' },
+      { pattern: 'pull_horizontal', emphasis: 'normal' },
+    ],
+  } as any
+  it('upper_strength-Zeile nennt beide Patterns mit Dosis und Supersatz-Hinweis', () => {
+    const p = prompt([upperLead])
+    expect(p).toMatch(/upper_strength/)
+    expect(p).toMatch(/vertikaler Push[\s\S]*4–5 Sätze|4–5 Sätze[\s\S]*vertikaler Push/)
+    expect(p).toMatch(/horizontaler Pull[\s\S]*3 Sätze|3 Sätze[\s\S]*horizontaler Pull/)
+    expect(p).toMatch(/Supersatz/)
+  })
+  it('lower_strength-Zeile nennt das Pattern mit Dosis', () => {
+    const p = prompt([{ block_type: 'lower_strength', variant: null, emphasis: 'heavy', patterns: [{ pattern: 'hinge', emphasis: 'heavy' }] } as any])
+    expect(p).toMatch(/hüft-dominant/)
+    expect(p).toMatch(/4–5 Sätze/)
+  })
+  it('OBERKÖRPER-DECKEL feuert bei Upper-Plyo + Push-heavy im upper_strength', () => {
+    const p = prompt([withEmphasis('plyo', 'light', 'upper'), upperLead])
+    expect(p).toMatch(/OBERKÖRPER-DECKEL/)
+  })
+  it('kein Deckel bei Pull-heavy', () => {
+    const pullHeavy = { ...upperLead, patterns: [
+      { pattern: 'push_vertical', emphasis: 'normal' }, { pattern: 'pull_horizontal', emphasis: 'heavy' },
+    ] }
+    const p = prompt([withEmphasis('plyo', 'light', 'upper'), pullHeavy])
+    expect(p).not.toMatch(/OBERKÖRPER-DECKEL/)
+  })
+})

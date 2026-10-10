@@ -35,7 +35,17 @@ export function V2_SESSION_PROMPT(input: {
   const { workout, day, poolLines, sprintPoolLine, userContext, weekSummary, previousSummaries } = input
 
   // Volumen-Hierarchie (§1.3): heavy = Primary (die Session), normal = Sekundär, light = Ergänzung.
+  const patternDose = (e: 'heavy' | 'normal') => e === 'heavy'
+    ? 'SCHWERPUNKT — 4–5 Sätze, 3–5 Wiederholungen, schwer, lange Pausen, höchste Übungsqualität'
+    : '3 Sätze, 5–8 Wiederholungen, solide, nicht ans Limit'
   const blockLines = workout.blocks.map((b: PlannedWorkoutBlock) => {
+    // Kraftblöcke (Spec 2026-10-10 §1.2): pro gefordertem Pattern eine Dosis-Zeile.
+    if (b.patterns && b.patterns.length > 0) {
+      const parts = b.patterns.map((p) => `${VARIANT_LABELS[p.pattern] ?? p.pattern}: ${patternDose(p.emphasis)}`).join(' | ')
+      const superset = b.block_type === 'upper_strength' && b.patterns.length > 1
+        ? ' — als Antagonisten-Supersatz ausführen' : ''
+      return `- \`${b.block_type}\` — ${parts}${superset}`
+    }
     const variant = b.variant ? ` — Variante: ${VARIANT_LABELS[b.variant] ?? b.variant}` : ''
     const emphasis = b.emphasis === 'heavy'
       ? ' — PRIMARY (die Hauptübung der Session): 4–5 Sätze, 3–5 Wiederholungen, schwer, lange Pausen, höchste Übungsqualität'
@@ -53,7 +63,9 @@ export function V2_SESSION_PROMPT(input: {
   // §1.6.1 Oberkörper-Deckel: Plyo-Push/Würfe + Drücken in derselben Session —
   // der Oberkörper erholt sich in-session langsamer als die Streckerkette.
   const hasUpperPlyo = workout.blocks.some((b) => b.block_type === 'plyo' && b.variant === 'upper')
-  const hasPush = workout.blocks.some((b) => b.block_type === 'push')
+  // Legacy: eigener push-Block; neu (§2.3): Push-heavy-Pattern im upper_strength.
+  const hasPush = workout.blocks.some((b) => b.block_type === 'push'
+    || (b.patterns ?? []).some((p) => p.pattern.startsWith('push') && p.emphasis === 'heavy'))
   const upperCap = hasUpperPlyo && hasPush
     ? '\n- OBERKÖRPER-DECKEL: Der plyo-Block (Oberkörper) max 3×3 Wiederholungen; die push-Übungen danach nicht über ~85 % Intensität (keine Maximalversuche).'
     : ''

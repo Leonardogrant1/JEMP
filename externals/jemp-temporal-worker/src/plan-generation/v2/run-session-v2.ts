@@ -153,7 +153,14 @@ export async function runSessionV2(
   for (const bt of expectedBlocks) {
     const pool = bt === 'sprint' ? sprintPool : (pools[bt] ?? [])
     poolMap.set(bt, { slugs: new Set(pool) })
-    poolLines.push(`- \`${bt}\`: ${pool.join(', ') || '(leer)'}`)
+    // Kraftblöcke (Spec 2026-10-10): Pool nach Pattern gruppiert, damit das LLM
+    // sieht, welche Übungen welche Anforderung erfüllen.
+    const reqsForBlock = patternReqs.filter((r) => r.block_type === bt)
+    if (reqsForBlock.length > 0) {
+      poolLines.push(`- \`${bt}\`: ${reqsForBlock.map((r) => `${r.pattern}: [${[...r.slugs].join(', ')}]`).join(' | ')}`)
+    } else {
+      poolLines.push(`- \`${bt}\`: ${pool.join(', ') || '(leer)'}`)
+    }
   }
   const allSlugs = [...new Set(expectedBlocks.flatMap((bt) => [...poolMap.get(bt)!.slugs]))]
   const schema = buildV2SessionSchema(expectedBlocks, allSlugs)
