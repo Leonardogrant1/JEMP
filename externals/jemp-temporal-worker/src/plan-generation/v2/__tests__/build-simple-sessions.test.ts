@@ -89,6 +89,45 @@ describe('buildConditioningSession — Formate (Spec 2026-10-10)', () => {
   })
 })
 
+describe('buildConditioningSession — Rounds (Spec §1.3)', () => {
+  const pool = ['burpee', 'jumping_jacks', 'bear_crawl']
+    .map((slug) => ex({ slug, category_slug: 'conditioning', measurement_type: 'duration', intensity_score: 4 }))
+  const bag = ex({ slug: 'heavy_bag_work', category_slug: 'conditioning', measurement_type: 'duration', intensity_score: 6 })
+  const shadow = ex({ slug: 'shadow_boxing', category_slug: 'conditioning', measurement_type: 'duration', intensity_score: 5 })
+
+  it('Standard: EINE Übung à 180 s / 60 s Rundenpause; combat bevorzugt heavy_bag', () => {
+    const r = buildConditioningSession({ day: day({ minutes: 30 }), exercises: [...pool, bag, shadow], orderIndex: 0, format: 'rounds', sportGroup: 'combat_sports' })!
+    const block = r.session.blocks.find((b: any) => b.block_type === 'conditioning')!
+    expect(block.exercises[0].exercise_slug).toBe('heavy_bag_work')
+    expect(block.exercises[0].target_duration_seconds).toBe(180)
+    expect(block.exercises[0].target_rest_seconds).toBe(60)
+    expect(r.session.name).toBe('Conditioning — Rounds')
+  })
+  it('Rundenzahl folgt day.minutes: 20-min-Tag → 3 Runden, 45-min-Tag → 5 (Review Focus 2)', () => {
+    const rounds = (minutes: number) => {
+      const r = buildConditioningSession({ day: day({ minutes }), exercises: [bag, ...pool], orderIndex: 0, format: 'rounds' })!
+      const block = r.session.blocks.find((b: any) => b.block_type === 'conditioning')!
+      return block.exercises.reduce((s: number, e: any) => s + e.target_rounds, 0)
+    }
+    expect(rounds(20)).toBe(3)
+    expect(rounds(45)).toBe(5)
+  })
+  it('n ≥ 4 mit 2 Kandidaten → zwei alternierende Einträge mit geteilter Rundenzahl', () => {
+    const r = buildConditioningSession({ day: day({ minutes: 45 }), exercises: [bag, shadow, ...pool], orderIndex: 0, format: 'rounds', sportGroup: 'combat_sports' })!
+    const block = r.session.blocks.find((b: any) => b.block_type === 'conditioning')!
+    expect(block.exercises).toHaveLength(2)
+    expect(block.exercises.map((e: any) => e.exercise_slug)).toEqual(['heavy_bag_work', 'shadow_boxing'])
+    expect(block.exercises[0].target_rounds + block.exercises[1].target_rounds).toBe(5)
+  })
+  it('Fallback-Dreiteilung ohne rundentaugliche Übung: 3×60 s, Pause an letzter Station', () => {
+    const r = buildConditioningSession({ day: day({ minutes: 30 }), exercises: pool, orderIndex: 0, format: 'rounds' })!
+    const block = r.session.blocks.find((b: any) => b.block_type === 'conditioning')!
+    expect(block.exercises).toHaveLength(3)
+    expect(block.exercises.map((e: any) => e.target_rest_seconds)).toEqual([0, 0, 60])
+    expect(block.exercises.every((e: any) => e.target_duration_seconds === 60)).toBe(true)
+  })
+})
+
 describe('conditioningPoolSlugs — kein Maximal-Plyo im Intervall (QA 10.10.)', () => {
   const base = { category_slug: 'lower_body_plyometrics', measurement_type: 'reps_or_duration' as const }
   const pool = [

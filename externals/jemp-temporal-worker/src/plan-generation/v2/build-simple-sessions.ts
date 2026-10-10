@@ -136,6 +136,50 @@ function buildExtensiveContent(input: ConditioningSessionInput, pool: V2Exercise
   return null
 }
 
+/** Rundentauglich = trägt 3 min am Stück (Spec §1.3) — eine echte Runde ist
+ *  drei Minuten EINE Tätigkeit, die Dreiteilung ist bewusst letzte Wahl. */
+export const ROUNDS_CONTINUOUS_SLUGS = ['heavy_bag_work', 'shadow_boxing', 'jump_rope_standard', 'air_bike_ride', 'rowing_erg', 'stationary_bike_ride']
+
+const ROUNDS_DESCRIPTION = 'Rundenformat wie im Wettkampf — 3 Minuten Arbeit, 1 Minute Pause. Teile dir die Runde ein.'
+
+/** Rounds (Spec §1.3): 3 min Arbeit / 1 min Rundenpause × 3–5; null = unfüllbar. */
+function buildRoundsContent(input: ConditioningSessionInput, pool: V2Exercise[]): FormatContent | null {
+  const { day, sportGroup } = input
+  const planCount = input.planCount ?? 0
+  const n = Math.max(3, Math.min(5, Math.floor((day.minutes - 8) / 4)))
+  const candidates = pool.filter((e) => ROUNDS_CONTINUOUS_SLUGS.includes(e.slug)).sort(byIntensityThenSlug)
+
+  if (candidates.length > 0) {
+    // Kampfsport: Sack vor Shadow Boxing (analog COMBAT_SPRINT_PREFERENCE), sonst Rotation.
+    const primary = (sportGroup === 'combat_sports'
+      ? candidates.find((e) => e.slug === 'heavy_bag_work') ?? candidates.find((e) => e.slug === 'shadow_boxing')
+      : undefined) ?? candidates[planCount % candidates.length]
+    const second = candidates.find((e) => e.slug !== primary.slug)
+    const entries = n >= 4 && second
+      ? [{ ex: primary, rounds: Math.ceil(n / 2) }, { ex: second, rounds: Math.floor(n / 2) }]
+      : [{ ex: primary, rounds: n }]
+    return {
+      exercises: entries.map((e2, i) => ({ ...durationExercise(e2.ex, i, 180, 60), target_rounds: e2.rounds })),
+      estimatedMinutes: n * 4 + 8,
+      name: 'Conditioning — Rounds',
+      description: ROUNDS_DESCRIPTION,
+      pause: 60,
+    }
+  }
+  // Fallback-Dreiteilung: fühlt sich nach Circuit an, nicht nach Runde — letzte Wahl.
+  if (pool.length >= 3) {
+    const picks = pool.slice(0, 3)
+    return {
+      exercises: picks.map((e, i) => ({ ...durationExercise(e, i, 60, i === 2 ? 60 : 0), target_rounds: n })),
+      estimatedMinutes: n * 4 + 8,
+      name: 'Conditioning — Rounds',
+      description: ROUNDS_DESCRIPTION,
+      pause: 60,
+    }
+  }
+  return null
+}
+
 /** Intensiv (Spec §1.2): bisherige Logik unverändert — 30/30 bzw. 40/20 nach Pool-Intensität. */
 function buildIntensiveContent(day: PlacedDay, pool: V2Exercise[]): FormatContent | null {
   if (pool.length < 3) return null
@@ -165,6 +209,9 @@ export function buildConditioningSession(input: ConditioningSessionInput): { ses
   if (requested === 'extensive') {
     content = buildExtensiveContent(input, pool)
     if (!content) notes.push('Extensiv nicht füllbar — degradiert auf intensiv')
+  } else if (requested === 'rounds') {
+    content = buildRoundsContent(input, pool)
+    if (!content) notes.push('Rounds nicht füllbar — degradiert auf intensiv')
   }
   if (!content) content = buildIntensiveContent(day, pool)
   if (!content) return null
