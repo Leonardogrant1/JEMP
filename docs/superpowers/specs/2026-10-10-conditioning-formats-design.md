@@ -86,7 +86,7 @@ Fehlt eine Gruppe in der Tabelle (oder `sport_group_name` leer), gilt der `other
 Pläne sind Ein-Wochen-Templates — echte Mehr-Wochen-Verteilung kommt erst mit Multi-Week-Templates (deferred). v1 rotiert über Plan-Generationen:
 
 1. **`planCount`** = Anzahl bisheriger `workout_plans` des Users (Query in `prepare-v2`, wo bereits der SupabaseClient lebt). Deterministisch, kein neuer Zustand.
-2. Aus den Gewichten wird ein **10-Slot-Zyklus** gebaut: Slots per Largest-Remainder auf die Formate verteilt (bei Remainder-Gleichstand gewinnt das Format mit dem **kleineren** Gewicht, damit kleine Gewichte wie `rounds: 5` nicht systematisch auf 0 Slots fallen), dann gleichmäßig verschränkt (stärkstes Format zuerst, deterministische Reihenfolge — kein `Math.random`). Beispiel team_sports (40/55/5 → i: 5, e: 4, r: 1): `[i, e, i, e, i, e, i, e, i, r]`.
+2. Aus den Gewichten wird ein **10-Slot-Zyklus** gebaut: Slots per Largest-Remainder auf die Formate verteilt (bei Remainder-Gleichstand gewinnt das Format mit dem **kleineren** Gewicht, damit kleine Gewichte wie `rounds: 5` nicht systematisch auf 0 Slots fallen). Verschränkung über Positions-Schlüssel: Slot k von Format f (mit n_f Slots) bekommt den Schlüssel `(k + 0.5) / n_f`, alle Slots werden danach sortiert (Gleichstand: kleineres n_f zuerst). So landen Ein-Slot-Formate in der **Zyklus-Mitte** statt dekorativ am Ende. Beispiel team_sports (40/55/5 → i: 5, e: 4, r: 1): `[i, e, i, e, r, i, e, i, e, i]` — rounds beim fünften Plan, nicht beim zehnten. Kein `Math.random`.
 3. **Standalone-Session:** Format = `cycle[planCount % 10]`. Hat die Woche zwei Conditioning-Slots (heute nicht möglich, zukunftssicher), bekommen sie `cycle[planCount]` und das nächste davon verschiedene Format im Zyklus.
 4. **Finisher:** dominantes Format aus {intensive, rounds} nach Gewicht; bei Gleichstand intensive. Zusätzlich wird die heutige **alphabetische Übungs-Monotonie** behoben: Auswahl-Offset = `planCount % poolLänge` statt `sort().slice(0, 3)` (sortiert bleibt der Pool — rotiert wird der Startpunkt).
 5. Nicht füllbare Formate degradieren entlang `extensive → intensive`, `rounds → intensive` (Log-Notiz; `intensive` ist immer füllbar, sonst entfällt die Session wie heute bei Pool < 3).
@@ -101,7 +101,7 @@ Bewusst nicht persistiert: das gewählte Format (Rotation hängt nur an `planCou
 - `buildIntensiveBlock` — heutige Logik, unverändert extrahiert.
 - `buildRoundsBlock` — §1.3.
 
-Warmup/Cooldown (2 Mobility-Übungen à 45 s) bleiben für alle Formate gleich. `session.description` kommuniziert das Format und seine Absicht (z. B. extensiv: „Lockere Dauerarbeit — du solltest dich nebenbei unterhalten können."). Session-Name: „Conditioning — Basis" / „Conditioning — Intervalle" / „Conditioning — Rounds".
+Warmup/Cooldown (2 Mobility-Übungen à 45 s) bleiben für alle Formate gleich. `session.description` kommuniziert das Format und seine Absicht (z. B. extensiv: „Lockere Dauerarbeit — du solltest dich nebenbei unterhalten können."). Greift der 35-min-Lauf-Deckel (§1.1), erklärt die Description die kürzere Dauer, damit „43 Minuten" bei eingestellten 60 nicht wie ein Fehler wirkt (z. B. „Bewusst kürzer als dein Zeitfenster — für die aerobe Basis bringt mehr Umfang heute nichts, er würde nur ermüden."). Session-Name: „Conditioning — Basis" / „Conditioning — Intervalle" / „Conditioning — Rounds".
 
 `buildConditioningFinisherBlock` bekommt `format: 'intensive' | 'rounds'` + Rotations-Offset.
 
