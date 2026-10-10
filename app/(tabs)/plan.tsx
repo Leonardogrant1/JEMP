@@ -20,6 +20,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { hasCompletePlanSettings } from '@/lib/plan-settings-complete';
 import { startPlanGeneration } from '@/lib/start-plan-generation';
 import { useEquipmentSanityCheck } from '@/hooks/use-equipment-sanity-check';
+import { useNewEquipmentPrompt } from '@/hooks/use-new-equipment-prompt';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { type PlanSession, type WorkoutSession, usePlan } from '@/providers/plan-provider';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
@@ -54,6 +55,8 @@ export default function PlanScreen() {
     // Kaputte Equipment-Profile (Gym ohne Hanteln, Onboarding-Bug) einmal pro
     // App-Start zur Korrektur anbieten — Ursache für Bodyweight-only-Pläne
     useEquipmentSanityCheck(profile?.id);
+    // Einmal-Hinweis auf die neuen Cardio-Geräte (Conditioning-Formate 10.10.)
+    useNewEquipmentPrompt(profile?.id);
 
 
     useEffect(() => {
