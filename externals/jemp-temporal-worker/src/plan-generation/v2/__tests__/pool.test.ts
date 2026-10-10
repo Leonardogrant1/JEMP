@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { exerciseMatchesBlock, buildBlockPools } from '../pool'
+import { exerciseMatchesBlock, buildBlockPools, strengthPatternPools } from '../pool'
 import { ex, block } from './fixtures'
 
 describe('exerciseMatchesBlock', () => {
@@ -225,5 +225,46 @@ describe('exercise_regions treibt das Region-Matching (10.10.)', () => {
         const warmup = buildBlockPools(catalog as any, lowerDay).get('warmup' as any)!.map((e: any) => e.slug);
         expect(warmup).toContain('universal');
         expect(warmup).toContain('legacy_only');
+    });
+});
+
+describe('upper/lower_strength Pools (Spec 2026-10-10)', () => {
+    const upperBlock = { block_type: 'upper_strength', variant: null, emphasis: 'heavy', patterns: [
+        { pattern: 'push_vertical', emphasis: 'heavy' }, { pattern: 'pull_horizontal', emphasis: 'normal' },
+    ] } as any;
+    it('matcht Übungen jedes geforderten Patterns, andere nicht', () => {
+        expect(exerciseMatchesBlock(ex({ slug: 'ohp', strength_pattern: 'push_vertical' }), upperBlock)).toBe(true);
+        expect(exerciseMatchesBlock(ex({ slug: 'row', strength_pattern: 'pull_horizontal' }), upperBlock)).toBe(true);
+        expect(exerciseMatchesBlock(ex({ slug: 'bench', strength_pattern: 'push_horizontal' }), upperBlock)).toBe(false);
+        expect(exerciseMatchesBlock(ex({ slug: 'squat', strength_pattern: 'knee_dominant' }), upperBlock)).toBe(false);
+    });
+    it('Coarse-Fallback greift pro Pattern (chest → push), Isolations-Leck bleibt dicht', () => {
+        expect(exerciseMatchesBlock(ex({ slug: 'machine_press', body_region: 'chest' }), upperBlock)).toBe(true);
+        expect(exerciseMatchesBlock(ex({ slug: 'lateral_raise', body_region: 'shoulder' }), upperBlock)).toBe(false);
+    });
+    it('lower_strength matcht nach Pattern-Anforderung inkl. Fallback', () => {
+        const lowerBlock = { block_type: 'lower_strength', variant: null, emphasis: 'heavy', patterns: [{ pattern: 'hinge', emphasis: 'heavy' }] } as any;
+        expect(exerciseMatchesBlock(ex({ slug: 'rdl', strength_pattern: 'hinge' }), lowerBlock)).toBe(true);
+        expect(exerciseMatchesBlock(ex({ slug: 'back_squat', strength_pattern: 'knee_dominant' }), lowerBlock)).toBe(false);
+        expect(exerciseMatchesBlock(ex({ slug: 'hip_thrust_machine', body_region: 'glute' }), lowerBlock)).toBe(true);
+    });
+    it('strengthPatternPools liefert einen Pool je Pattern', () => {
+        const pools = strengthPatternPools([
+            ex({ slug: 'ohp', strength_pattern: 'push_vertical' }),
+            ex({ slug: 'row', strength_pattern: 'pull_horizontal' }),
+        ] as any, upperBlock.patterns);
+        expect(pools.get('push_vertical')!.map((e: any) => e.slug)).toEqual(['ohp']);
+        expect(pools.get('pull_horizontal')!.map((e: any) => e.slug)).toEqual(['row']);
+    });
+    it('Warmup-Region-Matching: lower_strength zieht Hüfte, upper_strength Schulter+Rücken', () => {
+        const catalog = [
+            ex({ slug: 'hip_90_90', category_slug: 'mobility', body_region: 'hip', intensity_score: 2, legacy_block_slugs: ['warmup'] }),
+            ex({ slug: 'shoulder_opener', category_slug: 'mobility', body_region: 'shoulder', intensity_score: 2, legacy_block_slugs: ['warmup'] }),
+            ex({ slug: 'upper_back_roll', category_slug: 'mobility', body_region: 'upper_back', intensity_score: 2, legacy_block_slugs: ['warmup'] }),
+        ];
+        const pools = buildBlockPools(catalog as any, [block('warmup'), upperBlock, block('cooldown')]);
+        const warmup = pools.get('warmup' as any)!.map((e: any) => e.slug);
+        expect(warmup).toEqual(expect.arrayContaining(['shoulder_opener', 'upper_back_roll']));
+        expect(warmup).not.toContain('hip_90_90');
     });
 });

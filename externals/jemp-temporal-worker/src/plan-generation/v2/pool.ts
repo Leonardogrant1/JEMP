@@ -63,23 +63,38 @@ function coarsePattern(ex: V2Exercise): string | null {
   return region ? (BODY_REGION_TO_PATTERN[region] ?? null) : null
 }
 
+/** Übung ↔ Kraftmuster (Spec 2026-10-10 §1.2): strength_pattern exakt, sonst
+ *  Coarse-Fallback über Body-Region — Push/Pull-Fallback bleibt gegen das
+ *  Isolations-Leck (QA 09.10.) abgedichtet. Von den Block-Typ-Cases UND den
+ *  Pattern-Pools (strengthPatternPools) geteilt. */
+export function matchesStrengthPattern(ex: V2Exercise, pattern: string): boolean {
+  if (ex.strength_pattern !== null) return ex.strength_pattern === pattern
+  if (ex.category_slug !== 'strength') return false
+  const wanted = pattern === 'knee_dominant' ? 'squat' : pattern === 'hinge' ? 'hinge'
+    : pattern.startsWith('push') ? 'push' : 'pull'
+  if ((wanted === 'push' || wanted === 'pull') && OPTIONAL_REGIONS.has(effectiveRegion(ex) ?? '')) return false
+  return coarsePattern(ex) === wanted
+}
+
+/** Pro gefordertem Pattern ein eigener Pool (für Prompt-Gruppierung + Validator). */
+export function strengthPatternPools(
+  exercises: V2Exercise[],
+  patterns: Array<{ pattern: string }>,
+): Map<string, V2Exercise[]> {
+  return new Map(patterns.map((p) => [p.pattern, exercises.filter((e) => matchesStrengthPattern(e, p.pattern))]))
+}
+
 export function exerciseMatchesBlock(ex: V2Exercise, blockDef: PlannedWorkoutBlock): boolean {
   switch (blockDef.block_type) {
     case 'push':
-      if (ex.strength_pattern !== null) return ex.strength_pattern === blockDef.variant
-      // Isolations-Leck (QA 09.10.): Optional-Regionen (bicep/tricep/shoulder…)
-      // mappen coarse auf push/pull — sie gehören aber in den Optional-Block.
-      return ex.category_slug === 'strength' && coarsePattern(ex) === 'push'
-        && !OPTIONAL_REGIONS.has(effectiveRegion(ex) ?? '')
     case 'pull':
-      if (ex.strength_pattern !== null) return ex.strength_pattern === blockDef.variant
-      return ex.category_slug === 'strength' && coarsePattern(ex) === 'pull'
-        && !OPTIONAL_REGIONS.has(effectiveRegion(ex) ?? '')
-    case 'lower_body': {
-      if (ex.strength_pattern !== null) return ex.strength_pattern === blockDef.variant
-      const coarse = blockDef.variant === 'knee_dominant' ? 'squat' : 'hinge'
-      return ex.category_slug === 'strength' && coarsePattern(ex) === coarse
-    }
+    case 'lower_body':
+      // Legacy-Blocktypen (Alt-Pläne/Übergang): Variante ist das Pattern.
+      return blockDef.variant !== null && matchesStrengthPattern(ex, blockDef.variant)
+    case 'lower_strength':
+    case 'upper_strength':
+      // Spec 2026-10-10 §1.2: der Block fordert eine Pattern-Liste.
+      return (blockDef.patterns ?? []).some((p) => matchesStrengthPattern(ex, p.pattern))
     case 'core': {
       // Composition-Rework (§1.5/§2.3): core_type ist das Zugehörigkeits-Gate
       // ("ist Core-Übung"); Verfeinerung über movement_type + is_explosive.
@@ -127,8 +142,11 @@ export function exerciseMatchesBlock(ex: V2Exercise, blockDef: PlannedWorkoutBlo
 // Accessory/Optional sind Filler und steuern den Rahmen bewusst nicht.
 const BLOCK_PREP_REGIONS: Record<string, string[]> = {
   lower_body: ['hip', 'glute', 'hamstring', 'quad', 'groin', 'ankle', 'calf'],
+  lower_strength: ['hip', 'glute', 'hamstring', 'quad', 'groin', 'ankle', 'calf'],
   push: ['shoulder', 'chest', 'thoracic', 'tricep'],
   pull: ['upper_back', 'shoulder', 'neck', 'bicep'],
+  // Union aus Push- und Pull-Regionen (Spec 2026-10-10 §4)
+  upper_strength: ['shoulder', 'chest', 'thoracic', 'tricep', 'upper_back', 'neck', 'bicep'],
   core: ['core', 'hip', 'thoracic'],
   conditioning: ['full_body'],
 }
