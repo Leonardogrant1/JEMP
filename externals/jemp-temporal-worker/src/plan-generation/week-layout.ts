@@ -362,11 +362,17 @@ export function applyScalingLevers(
     const dropped: DroppedBlock[] = []
     const isProtected = (b: PlannedWorkoutBlock) =>
       b.block_type === 'warmup' || b.block_type === 'cooldown' || b.emphasis === 'heavy'
+    // Kraft-Floor (Spec 2026-10-10 §3.2, Review-Fix): am Säulen-Lead-Tag ist der
+    // Kraft-Lead bewusst 'normal' — der letzte Kraftblock der Session darf dem
+    // Minuten-Clamp trotzdem nie zum Opfer fallen.
+    const STRENGTH_TYPES = new Set<WorkoutBlockType>(['lower_strength', 'upper_strength', 'push', 'pull', 'lower_body'])
+    const isLastStrength = (b: PlannedWorkoutBlock) =>
+      STRENGTH_TYPES.has(b.block_type) && blocks.filter((x) => STRENGTH_TYPES.has(x.block_type)).length === 1
 
     const compact = day.minutes <= COMPACT_SESSION_THRESHOLD_MINUTES
     const over = () => estimateMinutes(blocks, day.dose, day.carries_sprint_block, day.carries_conditioning_finisher, compact) > day.minutes
     while (over()) {
-      const droppable = blocks.filter((b) => !isProtected(b))
+      const droppable = blocks.filter((b) => !isProtected(b) && !isLastStrength(b))
       if (droppable.length === 0) break
       droppable.sort((a, b) =>
         (SANITY_DROP_ORDER.indexOf(a.block_type) === -1 ? 99 : SANITY_DROP_ORDER.indexOf(a.block_type)) -

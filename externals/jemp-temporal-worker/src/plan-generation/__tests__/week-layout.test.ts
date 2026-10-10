@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { circularDayDistance, effectiveSpeedLevel, allocateDays, placeWeek, planWorkoutBlocks, estimateMinutes, applyScalingLevers, buildWeekLayout } from '../week-layout'
 import { BLOCK_MINUTES, blockMinutes, contentBlockCount, PRIMARY_ROTATION } from '../week-layout-constants'
+import { composeWeek } from '../v2/composition'
 
 describe('contentBlockCount (§1.2 Session-Größe)', () => {
   it('staffelt die Content-Blockzahl nach Dauer', () => {
@@ -549,5 +550,25 @@ describe('strength block minutes (Spec 2026-10-10)', () => {
       { block_type: 'upper_strength', variant: null, emphasis: 'normal', patterns: [{ pattern: 'pull_vertical', emphasis: 'normal' }] },
     ] as any
     expect(estimateMinutes(blocks, 'normal', false)).toBe(6)
+  })
+})
+
+describe('Kraft-Floor im Sanity-Clamp (Review-Fix 10.10.)', () => {
+  it('Säulen-Lead-Tag mit Sprint-Block + Finisher auf 35 min: der letzte Kraftblock überlebt den Clamp', () => {
+    // Reviewer-Repro: Plyo-Lead dämpft den Kraft-Lead auf normal → ohne Schutz
+    // droppt der Minuten-Clamp BEIDE Kraftblöcke (nur warmup+plyo+cooldown übrig).
+    const days = [
+      { day_of_week: 2, session_type: 'training' as const, minutes: 35, dose: 'normal' as const,
+        carries_sprint_block: true, carries_conditioning_finisher: true, heavy_lower: false, suppress_micro_dose: false },
+      { day_of_week: 5, session_type: 'training' as const, minutes: 60, dose: 'normal' as const,
+        carries_sprint_block: false, carries_conditioning_finisher: false, heavy_lower: true, suppress_micro_dose: false },
+    ]
+    const placement = { days, carrier: 'micro' as const, notes: [] as string[] }
+    const blockPlan = composeWeek({ trainingDays: days, pillarLevels: { lower_body_plyometrics: 3 }, hasSpeedSession: false })
+    const { workouts } = applyScalingLevers(placement, blockPlan)
+    const STRENGTH = new Set(['lower_strength', 'upper_strength'])
+    for (const w of workouts) {
+      expect(w.blocks.some((b) => STRENGTH.has(b.block_type))).toBe(true)
+    }
   })
 })
