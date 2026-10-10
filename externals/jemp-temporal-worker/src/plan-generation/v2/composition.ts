@@ -163,11 +163,46 @@ export function composeWeek(input: {
     .filter((i) => !plyoLowerAssigned.has(days[i].day_of_week))
     .sort((a, b) => (isPushPrimary(a) ? 1 : 0) - (isPushPrimary(b) ? 1 : 0))
   distribute(budget.upper_body_plyometrics ?? 0, plyoUpperAssigned, upperOrder)
-  if (plyoUpperAssigned.size < (budget.upper_body_plyometrics ?? 0)) {
-    for (const dow of [...plyoLowerAssigned].reverse()) {
-      if (plyoUpperAssigned.size >= (budget.upper_body_plyometrics ?? 0)) break
-      plyoLowerAssigned.delete(dow)
-      plyoUpperAssigned.add(dow)
+  // Min-1-Garantie, nicht Voll-Budget (Fix 10.10.): vorher räumte Upper bei
+  // Level 3 ALLE Lower-Tage leer — gewollt war nur "Säule geht nie verloren".
+  if ((budget.upper_body_plyometrics ?? 0) > 0 && plyoUpperAssigned.size === 0) {
+    const dow = [...plyoLowerAssigned].reverse()[0]
+    if (dow !== undefined) { plyoLowerAssigned.delete(dow); plyoUpperAssigned.add(dow) }
+  }
+
+  // ── 4b. Säulen-Lead (Spec §3.1, Review 10.10.): Plyo Level 3 führt max. 1
+  // Session — auf dem Lead-Tag der EIGENEN Region (Contrast: die Region tauscht
+  // heavy Kraft gegen heavy Explosiv), nie bei n=1. lower vor upper.
+  // Verschiebt höchstens EINE Zuweisung, reduziert nie die Plyo-Menge.
+  let plyoLeadDow: number | null = null
+  if (n >= 2) {
+    const leadPillar = (['lower_body_plyometrics', 'upper_body_plyometrics'] as PillarSlug[])
+      .find((p) => (input.pillarLevels[p] ?? 0) === 3)
+    if (leadPillar) {
+      const ownLead = leadPillar === 'lower_body_plyometrics' ? 'lower_strength' : 'upper_strength'
+      const assigned = leadPillar === 'lower_body_plyometrics' ? plyoLowerAssigned : plyoUpperAssigned
+      const other = leadPillar === 'lower_body_plyometrics' ? plyoUpperAssigned : plyoLowerAssigned
+      const candidates = days
+        .map((d, i) => ({ d, i }))
+        .filter(({ i }) => leads[i] === ownLead)
+        // Tage, die den Plyo-Block der Säule ohnehin tragen, zuerst
+        .sort((a, b) => (assigned.has(a.d.day_of_week) ? 0 : 1) - (assigned.has(b.d.day_of_week) ? 0 : 1) || a.d.day_of_week - b.d.day_of_week)
+      const chosen = candidates[0]
+      if (chosen && assigned.size > 0) {
+        plyoLeadDow = chosen.d.day_of_week
+        if (!assigned.has(plyoLeadDow)) {
+          // Genau EINE Zuweisung umziehen (höchster dow zuerst — deterministisch),
+          // Rest bleibt unangetastet (Review: kein Wipe).
+          const moved = [...assigned].sort((a, b) => b - a)[0]
+          assigned.delete(moved)
+          assigned.add(plyoLeadDow)
+          // max 1 Plyo-Block pro Session: belegt die ANDERE Säule den Lead-Tag,
+          // zieht sie auf den freigewordenen Tag um.
+          if (other.has(plyoLeadDow)) { other.delete(plyoLeadDow); other.add(moved) }
+        }
+        leadBlocks[chosen.i].emphasis = 'normal' // Kraft-Lead → Erhaltungsdosis
+        leadBlocks[chosen.i].patterns = leadBlocks[chosen.i].patterns!.map((p) => ({ ...p, emphasis: 'normal' as const }))
+      }
     }
   }
 
@@ -188,10 +223,12 @@ export function composeWeek(input: {
     const dow = day.day_of_week
     // Kandidaten in Auswahl-Priorität (wichtigstes zuerst).
     const ordered: PlannedWorkoutBlock[] = []
+    // Säulen-Lead-Tag: Plyo heavy (4–5 Sätze, volle Pausen), sonst light-Akzent.
+    const plyoEmphasis: 'heavy' | 'light' = dow === plyoLeadDow ? 'heavy' : 'light'
     const plyo = plyoLowerAssigned.has(dow)
-      ? { block_type: 'plyo', variant: 'lower', emphasis: 'light' as const }
+      ? { block_type: 'plyo', variant: 'lower', emphasis: plyoEmphasis }
       : plyoUpperAssigned.has(dow)
-        ? { block_type: 'plyo', variant: 'upper', emphasis: 'light' as const }
+        ? { block_type: 'plyo', variant: 'upper', emphasis: plyoEmphasis }
         : null
     const core = coreDays.has(dow)
       ? { block_type: 'core', variant: coreVariantByDay.get(dow) ?? null, emphasis: 'normal' as const }

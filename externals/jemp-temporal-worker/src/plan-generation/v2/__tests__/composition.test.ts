@@ -233,3 +233,48 @@ describe('Core-Varianten-Rotation (Review-Fix #1, §1.5/§1.7)', () => {
     expect(coreVariants).toContain('sagittal')
   })
 })
+
+describe('Säulen-Lead + Kraft-Floor (Spec 2026-10-10 §3, Review-Fassung)', () => {
+  it('Lower-Plyo Level 3 führt den Lower-Lead-Tag; der Upper-Lead bleibt heavy', () => {
+    const week = composeWeek({ trainingDays: [trainingDay(2), trainingDay(4)], pillarLevels: { lower_body_plyometrics: 3 }, hasSpeedSession: false })
+    const heavyPlyoDays = [...week.entries()].filter(([, b]) => b.some((x: any) => x.block_type === 'plyo' && x.emphasis === 'heavy'))
+    expect(heavyPlyoDays).toHaveLength(1)
+    const [dow, blocks] = heavyPlyoDays[0]
+    expect(dow).toBe(2) // eigener Region-Lead-Tag (lower)
+    expect(blocks.find((b: any) => b.block_type === 'lower_strength')!.emphasis).toBe('normal')
+    expect(week.get(4)!.find((b: any) => b.block_type === 'upper_strength')!.emphasis).toBe('heavy')
+  })
+
+  it('Upper-Plyo Level 3 führt den Upper-Lead-Tag; der Lower-Lead bleibt heavy', () => {
+    const week = composeWeek({ trainingDays: [trainingDay(2), trainingDay(4)], pillarLevels: { upper_body_plyometrics: 3 }, hasSpeedSession: false })
+    const heavy = [...week.entries()].find(([, b]) => b.some((x: any) => x.block_type === 'plyo' && x.emphasis === 'heavy'))!
+    expect(heavy[0]).toBe(4)
+    expect(week.get(2)!.find((b: any) => b.block_type === 'lower_strength')!.emphasis).toBe('heavy')
+  })
+
+  it('Säulen-Lead reduziert die Plyo-Menge NICHT (Review-Befund: kein Zuweisungs-Wipe)', () => {
+    const days = [trainingDay(1, 75), trainingDay(3, 75), trainingDay(5, 75)]
+    const base = composeWeek({ trainingDays: days, pillarLevels: { lower_body_plyometrics: 2 }, hasSpeedSession: false })
+    const withLead = composeWeek({ trainingDays: days, pillarLevels: { lower_body_plyometrics: 3 }, hasSpeedSession: false })
+    const countPlyo = (w: Map<number, any[]>) => [...w.values()].flat().filter((b) => b.block_type === 'plyo').length
+    expect(countPlyo(withLead)).toBeGreaterThanOrEqual(countPlyo(base))
+  })
+
+  it('beide Plyo-Säulen Level 3: nur EIN Säulen-Lead, lower gewinnt', () => {
+    const days = [trainingDay(1, 75), trainingDay(3, 75), trainingDay(5, 75)]
+    const week = composeWeek({ trainingDays: days, pillarLevels: { lower_body_plyometrics: 3, upper_body_plyometrics: 3 }, hasSpeedSession: false })
+    const heavyPlyos = [...week.values()].flat().filter((b) => b.block_type === 'plyo' && b.emphasis === 'heavy')
+    expect(heavyPlyos).toHaveLength(1)
+    expect(heavyPlyos[0].variant).toBe('lower')
+  })
+
+  it('n=1: kein Säulen-Lead, auch bei Level 3', () => {
+    const week = composeWeek({ trainingDays: [trainingDay(2)], pillarLevels: { lower_body_plyometrics: 3 }, hasSpeedSession: false })
+    expect([...week.values()].flat().filter((b) => b.block_type === 'plyo' && b.emphasis === 'heavy')).toHaveLength(0)
+  })
+
+  it('Level 2 führt nie', () => {
+    const week = composeWeek({ trainingDays: [trainingDay(2), trainingDay(4)], pillarLevels: { lower_body_plyometrics: 2 }, hasSpeedSession: false })
+    expect([...week.values()].flat().filter((b) => b.block_type === 'plyo' && b.emphasis === 'heavy')).toHaveLength(0)
+  })
+})
