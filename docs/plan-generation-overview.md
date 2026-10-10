@@ -82,11 +82,11 @@ Rechnung: Deckel 3 → 1 Überschuss-Tag → Sprints (Fokus) bekommen ihn. Mobil
 | --- | --- | --- |
 | Mo | Mobility, 20 min (flexibel) | ruhige Mobility — liegt auf dem lockersten Tag, frei verschiebbar |
 | Di | Sprint-Einheit, 40 min (outdoor, flexibel) | Traben → Lauf-ABC → Steigerungen → **Bergsprint 7×20 m** → Shuffle |
-| Do | Workout: Oberkörper-Lead (Pull schwer) | DB-Rudern 4×3–5 schwer, Push Press 3×5–8, Goblet Squat, Rotations-Core |
-| Sa | Workout: **harter Beintag** | Broad Jumps → **Deadlift 5×3–5** → Bench + Klimmzug im Supersatz → Core → Waden/Leiste |
-| So | Workout: Unterkörper-Lead (Kniebeuge) | **Back Squat 5×3–5** → OHP + Rudern im Supersatz → Core → Hüfte → Arme |
+| Do | Workout: Unterkörper-Lead (Hüftbeuge) | Broad Jumps → **Deadlift schwer** → OHP + Rudern im Supersatz → Rotations-Core |
+| Sa | Workout: **harter Beintag** (Kniebeuge) | Med-Ball-Pässe → **Back Squat 5×3–5** → Bench + Klimmzug im Supersatz → Core → Waden/Hüfte |
+| So | Workout: Oberkörper-Lead (Pull schwer) | **Explosives Rudern 4×3–5** → Push Press 3×5–8 → Goblet Squat → Core |
 
-Zu sehen: Lead wechselt Oberkörper → Unterkörper → Unterkörper (der Beintag zieht den Lead an), Pull kommt in jeder Session vor, Plyo liegt vor dem schweren Heben, und der Cooldown dehnt jeweils die belasteten Regionen.
+Zu sehen: Die zwei Unterkörper-Leads (Do Hüftbeuge, Sa Kniebeuge) liegen exakt 48 h auseinander — näher dürfen zwei schwere Einheiten derselben Region nie liegen, das erzwingt ein expliziter Check. Pull kommt in jeder Session vor, Plyo liegt vor dem schweren Heben, und der Cooldown dehnt jeweils die belasteten Regionen.
 
 ## Spickzettel: Welcher Hebel wirkt wo
 
@@ -98,7 +98,7 @@ Zu sehen: Lead wechselt Oberkörper → Unterkörper → Unterkörper (der Beint
 | --- | --- | --- | --- |
 | Sprints | Mikro-Dosis im Warmup | eigener Tag nur bei Überschuss-Tag, sonst Mikro-Dosis | eigener Tag garantiert (opfert notfalls ein Workout) |
 | Plyo (unten/oben) | 1 Block/Woche | 2 Blöcke/Woche | 3 Blöcke **+ führt 1 Session** (Plyo schwer, Kraft an dem Tag Erhaltung) |
-| Conditioning | — | Finisher im Workout; eigener Tag nur bei low Load | eigener Tag, wenn ein Tag frei ist; sonst Finisher |
+| Conditioning | — | Finisher im Workout (entfällt bei high Load — der Verein deckt es dann); eigener Tag nur bei low Load | eigener Tag, wenn ein Tag frei ist; sonst Finisher (durchbricht die high-Load-Dämpfung) |
 | Mobility | — | eigene 20-min-Einheit, gratis auf Ruhetag | wie Level 2 |
 | COD | fließt ins Sprint-Level ein (max. beider Werte) + COD-Teil der Sprint-Einheit | ebenso, mehr Anteil | ebenso |
 | Kraft | immer die Basis jeder Session — das Level steuert aktuell nichts Zusätzliches | — | — |
