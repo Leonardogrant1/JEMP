@@ -18,6 +18,8 @@ const en = {
     'pillars.budget_full': 'All focus points spent — take one from another pillar first.',
     'pillars.hint_sprint_level3': 'One of your training days becomes a sprint session.',
     'pillars.hint_sprint_level2': 'If your week has room, a sprint session is added.',
+    'pillars.hint_strength_level2': 'When time is tight, strength stays — explosive blocks are dropped first.',
+    'pillars.hint_strength_level3': 'Plus one double-strength day per week — skipped at high club load.',
     'sprint_context.title': 'Sprints & your club',
     'sprint_context.club_question': 'Do you do sprint sessions with your club?',
     'sprint_context.club_yes': 'Yes, regularly',

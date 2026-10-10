@@ -125,6 +125,12 @@ export function PillarStepperList({ pillars, levels, budget, onChange }: Props) 
                                     {speedLevel === 3 ? t('pillars.hint_sprint_level3') : t('pillars.hint_sprint_level2')}
                                 </JempText>
                             )}
+                            {/* Kraft-Level haben seit §3.3 eine Wirkung — ohne Hinweis wirkt der Regler leer */}
+                            {pillar.slug === 'strength' && level >= 2 && (
+                                <JempText type="caption" color={theme.textMuted} style={styles.hint}>
+                                    {level === 3 ? t('pillars.hint_strength_level3') : t('pillars.hint_strength_level2')}
+                                </JempText>
+                            )}
                         </Animated.View>
                     );
                 })}

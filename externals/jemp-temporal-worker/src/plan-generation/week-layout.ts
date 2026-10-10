@@ -406,6 +406,7 @@ export function buildWeekLayout(input: WeekLayoutInput): WeekLayout {
     trainingDays: placement.days.filter((d) => d.session_type === 'training'),
     pillarLevels: input.pillar_levels,
     hasSpeedSession: placement.days.some((d) => d.session_type === 'speed'),
+    loadProfile: input.load_profile,
   })
   const { workouts, notes } = applyScalingLevers(placement, blockPlan, input.pillar_levels)
   return { placement, workouts, carrier: placement.carrier, notes: [...placement.notes, ...notes] }

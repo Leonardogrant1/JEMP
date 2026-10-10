@@ -99,6 +99,16 @@ Antwort auf: „Plyo + Sprints auf Prio, 2 Tage — kann Kraft wegfallen?" → *
 
 **Begründung** (für Prompt-Kontext und Doku): Sprint-/Plyo-Leistung baut auf maximaler Kraftproduktion auf; schweres, langsames Krafttraining schützt genau die Strukturen (Hamstrings, Achilles-/Patellarsehne), die Sprints und Plyo am stärksten belasten. Prios verschieben, *wer führt* — nie, *ob* Kraft stattfindet.
 
+### 3.3 Kraft-Säule aktiviert (Nachtrag 10.10., Entscheidung „(a)")
+
+Die Kraft-Säule bekommt pro Level eine eigene, kommunizierbare Wirkung:
+
+- **Level 1 (Basis):** Status quo — Kraft ist das Gerüst jeder Session.
+- **Level 2 (Fokus):** *Kraft weicht nie.* Der Begleit-Kraftblock rückt in der Slot-Priorität VOR die Fokus-Blöcke (bei knappen Slots fällt Plyo vor Kraft), und der Kompakt-Begleitblock behält Push+Pull statt auf Pull zu schrumpfen. Der Wizard-Stepper zeigt eine Hinweiszeile („Bei knapper Zeit bleibt Kraft erhalten — Plyo fällt zuerst"), sonst wirkt der Regler unsichtbar.
+- **Level 3 (Priorität):** zusätzlich genau **ein Doppel-heavy-Tag pro Woche** — der Begleit-Kraftblock dieses Tages wird ebenfalls heavy (Begleit-Upper: Pull-Seite heavy, Push solide — nicht drei Maximal-Lifts). **Erholungs-Guard (Review 10.10.):** entfällt bei `load_profile = high` komplett (Dämpfung wie Conditioning §2.2 — zwei schwere Lifts in einer Session kosten bei hoher Vereinslast mehr Erholung, als sie bringen); Level 3 wirkt dann wie Level 2.
+- **Konflikt- und 48h-Regeln:** Der Doppel-heavy-Tag liegt nie auf dem Plyo-Säulen-Lead-Tag (der Säulen-Lead gewinnt seinen Tag) und nie neben einem Tag, dessen Lead dieselbe Region heavy trainiert — **der 48h-Check gilt für ALLE heavy Kraftblöcke, Leads wie Begleit.** Findet sich kein legaler Tag, entfällt der Doppel-heavy-Tag.
+- §4-Follow-up „Strength-Säule aktivieren" ist damit umgesetzt.
+
 ## 4. Generator-Umbau (Worker)
 
 - **`composeWeek`:** Primary-/Komplement-Konstruktion (§1.1–1.3 alt) wird durch Lead-Rotation + Begleitblock ersetzt; Coverage-Zählung entfällt auf Block-Ebene (Muster-Coverage steckt in den Pattern-Anforderungen). Fokus-Budget, Core-Rotation, Füller unverändert.

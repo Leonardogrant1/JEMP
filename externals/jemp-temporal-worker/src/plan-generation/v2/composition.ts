@@ -68,6 +68,8 @@ export function composeWeek(input: {
   trainingDays: PlacedDay[]
   pillarLevels: PillarLevels
   hasSpeedSession: boolean
+  /** Für den Erholungs-Guard des Doppel-heavy-Tags (§3.3) — high dämpft ihn weg. */
+  loadProfile?: 'low' | 'medium' | 'high'
 }): Map<number, PlannedWorkoutBlock[]> {
   const days = [...input.trainingDays].sort((a, b) => a.day_of_week - b.day_of_week)
   const n = days.length
@@ -120,6 +122,7 @@ export function composeWeek(input: {
   // getrennt — sonst frisst der Begleitblock den Lead-Slot und ein Muster ist
   // 4 Wochen lang nie heavy. Biases bei nur einem Lead pro Region/Woche:
   // hinge-heavy (hintere Kette) und pull-heavy (Schulterbalance) zuerst (§1.2).
+  const strengthLevel = input.pillarLevels.strength ?? 0
   let lowerLeadCount = 0
   const nextLowerLeadPattern = () => (lowerLeadCount++ % 2 === 0 ? 'hinge' : 'knee_dominant')
   let lowerCompanionCount = 0
@@ -138,8 +141,9 @@ export function composeWeek(input: {
       leadBlocks.push({ block_type: 'lower_strength', variant: null, emphasis: leadEmphasis, patterns: [{ pattern: nextLowerLeadPattern(), emphasis: leadEmphasis }] } as PlannedWorkoutBlock)
       companionBlocks.push({
         block_type: 'upper_strength', variant: null, emphasis: 'normal',
-        // Begleit-Upper: Push+Pull als Antagonisten-Paar; Kompakt: nur Pull (§2.2)
-        patterns: compact ? [{ pattern: axes.pull, emphasis: 'normal' }]
+        // Begleit-Upper: Push+Pull als Antagonisten-Paar; Kompakt: nur Pull (§2.2).
+        // Kraft-Level ≥2 (§3.3): Kraft weicht nie — auch kompakt bleibt das Paar.
+        patterns: compact && strengthLevel < 2 ? [{ pattern: axes.pull, emphasis: 'normal' }]
           : [{ pattern: axes.push, emphasis: 'normal' }, { pattern: axes.pull, emphasis: 'normal' }],
       } as PlannedWorkoutBlock)
     } else {
@@ -242,6 +246,32 @@ export function composeWeek(input: {
     }
   }
 
+  // ── 4c. Doppel-heavy-Tag (§3.3): Kraft Level 3 macht an EINEM Tag auch den
+  // Begleit-Kraftblock heavy. Erholungs-Guard: entfällt bei high Load komplett
+  // (wie die Conditioning-Dämpfung §2.2). Nie auf dem Plyo-Säulen-Lead-Tag,
+  // und nie neben einem Tag, dessen Lead dieselbe Region heavy trainiert —
+  // der 48h-Check gilt für ALLE heavy Kraftblöcke.
+  if (strengthLevel === 3 && input.loadProfile !== 'high') {
+    const candidates = days.map((_, i) => i).filter((i) => {
+      if (days[i].day_of_week === plyoLeadDow || demotedLeads.has(i)) return false
+      const companionRegion = companionBlocks[i].block_type
+      return !days.some((d2, j) => j !== i && !demotedLeads.has(j)
+        && leads[j] === companionRegion && calDist(d2.day_of_week, days[i].day_of_week) <= 1)
+    })
+    // Bevorzugt der Beintag (der klassische volle Krafttag), sonst erster legaler.
+    const doubleIdx = candidates.sort((a, b) =>
+      ((a === heavyIdx) ? 0 : 1) - ((b === heavyIdx) ? 0 : 1) || days[a].day_of_week - days[b].day_of_week)[0]
+    if (doubleIdx !== undefined) {
+      const companion = companionBlocks[doubleIdx]
+      companion.emphasis = 'heavy'
+      // Begleit-Upper: Pull-Seite heavy, Push solide (nicht drei Maximal-Lifts);
+      // Begleit-Lower: sein eines Pattern heavy.
+      companion.patterns = companion.patterns!.map((p) => ({
+        ...p, emphasis: (companion.block_type === 'upper_strength' && p.pattern.startsWith('push')) ? 'normal' as const : 'heavy' as const,
+      }))
+    }
+  }
+
   // §1.6.1 Deckel (übersetzt, §2.3): Tag mit Upper-Plyo UND Push-heavy im
   // Upper-Lead → Push-Pattern auf 'normal' dämpfen; bleibt kein heavy Pattern,
   // sinkt auch die Block-Emphasis (die Session hat dann keinen Kraft-Lead-Peak).
@@ -272,9 +302,15 @@ export function composeWeek(input: {
 
     // Slot-Priorität (§2.2): Lead > Fokus (Plyo) > Begleit-Kraft > Core > Füller.
     // Der Begleitblock weicht den Fokus-Blöcken ZUERST — der Lead fällt nie.
+    // Kraft-Level ≥2 (§3.3): Kraft weicht nie — Begleitblock rückt VOR den Fokus.
     const picks: PlannedWorkoutBlock[] = [leadBlocks[i]]
-    if (plyo) picks.push(plyo as PlannedWorkoutBlock)
-    picks.push(companionBlocks[i])
+    if (strengthLevel >= 2) {
+      picks.push(companionBlocks[i])
+      if (plyo) picks.push(plyo as PlannedWorkoutBlock)
+    } else {
+      if (plyo) picks.push(plyo as PlannedWorkoutBlock)
+      picks.push(companionBlocks[i])
+    }
     if (core) picks.push(core as PlannedWorkoutBlock)
     picks.push({ block_type: 'accessory', variant: null, emphasis: 'light' } as PlannedWorkoutBlock)
     picks.push({ block_type: 'optional', variant: null, emphasis: 'light' } as PlannedWorkoutBlock)

@@ -317,3 +317,51 @@ describe('48h-Garantie für schwere Leads (Review 10.10.)', () => {
     expect(noAdjacentSameRegion(week)).toBe(true)
   })
 })
+
+describe('Kraft-Säule aktiviert (Spec §3.3, Nachtrag 10.10.)', () => {
+  const heavyStrengthCount = (blocks: any[]) => blocks.filter((b) => isStrength(b) && b.emphasis === 'heavy').length
+
+  it('Level 2: Kompakt-Begleitblock behält Push UND Pull', () => {
+    const week = composeWeek({ trainingDays: [trainingDay(1, 40), trainingDay(3, 40)], pillarLevels: { strength: 2 }, hasSpeedSession: false })
+    const companionUpper = [...week.values()].flat().find((b) => b.block_type === 'upper_strength' && b.emphasis === 'normal')!
+    expect(companionUpper.patterns).toHaveLength(2)
+  })
+
+  it('Level 3 bei low/medium Load: genau EIN Doppel-heavy-Tag (Begleit-Upper: Pull heavy, Push solide)', () => {
+    const week = composeWeek({ trainingDays: [trainingDay(1), trainingDay(3), trainingDay(5)], pillarLevels: { strength: 3 }, hasSpeedSession: false, loadProfile: 'medium' })
+    const doubleDays = [...week.values()].filter((blocks) => heavyStrengthCount(blocks) === 2)
+    expect(doubleDays).toHaveLength(1)
+    const companion = doubleDays[0].find((b: any) => isStrength(b) && b.emphasis === 'heavy' && b.block_type === 'upper_strength' && b.patterns!.length === 2)
+    if (companion) {
+      expect(companion.patterns!.find((p: any) => p.emphasis === 'heavy')!.pattern).toMatch(/^pull/)
+      expect(companion.patterns!.find((p: any) => p.pattern.startsWith('push'))!.emphasis).toBe('normal')
+    }
+  })
+
+  it('Erholungs-Guard: bei high Load kein Doppel-heavy-Tag (Level 3 wirkt wie Level 2)', () => {
+    const week = composeWeek({ trainingDays: [trainingDay(1), trainingDay(3), trainingDay(5)], pillarLevels: { strength: 3 }, hasSpeedSession: false, loadProfile: 'high' })
+    for (const blocks of week.values()) expect(heavyStrengthCount(blocks)).toBeLessThanOrEqual(1)
+  })
+
+  it('Kraft 3 + Plyo 3: Doppel-heavy-Tag liegt nie auf dem Plyo-Säulen-Lead-Tag', () => {
+    const week = composeWeek({ trainingDays: [trainingDay(1), trainingDay(3), trainingDay(5)], pillarLevels: { strength: 3, lower_body_plyometrics: 3 }, hasSpeedSession: false, loadProfile: 'low' })
+    for (const [, blocks] of week.entries()) {
+      const plyoLead = blocks.some((b) => b.block_type === 'plyo' && b.emphasis === 'heavy')
+      if (plyoLead) expect(heavyStrengthCount(blocks)).toBe(0) // Kraft-Lead dort Erhaltung, kein Doppel
+    }
+    expect([...week.values()].filter((b) => heavyStrengthCount(b) === 2)).toHaveLength(1)
+  })
+
+  it('48h gilt auch für den heavy Begleitblock: kein Nachbartag mit heavy derselben Region', () => {
+    // Do/Sa/So: Doppel-heavy darf NICHT auf Sa (Begleit-Upper heavy neben So-Upper-Lead)
+    const days = [trainingDay(4), trainingDay(6), trainingDay(7)]
+    ;(days[1] as any).heavy_lower = true
+    const week = composeWeek({ trainingDays: days, pillarLevels: { strength: 3 }, hasSpeedSession: false, loadProfile: 'medium' })
+    const hl = [...week.entries()].flatMap(([dow, blocks]) =>
+      blocks.filter((b) => isStrength(b) && b.emphasis === 'heavy').map((b) => [dow, b.block_type] as [number, string]))
+    const calDist = (a: number, b: number) => { const f = ((b - a) % 7 + 7) % 7; return Math.min(f, 7 - f) }
+    for (let i = 0; i < hl.length; i++) for (let j = i + 1; j < hl.length; j++) {
+      if (hl[i][1] === hl[j][1]) expect(calDist(hl[i][0], hl[j][0])).toBeGreaterThan(1)
+    }
+  })
+})

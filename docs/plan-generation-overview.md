@@ -101,6 +101,6 @@ Zu sehen: Die zwei Unterkörper-Leads (Do Hüftbeuge, Sa Kniebeuge) liegen exakt
 | Conditioning | — | Finisher im Workout (entfällt bei high Load — der Verein deckt es dann); eigener Tag nur bei low Load | eigener Tag, wenn ein Tag frei ist; sonst Finisher (durchbricht die high-Load-Dämpfung) |
 | Mobility | — | eigene 20-min-Einheit, gratis auf Ruhetag | wie Level 2 |
 | COD | fließt ins Sprint-Level ein (max. beider Werte) + COD-Teil der Sprint-Einheit | ebenso, mehr Anteil | ebenso |
-| Kraft | immer die Basis jeder Session — das Level steuert aktuell nichts Zusätzliches | — | — |
+| Kraft | Basis jeder Session (Lead + Begleitblock) | Kraft weicht nie: Begleitblock fällt nicht für Fokus-Blöcke, Kompakt-Sessions behalten Push+Pull | zusätzlich 1 Doppel-Kraft-Tag/Woche (auch der Begleitblock schwer) — entfällt bei hoher Vereinslast |
 
 Merksatz: **Die Sportart bestimmt die Leitplanken, die Prioritäten verteilen das Budget, der Code garantiert die Physiologie — und die KI füllt nur noch Übungen in ein fertiges Gerüst.**

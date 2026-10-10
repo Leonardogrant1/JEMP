@@ -20,6 +20,8 @@ const de: Record<TranslationKeys, string> = {
     'pillars.budget_full': 'Alle Fokus-Punkte vergeben — nimm zuerst woanders einen weg.',
     'pillars.hint_sprint_level3': 'Einer deiner Trainingstage wird zur Sprint-Einheit.',
     'pillars.hint_sprint_level2': 'Wenn deine Woche Platz hat, kommt eine Sprint-Einheit dazu.',
+    'pillars.hint_strength_level2': 'Bei knapper Zeit bleibt Kraft erhalten — Explosiv-Blöcke fallen zuerst.',
+    'pillars.hint_strength_level3': 'Zusätzlich ein Doppel-Kraft-Tag pro Woche — entfällt bei hoher Vereinslast.',
     'sprint_context.title': 'Sprints & dein Verein',
     'sprint_context.club_question': 'Machst du Sprinteinheiten im Verein?',
     'sprint_context.club_yes': 'Ja, regelmäßig',
