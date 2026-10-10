@@ -14,11 +14,15 @@ const byIntensityThenSlug = (a: V2Exercise, b: V2Exercise) =>
 // Qualitäts-Wdh, volle Pause), nie ins Intervall; der Intensitäts-Cap hält
 // auch submaximale Grenzfälle (z. B. reaktive Single-Leg-Jumps) draußen.
 const CONDITIONING_MAX_INTENSITY = 7
+// Minimum 3 (E2E 10.10.): Intensität-2-Übungen wie Leg Swings sind Prep/Mobility
+// in Plyo-Verkleidung — als Intervall-/Zirkelstation wirkungslos.
+const CONDITIONING_MIN_INTENSITY = 3
 const isConditioningExercise = (e: V2Exercise) =>
   (e.category_slug === 'lower_body_plyometrics' || e.category_slug === 'conditioning') &&
   e.sprint_type === null &&
   e.plyo_type !== 'maximal' &&
   (e.intensity_score ?? 5) <= CONDITIONING_MAX_INTENSITY &&
+  (e.intensity_score ?? 5) >= CONDITIONING_MIN_INTENSITY &&
   (e.measurement_type === 'duration' || e.measurement_type === 'reps_or_duration')
 
 /** Conditioning formats (spec §2.6): the format is the prescription, exercises fill it. */

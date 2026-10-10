@@ -148,6 +148,10 @@ describe('conditioningPoolSlugs — kein Maximal-Plyo im Intervall (QA 10.10.)',
   it('behält zyklische submaximale Plyos und Conditioning-Übungen', () => {
     expect(conditioningPoolSlugs(pool)).toEqual(expect.arrayContaining(['pogos', 'burpee']))
   })
+  it('schließt Intensität < 3 aus — Leg Swings sind Prep, kein Conditioning (E2E 10.10.)', () => {
+    const swings = ex({ slug: 'leg_swing_front_to_back', category_slug: 'lower_body_plyometrics', measurement_type: 'duration', intensity_score: 2 })
+    expect(conditioningPoolSlugs([...pool, swings])).not.toContain('leg_swing_front_to_back')
+  })
   it('buildConditioningSession nutzt denselben Filter', () => {
     const filler = ['jumping_jacks', 'bear_crawl', 'mountain_climber']
       .map((slug) => ex({ slug, category_slug: 'conditioning', measurement_type: 'duration', intensity_score: 4 }))

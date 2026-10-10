@@ -10,6 +10,7 @@ import type { PlanGenerationInput } from '../types'
 import { buildBlockPools, preDropEmptyPools, strengthPatternPools, type V2Exercise } from './pool'
 import { buildSpeedSession, type PlannedSessionLike } from './build-speed-session'
 import { buildMobilitySession, buildConditioningSession, conditioningPoolSlugs } from './build-simple-sessions'
+import { pickFinisherFormat, pickSessionFormat, resolveConditioningWeights } from './conditioning-format'
 import type { V2SessionContext } from './run-session-v2'
 
 export const MEASURED_SPRINT_MAX_AGE_DAYS = 120
@@ -114,6 +115,17 @@ export async function prepareGenerationV2(
   // eigener Call, damit der destrukturierte Promise.all-Block lesbar bleibt.
   const { data: exerciseRegionRows } = await supabase.from('exercise_regions').select('exercise_id, region, role')
 
+  // Conditioning-Formate (Spec 2026-10-10 §3): Gewichte je Sportgruppe + Plan-
+  // Zähler für die deterministische Format-Rotation. null-Count → 0 (erster Plan).
+  const [{ data: weightRows }, { count: planCountRaw }] = await Promise.all([
+    supabase.from('sport_conditioning_weights').select('group_name, format, weight'),
+    supabase.from('workout_plans').select('id', { count: 'exact', head: true }).eq('user_id', input.user_id),
+  ])
+  const conditioningWeights = resolveConditioningWeights(weightRows ?? [], input.sport_group_name || undefined)
+  const priorPlans = planCountRaw ?? 0
+  const sessionFormat = pickSessionFormat(conditioningWeights, priorPlans)
+  const finisherFormat = pickFinisherFormat(conditioningWeights)
+
   const envByExercise = new Map<string, Set<string>>()
   for (const r of exerciseEnvRows ?? []) {
     if (!envByExercise.has(r.exercise_id)) envByExercise.set(r.exercise_id, new Set())
@@ -185,6 +197,10 @@ export async function prepareGenerationV2(
   const speedExercises: V2Exercise[] = outdoorEnvId
     ? (exerciseRows ?? []).filter(makeExerciseFilter(filterMaps, outdoorEnvId)).map(toV2)
     : exercises
+  // Extensiv-Lauf-Anker (Spec §1.1): easy_jog lebt in der sprints-Kategorie und
+  // wird wie im Speed-Builder direkt geholt, nicht über den Conditioning-Pool.
+  const easyJog = speedExercises.find((e) => e.slug === 'easy_jog') ?? null
+  const userHasOutdoor = outdoorEnvId !== null && input.environment_ids.includes(outdoorEnvId)
 
   // ── 2. Measured sprint value within the aging window (max-velocity gate) ──
   const since = new Date(Date.now() - MEASURED_SPRINT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString()
@@ -234,8 +250,14 @@ export async function prepareGenerationV2(
       if (r) prebuiltSessions.push(r.session)
       else notes.push(`Mobility-Session Tag ${day.day_of_week}: Pool zu klein — Session entfällt`)
     } else if (day.session_type === 'conditioning') {
-      const r = buildConditioningSession({ day, exercises: dayExercises, orderIndex: orderIndex++ })
-      if (r) prebuiltSessions.push(r.session)
+      const dayEnvIsOutdoor = dayEnvById.get(day.day_of_week) === outdoorEnvId && outdoorEnvId !== null
+      const r = buildConditioningSession({
+        day, exercises: dayExercises, orderIndex: orderIndex++,
+        format: sessionFormat, planCount: priorPlans,
+        sportGroup: input.sport_group_name || undefined,
+        runAnchor: (dayEnvIsOutdoor || userHasOutdoor) ? easyJog : null,
+      })
+      if (r) { prebuiltSessions.push(r.session); notes.push(...r.notes.map((n) => `Tag ${day.day_of_week}: ${n}`)) }
       else notes.push(`Conditioning-Session Tag ${day.day_of_week}: Pool zu klein — Session entfällt`)
     }
   }
@@ -270,7 +292,12 @@ export async function prepareGenerationV2(
     const poolRecord: Record<string, string[]> = {}
     for (const [bt, pool] of pools) poolRecord[bt] = pool.map((e) => e.slug)
     notes.push(...preDropEmptyPools(workout, poolRecord).map((n) => `Tag ${workout.day_of_week}: ${n}`))
-    const v2: V2SessionContext = { workout, day, pools: poolRecord, sprintPool: sprintPoolSlugs, conditioningFinisherPool: finisherPoolSlugs, patternReqs }
+    const v2: V2SessionContext = {
+      workout, day, pools: poolRecord, sprintPool: sprintPoolSlugs,
+      conditioningFinisherPool: finisherPoolSlugs,
+      conditioningFinisherFormat: finisherFormat, conditioningFinisherOffset: priorPlans,
+      patternReqs,
+    }
     return {
       spec: { day_of_week: workout.day_of_week, mode_slug: day.dose === 'maintenance' ? 'reduced' : 'full' },
       duration: { min: Math.max(20, day.minutes - 10), max: day.minutes },
