@@ -1,48 +1,58 @@
 import { describe, it, expect } from 'vitest'
 import { trainingSessionTitle } from '../session-title'
-import { block, day } from './fixtures'
+import { day } from './fixtures'
 
-const blocks = (...types: string[]) => types.map((t) => block(t))
-
-describe('trainingSessionTitle', () => {
-  it('nennt nur den Trainingsinhalt — nie Sportart oder Tag-Nummer', () => {
-    const title = trainingSessionTitle(blocks('warmup', 'push', 'pull', 'lower_body', 'plyo', 'cooldown'), day())
-    expect(title).not.toMatch(/tag|day|\d/i)
-    expect(title.toLowerCase()).not.toContain('kickbox')
-  })
-
-  it('kombiniert die zwei dominanten Themen', () => {
-    expect(trainingSessionTitle(blocks('warmup', 'push', 'pull', 'lower_body', 'plyo', 'cooldown'), day()))
-      .toBe('Kraft & Explosivität')
-  })
-
-  it('reine Kraft-Session: nur ein Thema', () => {
-    expect(trainingSessionTitle(blocks('warmup', 'push', 'pull', 'lower_body', 'cooldown'), day()))
-      .toBe('Kraft')
-  })
-
-  it('Rumpf-Thema aus rotation oder core', () => {
-    expect(trainingSessionTitle(blocks('warmup', 'lower_body', 'rotation', 'core', 'cooldown'), day()))
-      .toBe('Kraft & Rumpf')
-  })
-
-  it('Conditioning-Finisher taucht als Thema auf', () => {
-    expect(trainingSessionTitle(blocks('warmup', 'push', 'lower_body', 'cooldown'), day({ carries_conditioning_finisher: true })))
-      .toBe('Kraft & Kondition')
-  })
-
-  it('Fallback Ganzkörper, wenn nur warmup/cooldown übrig', () => {
-    expect(trainingSessionTitle(blocks('warmup', 'cooldown'), day())).toBe('Ganzkörper')
-  })
+const b = (block_type: string, extra: any = {}) => ({ block_type, emphasis: 'normal', variant: null, ...extra })
+const heavyLower = (pattern: string) => b('lower_strength', {
+  emphasis: 'heavy', patterns: [{ pattern, emphasis: 'heavy' }, { pattern: pattern === 'hinge' ? 'knee_dominant' : 'hinge', emphasis: 'normal' }],
+})
+const heavyUpper = (heavyPattern: string) => b('upper_strength', {
+  emphasis: 'heavy', patterns: [
+    { pattern: heavyPattern, emphasis: 'heavy' },
+    { pattern: heavyPattern.startsWith('push') ? 'pull_horizontal' : 'push_vertical', emphasis: 'normal' },
+  ],
 })
 
-describe('Titel für upper/lower_strength (Spec 2026-10-10)', () => {
-  it('Kraft-Titel aus lower/upper_strength', () => {
-    expect(trainingSessionTitle([{ block_type: 'lower_strength' }, { block_type: 'core' }] as any, {})).toBe('Kraft & Rumpf')
+describe('trainingSessionTitle — Fokus statt Allgemeinplatz (QA 10.10.)', () => {
+  it('Beintag mit Hüftzug-Lead', () => {
+    const title = trainingSessionTitle([b('warmup'), b('plyo'), heavyLower('hinge'), b('upper_strength', { patterns: [{ pattern: 'pull_horizontal', emphasis: 'normal' }] }), b('cooldown')], day())
+    expect(title).toBe('Beintag — Hüftzug')
   })
-  it('Plyo-Lead-Session führt mit Explosivität', () => {
-    expect(trainingSessionTitle([
-      { block_type: 'plyo', emphasis: 'heavy' }, { block_type: 'upper_strength' },
-    ] as any, {})).toBe('Explosivität & Kraft')
+  it('Beintag mit Kniebeuge-Lead ≠ Beintag mit Hüftzug-Lead (keine Dubletten pro Woche)', () => {
+    const knee = trainingSessionTitle([b('warmup'), heavyLower('knee_dominant'), b('cooldown')], day())
+    expect(knee).toBe('Beintag — Kniebeuge')
+    expect(knee).not.toBe(trainingSessionTitle([b('warmup'), heavyLower('hinge'), b('cooldown')], day()))
+  })
+  it('Oberkörper-Lead nennt die schwere Seite (Zug/Drücken)', () => {
+    expect(trainingSessionTitle([b('warmup'), heavyUpper('pull_horizontal'), b('lower_strength', { patterns: [{ pattern: 'knee_dominant', emphasis: 'normal' }] }), b('cooldown')], day()))
+      .toBe('Oberkörper — Zug')
+    expect(trainingSessionTitle([b('warmup'), heavyUpper('push_vertical'), b('cooldown')], day()))
+      .toBe('Oberkörper — Drücken')
+  })
+  it('Plyo-Lead führt: Explosiv-Tag mit Region', () => {
+    expect(trainingSessionTitle([b('plyo', { emphasis: 'heavy', variant: 'lower' }), b('lower_strength')], day()))
+      .toBe('Explosiv-Tag — Unterkörper')
+    expect(trainingSessionTitle([b('plyo', { emphasis: 'heavy', variant: 'upper' }), b('upper_strength')], day()))
+      .toBe('Explosiv-Tag — Oberkörper')
+  })
+  it('Doppel-heavy-Tag (§3.3): Kraft-Tag — alles schwer', () => {
+    expect(trainingSessionTitle([b('warmup'), heavyLower('knee_dominant'), heavyUpper('pull_horizontal'), b('cooldown')], day()))
+      .toBe('Kraft-Tag — alles schwer')
+  })
+  it('kein heavy Lead (gedämpfter Tag): Regions-Titel ohne Muster', () => {
+    expect(trainingSessionTitle([b('warmup'), b('upper_strength', { patterns: [{ pattern: 'pull_horizontal', emphasis: 'normal' }] }), b('plyo'), b('cooldown')], day()))
+      .toBe('Oberkörper-Tag')
+  })
+  it('Legacy-Blöcke (Alt-Pläne): heavy lower_body mit Variante', () => {
+    expect(trainingSessionTitle([b('warmup'), b('lower_body', { emphasis: 'heavy', variant: 'knee_dominant' }), b('push'), b('cooldown')], day()))
+      .toBe('Beintag — Kniebeuge')
+  })
+  it('nennt nie Sportart oder Tag-Nummer', () => {
+    const title = trainingSessionTitle([b('warmup'), heavyLower('hinge'), b('cooldown')], day())
+    expect(title).not.toMatch(/\d/)
+    expect(title.toLowerCase()).not.toContain('kickbox')
+  })
+  it('Fallback Ganzkörper, wenn nur warmup/cooldown übrig', () => {
+    expect(trainingSessionTitle([b('warmup'), b('cooldown')], day())).toBe('Ganzkörper')
   })
 })
