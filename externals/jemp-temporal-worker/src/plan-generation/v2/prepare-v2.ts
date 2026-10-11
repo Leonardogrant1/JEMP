@@ -8,7 +8,27 @@ import { buildWeekLayout, type PillarLevels, type WeekLayout } from '../week-lay
 import type { PrepareResult, SessionBuildInput } from '../generate-plan'
 import type { PlanGenerationInput } from '../types'
 import { buildBlockPools, patternSlugWindow, pickPlanePin, preDropEmptyPools, rotatedPoolWindow, rotateSlugs, strengthPatternPools, type V2Exercise } from './pool'
-import { makePlaneCounter, pickPlaneEmphasis, resolvePlaneWeights, toPatternFamily } from './plane-emphasis'
+import { makePlaneCounter, pickPlaneEmphasis, resolvePlaneWeights, toPatternFamily, type PatternFamily, type PlaneWeights } from './plane-emphasis'
+
+/** Ebenen-Entscheidung pro Pattern-Vorkommen (Spec 2026-10-11 §4) — pure,
+ *  damit die Verdrahtung testbar ist (Final-Review-Fix): heavy nimmt am
+ *  Zyklus nicht teil (konsumiert den Wochen-Zähler NICHT), sagittal oder
+ *  leerer Ebenen-Pool degradieren zum heutigen Verhalten. */
+export function planeFocusForPattern(
+  pattern: string,
+  emphasis: 'heavy' | 'normal',
+  planeWeights: Record<PatternFamily, PlaneWeights>,
+  nextPlanePosition: (family: PatternFamily) => number,
+  pool: V2Exercise[],
+  offset: number,
+): { planePin: string | null; planeFocus?: 'frontal' | 'transverse' } {
+  if (emphasis !== 'normal') return { planePin: null }
+  const family = toPatternFamily(pattern)
+  const plane = pickPlaneEmphasis(planeWeights[family], nextPlanePosition(family))
+  if (plane === 'sagittal') return { planePin: null }
+  const planePin = pickPlanePin(pool, plane, offset)
+  return planePin ? { planePin, planeFocus: plane } : { planePin: null }
+}
 import { buildSpeedSession, type PlannedSessionLike } from './build-speed-session'
 import { buildMobilitySession, buildConditioningSession, conditioningPoolSlugs } from './build-simple-sessions'
 import { pickFinisherFormat, pickSessionFormat, resolveConditioningWeights } from './conditioning-format'
@@ -319,16 +339,8 @@ export async function prepareGenerationV2(
         // Ebenen-Betonung (Spec 2026-10-11 §4): nur normal-Muster nehmen am Zyklus
         // teil; sagittal oder leerer Ebenen-Pool → exakt heutiges Verhalten.
         const poolForPattern = perPattern.get(p.pattern) ?? []
-        let planePin: string | null = null
-        let planeFocus: 'frontal' | 'transverse' | undefined
-        if (p.emphasis === 'normal') {
-          const family = toPatternFamily(p.pattern)
-          const plane = pickPlaneEmphasis(planeWeights[family], nextPlanePosition(family))
-          if (plane !== 'sagittal') {
-            planePin = pickPlanePin(poolForPattern, plane, priorPlans)
-            if (planePin) planeFocus = plane
-          }
-        }
+        const { planePin, planeFocus } = planeFocusForPattern(
+          p.pattern, p.emphasis, planeWeights, nextPlanePosition, poolForPattern, priorPlans)
         patternReqs.push({
           block_type: block.block_type, pattern: p.pattern, emphasis: p.emphasis,
           slugs: patternSlugWindow(poolForPattern, p.emphasis, priorPlans, planePin),
