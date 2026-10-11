@@ -149,3 +149,16 @@ describe('buildPlaneFocusLines (Spec §4.3 — Formulierung je Ebene)', () => {
     expect(lines[1]).toContain('push_vertical')
   })
 })
+
+describe('Warmup-/Cooldown-Umfang im Prompt (QA 11.10., v1-Parität)', () => {
+  it('volle Session: 4–6 Übungen Warmup, 3–5 Cooldown', () => {
+    const p = prompt([withEmphasis('lower_body', 'heavy', 'knee_dominant')])
+    expect(p).toMatch(/Warmup: 4–6 Übungen/)
+    expect(p).toMatch(/Cooldown: 3–5 Übungen/)
+  })
+  it('Kompakt-Session: je 2–3 Übungen', () => {
+    const p = prompt([withEmphasis('lower_body', 'heavy', 'knee_dominant')], day({ session_type: 'training', minutes: 40 }))
+    expect(p).toMatch(/je 2–3 Übungen/)
+    expect(p).not.toMatch(/4–6 Übungen/)
+  })
+})

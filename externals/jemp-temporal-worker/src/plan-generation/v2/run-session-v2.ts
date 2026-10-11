@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { zodResponseFormat } from 'openai/helpers/zod'
 import type OpenAI from 'openai'
 import type { FinalWorkout, PlacedDay } from '../week-layout'
+import { COMPACT_SESSION_THRESHOLD_MINUTES } from '../week-layout-constants'
 import type { PlannedSessionLike } from './build-speed-session'
 import { buildConditioningFinisherBlock } from './build-simple-sessions'
 import { trainingSessionTitle } from './session-title'
@@ -72,7 +73,14 @@ export function findV2Violations(
   pools: Map<string, { slugs: Set<string> }>,
   expectedBlocks: string[],
   patternReqs: PatternRequirement[] = [],
-  checks: { warmupCnsSlugs?: string[]; measurementBySlug?: Record<string, string> } = {},
+  checks: {
+    warmupCnsSlugs?: string[]
+    measurementBySlug?: Record<string, string>
+    /** Rahmen-Mindestumfang (QA 11.10., v1-Parität): Floor unterhalb der
+     *  Prompt-Vorgabe (4–6 bzw. 3–5), damit der Retry nicht ständig feuert. */
+    minWarmup?: number
+    minCooldown?: number
+  } = {},
 ): string[] {
   const violations: string[] = []
   const seen = session.blocks.map((b) => b.block_type)
@@ -113,6 +121,28 @@ export function findV2Violations(
       } else if (m === 'reps' && !((e.target_reps_max ?? 0) > 0)) {
         violations.push(`"${e.exercise_slug}" in Block "${b.block_type}" ist eine Wiederholungs-Übung — setze target_reps_min/max`)
       }
+    }
+  }
+  // Block-Obergrenze (QA 11.10., programmatisch): Content-Blöcke tragen
+  // geforderte Muster + 1 Ergänzung, sonst 2 — gegen Zeitbudget-Überläufe.
+  // Rahmen (warmup/cooldown) hat eigene Min-Regeln, Sprint/Conditioning sind
+  // deterministisch gebaut bzw. eigenständig dosiert.
+  const MAX_EXEMPT = new Set(['warmup', 'cooldown', 'sprint', 'conditioning'])
+  for (const b of session.blocks) {
+    if (MAX_EXEMPT.has(b.block_type)) continue
+    const patternCount = patternReqs.filter((r) => r.block_type === b.block_type).length
+    const maxExercises = Math.max(2, patternCount + 1)
+    if (b.exercises.length > maxExercises) {
+      violations.push(`Block "${b.block_type}" hat ${b.exercises.length} Übungen — höchstens ${maxExercises} verschreiben`)
+    }
+  }
+  // Rahmen-Mindestumfang (QA 11.10.): 2 Übungen Warmup vor schwerem Pressen
+  // sind zu dünn — v1 gab 4 (full) vor, hier der Validator-Floor darunter.
+  for (const [bt, min] of [['warmup', checks.minWarmup], ['cooldown', checks.minCooldown]] as const) {
+    if (!min) continue
+    const blk = session.blocks.find((b) => b.block_type === bt)
+    if (blk && blk.exercises.length > 0 && blk.exercises.length < min) {
+      violations.push(`${bt === 'warmup' ? 'Warmup' : 'Cooldown'} hat nur ${blk.exercises.length} Übung(en) — mindestens ${min} verschreiben`)
     }
   }
   // CNS-Mikro-Dosis (QA 11.10.): der Prompt fordert sie, das LLM vergaß sie in
@@ -267,9 +297,12 @@ export async function runSessionV2(
       ? `${basePrompt}\n\n## KORREKTUR (vorheriger Versuch ungültig)\n${feedback}\nBehebe alle genannten Verstöße und gib die vollständige Session zurück.`
       : basePrompt
     const completion = await openai.chat.completions.create({
+      // QA 11.10.: mini auf low ignorierte weiche Prompt-Regeln (Einheiten,
+      // Block-Größen) — medium ist der größte Adhärenz-Sprung pro Euro; die
+      // harten Regeln sichert weiterhin der Validator.
       model: 'gpt-5-mini',
       messages: [{ role: 'user', content: prompt }],
-      reasoning_effort: 'low',
+      reasoning_effort: 'medium',
       response_format: zodResponseFormat(schema, 'data'),
       max_completion_tokens: 8000,
     })
@@ -279,9 +312,11 @@ export async function runSessionV2(
       continue
     }
     lastSession = JSON.parse(choice.message.content)
+    const compact = day.minutes <= COMPACT_SESSION_THRESHOLD_MINUTES
     const violations = findV2Violations(lastSession as any, poolMap, expectedBlocks, patternReqs, {
       warmupCnsSlugs: day.suppress_micro_dose ? [] : (input.warmupCnsPool ?? []),
       measurementBySlug: input.measurementBySlug,
+      minWarmup: compact ? 2 : 3, minCooldown: 2,
     })
     if (violations.length === 0) break
     feedback = violations.map((v) => `- ${v}`).join('\n')

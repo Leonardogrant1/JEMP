@@ -238,3 +238,72 @@ describe('Mess-Typ-Marker in Pool-Zeilen (QA 11.10.)', () => {
       .toBe('stretch_a (s), sprint_b (m), squat_c, mixed_d, unknown_e')
   })
 })
+
+describe('Warmup-/Cooldown-Mindestumfang (QA 11.10.: v1-Parität — 2 Übungen vor schwerem Pressen sind zu dünn)', () => {
+  const exo = (slug: string, i: number) => ({
+    exercise_slug: slug, order_index: i, notes: '', target_sets: 1,
+    target_reps_min: 6, target_reps_max: 8, target_duration_seconds: 0,
+    target_distance_meters: 0, target_rest_seconds: 15,
+    target_load_type: 'bodyweight', target_load_value: 0,
+  })
+  const s = (warmupSlugs: string[], cooldownSlugs: string[]): any => ({
+    blocks: [
+      { block_type: 'warmup', order_index: 0, focused_category_slug: 'mobility', exercises: warmupSlugs.map(exo) },
+      { block_type: 'cooldown', order_index: 1, focused_category_slug: 'mobility', exercises: cooldownSlugs.map(exo) },
+    ],
+  })
+  const p = new Map([
+    ['warmup', { slugs: new Set(['a', 'b', 'c', 'd']) }],
+    ['cooldown', { slugs: new Set(['a', 'b', 'c', 'd']) }],
+  ])
+
+  it('Warmup unter dem Floor → Verletzung mit Mindestzahl', () => {
+    const v = findV2Violations(s(['a', 'b'], ['a', 'b']), p as any, ['warmup', 'cooldown'], [], { minWarmup: 3, minCooldown: 2 })
+    expect(v.join(' ')).toMatch(/Warmup/)
+    expect(v.join(' ')).toMatch(/3/)
+  })
+
+  it('Cooldown unter dem Floor → Verletzung; am Floor ok', () => {
+    expect(findV2Violations(s(['a', 'b', 'c'], ['a']), p as any, ['warmup', 'cooldown'], [], { minWarmup: 3, minCooldown: 2 }).join(' ')).toMatch(/Cooldown/)
+    expect(findV2Violations(s(['a', 'b', 'c'], ['a', 'b']), p as any, ['warmup', 'cooldown'], [], { minWarmup: 3, minCooldown: 2 })).toEqual([])
+  })
+
+  it('ohne Floors kein Check (bisheriges Verhalten)', () => {
+    expect(findV2Violations(s(['a'], ['a']), p as any, ['warmup', 'cooldown'])).toEqual([])
+  })
+})
+
+describe('Block-Obergrenze (QA 11.10., programmatisch statt Prompt-Hoffnung)', () => {
+  const exo = (slug: string, i: number) => ({
+    exercise_slug: slug, order_index: i, notes: '', target_sets: 3,
+    target_reps_min: 5, target_reps_max: 8, target_duration_seconds: 0,
+    target_distance_meters: 0, target_rest_seconds: 90,
+    target_load_type: 'rpe', target_load_value: 7,
+  })
+  const s = (bt: string, slugs: string[]): any => ({
+    blocks: [{ block_type: bt, order_index: 0, focused_category_slug: 'strength', exercises: slugs.map(exo) }],
+  })
+  const p = new Map([
+    ['core', { slugs: new Set(['a', 'b', 'c']) }],
+    ['upper_strength', { slugs: new Set(['a', 'b', 'c', 'd']) }],
+    ['warmup', { slugs: new Set(['a', 'b', 'c', 'd', 'e', 'f']) }],
+  ])
+  const twoPatterns = [
+    { block_type: 'upper_strength', pattern: 'push_vertical', emphasis: 'normal', slugs: new Set(['a']) },
+    { block_type: 'upper_strength', pattern: 'pull_horizontal', emphasis: 'normal', slugs: new Set(['b']) },
+  ] as any
+
+  it('Content-Block ohne Patterns: max 2 Übungen', () => {
+    expect(findV2Violations(s('core', ['a', 'b']), p as any, ['core'])).toEqual([])
+    expect(findV2Violations(s('core', ['a', 'b', 'c']), p as any, ['core']).join(' ')).toMatch(/core.*höchstens|höchstens.*core/)
+  })
+
+  it('Pattern-Block: geforderte Muster + 1 Ergänzung erlaubt', () => {
+    expect(findV2Violations(s('upper_strength', ['a', 'b', 'c']), p as any, ['upper_strength'], twoPatterns)).toEqual([])
+    expect(findV2Violations(s('upper_strength', ['a', 'b', 'c', 'd']), p as any, ['upper_strength'], twoPatterns).join(' ')).toMatch(/höchstens/)
+  })
+
+  it('Warmup/Cooldown sind vom Max ausgenommen', () => {
+    expect(findV2Violations(s('warmup', ['a', 'b', 'c', 'd', 'e', 'f']), p as any, ['warmup'])).toEqual([])
+  })
+})
