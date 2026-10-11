@@ -23,6 +23,9 @@ export type V2Exercise = {
   max_level: number
   intensity_score: number | null
   measurement_type: string | null
+  /** dynamic | restorative | breathing (Mobility-Struktur, QA 11.10.) —
+   *  optional, weil ältere Fixtures/Caller das Feld nicht setzen. */
+  exercise_type?: string | null
   /** Legacy block_type-Zuordnung (warmup/cooldown/…) — steuert, ob eine
    *  Mobility-Übung ins Warmup oder Cooldown darf. null = kein Tag, Fallback. */
   legacy_block_slugs: string[] | null

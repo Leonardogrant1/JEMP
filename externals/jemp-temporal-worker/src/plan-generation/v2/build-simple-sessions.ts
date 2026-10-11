@@ -2,7 +2,7 @@
 // Pure — picks by ascending intensity then slug; formats are the prescription.
 
 import type { PlacedDay } from '../week-layout'
-import { legacyBlockAllows, type V2Exercise } from './pool'
+import { legacyBlockAllows, rotatedPoolWindow, type V2Exercise } from './pool'
 import type { PlannedSessionLike } from './build-speed-session'
 import type { ConditioningFormat } from './conditioning-format'
 
@@ -44,12 +44,59 @@ export function buildMobilitySession(input: {
   day: PlacedDay
   exercises: V2Exercise[]
   orderIndex: number
+  /** Rotations-Offset (QA 11.10.): sort().slice() wählte für jeden User in
+   *  jedem Plan dieselben 5 leichtesten Übungen. */
+  planCount?: number
 }): { session: PlannedSessionLike; notes: string[] } | null {
   const { day, exercises, orderIndex } = input
   const pool = exercises.filter((e) => e.category_slug === 'mobility').sort(byIntensityThenSlug)
   if (pool.length < 3) return null
 
-  const picked = pool.slice(0, Math.min(7, Math.max(5, pool.length >= 5 ? 5 : pool.length)))
+  // Struktur statt Liste (QA 11.10.): Opener (Atmung, 90 s) → Gelenke (CARs/
+  // dynamisch leicht, 45 s) → Hauptteil (aktive/loaded Mobility Int ≥3,
+  // 2 Sätze — Jefferson Curl & Co. waren durch die Intensitäts-Sortierung
+  // unerreichbar) → Abschluss (restorative, 60 s). Picks rotieren mit
+  // planCount, regionen-balanciert. Der Pool ist bereits level-/equipment-
+  // gefiltert — wer die Loaded-Varianten sehen darf, bekommt sie.
+  const offset = input.planCount ?? 0
+  const used = new Set<string>()
+  const take = (cands: V2Exercise[], n: number): V2Exercise[] => {
+    const picks = rotatedPoolWindow(cands.filter((e) => !used.has(e.slug)), offset, n)
+    for (const p of picks) used.add(p.slug)
+    return picks
+  }
+  const dyn = (e: V2Exercise) => e.exercise_type === 'dynamic'
+  // Umfang (QA 11.10.): 2 Hauptübungen ließen bei 20 min ~10 min ungenutzt —
+  // 3 (bzw. 4 ab 30 min) à 2 Sätze füllen das Budget, ohne zum Krafttag zu werden.
+  const mainCount = day.minutes >= 30 ? 4 : 3
+  const opener = take(pool.filter((e) => e.exercise_type === 'breathing'), 1)
+  const joints = take(pool.filter((e) => dyn(e) && (e.intensity_score ?? 5) <= 2), day.minutes >= 30 ? 3 : 2)
+  const actives = take(pool.filter((e) => dyn(e) && (e.intensity_score ?? 5) >= 3), mainCount)
+  const closer = take(pool.filter((e) => e.exercise_type === 'restorative'), 1)
+
+  // Aktive Übungen: reps-gemessen → 2×6–8, sonst 2×45 s Hold.
+  const activeExercise = (e: V2Exercise, i: number) =>
+    e.measurement_type === 'reps'
+      ? {
+        exercise_slug: e.slug, order_index: i, notes: '',
+        target_sets: 2, target_reps_min: 6, target_reps_max: 8,
+        target_duration_seconds: -1, target_distance_meters: -1,
+        target_rest_seconds: 30, target_load_type: 'bodyweight' as const, target_load_value: -1,
+      }
+      : { ...durationExercise(e, i, 45, 30), target_sets: 2 }
+
+  const structured = opener.length + joints.length + actives.length + closer.length >= 4
+    ? [
+      ...opener.map((e, i) => durationExercise(e, i, 90, 15)),
+      ...joints.map((e, i) => durationExercise(e, i, 45, 15)),
+      ...actives.map((e, i) => activeExercise(e, i)),
+      ...closer.map((e, i) => durationExercise(e, i, 60, 0)),
+    ].map((e, i) => ({ ...e, order_index: i }))
+    // Fallback (untypisierter/dünner Pool): bisheriges Verhalten.
+    : pool
+      .slice(0, Math.min(7, Math.max(5, pool.length >= 5 ? 5 : pool.length)))
+      .map((e, i) => durationExercise(e, i, 45, 15))
+
   return {
     session: {
       name: 'Mobility-Einheit',
@@ -63,7 +110,7 @@ export function buildMobilitySession(input: {
       flexible_window: day.flexible_window,
       blocks: [{
         block_type: 'mobility', order_index: 0, focused_category_slug: 'mobility',
-        exercises: picked.map((e, i) => durationExercise(e, i, 45, 15)),
+        exercises: structured,
       }],
     },
     notes: [],

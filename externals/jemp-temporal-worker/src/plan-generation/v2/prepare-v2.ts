@@ -140,7 +140,7 @@ export async function prepareGenerationV2(
 
   // ── 1. Exercises incl. v2 metadata, filtered for the user ────────────────
   const [{ data: exerciseRows }, { data: exerciseEnvRows }, { data: exerciseEquipRows }, { data: exerciseBlockRows }, { data: environmentRows }] = await Promise.all([
-    supabase.from('exercises').select('id, slug, name, body_region, dominant_region, strength_pattern, plyo_type, core_type, sprint_type, covered_patterns, laterality, min_level, max_level, intensity_score, measurement_type, movement_type, is_explosive, is_sport_specific, categories(id, slug)'),
+    supabase.from('exercises').select('id, slug, name, body_region, dominant_region, strength_pattern, plyo_type, core_type, sprint_type, covered_patterns, laterality, min_level, max_level, intensity_score, measurement_type, exercise_type, movement_type, is_explosive, is_sport_specific, categories(id, slug)'),
     supabase.from('exercise_environments').select('exercise_id, environment_id'),
     supabase.from('exercise_equipments').select('exercise_id, equipment_id'),
     supabase.from('exercise_blocks').select('exercise_id, block_types(slug)'),
@@ -218,6 +218,7 @@ export async function prepareGenerationV2(
     covered_patterns: row.covered_patterns, laterality: row.laterality,
     min_level: row.min_level, max_level: row.max_level,
     intensity_score: row.intensity_score, measurement_type: row.measurement_type,
+    exercise_type: row.exercise_type ?? null,
     legacy_block_slugs: blocksByExercise.get(row.id) ?? null,
     movement_type: row.movement_type ?? 'sagittal', is_explosive: row.is_explosive ?? false,
     regions: regionsByExercise.get(row.id) ?? null,
@@ -297,7 +298,7 @@ export async function prepareGenerationV2(
       if (r) { prebuiltSessions.push(r.session); notes.push(...r.notes) }
       else notes.push(`Speed-Session Tag ${day.day_of_week}: Pool leer — Session entfällt`)
     } else if (day.session_type === 'mobility') {
-      const r = buildMobilitySession({ day, exercises: dayExercises, orderIndex: orderIndex++ })
+      const r = buildMobilitySession({ day, exercises: dayExercises, orderIndex: orderIndex++, planCount: priorPlans })
       if (r) prebuiltSessions.push(r.session)
       else notes.push(`Mobility-Session Tag ${day.day_of_week}: Pool zu klein — Session entfällt`)
     } else if (day.session_type === 'conditioning') {

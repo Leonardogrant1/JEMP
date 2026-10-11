@@ -202,3 +202,77 @@ describe('buildConditioningFinisherBlock', () => {
     expect(buildConditioningFinisherBlock(['burpee'], 7)).toBeNull()
   })
 })
+
+describe('buildMobilitySession — Struktur-Umbau (QA 11.10.: sort().slice() wählte immer die 5 leichtesten)', () => {
+  const mob = (slug: string, exercise_type: string, intensity: number, measurement = 'duration') =>
+    ex({ slug, category_slug: 'mobility', exercise_type, intensity_score: intensity, measurement_type: measurement })
+  const typedPool = [
+    mob('box_breathing', 'breathing', 1), mob('diaphragmatic_breathing', 'breathing', 1),
+    mob('ankle_cars', 'dynamic', 1), mob('hip_cars', 'dynamic', 2), mob('shoulder_cars', 'dynamic', 2),
+    mob('jefferson_curl', 'dynamic', 5, 'reps'), mob('loaded_cossack_squat', 'dynamic', 5, 'reps'),
+    mob('deep_squat_hold', 'dynamic', 3, 'duration'), mob('loaded_deep_lunge_rotation', 'dynamic', 5, 'reps'),
+    mob('childs_pose', 'restorative', 1), mob('supine_twist', 'restorative', 1),
+  ]
+
+  it('baut Opener (Atmung, 90s) → Gelenke → aktiven Hauptteil (Int ≥3, 2 Sätze) → Abschluss (restorative)', () => {
+    const r = buildMobilitySession({ day: day({ session_type: 'mobility', minutes: 20 }), exercises: typedPool, orderIndex: 0, planCount: 0 })!
+    const exs = r.session.blocks[0].exercises as any[]
+    const bySlug = (s: string) => typedPool.find((p) => p.slug === s)!
+    expect(bySlug(exs[0].exercise_slug).exercise_type).toBe('breathing')
+    expect(exs[0].target_duration_seconds).toBe(90)
+    const actives = exs.filter((e) => (bySlug(e.exercise_slug).intensity_score ?? 0) >= 3)
+    expect(actives.length).toBe(3) // 20 min -> 3 Hauptuebungen (QA 11.10.: 2 liess ~10 min ungenutzt)
+    for (const a of actives) expect(a.target_sets).toBe(2)
+    expect(bySlug(exs[exs.length - 1].exercise_slug).exercise_type).toBe('restorative')
+  })
+
+  it('reps-gemessene aktive Übungen (Jefferson Curl) bekommen Wiederholungen, keine 45s', () => {
+    const r = buildMobilitySession({ day: day({ session_type: 'mobility', minutes: 20 }), exercises: typedPool, orderIndex: 0, planCount: 3 })!
+    const exs = r.session.blocks[0].exercises as any[]
+    const repActives = exs.filter((e) => ['jefferson_curl', 'loaded_cossack_squat', 'loaded_deep_lunge_rotation'].includes(e.exercise_slug))
+    expect(repActives.length).toBeGreaterThanOrEqual(1)
+    for (const a of repActives) {
+      expect(a.target_reps_max).toBeGreaterThan(0)
+      expect(a.target_duration_seconds).toBeLessThanOrEqual(0)
+    }
+  })
+
+  it('rotiert mit planCount — zwei Pläne sehen unterschiedliche Hauptteile', () => {
+    const picks = (pc: number) => (buildMobilitySession({ day: day({ session_type: 'mobility', minutes: 20 }), exercises: typedPool, orderIndex: 0, planCount: pc })!
+      .session.blocks[0].exercises as any[]).map((e) => e.exercise_slug).join(',')
+    const distinct = new Set([picks(0), picks(1), picks(2)])
+    expect(distinct.size).toBeGreaterThanOrEqual(2)
+  })
+
+  it('untypisierter Pool (kein exercise_type) → bisheriges Verhalten als Fallback', () => {
+    const untyped = ['hip_cars', 'shoulder_cars', 'ankle_cars', 'childs_pose', 'supine_twist']
+      .map((slug) => ex({ slug, category_slug: 'mobility', measurement_type: 'duration' }))
+    const r = buildMobilitySession({ day: day({ session_type: 'mobility', minutes: 20 }), exercises: untyped, orderIndex: 0, planCount: 1 })!
+    expect(r.session.blocks[0].exercises.length).toBeGreaterThanOrEqual(5)
+  })
+})
+
+describe('buildMobilitySession — Umfang nach Dauer (QA 11.10.)', () => {
+  const mob = (slug: string, exercise_type: string, intensity: number, measurement = 'duration') =>
+    ex({ slug, category_slug: 'mobility', exercise_type, intensity_score: intensity, measurement_type: measurement })
+  const bigPool = [
+    mob('box_breathing', 'breathing', 1),
+    mob('ankle_cars', 'dynamic', 1), mob('hip_cars', 'dynamic', 2), mob('shoulder_cars', 'dynamic', 2), mob('wrist_circles', 'dynamic', 1),
+    mob('jefferson_curl', 'dynamic', 5, 'reps'), mob('loaded_cossack_squat', 'dynamic', 5, 'reps'),
+    mob('deep_squat_hold', 'dynamic', 3), mob('loaded_deep_lunge_rotation', 'dynamic', 5, 'reps'), mob('sots_press', 'dynamic', 4, 'reps'),
+    mob('childs_pose', 'restorative', 1),
+  ]
+  const actives = new Set(['jefferson_curl', 'loaded_cossack_squat', 'deep_squat_hold', 'loaded_deep_lunge_rotation', 'sots_press'])
+  const run = (minutes: number) => (buildMobilitySession({ day: day({ session_type: 'mobility', minutes }), exercises: bigPool, orderIndex: 0, planCount: 0 })!
+    .session.blocks[0].exercises as any[])
+  it('>=30 min: 4 Hauptuebungen und 3 Gelenk-Drills', () => {
+    const exs = run(30)
+    expect(exs.filter((e) => actives.has(e.exercise_slug))).toHaveLength(4)
+    expect(exs).toHaveLength(9) // 1 + 3 + 4 + 1
+  })
+  it('20 min: 3 Hauptuebungen, 2 Gelenk-Drills', () => {
+    const exs = run(20)
+    expect(exs.filter((e) => actives.has(e.exercise_slug))).toHaveLength(3)
+    expect(exs).toHaveLength(7) // 1 + 2 + 3 + 1
+  })
+})
