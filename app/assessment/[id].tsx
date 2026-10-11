@@ -30,9 +30,10 @@ import { RstAssessment } from '@/components/assessments/rst-assessment';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    ActivityIndicator, Pressable,
+    ActivityIndicator, Keyboard, Pressable,
     StyleSheet, TextInput, View,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function lerpColor(a: string, b: string, t: number): string {
@@ -315,7 +316,13 @@ export default function AssessmentScreen() {
 
     return (
         <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
-            <View style={styles.scroll}>
+            {/* QA 10.10.: KAV hebt Cooper-Input + CTA über das Keyboard. Der
+                Container schließt es bei Tap daneben (number-pad hat keine
+                „Fertig"-Taste) — via onStartShouldSetResponder mit return false,
+                damit er NIE Responder wird und Wheel-/Slider-Gesten unberührt
+                lässt (ein Pressable-Wrapper blockierte das 505-Zahlenrad). */}
+            <KeyboardAvoidingView behavior="padding" style={styles.root}>
+            <View style={styles.scroll} onStartShouldSetResponder={() => { Keyboard.dismiss(); return false; }}>
                 {/* Header */}
                 <View style={styles.header}>
                     <Pressable onPress={() => router.back()} hitSlop={12}>
@@ -798,6 +805,7 @@ export default function AssessmentScreen() {
                     </LinearGradient>
                 </Pressable>
             </View>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
