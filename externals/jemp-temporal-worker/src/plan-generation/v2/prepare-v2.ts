@@ -10,23 +10,33 @@ import type { PlanGenerationInput } from '../types'
 import { buildBlockPools, isCnsMicroDoseExercise, patternSlugWindow, pickPlanePin, preDropEmptyPools, rotatedPoolWindow, rotateSlugs, strengthPatternPools, type V2Exercise } from './pool'
 import { makePlaneCounter, pickPlaneEmphasis, resolvePlaneWeights, toPatternFamily, type PatternFamily, type PlaneWeights } from './plane-emphasis'
 
+/** Füller-Fenster-Offset (QA 11.10.): planCount allein ließ alle Sessions
+ *  einer Woche dasselbe Fenster sehen — dieselben 2 Übungen, 3×/Woche, die
+ *  ganze Planlaufzeit. Der Wochentag fächert die Fenster innerhalb der Woche
+ *  auf; Stride 7 verhindert Überlapp zwischen Folgeplänen. */
+export function fillerWindowOffset(planCount: number, dayOfWeek: number): number {
+  return planCount * 7 + dayOfWeek
+}
+
 /** Ebenen-Entscheidung pro Pattern-Vorkommen (Spec 2026-10-11 §4) — pure,
  *  damit die Verdrahtung testbar ist (Final-Review-Fix): heavy nimmt am
  *  Zyklus nicht teil (konsumiert den Wochen-Zähler NICHT), sagittal oder
- *  leerer Ebenen-Pool degradieren zum heutigen Verhalten. */
+ *  leerer Ebenen-Pool degradieren zum heutigen Verhalten. Der Pin rotiert
+ *  mit der Zyklusposition (QA 11.10.): zwei gleiche Muster in einer Woche
+ *  pinnen verschiedene Übungen. */
 export function planeFocusForPattern(
   pattern: string,
   emphasis: 'heavy' | 'normal',
   planeWeights: Record<PatternFamily, PlaneWeights>,
   nextPlanePosition: (family: PatternFamily) => number,
   pool: V2Exercise[],
-  offset: number,
 ): { planePin: string | null; planeFocus?: 'frontal' | 'transverse' } {
   if (emphasis !== 'normal') return { planePin: null }
   const family = toPatternFamily(pattern)
-  const plane = pickPlaneEmphasis(planeWeights[family], nextPlanePosition(family))
+  const position = nextPlanePosition(family)
+  const plane = pickPlaneEmphasis(planeWeights[family], position)
   if (plane === 'sagittal') return { planePin: null }
-  const planePin = pickPlanePin(pool, plane, offset)
+  const planePin = pickPlanePin(pool, plane, position)
   return planePin ? { planePin, planeFocus: plane } : { planePin: null }
 }
 import { buildSpeedSession, type PlannedSessionLike } from './build-speed-session'
@@ -318,6 +328,9 @@ export async function prepareGenerationV2(
   const sessionBuildInputs: SessionBuildInput[] = layout.workouts.map((workout) => {
     const day = trainingDays.find((d) => d.day_of_week === workout.day_of_week)!
     const dayExercises = exercisesForDay(workout.day_of_week)
+    // Fenster-Offset pro Session (QA 11.10.): jede Session der Woche sieht
+    // eine andere Scheibe der Füller-/Pattern-Pools.
+    const winOffset = fillerWindowOffset(priorPlans, workout.day_of_week)
     const sprintPoolSlugs = dayExercises
       .filter((e) => e.sprint_type !== null && (allowMaxVelocity || e.sprint_type !== 'max_velocity'))
       .map((e) => e.slug)
@@ -341,10 +354,10 @@ export async function prepareGenerationV2(
         // teil; sagittal oder leerer Ebenen-Pool → exakt heutiges Verhalten.
         const poolForPattern = perPattern.get(p.pattern) ?? []
         const { planePin, planeFocus } = planeFocusForPattern(
-          p.pattern, p.emphasis, planeWeights, nextPlanePosition, poolForPattern, priorPlans)
+          p.pattern, p.emphasis, planeWeights, nextPlanePosition, poolForPattern)
         patternReqs.push({
           block_type: block.block_type, pattern: p.pattern, emphasis: p.emphasis,
-          slugs: patternSlugWindow(poolForPattern, p.emphasis, priorPlans, planePin),
+          slugs: patternSlugWindow(poolForPattern, p.emphasis, winOffset, planePin),
           ...(planeFocus ? { planeFocus, planeSlugs: [planePin!] } : {}),
         })
         return true
@@ -359,14 +372,14 @@ export async function prepareGenerationV2(
       // vollen Pool jedes Mal dieselben Favoriten. Plyo: größeres Fenster (6),
       // über movement_type balanciert — so ist pro Fenster garantiert eine
       // rotationale Option prominent. Prompt UND Validator sehen dasselbe Fenster.
-      const windowed = (bt === 'optional' || bt === 'accessory') ? rotatedPoolWindow(pool, priorPlans)
-        : bt === 'plyo' ? rotatedPoolWindow(pool, priorPlans, 6, (e) => e.movement_type)
+      const windowed = (bt === 'optional' || bt === 'accessory') ? rotatedPoolWindow(pool, winOffset)
+        : bt === 'plyo' ? rotatedPoolWindow(pool, winOffset, 6, (e) => e.movement_type)
         : pool
       // Prompt-Reihenfolge rotiert pro Generierung (QA 10.10.): LLMs greifen zu
       // früh gelisteten Übungen — ohne Rotation liefert Regenerieren denselben Plan.
       // Sport-Präferenzen stehen unrotiert ganz vorn.
       const pinned = windowed.filter((e) => e.preferred).map((e) => e.slug).sort()
-      const rest = rotateSlugs(windowed.filter((e) => !e.preferred).map((e) => e.slug), priorPlans)
+      const rest = rotateSlugs(windowed.filter((e) => !e.preferred).map((e) => e.slug), winOffset)
       poolRecord[bt] = [...pinned, ...rest]
     }
     notes.push(...preDropEmptyPools(workout, poolRecord).map((n) => `Tag ${workout.day_of_week}: ${n}`))

@@ -93,7 +93,7 @@ describe('makePlaneCounter (Spec §3.3: position = planCount*3 + k, pro Familie)
 // Review-Fix (Final Review Important #1): die Pin-Entscheidung ist als pure
 // Funktion aus prepare-v2 extrahiert und hier gepinnt — insbesondere, dass
 // heavy den Wochen-Zähler NICHT konsumiert und der Zähler geteilt ist.
-import { planeFocusForPattern } from '../prepare-v2'
+import { fillerWindowOffset, planeFocusForPattern } from '../prepare-v2'
 
 describe('planeFocusForPattern (prepare-v2-Verdrahtung, Spec §4)', () => {
   const pl = (slug: string, movement_type: string) => ({
@@ -111,14 +111,14 @@ describe('planeFocusForPattern (prepare-v2-Verdrahtung, Spec §4)', () => {
 
   it('normal + Ebenen-Slot → Pin und Fokus; Zähler wird konsumiert', () => {
     const next = makePlaneCounter(0)
-    const r = planeFocusForPattern('knee_dominant', 'normal', weights, next, pool, 0)
+    const r = planeFocusForPattern('knee_dominant', 'normal', weights, next, pool)
     expect(r).toEqual({ planePin: 'kb_split_squat_rotation', planeFocus: 'transverse' })
     expect(next('knee_dominant')).toBe(1) // Position 0 wurde verbraucht
   })
 
   it('heavy konsumiert den Zähler NICHT und pinnt nie', () => {
     const next = makePlaneCounter(0)
-    const r = planeFocusForPattern('knee_dominant', 'heavy', weights, next, pool, 0)
+    const r = planeFocusForPattern('knee_dominant', 'heavy', weights, next, pool)
     expect(r).toEqual({ planePin: null })
     expect(next('knee_dominant')).toBe(0) // Zähler unberührt
   })
@@ -126,7 +126,7 @@ describe('planeFocusForPattern (prepare-v2-Verdrahtung, Spec §4)', () => {
   it('sagittal-Zyklus-Slot → kein Pin, Zähler trotzdem konsumiert (Position zählt pro Vorkommen)', () => {
     const next = makePlaneCounter(0)
     const r = planeFocusForPattern('knee_dominant', 'normal',
-      { ...weights, knee_dominant: DEFAULT_PLANE_WEIGHTS }, next, pool, 0)
+      { ...weights, knee_dominant: DEFAULT_PLANE_WEIGHTS }, next, pool)
     expect(r).toEqual({ planePin: null })
     expect(next('knee_dominant')).toBe(1)
   })
@@ -134,14 +134,41 @@ describe('planeFocusForPattern (prepare-v2-Verdrahtung, Spec §4)', () => {
   it('leerer Ebenen-Pool → kein Fokus trotz Ebenen-Slot (Datenloch degradiert)', () => {
     const next = makePlaneCounter(0)
     const onlySagittal = [pl('back_squat', 'sagittal')]
-    const r = planeFocusForPattern('knee_dominant', 'normal', weights, next, onlySagittal, 0)
+    const r = planeFocusForPattern('knee_dominant', 'normal', weights, next, onlySagittal)
     expect(r).toEqual({ planePin: null })
   })
 
   it('Zähler ist über Muster derselben Familie geteilt (push_vertical + push_horizontal)', () => {
     const next = makePlaneCounter(0)
     const pushWeights = { ...weights, push: { sagittal: 50, frontal: 0, transverse: 50 } }
-    planeFocusForPattern('push_vertical', 'normal', pushWeights, next, pool, 0)
+    planeFocusForPattern('push_vertical', 'normal', pushWeights, next, pool)
     expect(next('push')).toBe(1) // zweites Vorkommen der Familie sieht Position 1
+  })
+})
+
+describe('Füller-Fenster & Pin pro Session (QA 11.10.)', () => {
+  it('fillerWindowOffset: verschiedene Tage → verschiedene Offsets, Folgeplan überlappt nicht', () => {
+    expect(fillerWindowOffset(0, 4)).not.toBe(fillerWindowOffset(0, 6))
+    expect(fillerWindowOffset(0, 6)).not.toBe(fillerWindowOffset(1, 4))
+    expect(fillerWindowOffset(2, 4)).toBe(2 * 7 + 4)
+  })
+
+  it('Plane-Pin rotiert pro Vorkommen: zwei gleiche Muster in einer Woche pinnen verschiedene Übungen', () => {
+    const mk = (slug: string) => ({
+      id: slug, slug, name: slug, category_slug: 'strength', body_region: 'quad',
+      dominant_region: null, strength_pattern: 'knee_dominant', plyo_type: null,
+      core_type: null, sprint_type: null, covered_patterns: null, laterality: 'bilateral',
+      min_level: 1, max_level: 100, intensity_score: 5, measurement_type: 'reps',
+      legacy_block_slugs: null, movement_type: 'transverse', is_explosive: false, regions: null,
+    }) as any
+    const pool = [mk('kb_split_squat_rotation'), mk('curtsy_rotation_x')]
+    const weights = {
+      knee_dominant: { sagittal: 0, frontal: 0, transverse: 100 },
+      hinge: DEFAULT_PLANE_WEIGHTS, push: DEFAULT_PLANE_WEIGHTS, pull: DEFAULT_PLANE_WEIGHTS,
+    }
+    const next = makePlaneCounter(0)
+    const first = planeFocusForPattern('knee_dominant', 'normal', weights, next, pool)
+    const second = planeFocusForPattern('knee_dominant', 'normal', weights, next, pool)
+    expect(first.planePin).not.toBe(second.planePin)
   })
 })
