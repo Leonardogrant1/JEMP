@@ -87,6 +87,10 @@ Begründungen aus dem Review (11.10.):
   (`rotational_single_leg_rdl`) und frontal bei 0 — 30 % Gewicht hieße
   dieselbe Übung in 3 von 10 Plänen. §5 und der Seed gehören in dasselbe
   Deployment.
+- **Bekannte Rest-Monotonie** (Review 11.10.): hinge frontal hat auch nach §5
+  genau eine Übung (`single_leg_rdl_lateral_reach`) — wenn der 10-%-Slot
+  kommt, ist es immer dieselbe. Bei 1 von 10 Plänen akzeptiert; löst sich
+  über Pool-Wachstum, nicht über Mechanik.
 
 Fallback im Worker (analog `resolveConditioningWeights`): fehlt eine Gruppe
 oder ein Muster in der Tabelle, gilt `DEFAULT_PLANE_WEIGHTS = { sagittal: 100,
@@ -169,10 +173,15 @@ zählen nicht — sie nehmen am Zyklus nicht teil (§0.1).
   ignoriert (§0.1).
 - `emphasis === 'normal'` und `planeFocus` gesetzt (≠ sagittal): Vor dem
   4er-Fenster wird **genau 1 Slot** für die (in rotierter Reihenfolge) erste
-  Übung mit `movement_type === planeFocus` reserviert und gepinnt — zusätzlich
-  zu den bestehenden preferred-Pins, zusammen gedeckelt wie bisher
-  (Pins verdrängen das Fenster nicht komplett: Fenstergröße bleibt
-  `max(4, pinned.length)`). Fallback-Kette: keine Übung der Ziel-Ebene →
+  Übung mit `movement_type === planeFocus` reserviert und gepinnt. Der
+  Plane-Pin kommt **nicht zusätzlich** zu den preferred-Pins (Review 11.10.:
+  ein wachsendes Fenster verwässert die Verknappung, die der eigentliche
+  Steuerungsmechanismus ist): Sind preferred-Pins vorhanden, ersetzt der
+  Plane-Pin den letzten preferred-Pin — die Gesamt-Pin-Zahl und damit die
+  Fenstergröße `max(4, pinned.length)` bleiben gegenüber heute unverändert.
+  Ist die Ebenen-Übung selbst preferred, zählt sie nur einmal (kein
+  Ersetzen nötig). Priorität Ebene vor Sport-Präferenz, weil der Ebenen-Slot
+  der seltenere, dosierte Impuls ist. Fallback-Kette: keine Übung der Ziel-Ebene →
   erste andere nicht-sagittale Übung; auch keine → kein Pin, Fenster wie
   heute (leerer Pool darf nie Effekte erzwingen, §2 Fallback-Prinzip).
 - `planeFocus` fehlt oder `sagittal` → exakt heutiges Verhalten.
@@ -247,8 +256,9 @@ Vitest im Worker (`npx vitest run` aus `externals/jemp-temporal-worker/`):
    (Positionen `planCount*3 + k` ohne Überlapp zwischen Folgeplänen).
 3. **pool.test.ts**: `patternSlugWindow` mit `planeFocus` — Pin der
    Ziel-Ebene, Fallback auf andere nicht-sagittale, kein Pin bei leerem
-   Ebenen-Pool, heavy ignoriert planeFocus, Zusammenspiel mit preferred-Pins
-   (Fenstergröße).
+   Ebenen-Pool, heavy ignoriert planeFocus, Zusammenspiel mit preferred-Pins:
+   Plane-Pin **ersetzt** den letzten preferred-Pin (Fenstergröße wächst
+   nicht), Ebenen-Übung, die selbst preferred ist, zählt einmal.
 4. **v2-prompts.test.ts**: EBENEN-FOKUS-Zeile erscheint mit planeSlugs,
    „laterale" vs. „rotierende" je Plane, keine Zeile ohne planeFocus.
 5. **prepare-v2** (exercise-filter/prepare-Tests): Vorkommens-Zähler pro
