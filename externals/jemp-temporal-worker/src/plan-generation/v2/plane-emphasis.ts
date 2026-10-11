@@ -46,3 +46,14 @@ export function pickPlaneEmphasis(weights: PlaneWeights, position: number): Plan
   const cycle = buildWeightedCycle(weights, PLANES, 'sagittal')
   return cycle[((position % CYCLE_LENGTH) + CYCLE_LENGTH) % CYCLE_LENGTH]
 }
+
+/** Vorkommens-Zähler pro Muster-Familie über die Woche (Spec §3.3): liefert
+ *  für jedes normal-Vorkommen die nächste Zyklusposition. Heavy ruft nicht auf. */
+export function makePlaneCounter(planCount: number): (family: PatternFamily) => number {
+  const counters = new Map<PatternFamily, number>()
+  return (family) => {
+    const k = counters.get(family) ?? 0
+    counters.set(family, k + 1)
+    return planCount * PLANE_CYCLE_STRIDE + k
+  }
+}

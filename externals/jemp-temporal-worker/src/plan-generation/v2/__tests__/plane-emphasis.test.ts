@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   DEFAULT_PLANE_WEIGHTS, PLANE_CYCLE_STRIDE,
-  pickPlaneEmphasis, resolvePlaneWeights, toPatternFamily,
+  makePlaneCounter, pickPlaneEmphasis, resolvePlaneWeights, toPatternFamily,
 } from '../plane-emphasis'
 
 const rows = (g: string, p: string, w: [number, number, number]) => [
@@ -74,5 +74,18 @@ describe('pickPlaneEmphasis (Spec §3.2/§3.3)', () => {
     // ggT(3,10)=1: ein Vorkommen/Woche durchläuft über 10 Pläne alle 10 Slots.
     const seen = new Set(Array.from({ length: 10 }, (_, plan) => (plan * PLANE_CYCLE_STRIDE) % 10))
     expect(seen.size).toBe(10)
+  })
+})
+
+describe('makePlaneCounter (Spec §3.3: position = planCount*3 + k, pro Familie)', () => {
+  it('zählt pro Familie unabhängig und mit Stride-Basis', () => {
+    const next = makePlaneCounter(2) // planCount 2 → Basis 6
+    expect(next('knee_dominant')).toBe(6)
+    expect(next('knee_dominant')).toBe(7)
+    expect(next('push')).toBe(6)    // eigener Zähler
+    expect(next('knee_dominant')).toBe(8)
+  })
+  it('planCount 0 startet bei 0', () => {
+    expect(makePlaneCounter(0)('hinge')).toBe(0)
   })
 })

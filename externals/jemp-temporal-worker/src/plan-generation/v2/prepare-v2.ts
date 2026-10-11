@@ -7,7 +7,8 @@ import type OpenAI from 'openai'
 import { buildWeekLayout, type PillarLevels, type WeekLayout } from '../week-layout'
 import type { PrepareResult, SessionBuildInput } from '../generate-plan'
 import type { PlanGenerationInput } from '../types'
-import { buildBlockPools, preDropEmptyPools, strengthPatternPools, type V2Exercise } from './pool'
+import { buildBlockPools, patternSlugWindow, pickPlanePin, preDropEmptyPools, rotatedPoolWindow, rotateSlugs, strengthPatternPools, type V2Exercise } from './pool'
+import { makePlaneCounter, pickPlaneEmphasis, resolvePlaneWeights, toPatternFamily } from './plane-emphasis'
 import { buildSpeedSession, type PlannedSessionLike } from './build-speed-session'
 import { buildMobilitySession, buildConditioningSession, conditioningPoolSlugs } from './build-simple-sessions'
 import { pickFinisherFormat, pickSessionFormat, resolveConditioningWeights } from './conditioning-format'
@@ -92,6 +93,20 @@ export function parseDayDurations(raw: unknown): Array<{ day_of_week: number; mi
   return parsed
 }
 
+/** Sport-Gate (QA 10.10., v2-Portierung des Legacy-Verhaltens): is_sport_specific-
+ *  Übungen sind nur für ihre zugeordneten Sportgruppen sichtbar; ohne Zuordnung
+ *  für niemanden. Nicht-spezifische Übungen passieren immer. */
+export function makeSportGate(
+  sportGroupsByExercise: Map<string, Set<string>>,
+  groupName: string | undefined,
+) {
+  return (row: { id: string; is_sport_specific?: boolean | null }): boolean => {
+    if (!row.is_sport_specific) return true
+    const groups = sportGroupsByExercise.get(row.id)
+    return !!groupName && !!groups && groups.has(groupName)
+  }
+}
+
 const DAY_NAMES: Record<number, string> = {
   1: 'Montag', 2: 'Dienstag', 3: 'Mittwoch', 4: 'Donnerstag', 5: 'Freitag', 6: 'Samstag', 7: 'Sonntag',
 }
@@ -105,7 +120,7 @@ export async function prepareGenerationV2(
 
   // ── 1. Exercises incl. v2 metadata, filtered for the user ────────────────
   const [{ data: exerciseRows }, { data: exerciseEnvRows }, { data: exerciseEquipRows }, { data: exerciseBlockRows }, { data: environmentRows }] = await Promise.all([
-    supabase.from('exercises').select('id, slug, name, body_region, dominant_region, strength_pattern, plyo_type, core_type, sprint_type, covered_patterns, laterality, min_level, max_level, intensity_score, measurement_type, movement_type, is_explosive, categories(id, slug)'),
+    supabase.from('exercises').select('id, slug, name, body_region, dominant_region, strength_pattern, plyo_type, core_type, sprint_type, covered_patterns, laterality, min_level, max_level, intensity_score, measurement_type, movement_type, is_explosive, is_sport_specific, categories(id, slug)'),
     supabase.from('exercise_environments').select('exercise_id, environment_id'),
     supabase.from('exercise_equipments').select('exercise_id, equipment_id'),
     supabase.from('exercise_blocks').select('exercise_id, block_types(slug)'),
@@ -117,14 +132,28 @@ export async function prepareGenerationV2(
 
   // Conditioning-Formate (Spec 2026-10-10 §3): Gewichte je Sportgruppe + Plan-
   // Zähler für die deterministische Format-Rotation. null-Count → 0 (erster Plan).
-  const [{ data: weightRows }, { count: planCountRaw }] = await Promise.all([
+  const [{ data: weightRows }, { count: planCountRaw }, { data: sportGroupRows }, { data: planeRows }] = await Promise.all([
     supabase.from('sport_conditioning_weights').select('group_name, format, weight'),
     supabase.from('workout_plans').select('id', { count: 'exact', head: true }).eq('user_id', input.user_id),
+    supabase.from('exercise_sport_groups').select('exercise_id, sport_group'),
+    supabase.from('sport_plane_weights').select('group_name, pattern, plane, weight'),
   ])
+  // Gate + Präferenz (QA 10.10.): is_sport_specific=true → nur für zugeordnete
+  // Gruppen sichtbar; is_sport_specific=false + Zeile → für die Gruppe bevorzugt.
+  const sportGroupsByExercise = new Map<string, Set<string>>()
+  for (const r of sportGroupRows ?? []) {
+    if (!sportGroupsByExercise.has(r.exercise_id)) sportGroupsByExercise.set(r.exercise_id, new Set())
+    sportGroupsByExercise.get(r.exercise_id)!.add(r.sport_group)
+  }
+  const sportGate = makeSportGate(sportGroupsByExercise, input.sport_group_name || undefined)
   const conditioningWeights = resolveConditioningWeights(weightRows ?? [], input.sport_group_name || undefined)
   const priorPlans = planCountRaw ?? 0
   const sessionFormat = pickSessionFormat(conditioningWeights, priorPlans)
   const finisherFormat = pickFinisherFormat(conditioningWeights)
+  // Bewegungsebenen (Spec 2026-10-11): Gewichte je Muster-Familie + Zyklus-
+  // Zähler über die ganze Woche. Fehlende Tabelle/Gruppe → DEFAULT (kein Fokus).
+  const planeWeights = resolvePlaneWeights(planeRows ?? [], input.sport_group_name || undefined)
+  const nextPlanePosition = makePlaneCounter(priorPlans)
 
   const envByExercise = new Map<string, Set<string>>()
   for (const r of exerciseEnvRows ?? []) {
@@ -172,9 +201,11 @@ export async function prepareGenerationV2(
     legacy_block_slugs: blocksByExercise.get(row.id) ?? null,
     movement_type: row.movement_type ?? 'sagittal', is_explosive: row.is_explosive ?? false,
     regions: regionsByExercise.get(row.id) ?? null,
+    is_sport_specific: row.is_sport_specific ?? false,
+    preferred: !!input.sport_group_name && (sportGroupsByExercise.get(row.id)?.has(input.sport_group_name) ?? false),
   })
 
-  const exercises: V2Exercise[] = (exerciseRows ?? []).filter(makeExerciseFilter(filterMaps, null)).map(toV2)
+  const exercises: V2Exercise[] = (exerciseRows ?? []).filter(sportGate).filter(makeExerciseFilter(filterMaps, null)).map(toV2)
 
   // Tages-Umgebungen (Lückenschluss 08.10.): hat ein Tag eine feste Umgebung,
   // zählen nur dort erlaubte Übungen und dort verfügbares Equipment.
@@ -184,7 +215,7 @@ export async function prepareGenerationV2(
     const envId = dayEnvById.get(dayOfWeek)
     if (!envId) return exercises
     if (!byEnvCache.has(envId)) {
-      byEnvCache.set(envId, (exerciseRows ?? []).filter(makeExerciseFilter(filterMaps, envId)).map(toV2))
+      byEnvCache.set(envId, (exerciseRows ?? []).filter(sportGate).filter(makeExerciseFilter(filterMaps, envId)).map(toV2))
     }
     return byEnvCache.get(envId)!
   }
@@ -195,7 +226,7 @@ export async function prepareGenerationV2(
   // bleiben im Gym), Bodyweight-Sprints sind für jeden User sichtbar.
   const outdoorEnvId = (environmentRows ?? []).find((e) => e.slug === 'outdoor')?.id ?? null
   const speedExercises: V2Exercise[] = outdoorEnvId
-    ? (exerciseRows ?? []).filter(makeExerciseFilter(filterMaps, outdoorEnvId)).map(toV2)
+    ? (exerciseRows ?? []).filter(sportGate).filter(makeExerciseFilter(filterMaps, outdoorEnvId)).map(toV2)
     : exercises
   // Extensiv-Lauf-Anker (Spec §1.1): easy_jog lebt in der sprints-Kategorie und
   // wird wie im Speed-Builder direkt geholt, nicht über den Conditioning-Pool.
@@ -283,20 +314,55 @@ export async function prepareGenerationV2(
           notes.push(`Tag ${workout.day_of_week}: Pattern ${p.pattern} ohne Pool-Übungen — Anforderung entfällt`)
           return false
         }
-        patternReqs.push({ block_type: block.block_type, pattern: p.pattern, emphasis: p.emphasis, slugs })
+        // Normale Patterns: rotierendes 4er-Fenster (Heavy behält den vollen Pool —
+        // der schwere Slot bleibt beim Klassiker, QA 10.10.). Präferenzen immer vorn.
+        // Ebenen-Betonung (Spec 2026-10-11 §4): nur normal-Muster nehmen am Zyklus
+        // teil; sagittal oder leerer Ebenen-Pool → exakt heutiges Verhalten.
+        const poolForPattern = perPattern.get(p.pattern) ?? []
+        let planePin: string | null = null
+        let planeFocus: 'frontal' | 'transverse' | undefined
+        if (p.emphasis === 'normal') {
+          const family = toPatternFamily(p.pattern)
+          const plane = pickPlaneEmphasis(planeWeights[family], nextPlanePosition(family))
+          if (plane !== 'sagittal') {
+            planePin = pickPlanePin(poolForPattern, plane, priorPlans)
+            if (planePin) planeFocus = plane
+          }
+        }
+        patternReqs.push({
+          block_type: block.block_type, pattern: p.pattern, emphasis: p.emphasis,
+          slugs: patternSlugWindow(poolForPattern, p.emphasis, priorPlans, planePin),
+          ...(planeFocus ? { planeFocus, planeSlugs: [planePin!] } : {}),
+        })
         return true
       })
       block.patterns = kept
     }
     const pools = buildBlockPools(dayExercises, workout.blocks)
     const poolRecord: Record<string, string[]> = {}
-    for (const [bt, pool] of pools) poolRecord[bt] = pool.map((e) => e.slug)
+    for (const [bt, pool] of pools) {
+      // Füller-Rotation (QA 10.10.): optional/accessory bekommen nur ein kleines,
+      // mit dem Plan-Zähler rotierendes Fenster — sonst wählt das LLM aus dem
+      // vollen Pool jedes Mal dieselben Favoriten. Plyo: größeres Fenster (6),
+      // über movement_type balanciert — so ist pro Fenster garantiert eine
+      // rotationale Option prominent. Prompt UND Validator sehen dasselbe Fenster.
+      const windowed = (bt === 'optional' || bt === 'accessory') ? rotatedPoolWindow(pool, priorPlans)
+        : bt === 'plyo' ? rotatedPoolWindow(pool, priorPlans, 6, (e) => e.movement_type)
+        : pool
+      // Prompt-Reihenfolge rotiert pro Generierung (QA 10.10.): LLMs greifen zu
+      // früh gelisteten Übungen — ohne Rotation liefert Regenerieren denselben Plan.
+      // Sport-Präferenzen stehen unrotiert ganz vorn.
+      const pinned = windowed.filter((e) => e.preferred).map((e) => e.slug).sort()
+      const rest = rotateSlugs(windowed.filter((e) => !e.preferred).map((e) => e.slug), priorPlans)
+      poolRecord[bt] = [...pinned, ...rest]
+    }
     notes.push(...preDropEmptyPools(workout, poolRecord).map((n) => `Tag ${workout.day_of_week}: ${n}`))
     const v2: V2SessionContext = {
       workout, day, pools: poolRecord, sprintPool: sprintPoolSlugs,
       conditioningFinisherPool: finisherPoolSlugs,
       conditioningFinisherFormat: finisherFormat, conditioningFinisherOffset: priorPlans,
       patternReqs,
+      preferredSlugs: [...new Set(dayExercises.filter((e) => e.preferred).map((e) => e.slug))].sort(),
     }
     return {
       spec: { day_of_week: workout.day_of_week, mode_slug: day.dose === 'maintenance' ? 'reduced' : 'full' },
