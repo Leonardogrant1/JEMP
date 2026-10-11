@@ -94,3 +94,58 @@ describe('Pattern-Blockzeilen (Spec 2026-10-10)', () => {
     expect(p).not.toMatch(/OBERKÖRPER-DECKEL/)
   })
 })
+
+describe('Sport-Präferenz-Zeile (QA 10.10.)', () => {
+
+  const base = {
+    workout: { day_of_week: 4, blocks: [{ block_type: 'warmup', variant: null, emphasis: 'normal' }] },
+    day: { day_of_week: 4, minutes: 60, dose: 'normal', suppress_micro_dose: false, carries_sprint_block: false },
+    poolLines: ['- `warmup`: hip_cars'],
+    sprintPoolLine: null, userContext: '', weekSummary: '', previousSummaries: [],
+  }
+  it('nennt bevorzugte Übungen explizit', () => {
+    const p = V2_SESSION_PROMPT({ ...base, preferredLine: 'landmine_punch_throw, rotational_med_ball_slam' } as any)
+    expect(p).toContain('SPORT-PRÄFERENZ')
+    expect(p).toContain('landmine_punch_throw')
+  })
+  it('ohne Präferenzen keine Zeile', () => {
+    expect(V2_SESSION_PROMPT({ ...base, preferredLine: null } as any)).not.toContain('SPORT-PRÄFERENZ')
+  })
+})
+
+import { buildPlaneFocusLines } from '../run-session-v2'
+
+describe('EBENEN-FOKUS-Zeile (Spec 2026-10-11 §4.3)', () => {
+  const base = {
+    workout: { day_of_week: 4, blocks: [{ block_type: 'warmup', variant: null, emphasis: 'normal' }] },
+    day: { day_of_week: 4, minutes: 60, dose: 'normal', suppress_micro_dose: false, carries_sprint_block: false },
+    poolLines: ['- `warmup`: hip_cars'],
+    sprintPoolLine: null, userContext: '', weekSummary: '', previousSummaries: [],
+  }
+  it('rendert übergebene EBENEN-FOKUS-Zeilen', () => {
+    const p = V2_SESSION_PROMPT({ ...base, planeFocusLines: [
+      'EBENEN-FOKUS: Wähle für knee_dominant heute eine dieser Übungen als Sekundärmuster-Übung — rotierende Kraft gehört zum Sport des Athleten: kb_split_squat_rotation',
+    ] } as any)
+    expect(p).toContain('EBENEN-FOKUS')
+    expect(p).toContain('kb_split_squat_rotation')
+  })
+  it('ohne planeFocusLines keine Zeile', () => {
+    expect(V2_SESSION_PROMPT({ ...base } as any)).not.toContain('EBENEN-FOKUS')
+    expect(V2_SESSION_PROMPT({ ...base, planeFocusLines: [] } as any)).not.toContain('EBENEN-FOKUS')
+  })
+})
+
+describe('buildPlaneFocusLines (Spec §4.3 — Formulierung je Ebene)', () => {
+  it('frontal → „laterale", transverse → „rotierende"; nur Einträge mit planeSlugs', () => {
+    const lines = buildPlaneFocusLines([
+      { block_type: 'lower_strength', pattern: 'knee_dominant', emphasis: 'normal', slugs: [], planeFocus: 'frontal', planeSlugs: ['lateral_lunge'] },
+      { block_type: 'upper_strength', pattern: 'push_vertical', emphasis: 'normal', slugs: [], planeFocus: 'transverse', planeSlugs: ['split_stance_landmine_press'] },
+      { block_type: 'lower_strength', pattern: 'hinge', emphasis: 'heavy', slugs: [] },
+    ] as any)
+    expect(lines).toHaveLength(2)
+    expect(lines[0]).toContain('laterale')
+    expect(lines[0]).toContain('lateral_lunge')
+    expect(lines[1]).toContain('rotierende')
+    expect(lines[1]).toContain('push_vertical')
+  })
+})

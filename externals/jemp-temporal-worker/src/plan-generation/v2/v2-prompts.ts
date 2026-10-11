@@ -28,11 +28,17 @@ export function V2_SESSION_PROMPT(input: {
   day: PlacedDay
   poolLines: string[]
   sprintPoolLine: string | null
+  /** Sport-Präferenzen (QA 10.10.): in dieser Session wählbare Übungen, die
+   *  besonders zum Sport des Athleten passen. */
+  preferredLine?: string | null
+  /** EBENEN-FOKUS (Spec 2026-10-11 §4.3): pro normal-Pattern mit Ebenen-Tag
+   *  eine explizite Wahl-Ansage. */
+  planeFocusLines?: string[]
   userContext: string
   weekSummary: string
   previousSummaries: string[]
 }): string {
-  const { workout, day, poolLines, sprintPoolLine, userContext, weekSummary, previousSummaries } = input
+  const { workout, day, poolLines, sprintPoolLine, preferredLine, planeFocusLines, userContext, weekSummary, previousSummaries } = input
 
   // Volumen-Hierarchie (§1.3): heavy = Primary (die Session), normal = Sekundär, light = Ergänzung.
   const patternDose = (e: 'heavy' | 'normal') => e === 'heavy'
@@ -105,7 +111,7 @@ ${blockLines}
 ${microDose}${sprintBlock}${compact}${upperCap}${prepLine}
 
 ## Übungspools pro Block (NUR daraus wählen)
-${poolLines.join('\n')}
+${poolLines.join('\n')}${preferredLine ? `\n\nSPORT-PRÄFERENZ: Diese Übungen passen besonders zum Sport des Athleten — wähle sie ihren generischen Alternativen vor, wenn sie die Block-Anforderung gleichwertig erfüllen: ${preferredLine}` : ''}${(planeFocusLines ?? []).length > 0 ? `\n\n${planeFocusLines!.join('\n')}` : ''}
 
 ## Regeln
 - 1–2 Übungen pro Block (SCHWERPUNKT-Block: 1 Hauptübung + optional 1 Ergänzung).

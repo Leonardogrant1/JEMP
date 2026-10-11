@@ -50,7 +50,10 @@ export function buildV2SessionSchema(blockTypes: string[], exerciseSlugs: string
 
 /** Pattern-Anforderung eines Kraftblocks (Spec 2026-10-10 §1.2) in Validator-
  *  Sicht; über die Activity-Grenze reisen die slugs als string[] (V2SessionContext). */
-export type PatternRequirement = { block_type: string; pattern: string; emphasis: 'heavy' | 'normal'; slugs: Set<string> }
+export type PatternRequirement = {
+  block_type: string; pattern: string; emphasis: 'heavy' | 'normal'; slugs: Set<string>
+  planeFocus?: 'frontal' | 'transverse'; planeSlugs?: string[]
+}
 
 export function findV2Violations(
   session: { blocks: Array<{ block_type: string; exercises: Array<{ exercise_slug: string }> }> },
@@ -91,6 +94,17 @@ export function findV2Violations(
   return violations
 }
 
+/** EBENEN-FOKUS-Zeilen (Spec 2026-10-11 §4.3): explizite Ansage gegen den
+ *  Lehrbuch-Bias — Fenster-Verknappung allein reicht nicht, das LLM greift
+ *  sonst zur erstbesten Hantelübung. */
+export function buildPlaneFocusLines(
+  reqs: Array<{ pattern: string; planeFocus?: 'frontal' | 'transverse'; planeSlugs?: string[] }>,
+): string[] {
+  return reqs
+    .filter((r) => r.planeFocus && (r.planeSlugs ?? []).length > 0)
+    .map((r) => `EBENEN-FOKUS: Wähle für ${r.pattern} heute eine dieser Übungen als Sekundärmuster-Übung — ${r.planeFocus === 'frontal' ? 'laterale' : 'rotierende'} Kraft gehört zum Sport des Athleten: ${r.planeSlugs!.join(', ')}`)
+}
+
 /** v2 per-session payload — crosses the Temporal workflow/activity boundary,
  *  so it must stay plain JSON (no Maps, no class instances). */
 export type V2SessionContext = {
@@ -106,8 +120,13 @@ export type V2SessionContext = {
   /** Rotations-Offset (= planCount) gegen die alphabetische Übungs-Monotonie. */
   conditioningFinisherOffset?: number
   /** Pattern-Anforderungen der Kraftblöcke (Spec 2026-10-10 §1.2) — slugs als
-   *  string[] wegen der Temporal-Payload-Serialisierung. */
-  patternReqs?: Array<{ block_type: string; pattern: string; emphasis: 'heavy' | 'normal'; slugs: string[] }>
+   *  string[] wegen der Temporal-Payload-Serialisierung. planeFocus/planeSlugs
+   *  (Spec 2026-10-11 §4.3): Ebenen-Betonung des Musters für die Prompt-Ansage. */
+  patternReqs?: Array<{ block_type: string; pattern: string; emphasis: 'heavy' | 'normal'; slugs: string[];
+    planeFocus?: 'frontal' | 'transverse'; planeSlugs?: string[] }>
+  /** Sport-Präferenzen (QA 10.10.): Übungen aus exercise_sport_groups für die
+   *  Gruppe des Users — werden im Prompt explizit als bevorzugt genannt. */
+  preferredSlugs?: string[]
 }
 
 /**
@@ -169,9 +188,15 @@ export async function runSessionV2(
   const allSlugs = [...new Set(expectedBlocks.flatMap((bt) => [...poolMap.get(bt)!.slugs]))]
   const schema = buildV2SessionSchema(expectedBlocks, allSlugs)
 
+  // Sport-Präferenz-Zeile (QA 10.10.): nur Übungen, die in dieser Session auch
+  // wählbar sind — gegen den Lehrbuch-Bias braucht das LLM die explizite Ansage.
+  const allSlugSet = new Set(allSlugs)
+  const preferredInSession = (input.preferredSlugs ?? []).filter((s) => allSlugSet.has(s))
   const basePrompt = V2_SESSION_PROMPT({
     workout, day, poolLines,
     sprintPoolLine: day.carries_sprint_block ? sprintPool.join(', ') : null,
+    preferredLine: preferredInSession.length > 0 ? preferredInSession.join(', ') : null,
+    planeFocusLines: buildPlaneFocusLines(input.patternReqs ?? []),
     userContext, weekSummary, previousSummaries,
   })
 
@@ -224,8 +249,9 @@ export async function runSessionV2(
   return {
     ...(lastSession as any),
     // Name deterministisch überschreiben (QA 09.10.): der LLM-Name schleuste
-    // Sportart und Tag-Nummer ein — der Titel nennt nur den Trainingsinhalt.
-    name: trainingSessionTitle(blocks, day),
+    // Sportart und Tag-Nummer ein. Fokus-Titel (10.10.) aus den GEPLANTEN
+    // Blöcken — nur die tragen patterns/variant, die Output-Blöcke nicht.
+    name: trainingSessionTitle(workout.blocks as any, day),
     blocks,
     day_of_week: day.day_of_week,
     order_index: orderIndex,
