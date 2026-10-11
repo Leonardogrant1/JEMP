@@ -7,7 +7,7 @@ import type OpenAI from 'openai'
 import { buildWeekLayout, type PillarLevels, type WeekLayout } from '../week-layout'
 import type { PrepareResult, SessionBuildInput } from '../generate-plan'
 import type { PlanGenerationInput } from '../types'
-import { buildBlockPools, patternSlugWindow, pickPlanePin, preDropEmptyPools, rotatedPoolWindow, rotateSlugs, strengthPatternPools, type V2Exercise } from './pool'
+import { buildBlockPools, isCnsMicroDoseExercise, patternSlugWindow, pickPlanePin, preDropEmptyPools, rotatedPoolWindow, rotateSlugs, strengthPatternPools, type V2Exercise } from './pool'
 import { makePlaneCounter, pickPlaneEmphasis, resolvePlaneWeights, toPatternFamily, type PatternFamily, type PlaneWeights } from './plane-emphasis'
 
 /** Ebenen-Entscheidung pro Pattern-Vorkommen (Spec 2026-10-11 §4) — pure,
@@ -375,6 +375,19 @@ export async function prepareGenerationV2(
       conditioningFinisherFormat: finisherFormat, conditioningFinisherOffset: priorPlans,
       patternReqs,
       preferredSlugs: [...new Set(dayExercises.filter((e) => e.preferred).map((e) => e.slug))].sort(),
+      // Dosierungs-Härtung (11.10.): CNS-Kandidaten, die im Warmup-Pool dieses
+      // Tages tatsächlich wählbar sind — leer = Validator-Check entfällt.
+      warmupCnsPool: (() => {
+        const warmupSlugs = new Set(poolRecord['warmup'] ?? [])
+        return dayExercises.filter((e) => warmupSlugs.has(e.slug) && isCnsMicroDoseExercise(e)).map((e) => e.slug).sort()
+      })(),
+      // Mess-Typ je wählbarem Slug (11.10.): nur die Pool-Slugs, nicht der ganze
+      // Katalog — der Context reist als Temporal-Payload.
+      measurementBySlug: (() => {
+        const chosen = new Set([...Object.values(poolRecord).flat(), ...sprintPoolSlugs])
+        return Object.fromEntries(dayExercises.filter((e) => chosen.has(e.slug) && e.measurement_type)
+          .map((e) => [e.slug, e.measurement_type as string]))
+      })(),
     }
     return {
       spec: { day_of_week: workout.day_of_week, mode_slug: day.dose === 'maintenance' ? 'reduced' : 'full' },

@@ -155,6 +155,15 @@ export function patternSlugWindow(
   pool: V2Exercise[], emphasis: 'heavy' | 'normal', offset: number,
   planePin?: string | null,
 ): string[] {
+  // Heavy-Slot-Filter (QA 11.10.): Maximalkraft bleibt linear und schwer —
+  // Rotations-/Frontal-Übungen und Activation (Int < 5) gehören in die
+  // normal-Slots, nicht in den Schwerpunkt (rotational_cable_row 4×3-5 und
+  // single_leg_glute_bridge neben 120-kg-RDL waren die Live-Befunde).
+  // Unter 3 starken sagittalen Optionen bleibt der volle Pool (Datenloch).
+  if (emphasis === 'heavy') {
+    const strong = pool.filter((e) => e.movement_type === 'sagittal' && (e.intensity_score ?? 5) >= 5)
+    if (strong.length >= 3) pool = strong
+  }
   let pinned = pool.filter((e) => e.preferred).map((e) => e.slug).sort()
   let rest = rotateSlugs(pool.filter((e) => !e.preferred).map((e) => e.slug), offset)
   if (planePin && emphasis === 'normal') {
@@ -176,6 +185,17 @@ export function strengthPatternPools(
   patterns: Array<{ pattern: string }>,
 ): Map<string, V2Exercise[]> {
   return new Map(patterns.map((p) => [p.pattern, exercises.filter((e) => matchesStrengthPattern(e, p.pattern))]))
+}
+
+/** CNS-Mikro-Dosis-Kandidaten (Dosierungs-Härtung 11.10.): Lauf-ABC-Drills
+ *  (Kategorie 'sprints' ohne sprint_type, bis Int 4 — A-Skips/High Knees SIND
+ *  Int 4, der alte ≤3-Deckel ließ den Drill-Pool verhungern) und explosive
+ *  leichte Plyo. NICHT-explosive leichte Plyo (Leg Swings) ist Prep, kein
+ *  CNS-Reiz. Rahmen-Übungen (Traben etc.) bleiben draußen. */
+export function isCnsMicroDoseExercise(ex: V2Exercise): boolean {
+  if (ex.sprint_type !== null || (ex.intensity_score ?? 10) > 4) return false
+  if (ex.category_slug === 'sprints') return !SPEED_FRAMING_SLUGS.has(ex.slug)
+  return PLYO_CATEGORIES.has(ex.category_slug) && ex.is_explosive
 }
 
 export function exerciseMatchesBlock(ex: V2Exercise, blockDef: PlannedWorkoutBlock): boolean {
@@ -220,12 +240,9 @@ export function exerciseMatchesBlock(ex: V2Exercise, blockDef: PlannedWorkoutBlo
       // Mobility nur ins Warmup, wenn der Legacy-Tag es erlaubt (QA 09.10.):
       // statische Stretches/Atemübungen sind cooldown-only getaggt.
       if (ex.category_slug === 'mobility') return legacyBlockAllows(ex, 'warmup')
-      // CNS-Mikro-Dosis (QA 08.10.): Sprint-Technik-Drills (Ministeps, Skips)
-      // leben seit der Rekategorisierung in 'sprints' — ohne diesen Zweig
-      // hätte der Warmup-Prompt einen leeren Drill-Pool. Die Rahmen-Übungen
-      // der Sprint-Session (Traben etc.) bleiben draußen.
-      if (ex.category_slug === 'sprints' && ex.sprint_type === null
-        && !SPEED_FRAMING_SLUGS.has(ex.slug) && (ex.intensity_score ?? 10) <= 3) return true
+      if (isCnsMicroDoseExercise(ex)) return true
+      // Leichte nicht-explosive Plyo (Leg Swings & Co.) bleibt als Prep im
+      // Warmup-Pool — sie erfüllt nur nicht die CNS-Anforderung.
       return PLYO_CATEGORIES.has(ex.category_slug) && ex.sprint_type === null && (ex.intensity_score ?? 10) <= 3
     case 'cooldown':
       return ex.category_slug === 'mobility' && legacyBlockAllows(ex, 'cooldown')

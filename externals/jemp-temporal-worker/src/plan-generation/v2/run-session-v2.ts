@@ -55,11 +55,24 @@ export type PatternRequirement = {
   planeFocus?: 'frontal' | 'transverse'; planeSlugs?: string[]
 }
 
+/** LLM-Dosierungsfelder, soweit der Validator sie prüft (Dosierungs-Härtung
+ *  QA 11.10.): Prompt-Anweisungen allein ließen Lasten (@0 kg) und ganze
+ *  Dosierungen (lateral_shuffle 5×nichts) regelmäßig weg. */
+type DosedExercise = {
+  exercise_slug: string
+  target_reps_max?: number
+  target_duration_seconds?: number
+  target_distance_meters?: number
+  target_load_type?: string
+  target_load_value?: number
+}
+
 export function findV2Violations(
-  session: { blocks: Array<{ block_type: string; exercises: Array<{ exercise_slug: string }> }> },
+  session: { blocks: Array<{ block_type: string; exercises: DosedExercise[] }> },
   pools: Map<string, { slugs: Set<string> }>,
   expectedBlocks: string[],
   patternReqs: PatternRequirement[] = [],
+  checks: { warmupCnsSlugs?: string[]; measurementBySlug?: Record<string, string> } = {},
 ): string[] {
   const violations: string[] = []
   const seen = session.blocks.map((b) => b.block_type)
@@ -80,6 +93,35 @@ export function findV2Violations(
       if (pool && !pool.slugs.has(e.exercise_slug)) {
         violations.push(`"${e.exercise_slug}" ist nicht im Pool von Block "${b.block_type}"`)
       }
+      // Dosierungs-Härtung (QA 11.10.): jede Übung braucht eine echte Dosis —
+      // Platzhalter (0/-1) zählen nicht.
+      const dosed = (e.target_reps_max ?? 0) > 0 || (e.target_duration_seconds ?? 0) > 0 || (e.target_distance_meters ?? 0) > 0
+      if (!dosed) {
+        violations.push(`"${e.exercise_slug}" in Block "${b.block_type}" hat keine Dosierung — setze target_reps_min/max ODER target_duration_seconds ODER target_distance_meters`)
+      }
+      if (e.target_load_type === 'kg' && !((e.target_load_value ?? 0) > 0)) {
+        violations.push(`"${e.exercise_slug}" in Block "${b.block_type}": target_load_type "kg" braucht target_load_value > 0 — setze eine realistische Last oder nutze rpe/bodyweight`)
+      }
+      // Mess-Typ (QA 11.10.): der Katalog kennt die richtige Einheit — ein
+      // Stretch als "1×1 Rep" oder ein A-Skip als "2 Reps" ist ein Mess-Typ-
+      // Fehler, keine Geschmacksfrage. reps_or_duration bleibt frei.
+      const m = checks.measurementBySlug?.[e.exercise_slug]
+      if (m === 'duration' && !((e.target_duration_seconds ?? 0) > 0)) {
+        violations.push(`"${e.exercise_slug}" in Block "${b.block_type}" ist eine Dauer-Übung — setze target_duration_seconds (Sekunden), nicht Wiederholungen`)
+      } else if (m === 'distance' && !((e.target_distance_meters ?? 0) > 0)) {
+        violations.push(`"${e.exercise_slug}" in Block "${b.block_type}" ist eine Distanz-Übung — setze target_distance_meters (Meter)`)
+      } else if (m === 'reps' && !((e.target_reps_max ?? 0) > 0)) {
+        violations.push(`"${e.exercise_slug}" in Block "${b.block_type}" ist eine Wiederholungs-Übung — setze target_reps_min/max`)
+      }
+    }
+  }
+  // CNS-Mikro-Dosis (QA 11.10.): der Prompt fordert sie, das LLM vergaß sie in
+  // 3/3 Sessions — leere Kandidatenliste (Datenloch oder Speed-Vortag) → kein Check.
+  const cns = checks.warmupCnsSlugs ?? []
+  if (cns.length > 0) {
+    const warmup = session.blocks.find((b) => b.block_type === 'warmup')
+    if (warmup && !warmup.exercises.some((e) => cns.includes(e.exercise_slug))) {
+      violations.push(`Warmup ohne CNS-Mikro-Dosis — füge 1 Übung hinzu aus: ${cns.slice(0, 8).join(', ')}`)
     }
   }
   // Spec 2026-10-10 §1.2: jedes geforderte Kraftmuster ist mit ≥1 Übung aus
@@ -92,6 +134,15 @@ export function findV2Violations(
     }
   }
   return violations
+}
+
+/** Mess-Typ-Marker für Pool-Zeilen (QA 11.10.): (s) = Sekunden, (m) = Meter —
+ *  damit das LLM die Einheit nicht aus dem Slug-Namen raten muss. */
+export function withMeasurementMarkers(slugs: string[], measurementBySlug: Record<string, string>): string {
+  return slugs.map((s) => {
+    const m = measurementBySlug[s]
+    return m === 'duration' ? `${s} (s)` : m === 'distance' ? `${s} (m)` : s
+  }).join(', ')
 }
 
 /** EBENEN-FOKUS-Zeilen (Spec 2026-10-11 §4.3): explizite Ansage gegen den
@@ -127,6 +178,12 @@ export type V2SessionContext = {
   /** Sport-Präferenzen (QA 10.10.): Übungen aus exercise_sport_groups für die
    *  Gruppe des Users — werden im Prompt explizit als bevorzugt genannt. */
   preferredSlugs?: string[]
+  /** CNS-Mikro-Dosis-Kandidaten im Warmup-Pool dieses Tages (Dosierungs-
+   *  Härtung 11.10.) — leer/fehlend = kein Validator-Check. */
+  warmupCnsPool?: string[]
+  /** Mess-Typ je wählbarem Slug (QA 11.10.): reps|duration|distance|
+   *  reps_or_duration — treibt Prompt-Marker und Validator-Check. */
+  measurementBySlug?: Record<string, string>
 }
 
 /**
@@ -179,10 +236,11 @@ export async function runSessionV2(
     // Kraftblöcke (Spec 2026-10-10): Pool nach Pattern gruppiert, damit das LLM
     // sieht, welche Übungen welche Anforderung erfüllen.
     const reqsForBlock = patternReqs.filter((r) => r.block_type === bt)
+    const mm = input.measurementBySlug ?? {}
     if (reqsForBlock.length > 0) {
-      poolLines.push(`- \`${bt}\`: ${reqsForBlock.map((r) => `${r.pattern}: [${[...r.slugs].join(', ')}]`).join(' | ')}`)
+      poolLines.push(`- \`${bt}\`: ${reqsForBlock.map((r) => `${r.pattern}: [${withMeasurementMarkers([...r.slugs], mm)}]`).join(' | ')}`)
     } else {
-      poolLines.push(`- \`${bt}\`: ${pool.join(', ') || '(leer)'}`)
+      poolLines.push(`- \`${bt}\`: ${withMeasurementMarkers(pool, mm) || '(leer)'}`)
     }
   }
   const allSlugs = [...new Set(expectedBlocks.flatMap((bt) => [...poolMap.get(bt)!.slugs]))]
@@ -221,7 +279,10 @@ export async function runSessionV2(
       continue
     }
     lastSession = JSON.parse(choice.message.content)
-    const violations = findV2Violations(lastSession as any, poolMap, expectedBlocks, patternReqs)
+    const violations = findV2Violations(lastSession as any, poolMap, expectedBlocks, patternReqs, {
+      warmupCnsSlugs: day.suppress_micro_dose ? [] : (input.warmupCnsPool ?? []),
+      measurementBySlug: input.measurementBySlug,
+    })
     if (violations.length === 0) break
     feedback = violations.map((v) => `- ${v}`).join('\n')
     console.warn(`runSessionV2 day ${day.day_of_week} attempt ${attempt}: ${violations.length} violations`)

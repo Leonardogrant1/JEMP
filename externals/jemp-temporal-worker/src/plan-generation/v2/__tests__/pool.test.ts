@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { exerciseMatchesBlock, buildBlockPools, strengthPatternPools, rotatedPoolWindow, rotateSlugs, patternSlugWindow, pickPlanePin, type V2Exercise } from '../pool'
+import { exerciseMatchesBlock, buildBlockPools, strengthPatternPools, rotatedPoolWindow, rotateSlugs, patternSlugWindow, pickPlanePin, isCnsMicroDoseExercise, type V2Exercise } from '../pool'
 import { ex, block } from './fixtures'
 
 describe('exerciseMatchesBlock', () => {
@@ -452,8 +452,9 @@ describe('pickPlanePin + patternSlugWindow planePin (Spec 2026-10-11 §4.2)', ()
   it('ersetzter preferred-Pin ist nicht aus dem Gesamtpool gelöscht (Review Focus 5)', () => {
     const withPref = pool.map((e) => ['back_squat', 'front_squat'].includes(e.slug) ? { ...e, preferred: true } : e)
     const heavy = patternSlugWindow(withPref, 'heavy', 0, 'lateral_lunge')
-    expect(heavy).toContain('front_squat')       // heavy = voller Pool, Ersetzung irrelevant
-    expect(heavy).toHaveLength(pool.length)
+    expect(heavy).toContain('front_squat')       // heavy ohne Pin-Ersetzung, Präferenz bleibt
+    // Heavy-Filter (QA 11.10.): nur die 4 sagittalen Int-5-Übungen bleiben.
+    expect(heavy).toHaveLength(4)
   })
 
   it('Ebenen-Übung, die selbst preferred ist, zählt einmal — kein Ersetzen', () => {
@@ -470,5 +471,68 @@ describe('pickPlanePin + patternSlugWindow planePin (Spec 2026-10-11 §4.2)', ()
 
   it('ohne planePin exakt heutiges Verhalten (Rückwärtskompatibilität)', () => {
     expect(patternSlugWindow(pool, 'normal', 2)).toEqual(patternSlugWindow(pool, 'normal', 2, null))
+  })
+})
+
+describe('isCnsMicroDoseExercise (Dosierungs-Härtung 11.10.: leg_swing ist kein CNS-Reiz)', () => {
+  it('Lauf-ABC-Drills bis Int 4 sind Kandidaten (a_skip, high_knees)', () => {
+    expect(isCnsMicroDoseExercise(ex({ slug: 'a_skip_drill', category_slug: 'sprints', intensity_score: 4, sprint_type: null }))).toBe(true)
+    expect(isCnsMicroDoseExercise(ex({ slug: 'high_knees', category_slug: 'sprints', intensity_score: 4, sprint_type: null }))).toBe(true)
+  })
+  it('leichte NICHT-explosive Plyo (leg swings) ist KEIN Kandidat', () => {
+    expect(isCnsMicroDoseExercise(ex({ slug: 'leg_swing_front_to_back', category_slug: 'lower_body_plyometrics', intensity_score: 2, is_explosive: false }))).toBe(false)
+  })
+  it('explosive leichte Plyo ist Kandidat, intensive nicht', () => {
+    expect(isCnsMicroDoseExercise(ex({ slug: 'ankle_hops', category_slug: 'lower_body_plyometrics', intensity_score: 3, is_explosive: true }))).toBe(true)
+    expect(isCnsMicroDoseExercise(ex({ slug: 'pogos', category_slug: 'lower_body_plyometrics', intensity_score: 5, is_explosive: true }))).toBe(false)
+  })
+  it('Rahmen-Übungen und echte Sprints sind keine Kandidaten', () => {
+    expect(isCnsMicroDoseExercise(ex({ slug: 'easy_jog', category_slug: 'sprints', intensity_score: 2, sprint_type: null }))).toBe(false)
+    expect(isCnsMicroDoseExercise(ex({ slug: 'sprint_10m', category_slug: 'sprints', intensity_score: 4, sprint_type: 'acceleration' }))).toBe(false)
+  })
+  it('Warmup-Pool nimmt Drills jetzt bis Int 4 (vorher verhungerte der Drill-Pool bei ≤3)', () => {
+    expect(exerciseMatchesBlock(ex({ slug: 'high_knees', category_slug: 'sprints', intensity_score: 4, sprint_type: null }), block('warmup'))).toBe(true)
+    expect(exerciseMatchesBlock(ex({ slug: 'b_skip_drill', category_slug: 'sprints', intensity_score: 5, sprint_type: null }), block('warmup'))).toBe(false)
+    // leichte nicht-explosive Plyo bleibt als Prep im Pool (nur kein CNS-Kandidat)
+    expect(exerciseMatchesBlock(ex({ slug: 'leg_swing_front_to_back', category_slug: 'lower_body_plyometrics', intensity_score: 2, is_explosive: false }), block('warmup'))).toBe(true)
+  })
+})
+
+describe('Heavy-Fenster-Filter (QA 11.10.: Maximalkraft bleibt linear und schwer)', () => {
+  const hv = (slug: string, movement_type = 'sagittal', intensity = 8, preferred = false): V2Exercise =>
+    ex({ slug, strength_pattern: 'hinge', movement_type, intensity_score: intensity, preferred })
+  const pool = [
+    hv('conventional_deadlift'), hv('romanian_deadlift'), hv('sumo_deadlift'),
+    hv('single_leg_glute_bridge', 'sagittal', 4),
+    hv('rotational_cable_row_hinge', 'transverse', 5),
+    hv('single_leg_rdl_lateral_reach', 'frontal', 5),
+  ]
+
+  it('heavy filtert Rotation/Frontal und Activation (Int < 5) raus', () => {
+    const slugs = patternSlugWindow(pool, 'heavy', 0)
+    expect(slugs).toEqual(expect.arrayContaining(['conventional_deadlift', 'romanian_deadlift', 'sumo_deadlift']))
+    expect(slugs).not.toContain('rotational_cable_row_hinge')
+    expect(slugs).not.toContain('single_leg_rdl_lateral_reach')
+    expect(slugs).not.toContain('single_leg_glute_bridge')
+  })
+
+  it('Fallback: unter 3 starken sagittalen Optionen bleibt der volle Pool (Datenloch degradiert)', () => {
+    const thin = [hv('conventional_deadlift'), hv('romanian_deadlift'), hv('kb_swing_rot', 'transverse', 6)]
+    expect(patternSlugWindow(thin, 'heavy', 0)).toHaveLength(3)
+  })
+
+  it('Präferenz, die den Filter überlebt, bleibt vorn gepinnt', () => {
+    const withPref = pool.map((e) => e.slug === 'sumo_deadlift' ? { ...e, preferred: true } : e)
+    expect(patternSlugWindow(withPref, 'heavy', 0)[0]).toBe('sumo_deadlift')
+  })
+
+  it('normal-Fenster bleibt ungefiltert (Rotation/Activation weiter wählbar)', () => {
+    const all = new Set([
+      ...patternSlugWindow(pool, 'normal', 0), ...patternSlugWindow(pool, 'normal', 1),
+      ...patternSlugWindow(pool, 'normal', 2), ...patternSlugWindow(pool, 'normal', 3),
+      ...patternSlugWindow(pool, 'normal', 4), ...patternSlugWindow(pool, 'normal', 5),
+    ])
+    expect(all.has('rotational_cable_row_hinge')).toBe(true)
+    expect(all.has('single_leg_glute_bridge')).toBe(true)
   })
 })

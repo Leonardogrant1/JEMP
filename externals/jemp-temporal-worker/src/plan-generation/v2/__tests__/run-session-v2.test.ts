@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findV2Violations, buildV2SessionSchema, attachBlockEmphasis } from '../run-session-v2'
+import { findV2Violations, buildV2SessionSchema, attachBlockEmphasis, withMeasurementMarkers } from '../run-session-v2'
 
 const session = (blocks: Array<{ block_type: string; slugs: string[] }>): any => ({
   name: 'W', mode_slug: 'full', estimated_duration_minutes: 60, day_of_week: 1,
@@ -129,5 +129,112 @@ describe('Pattern-Anforderungen im Validator (Spec 2026-10-10 §1.2)', () => {
     const s = session([])
     const v = findV2Violations(s, upPools as any, ['upper_strength'], reqs)
     expect(v.filter((x) => /pull_horizontal/.test(x))).toHaveLength(0)
+  })
+})
+
+describe('Dosierungs-Härtung (QA 11.10.): Validator statt Prompt-Hoffnung', () => {
+  const dosed = (over: Record<string, unknown> = {}) => ({
+    exercise_slug: 'bench_press', order_index: 0, notes: '', target_sets: 3,
+    target_reps_min: 5, target_reps_max: 8, target_duration_seconds: 0,
+    target_distance_meters: 0, target_rest_seconds: 90,
+    target_load_type: 'kg', target_load_value: 40, ...over,
+  })
+  const wrap = (exercises: any[], block_type = 'push'): any => ({
+    blocks: [{ block_type, order_index: 0, focused_category_slug: 'strength', exercises }],
+  })
+  const p = new Map([['push', { slugs: new Set(['bench_press', 'push_up']) }]])
+
+  it('Übung ohne Reps, Dauer und Distanz → Verletzung (lateral_shuffle-Fall)', () => {
+    const s = wrap([dosed({ target_reps_min: 0, target_reps_max: 0 })])
+    const v = findV2Violations(s, p as any, ['push'])
+    expect(v.join(' ')).toMatch(/bench_press/)
+    expect(v.join(' ')).toMatch(/Dosierung/)
+  })
+
+  it('negative Platzhalter-Werte zählen nicht als Dosis', () => {
+    const s = wrap([dosed({ target_reps_min: 0, target_reps_max: 0, target_duration_seconds: -1, target_distance_meters: -1 })])
+    expect(findV2Violations(s, p as any, ['push']).join(' ')).toMatch(/Dosierung/)
+  })
+
+  it('Dauer ODER Distanz genügen als Dosis', () => {
+    expect(findV2Violations(wrap([dosed({ target_reps_min: 0, target_reps_max: 0, target_duration_seconds: 180 })]), p as any, ['push'])).toEqual([])
+    expect(findV2Violations(wrap([dosed({ target_reps_min: 0, target_reps_max: 0, target_distance_meters: 20 })]), p as any, ['push'])).toEqual([])
+  })
+
+  it('kg mit Last 0 → Verletzung (Deadlift-@0-Fall); rpe/bodyweight mit 0 ok', () => {
+    const v = findV2Violations(wrap([dosed({ target_load_value: 0 })]), p as any, ['push'])
+    expect(v.join(' ')).toMatch(/bench_press/)
+    expect(v.join(' ')).toMatch(/Last|kg/)
+    expect(findV2Violations(wrap([dosed({ target_load_type: 'rpe', target_load_value: 0 })]), p as any, ['push'])).toEqual([])
+    expect(findV2Violations(wrap([dosed({ target_load_type: 'bodyweight', target_load_value: 0 })]), p as any, ['push'])).toEqual([])
+  })
+
+  it('Warmup ohne CNS-Mikro-Dosis → Verletzung mit Kandidatenliste', () => {
+    const pools2 = new Map([['warmup', { slugs: new Set(['hip_cars', 'high_knees']) }]])
+    const noCns = wrap([dosed({ exercise_slug: 'hip_cars', target_load_type: 'bodyweight' })], 'warmup')
+    const v = findV2Violations(noCns, pools2 as any, ['warmup'], [], { warmupCnsSlugs: ['high_knees'] })
+    expect(v.join(' ')).toMatch(/CNS/)
+    expect(v.join(' ')).toMatch(/high_knees/)
+  })
+
+  it('Warmup mit CNS-Übung ok; leere Kandidatenliste → kein Check (Datenloch degradiert)', () => {
+    const pools2 = new Map([['warmup', { slugs: new Set(['hip_cars', 'high_knees']) }]])
+    const withCns = wrap([
+      dosed({ exercise_slug: 'hip_cars', target_load_type: 'bodyweight' }),
+      dosed({ exercise_slug: 'high_knees', order_index: 1, target_load_type: 'bodyweight' }),
+    ], 'warmup')
+    expect(findV2Violations(withCns, pools2 as any, ['warmup'], [], { warmupCnsSlugs: ['high_knees'] })).toEqual([])
+    const noCns = wrap([dosed({ exercise_slug: 'hip_cars', target_load_type: 'bodyweight' })], 'warmup')
+    expect(findV2Violations(noCns, pools2 as any, ['warmup'], [], { warmupCnsSlugs: [] })).toEqual([])
+    expect(findV2Violations(noCns, pools2 as any, ['warmup'])).toEqual([])
+  })
+})
+
+describe('Mess-Typ-Validierung (QA 11.10.: Stretch als 1x1 Rep, A-Skip als 2 Reps)', () => {
+  const dosed = (over: Record<string, unknown> = {}) => ({
+    exercise_slug: 'doorway_chest_stretch', order_index: 0, notes: '', target_sets: 1,
+    target_reps_min: 1, target_reps_max: 1, target_duration_seconds: 0,
+    target_distance_meters: 0, target_rest_seconds: 15,
+    target_load_type: 'bodyweight', target_load_value: 0, ...over,
+  })
+  const wrap = (exercises: any[]): any => ({
+    blocks: [{ block_type: 'cooldown', order_index: 0, focused_category_slug: 'mobility', exercises }],
+  })
+  const p = new Map([['cooldown', { slugs: new Set(['doorway_chest_stretch', 'hill_sprint', 'push_up']) }]])
+  const mm = { doorway_chest_stretch: 'duration', hill_sprint: 'distance', push_up: 'reps' }
+
+  it('duration-Übung mit Reps statt Sekunden → Verletzung', () => {
+    const v = findV2Violations(wrap([dosed()]), p as any, ['cooldown'], [], { measurementBySlug: mm })
+    expect(v.join(' ')).toMatch(/doorway_chest_stretch/)
+    expect(v.join(' ')).toMatch(/Sekunden|duration/)
+  })
+
+  it('duration-Übung mit Sekunden → ok (Reps dürfen zusätzlich stehen)', () => {
+    expect(findV2Violations(wrap([dosed({ target_duration_seconds: 45 })]), p as any, ['cooldown'], [], { measurementBySlug: mm })).toEqual([])
+  })
+
+  it('distance-Übung ohne Meter → Verletzung; mit Metern ok', () => {
+    const noDist = wrap([dosed({ exercise_slug: 'hill_sprint', target_reps_min: 5, target_reps_max: 7 })])
+    expect(findV2Violations(noDist, p as any, ['cooldown'], [], { measurementBySlug: mm }).join(' ')).toMatch(/hill_sprint/)
+    const withDist = wrap([dosed({ exercise_slug: 'hill_sprint', target_reps_min: 0, target_reps_max: 0, target_distance_meters: 20 })])
+    expect(findV2Violations(withDist, p as any, ['cooldown'], [], { measurementBySlug: mm })).toEqual([])
+  })
+
+  it('reps-Übung ohne Reps → Verletzung', () => {
+    const v = findV2Violations(wrap([dosed({ exercise_slug: 'push_up', target_reps_min: 0, target_reps_max: 0, target_duration_seconds: 30 })]), p as any, ['cooldown'], [], { measurementBySlug: mm })
+    expect(v.join(' ')).toMatch(/push_up/)
+  })
+
+  it('unbekannter Slug oder reps_or_duration → kein Mess-Typ-Check', () => {
+    expect(findV2Violations(wrap([dosed({ exercise_slug: 'push_up' })]), p as any, ['cooldown'], [], { measurementBySlug: { push_up: 'reps_or_duration' } })).toEqual([])
+    expect(findV2Violations(wrap([dosed()]), p as any, ['cooldown'], [], { measurementBySlug: {} })).toEqual([])
+  })
+})
+
+describe('Mess-Typ-Marker in Pool-Zeilen (QA 11.10.)', () => {
+  it('markiert duration mit (s), distance mit (m), reps bleibt blank', () => {
+    const mm = { stretch_a: 'duration', sprint_b: 'distance', squat_c: 'reps', mixed_d: 'reps_or_duration' }
+    expect(withMeasurementMarkers(['stretch_a', 'sprint_b', 'squat_c', 'mixed_d', 'unknown_e'], mm))
+      .toBe('stretch_a (s), sprint_b (m), squat_c, mixed_d, unknown_e')
   })
 })

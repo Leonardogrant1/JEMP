@@ -114,6 +114,7 @@ ${microDose}${sprintBlock}${compact}${upperCap}${prepLine}
 ${poolLines.join('\n')}${preferredLine ? `\n\nSPORT-PRÄFERENZ: Diese Übungen passen besonders zum Sport des Athleten — wähle sie ihren generischen Alternativen vor, wenn sie die Block-Anforderung gleichwertig erfüllen: ${preferredLine}` : ''}${(planeFocusLines ?? []).length > 0 ? `\n\n${planeFocusLines!.join('\n')}` : ''}
 
 ## Regeln
+- Einheiten: Übungen mit "(s)" werden in Sekunden verschrieben (target_duration_seconds), mit "(m)" in Metern (target_distance_meters) — NICHT in Wiederholungen. Alle anderen in Wiederholungen.
 - 1–2 Übungen pro Block (SCHWERPUNKT-Block: 1 Hauptübung + optional 1 Ergänzung).
 - Dosis "maintenance": Sätze reduzieren (2 statt 3–4), submaximal — Spielwoche.
 - Keine Übung doppelt in der Session.

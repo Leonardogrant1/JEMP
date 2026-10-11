@@ -143,3 +143,13 @@ describe('speed session coaching template (09.10.: Warmup-Rampe, Qualitäts-Volu
         expect(cooldown).not.toContain('box_breathing');
     });
 });
+
+describe('COD-Dosierung (Dosierungs-Härtung 11.10.: lateral_shuffle war 5×nichts)', () => {
+  it('jede COD-Übung bekommt eine Distanz', () => {
+    const r = buildSpeedSession({ day: day(), exercises: basePool, levels: { sprints: 2, cod: 2 }, allowMaxVelocity: true, orderIndex: 0 })!
+    const cod = r.session.blocks.find((b: any) => b.block_type === 'cod')!
+    for (const e of cod.exercises) {
+      expect(e.target_distance_meters, e.exercise_slug).toBeGreaterThan(0)
+    }
+  })
+})

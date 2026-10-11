@@ -131,6 +131,9 @@ export function buildSpeedSession(input: {
   const codExercises = codPool.slice(0, codCount).map((e, i) => ({
     ...baseExercise(e, i),
     target_sets: maintenance ? 2 : (codCount === 1 ? 5 : 3),
+    // Dosierungs-Härtung (11.10.): ohne Distanz stand "5 Sätze nichts" in der
+    // App — 20 m deckt Shuttle/Shuffle-Drills (z. B. 2×10 m) sinnvoll ab.
+    target_distance_meters: 20,
     target_rest_seconds: 120,
   }))
 
