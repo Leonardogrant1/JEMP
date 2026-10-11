@@ -6,7 +6,9 @@ import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 const STORAGE_KEY = 'jemp:cardio-equipment-prompt-v1';
-const NEW_EQUIPMENT_SLUGS = ['treadmill', 'stationary_bike', 'air_bike', 'rowing_erg', 'heavy_bag'];
+// Inkl. landmine/plate: hatten bis 10.10. keine environment_equipments-Links
+// und waren damit im Picker unsichtbar — für Bestandsuser genauso neu.
+const NEW_EQUIPMENT_SLUGS = ['treadmill', 'stationary_bike', 'air_bike', 'rowing_erg', 'heavy_bag', 'landmine', 'plate'];
 
 /** Einmal-Hinweis auf die neuen Cardio-Geräte (Conditioning-Formate 10.10.):
  *  Bestandsuser haben sie nie angehakt und bekämen sonst nie eine

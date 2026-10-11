@@ -10,11 +10,13 @@ export function isContentBlock(slug: string | null | undefined): boolean {
 }
 
 /** Reihenfolge für den Hero-Pick: Legacy-Hauptblöcke zuerst (Parität),
- *  dann v2-Blöcke nach visueller Aussagekraft. */
+ *  dann v2-Blöcke nach visueller Aussagekraft. accessory bewusst HINTER den
+ *  Kraftblöcken (QA 10.10.): v2-Sessions haben accessory UND lower/upper_strength —
+ *  der Hero soll der Haupt-Lift sein, nicht die Füller-Übung. */
 export const HERO_BLOCK_ORDER: string[] = [
-    'primary', 'secondary', 'accessory',
+    'primary', 'secondary',
     'lower_strength', 'upper_strength',
-    'lower_body', 'push', 'pull', 'sprint', 'plyo', 'cod', 'rotation', 'core', 'conditioning', 'mobility', 'optional',
+    'lower_body', 'push', 'pull', 'sprint', 'plyo', 'cod', 'rotation', 'accessory', 'core', 'conditioning', 'mobility', 'optional',
 ];
 
 /** Fokus-Chips: Hauptreize ohne Accessory — bewahrt die Legacy-Chip-Semantik

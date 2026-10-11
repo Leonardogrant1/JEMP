@@ -15,11 +15,15 @@ describe('isContentBlock', () => {
 });
 
 describe('HERO_BLOCK_ORDER', () => {
-    it('beginnt mit den Legacy-Slugs (Render-Parität) und deckt alle v2-Blöcke ab', () => {
-        expect(HERO_BLOCK_ORDER.slice(0, 3)).toEqual(['primary', 'secondary', 'accessory']);
-        for (const slug of ['lower_body', 'push', 'pull', 'sprint', 'plyo', 'cod', 'rotation', 'core', 'conditioning', 'mobility']) {
+    it('beginnt mit den Legacy-Hauptblöcken (Render-Parität) und deckt alle v2-Blöcke ab', () => {
+        expect(HERO_BLOCK_ORDER.slice(0, 2)).toEqual(['primary', 'secondary']);
+        for (const slug of ['lower_body', 'push', 'pull', 'sprint', 'plyo', 'cod', 'rotation', 'accessory', 'core', 'conditioning', 'mobility']) {
             expect(HERO_BLOCK_ORDER).toContain(slug);
         }
+    });
+    it('Kraftblöcke schlagen accessory — der Hero ist der Haupt-Lift, nicht der Füller (QA 10.10.)', () => {
+        expect(HERO_BLOCK_ORDER.indexOf('lower_strength')).toBeLessThan(HERO_BLOCK_ORDER.indexOf('accessory'));
+        expect(HERO_BLOCK_ORDER.indexOf('upper_strength')).toBeLessThan(HERO_BLOCK_ORDER.indexOf('accessory'));
     });
 });
 
