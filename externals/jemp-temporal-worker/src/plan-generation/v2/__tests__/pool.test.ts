@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { exerciseMatchesBlock, buildBlockPools, strengthPatternPools } from '../pool'
+import { exerciseMatchesBlock, buildBlockPools, strengthPatternPools, rotatedPoolWindow, rotateSlugs, patternSlugWindow, pickPlanePin, type V2Exercise } from '../pool'
 import { ex, block } from './fixtures'
 
 describe('exerciseMatchesBlock', () => {
@@ -268,3 +268,207 @@ describe('upper/lower_strength Pools (Spec 2026-10-10)', () => {
         expect(warmup).not.toContain('hip_90_90');
     });
 });
+
+describe('rotatedPoolWindow — Füller-Rotation (QA 10.10.)', () => {
+  const mk = (slug: string, region: string) => ex({ slug, category_slug: 'strength', body_region: region })
+  const pool = [
+    mk('hip_a', 'hip'), mk('hip_b', 'hip'),
+    mk('calf_a', 'calf'), mk('calf_b', 'calf'),
+    mk('groin_a', 'groin'), mk('groin_b', 'groin'),
+    mk('ankle_a', 'ankle'), mk('ankle_b', 'ankle'),
+  ]
+  it('liefert ein Fenster von 4 und rotiert mit dem Offset', () => {
+    const w0 = rotatedPoolWindow(pool, 0, 4).map((e) => e.slug)
+    const w1 = rotatedPoolWindow(pool, 1, 4).map((e) => e.slug)
+    expect(w0).toHaveLength(4)
+    expect(w0).not.toEqual(w1)
+  })
+  it('balanciert Regionen: jedes 4er-Fenster deckt 4 verschiedene Regionen', () => {
+    for (const offset of [0, 1, 2, 3, 5, 7]) {
+      const regions = rotatedPoolWindow(pool, offset, 4).map((e) => e.body_region)
+      expect(new Set(regions).size).toBe(4)
+    }
+  })
+  it('balanciert auch bei ungleich großen Gruppen (realer Pool: 3/5/2/6)', () => {
+    const uneven = [
+      mk('a1', 'ankle'), mk('a2', 'ankle'), mk('a3', 'ankle'),
+      mk('c1', 'calf'), mk('c2', 'calf'), mk('c3', 'calf'), mk('c4', 'calf'), mk('c5', 'calf'),
+      mk('g1', 'groin'), mk('g2', 'groin'),
+      mk('h1', 'hip'), mk('h2', 'hip'), mk('h3', 'hip'), mk('h4', 'hip'), mk('h5', 'hip'), mk('h6', 'hip'),
+    ]
+    for (const offset of [0, 3, 5, 9, 11, 14]) {
+      const w = rotatedPoolWindow(uneven, offset, 4)
+      expect(new Set(w.map((e) => e.body_region)).size).toBe(4)
+      expect(new Set(w.map((e) => e.slug)).size).toBe(4)
+    }
+  })
+  it('deterministisch: gleicher Offset → gleiches Fenster', () => {
+    expect(rotatedPoolWindow(pool, 3, 4)).toEqual(rotatedPoolWindow(pool, 3, 4))
+  })
+  it('Pool ≤ Fenstergröße → kompletter Pool, keine Duplikate', () => {
+    const small = pool.slice(0, 3)
+    const w = rotatedPoolWindow(small, 5, 4).map((e) => e.slug)
+    expect(w).toHaveLength(3)
+    expect(new Set(w).size).toBe(3)
+  })
+  it('Wrap erzeugt keine Duplikate', () => {
+    const w = rotatedPoolWindow(pool, 7, 4).map((e) => e.slug)
+    expect(new Set(w).size).toBe(4)
+  })
+})
+
+describe('rotateSlugs — Prompt-Reihenfolge rotiert pro Generation (QA 10.10.)', () => {
+  it('sortiert stabil und rotiert den Startpunkt mit dem Offset', () => {
+    expect(rotateSlugs(['c', 'a', 'b', 'd'], 0)).toEqual(['a', 'b', 'c', 'd'])
+    expect(rotateSlugs(['c', 'a', 'b', 'd'], 2)).toEqual(['c', 'd', 'a', 'b'])
+    expect(rotateSlugs(['c', 'a', 'b', 'd'], 6)).toEqual(['c', 'd', 'a', 'b']) // Wrap
+  })
+  it('gleiche Menge, nur andere Reihenfolge — Validator-Sets bleiben identisch', () => {
+    const r = rotateSlugs(['x', 'y', 'z'], 1)
+    expect(new Set(r)).toEqual(new Set(['x', 'y', 'z']))
+    expect(r).toHaveLength(3)
+  })
+})
+
+describe('rotatedPoolWindow mit groupBy movement_type (Plyo, QA 10.10.)', () => {
+  const plyo = (slug: string, movement_type: string) => ex({ slug, category_slug: 'upper_body_plyometrics', movement_type })
+  const pool = [
+    plyo('clap_push_up', 'sagittal'), plyo('med_ball_chest_pass', 'sagittal'),
+    plyo('med_ball_overhead_throw', 'sagittal'), plyo('medicine_ball_slam', 'sagittal'),
+    plyo('depth_push_up', 'sagittal'), plyo('explosive_cable_press', 'sagittal'),
+    plyo('explosive_cable_row', 'sagittal'), plyo('kneeling_plyo_push_up', 'sagittal'),
+    plyo('rotational_med_ball_slam', 'transverse'), plyo('rotational_med_ball_throw', 'transverse'),
+    plyo('landmine_punch_throw', 'transverse'),
+  ]
+  it('jedes 6er-Fenster enthält mindestens eine transverse Übung', () => {
+    for (const offset of [0, 1, 3, 5, 8, 10, 13]) {
+      const w = rotatedPoolWindow(pool, offset, 6, (e) => e.movement_type)
+      expect(w).toHaveLength(6)
+      expect(w.some((e) => e.movement_type === 'transverse')).toBe(true)
+      expect(new Set(w.map((e) => e.slug)).size).toBe(6)
+    }
+  })
+  it('rotiert mit dem Offset', () => {
+    const w0 = rotatedPoolWindow(pool, 0, 6, (e) => e.movement_type).map((e) => e.slug)
+    const w1 = rotatedPoolWindow(pool, 1, 6, (e) => e.movement_type).map((e) => e.slug)
+    expect(w0).not.toEqual(w1)
+  })
+})
+
+describe('plyo-Pool Intensitäts-Floor (QA 10.10. — Leg Swings sind kein Plyo)', () => {
+  it('Intensität < 3 fliegt aus dem Plyo-Pool, echte Plyos bleiben', () => {
+    const swing = ex({ slug: 'leg_swing_side_to_side', category_slug: 'lower_body_plyometrics', intensity_score: 2 })
+    const jump = ex({ slug: 'box_jump', category_slug: 'lower_body_plyometrics', intensity_score: 6 })
+    expect(exerciseMatchesBlock(swing, block('plyo', 'lower'))).toBe(false)
+    expect(exerciseMatchesBlock(jump, block('plyo', 'lower'))).toBe(true)
+  })
+})
+
+describe('Sport-Präferenz in Fenster & Pattern-Pools (QA 10.10.)', () => {
+  const plyo = (slug: string, movement_type: string, preferred = false) =>
+    ex({ slug, category_slug: 'upper_body_plyometrics', movement_type, preferred })
+  const pool = [
+    plyo('clap_push_up', 'sagittal'), plyo('med_ball_chest_pass', 'sagittal'),
+    plyo('med_ball_overhead_throw', 'sagittal'), plyo('medicine_ball_slam', 'sagittal'),
+    plyo('depth_push_up', 'sagittal'), plyo('explosive_cable_press', 'sagittal'),
+    plyo('kneeling_plyo_push_up', 'sagittal'), plyo('incline_plyo_push_up', 'sagittal'),
+    plyo('landmine_punch_throw', 'transverse', true),
+    plyo('rotational_med_ball_slam', 'transverse', true),
+  ]
+  it('bevorzugte Übungen sind in JEDEM Fenster, egal welcher Offset', () => {
+    for (const offset of [0, 1, 4, 7, 9, 12]) {
+      const slugs = rotatedPoolWindow(pool, offset, 6, (e) => e.movement_type).map((e) => e.slug)
+      expect(slugs).toContain('landmine_punch_throw')
+      expect(slugs).toContain('rotational_med_ball_slam')
+      expect(new Set(slugs).size).toBe(6)
+    }
+  })
+
+  const strength = (slug: string, preferred = false) => ex({ slug, strength_pattern: 'push_vertical', preferred })
+  const pvPool = [
+    strength('push_press'), strength('overhead_press'), strength('dips'),
+    strength('weighted_dip'), strength('pike_push_up'), strength('dumbbell_shoulder_press'),
+    strength('landmine_press', true),
+  ]
+  it('patternSlugWindow: heavy = voller Pool mit Präferenz vorn', () => {
+    const slugs = patternSlugWindow(pvPool, 'heavy', 3)
+    expect(slugs).toHaveLength(7)
+    expect(slugs[0]).toBe('landmine_press')
+  })
+  it('patternSlugWindow: normal = 4er-Fenster, Präferenz immer enthalten, rotiert', () => {
+    const w0 = patternSlugWindow(pvPool, 'normal', 0)
+    const w2 = patternSlugWindow(pvPool, 'normal', 2)
+    expect(w0).toHaveLength(4)
+    expect(w0[0]).toBe('landmine_press')
+    expect(w2[0]).toBe('landmine_press')
+    expect(w0).not.toEqual(w2)
+  })
+})
+
+describe('pickPlanePin + patternSlugWindow planePin (Spec 2026-10-11 §4.2)', () => {
+  const pl = (slug: string, movement_type: string, preferred = false): V2Exercise => ({
+    id: slug, slug, name: slug, category_slug: 'strength',
+    body_region: 'quad', dominant_region: null, strength_pattern: 'knee_dominant',
+    plyo_type: null, core_type: null, sprint_type: null, covered_patterns: null,
+    laterality: 'bilateral', min_level: 1, max_level: 100, intensity_score: 5,
+    measurement_type: 'reps', legacy_block_slugs: null, movement_type,
+    is_explosive: false, regions: null, preferred,
+  })
+  const pool = [
+    pl('back_squat', 'sagittal'), pl('front_squat', 'sagittal'),
+    pl('split_squat', 'sagittal'), pl('reverse_lunge', 'sagittal'),
+    pl('lateral_lunge', 'frontal'), pl('kb_split_squat_rotation', 'transverse'),
+  ]
+
+  it('pickPlanePin findet die Ziel-Ebene, rotiert mit offset', () => {
+    expect(pickPlanePin(pool, 'frontal', 0)).toBe('lateral_lunge')
+    expect(pickPlanePin(pool, 'transverse', 0)).toBe('kb_split_squat_rotation')
+  })
+
+  it('pickPlanePin: Ziel-Ebene leer → Fallback andere nicht-sagittale, sonst null', () => {
+    const noFrontal = pool.filter((e) => e.movement_type !== 'frontal')
+    expect(pickPlanePin(noFrontal, 'frontal', 0)).toBe('kb_split_squat_rotation')
+    const onlySagittal = pool.filter((e) => e.movement_type === 'sagittal')
+    expect(pickPlanePin(onlySagittal, 'frontal', 0)).toBeNull()
+  })
+
+  it('planePin steht vorn im normal-Fenster und verdoppelt sich nicht (Review Focus 3)', () => {
+    const win = patternSlugWindow(pool, 'normal', 0, 'kb_split_squat_rotation')
+    expect(win[0]).toBe('kb_split_squat_rotation')
+    expect(win).toHaveLength(4)
+    expect(win.filter((s) => s === 'kb_split_squat_rotation')).toHaveLength(1)
+  })
+
+  it('planePin ersetzt den letzten preferred-Pin — Fenstergröße wächst nicht (Spec §4.2)', () => {
+    const withPref = pool.map((e) => ['back_squat', 'front_squat'].includes(e.slug) ? { ...e, preferred: true } : e)
+    const before = patternSlugWindow(withPref, 'normal', 0)
+    const after = patternSlugWindow(withPref, 'normal', 0, 'lateral_lunge')
+    expect(after).toHaveLength(before.length)
+    expect(after[0]).toBe('lateral_lunge')
+    expect(after).toContain('back_squat')        // erster preferred-Pin bleibt
+    expect(after).not.toContain('front_squat')   // letzter preferred-Pin weicht aus dem Fenster
+  })
+
+  it('ersetzter preferred-Pin ist nicht aus dem Gesamtpool gelöscht (Review Focus 5)', () => {
+    const withPref = pool.map((e) => ['back_squat', 'front_squat'].includes(e.slug) ? { ...e, preferred: true } : e)
+    const heavy = patternSlugWindow(withPref, 'heavy', 0, 'lateral_lunge')
+    expect(heavy).toContain('front_squat')       // heavy = voller Pool, Ersetzung irrelevant
+    expect(heavy).toHaveLength(pool.length)
+  })
+
+  it('Ebenen-Übung, die selbst preferred ist, zählt einmal — kein Ersetzen', () => {
+    const prefPlane = pool.map((e) => e.slug === 'lateral_lunge' ? { ...e, preferred: true } : e)
+    const win = patternSlugWindow(prefPlane, 'normal', 0, 'lateral_lunge')
+    expect(win[0]).toBe('lateral_lunge')
+    expect(win.filter((s) => s === 'lateral_lunge')).toHaveLength(1)
+    expect(win).toHaveLength(4)
+  })
+
+  it('heavy ignoriert planePin (voller Pool, Reihenfolge wie heute)', () => {
+    expect(patternSlugWindow(pool, 'heavy', 0, 'lateral_lunge')).toEqual(patternSlugWindow(pool, 'heavy', 0))
+  })
+
+  it('ohne planePin exakt heutiges Verhalten (Rückwärtskompatibilität)', () => {
+    expect(patternSlugWindow(pool, 'normal', 2)).toEqual(patternSlugWindow(pool, 'normal', 2, null))
+  })
+})

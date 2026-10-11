@@ -33,6 +33,11 @@ export type V2Exercise = {
   /** exercise_regions (10.10.): alle betroffenen Regionen inkl. Rolle.
    *  null/leer = noch nicht kuratiert → Fallback auf body_region/dominant_region. */
   regions: Array<{ region: string; role: string }> | null
+  /** Gate (QA 10.10.): nur für die zugeordneten Sportgruppen sichtbar. */
+  is_sport_specific?: boolean
+  /** Sport-Präferenz (QA 10.10.): via exercise_sport_groups für die Gruppe des
+   *  Users markiert — bekommt reservierte Fenster-Slots und steht im Prompt vorn. */
+  preferred?: boolean
 }
 
 /** Rahmen-Übungen der Sprint-Session (Traben, Steigerungsläufe) — leben als
@@ -77,6 +82,95 @@ export function matchesStrengthPattern(ex: V2Exercise, pattern: string): boolean
 }
 
 /** Pro gefordertem Pattern ein eigener Pool (für Prompt-Gruppierung + Validator). */
+/** Prompt-Reihenfolge rotieren (QA 10.10.): LLMs greifen bevorzugt zu früh
+ *  gelisteten Übungen — der planCount-Offset verschiebt pro Generierung, was
+ *  „vorne" steht. Reine Darstellung: gleiche Menge, Validator-Sets unberührt. */
+export function rotateSlugs(slugs: string[], offset: number): string[] {
+  const sorted = [...slugs].sort()
+  if (sorted.length === 0) return sorted
+  const k = ((offset % sorted.length) + sorted.length) % sorted.length
+  return [...sorted.slice(k), ...sorted.slice(0, k)]
+}
+
+/** Rotiertes Pool-Fenster für Füller-Blöcke (optional/accessory, QA 10.10.)
+ *  und Plyo (groupBy movement_type): Das LLM konvergiert bei vollem Pool auf
+ *  dieselben Favoriten — ein kleines, mit planCount rotierendes Fenster
+ *  garantiert Abwechslung über Pläne hinweg. Gruppen-balanciert: Übungen
+ *  werden pro Gruppe (default: Region) sortiert gruppiert und round-robin
+ *  verschränkt, dann liest das Fenster ab Offset mit Wrap. */
+export function rotatedPoolWindow(
+  exercises: V2Exercise[], offset: number, size = 4,
+  groupBy: (e: V2Exercise) => string = (e) => effectiveRegion(e) ?? 'other',
+): V2Exercise[] {
+  if (exercises.length <= size) return [...exercises].sort((a, b) => a.slug.localeCompare(b.slug))
+
+  // Sport-Präferenz (QA 10.10.): bevorzugte Übungen bekommen reservierte Slots
+  // (max. 2, rotierend falls mehr) — sie sind damit in JEDEM Fenster vertreten.
+  const preferred = exercises.filter((e) => e.preferred).sort((a, b) => a.slug.localeCompare(b.slug))
+  const reserveCount = Math.min(preferred.length, 2, size - 1)
+  const picked: V2Exercise[] = []
+  const used = new Set<string>()
+  for (let i = 0; i < reserveCount; i++) {
+    const e = preferred[(offset + i) % preferred.length]
+    if (!used.has(e.slug)) { used.add(e.slug); picked.push(e) }
+  }
+
+  const byRegion = new Map<string, V2Exercise[]>()
+  for (const e of [...exercises].sort((a, b) => a.slug.localeCompare(b.slug))) {
+    const r = groupBy(e)
+    if (!byRegion.has(r)) byRegion.set(r, [])
+    byRegion.get(r)!.push(e)
+  }
+  // Echtes Region-Round-Robin statt Ring-Slice: Position idx wählt Region
+  // (idx % n) und darin die Schicht (idx / n) — so deckt jedes Fenster so viele
+  // Regionen wie möglich ab, auch wenn die Gruppen ungleich groß sind.
+  const regions = [...byRegion.keys()].sort()
+  const safeOffset = ((offset % exercises.length) + exercises.length) % exercises.length
+  for (let i = 0, guard = 0; picked.length < size && guard < exercises.length * 4; i++, guard++) {
+    const idx = safeOffset + i
+    const group = byRegion.get(regions[idx % regions.length])!
+    const e = group[Math.floor(idx / regions.length) % group.length]
+    if (!used.has(e.slug)) { used.add(e.slug); picked.push(e) }
+  }
+  return picked
+}
+
+/** Ebenen-Pin (Spec 2026-10-11 §4.2): erste Übung der Ziel-Ebene in rotierter
+ *  Reihenfolge; Fallback andere nicht-sagittale; leerer Ebenen-Pool → null
+ *  (kein Pin, Fenster wie heute — Datenlöcher erzwingen nie Effekte). */
+export function pickPlanePin(pool: V2Exercise[], plane: string, offset: number): string | null {
+  const target = rotateSlugs(pool.filter((e) => e.movement_type === plane).map((e) => e.slug), offset)
+  if (target.length > 0) return target[0]
+  const nonSagittal = rotateSlugs(pool.filter((e) => e.movement_type !== 'sagittal').map((e) => e.slug), offset)
+  return nonSagittal[0] ?? null
+}
+
+/** Pattern-Pool fürs Prompt + Validator (QA 10.10.): schwere Patterns behalten
+ *  den vollen Pool (Hauptlift-Stabilität), normale Patterns bekommen ein
+ *  rotierendes 4er-Fenster — Sport-Präferenzen stehen immer vorn und fallen
+ *  nie aus dem Fenster. planePin (Spec 2026-10-11 §4.2): die Ebenen-Übung wird
+ *  als erster Pin gesetzt und ERSETZT den letzten preferred-Pin, statt das
+ *  Fenster zu vergrößern — die Verknappung ist der Steuerungsmechanismus. */
+export function patternSlugWindow(
+  pool: V2Exercise[], emphasis: 'heavy' | 'normal', offset: number,
+  planePin?: string | null,
+): string[] {
+  let pinned = pool.filter((e) => e.preferred).map((e) => e.slug).sort()
+  let rest = rotateSlugs(pool.filter((e) => !e.preferred).map((e) => e.slug), offset)
+  if (planePin && emphasis === 'normal') {
+    if (pinned.includes(planePin)) {
+      pinned = [planePin, ...pinned.filter((s) => s !== planePin)]
+    } else {
+      const displaced = pinned.length > 0 ? pinned[pinned.length - 1] : null
+      pinned = [planePin, ...pinned.slice(0, -1)]
+      rest = rest.filter((s) => s !== planePin)
+      if (displaced) rest = [...rest, displaced] // ans Rest-Ende, nicht ins Nichts
+    }
+  }
+  const all = [...pinned, ...rest]
+  return emphasis === 'heavy' ? all : all.slice(0, Math.max(4, pinned.length))
+}
+
 export function strengthPatternPools(
   exercises: V2Exercise[],
   patterns: Array<{ pattern: string }>,
@@ -106,6 +200,9 @@ export function exerciseMatchesBlock(ex: V2Exercise, blockDef: PlannedWorkoutBlo
     case 'plyo':
       // Variante = Säule (§1.6): lower = lower_body_plyometrics/jumps, upper = upper_body_plyometrics.
       if (ex.sprint_type !== null) return false // sprints never fill plyo blocks
+      // Intensitäts-Floor (QA 10.10.): Leg Swings & Co. sind als Plyo kategorisiert,
+      // aber Prep-Übungen — im Plyo-Block wirkungslos, seit dem Fenster sichtbar.
+      if ((ex.intensity_score ?? 5) < 3) return false
       if (blockDef.variant === 'upper') return ex.category_slug === 'upper_body_plyometrics'
       if (blockDef.variant === 'lower') return PLYO_CATEGORIES.has(ex.category_slug)
       return PLYO_CATEGORIES.has(ex.category_slug) || ex.category_slug === 'upper_body_plyometrics'
