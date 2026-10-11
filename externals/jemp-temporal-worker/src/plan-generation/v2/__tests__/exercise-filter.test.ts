@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { makeExerciseFilter, type ExerciseFilterMaps } from '../prepare-v2'
+import { makeExerciseFilter, makeSportGate, type ExerciseFilterMaps } from '../prepare-v2'
 
 const row = (id: string) => ({ id, min_level: 1, max_level: 100, categories: { id: 'cat1' } })
 
@@ -46,5 +46,22 @@ describe('makeExerciseFilter (per-day environments)', () => {
   it('empty user equipment skips the equipment check (bisheriges Verhalten)', () => {
     const m = maps({ userEquip: new Set<string>() })
     expect(makeExerciseFilter(m, 'env_gym')(row('sled'))).toBe(true)
+  })
+})
+
+describe('makeSportGate (QA 10.10. — v2-Portierung des is_sport_specific-Gates)', () => {
+
+  const map = new Map([['ex-1', new Set(['combat_sports'])]])
+  it('sport-spezifisch + passende Gruppe → sichtbar', () => {
+    expect(makeSportGate(map, 'combat_sports')({ id: 'ex-1', is_sport_specific: true })).toBe(true)
+  })
+  it('sport-spezifisch + fremde Gruppe → unsichtbar (Shadow Boxing nicht für Fußballer)', () => {
+    expect(makeSportGate(map, 'team_sports')({ id: 'ex-1', is_sport_specific: true })).toBe(false)
+  })
+  it('sport-spezifisch ohne Zuordnung → für niemanden sichtbar (Legacy-Parität)', () => {
+    expect(makeSportGate(map, 'combat_sports')({ id: 'ex-2', is_sport_specific: true })).toBe(false)
+  })
+  it('nicht-spezifisch passiert immer — Zuordnung wirkt dann nur als Präferenz', () => {
+    expect(makeSportGate(map, undefined)({ id: 'ex-1', is_sport_specific: false })).toBe(true)
   })
 })
