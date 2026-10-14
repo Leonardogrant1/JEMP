@@ -1,4 +1,5 @@
 import { JempText } from '@/components/jemp-text';
+import { blockTypeLabelKey } from '@/helpers/block-label';
 import { SectionHeader } from '@/components/plan/SectionHeader';
 import { SessionChip } from '@/components/plan/SessionChip';
 import { StatsStrip } from '@/components/profile/stats-strip';
@@ -220,9 +221,13 @@ export default function SessionSummaryScreen() {
                         return (
                             <View key={block.id} style={styles.blockSection}>
                                 <SectionHeader
-                                    label={block.block_type
-                                        ? t(`block_type.${block.block_type.slug}`)
-                                        : `Block ${blockIdx + 1}`}
+                                    label={(() => {
+                                        const key = blockTypeLabelKey(
+                                            block.block_type?.slug,
+                                            block.exercises.map(ex => ex.exercise?.category?.slug),
+                                        );
+                                        return key ? t(key as never) : `Block ${blockIdx + 1}`;
+                                    })()}
                                 />
 
                                 {performed.map(ex => {

@@ -1,4 +1,5 @@
 import { JempText } from '@/components/jemp-text';
+import { blockTypeLabelKey } from '@/helpers/block-label';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useActiveSessionStore } from '@/stores/active-session-store';
@@ -20,6 +21,16 @@ export function SessionHeader({ onBack }: Props) {
 
     const current = allExercises[exerciseIdx] ?? null;
 
+    // Block-Label mit Plyo-Variante (Sprungkraft/Explosivkraft) — Kategorien
+    // aller Übungen des Blocks entscheiden
+    function labelForBlock(blockId: string, blockTypeSlug: string | undefined): string {
+        const key = blockTypeLabelKey(
+            blockTypeSlug,
+            allExercises.filter(e => e.blockId === blockId).map(e => e.exercise?.category?.slug),
+        );
+        return key ? t(key as never) : t('ui.active_session');
+    }
+
     // Blöcke aus der flachen Übungsliste rekonstruieren — ein Segment pro
     // Block, Breite proportional zur Übungszahl
     const blocks: { id: string; label: string; count: number; startIdx: number }[] = [];
@@ -30,15 +41,15 @@ export function SessionHeader({ onBack }: Props) {
         } else {
             blocks.push({
                 id: ex.blockId,
-                label: ex.blockType ? t(`block_type.${ex.blockType.slug}` as never) : t('ui.active_session'),
+                label: labelForBlock(ex.blockId, ex.blockType?.slug),
                 count: 1,
                 startIdx: i,
             });
         }
     });
 
-    const currentBlockLabel = current?.blockType
-        ? t(`block_type.${current.blockType.slug}` as never)
+    const currentBlockLabel = current
+        ? labelForBlock(current.blockId, current.blockType?.slug)
         : t('ui.active_session');
 
     return (

@@ -155,6 +155,7 @@ const de: Record<TranslationKeys, string> = {
     'block_type.rotation': 'Rotation',
     'block_type.core': 'Core',
     'block_type.plyo': 'Sprungkraft',
+    'block_type.plyo_upper': 'Explosivkraft',
     'block_type.sprint': 'Sprints',
     'block_type.cod': 'Richtungswechsel',
     'block_type.conditioning': 'Conditioning',

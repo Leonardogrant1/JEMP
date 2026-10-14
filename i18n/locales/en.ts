@@ -153,6 +153,7 @@ const en = {
     'block_type.rotation': 'Rotation',
     'block_type.core': 'Core',
     'block_type.plyo': 'Plyometrics',
+    'block_type.plyo_upper': 'Upper-Body Power',
     'block_type.sprint': 'Sprints',
     'block_type.cod': 'Change of direction',
     'block_type.conditioning': 'Conditioning',

@@ -7,5 +7,7 @@ describe('SESSION_DETAIL_SELECT', () => {
     it('selektiert target_rounds und target_distance_meters', () => {
         expect(SESSION_DETAIL_SELECT).toContain('target_rounds');
         expect(SESSION_DETAIL_SELECT).toContain('target_distance_meters');
+        // Plyo-Varianten-Label (Sprungkraft vs. Explosivkraft) braucht die Kategorie
+        expect(SESSION_DETAIL_SELECT).toContain('category:categories ( slug )');
     });
 });

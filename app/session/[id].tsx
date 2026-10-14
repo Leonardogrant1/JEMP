@@ -1,4 +1,5 @@
 import { JempText } from '@/components/jemp-text';
+import { blockTypeLabelKey } from '@/helpers/block-label';
 import { SectionHeader } from '@/components/plan/SectionHeader';
 import { CATEGORY_SVG_ICONS } from '@/constants/category-icons';
 import { CategoryChip, ModeChip, SessionChip } from '@/components/plan/SessionChip';
@@ -230,11 +231,13 @@ export default function SessionDetailScreen() {
                             const isMainBlock = isContentBlock(block.block_type?.slug);
                             const categorySlug = isMainBlock ? block.focused_category?.slug : undefined;
                             const CategoryIcon = categorySlug ? CATEGORY_SVG_ICONS[categorySlug] : undefined;
+                            const labelKey = blockTypeLabelKey(
+                                block.block_type?.slug,
+                                block.exercises.map(ex => ex.exercise?.category?.slug),
+                            );
                             return (
                                 <SectionHeader
-                                    label={block.block_type
-                                        ? t(`block_type.${block.block_type.slug}`)
-                                        : `Block ${blockIdx + 1}`}
+                                    label={labelKey ? t(labelKey as never) : `Block ${blockIdx + 1}`}
                                     caption={categorySlug ? t(`category.${categorySlug}`) : undefined}
                                     captionIcon={CategoryIcon
                                         ? <CategoryIcon width={14} height={14} color={theme.textMuted} />

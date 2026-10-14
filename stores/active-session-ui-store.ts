@@ -17,6 +17,7 @@ export type FlatExercise = {
         video_storage_path: string | null;
         laterality: string;
         measurement_type: string;
+        category: { slug: string } | null;
         equipment: { slug: string; name_i18n: Record<string, string> | null }[];
     };
     target_sets: number | null;
