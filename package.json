@@ -11,6 +11,10 @@
     "android:device": "expo run:android --device",
     "web": "expo start --web",
     "lint": "expo lint",
+    "db:push:staging": "bash ./scripts/supabase-push.sh staging",
+    "db:push:prod": "bash ./scripts/supabase-push.sh prod",
+    "functions:deploy:staging": "bash ./scripts/supabase-functions-deploy.sh staging",
+    "functions:deploy:prod": "bash ./scripts/supabase-functions-deploy.sh prod",
     "postinstall": "patch-package"
   },
   "dependencies": {

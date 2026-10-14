@@ -13,6 +13,16 @@
       "distribution": "internal",
       "channel": "preview"
     },
+    "staging": {
+      "extends": "preview",
+      "channel": "staging",
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://thagwhvfqybuoghpriyb.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoYWd3aHZmcXlidW9naHByaXliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NjU5MzYsImV4cCI6MjEwNzQ0MTkzNn0.P5jmvvTf1stf-TAHvBoH6r9ZLkwqN6qnKbe_3R9qHn8",
+        "EXPO_PUBLIC_BACKEND_URL": "https://jemp-api-staging.fly.dev"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "channel": "production"

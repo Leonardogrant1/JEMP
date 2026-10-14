@@ -9,6 +9,7 @@
         "dev": "NODE_ENV=development pnpm dlx nodemon --watch src --exec ts-node --project ./tsconfig.json -r tsconfig-paths/register src/worker.ts",
         "test": "vitest run",
         "deploy:dev": "cd ../../ && bash ./deploy-fly.sh dev jemp-temporal-worker",
+    "deploy:staging": "cd ../../ && bash ./deploy-fly.sh staging jemp-temporal-worker",
         "deploy:prod": "cd ../../ && bash ./deploy-fly.sh prod jemp-temporal-worker"
     },
     "keywords": [],
