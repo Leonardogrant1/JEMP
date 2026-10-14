@@ -10,6 +10,10 @@
 begin;
 set local lock_timeout = '5s';
 
+-- Drift-Repair: is_location_specific wurde auf Prod manuell angelegt, keine Migration
+-- erzeugt sie — ohne diese Zeile scheitern frische Replays (Staging/lokal). No-op auf Prod.
+alter table equipments add column if not exists is_location_specific boolean not null default false;
+
 insert into equipments (slug, name_i18n, is_location_specific)
 select v.slug, v.name_i18n::jsonb, true
 from (values
