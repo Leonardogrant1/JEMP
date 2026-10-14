@@ -83,9 +83,12 @@ export function buildSpeedSession(input: {
     .filter((e) => e.sprint_type !== null)
     .filter((e) => allowMaxVelocity || e.sprint_type !== 'max_velocity')
     .sort(byIntensityThenSlug)
+  // Nur Kategorie cod: ein früherer Zweig wollte Lower-Plyos nachladen, war
+  // aber tot (verglich mit nicht existentem measurement_type 'time') — und
+  // wäre falsch dosiert worden, weil der COD-Block alles als 20-m-Drill
+  // verschreibt. Die cod-Kategorie deckt alle Level ab.
   const codPool = exercises
-    .filter((e) => e.category_slug === 'cod' ||
-      (e.category_slug === 'lower_body_plyometrics' && e.sprint_type === null && e.measurement_type === 'time'))
+    .filter((e) => e.category_slug === 'cod')
     .sort(byIntensityThenSlug)
   const mobilityPool = exercises.filter((e) => e.category_slug === 'mobility').sort(byIntensityThenSlug)
   const cooldownMobility = mobilityPool.filter((e) => legacyBlockAllows(e, 'cooldown'))
