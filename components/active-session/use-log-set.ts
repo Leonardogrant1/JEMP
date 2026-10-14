@@ -1,4 +1,5 @@
 import { formatTimer } from '@/helpers/active-session-helpers';
+import { restDurationSeconds } from '@/helpers/rest-duration';
 import { isDurationMode, plannedSetCount } from '@/lib/prescription';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
@@ -157,10 +158,14 @@ export function useLogSet() {
         Keyboard.dismiss();
         if (!current || !id || !hasInput) return;
 
-        // Base rest per exercise + session-wide adjustment (Tagesform), floored so
-        // a negative adjustment can't produce a zero-length pause
-        const baseRest = current?.target_rest_seconds || session?.pause_between_sets || 60;
-        const restDuration = Math.max(15, baseRest + (session?.rest_adjust_seconds ?? 0));
+        // 0 = keine Pause (Warmup/Cooldown oder explizite Generator-0)
+        const restDuration = restDurationSeconds({
+            targetRestSeconds: current.target_rest_seconds,
+            blockTypeSlug: current.blockType?.slug,
+            targetDistanceMeters: current.target_distance_meters,
+            sessionDefaultSeconds: session?.pause_between_sets,
+            adjustSeconds: session?.rest_adjust_seconds,
+        });
 
         // Unilateral: SEITENWEISE loggen — links → Pause → rechts → Satz fertig
         if (isUnilateral) {
@@ -193,7 +198,7 @@ export function useLogSet() {
             if (activeSide === 'left') {
                 // Erste Seite fertig — Pause, dann kommt rechts im selben Satz
                 store.setProgress(exerciseIdx, currentSet);
-                startTimer(restDuration);
+                if (restDuration > 0) startTimer(restDuration);
             } else {
                 const nextSet = currentSet + 1;
                 store.setProgress(exerciseIdx, nextSet);
@@ -208,7 +213,7 @@ export function useLogSet() {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     setShowExerciseComplete(true);
                 } else {
-                    startTimer(restDuration);
+                    if (restDuration > 0) startTimer(restDuration);
                 }
                 slideOutSet(() => {
                     setCurrentSet(nextSet);
@@ -237,7 +242,7 @@ export function useLogSet() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setShowExerciseComplete(true);
         } else {
-            startTimer(restDuration);
+            if (restDuration > 0) startTimer(restDuration);
         }
         slideOutSet(() => {
             setCurrentSet(nextSet);
@@ -255,9 +260,15 @@ export function useLogSet() {
         if (isLastExercise) {
             await completeSession();
         } else {
-            const baseRest = current?.target_rest_seconds || session?.pause_between_sets || 60;
-            const restDuration = Math.max(15, baseRest + (session?.rest_adjust_seconds ?? 0));
-            startTimer(restDuration);
+            // Pause zwischen Übungen: 0 (Warmup/Cooldown) → direkt weiter
+            const restDuration = restDurationSeconds({
+                targetRestSeconds: current?.target_rest_seconds,
+                blockTypeSlug: current?.blockType?.slug,
+                targetDistanceMeters: current?.target_distance_meters,
+                sessionDefaultSeconds: session?.pause_between_sets,
+                adjustSeconds: session?.rest_adjust_seconds,
+            });
+            if (restDuration > 0) startTimer(restDuration);
             const nextIdx = exerciseIdx + 1;
             store.setProgress(nextIdx, 1);
             slideOutExercise(() => {

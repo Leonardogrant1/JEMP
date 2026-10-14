@@ -142,7 +142,7 @@ export function buildSpeedSession(input: {
   // hier Programm, kein Vorgeplänkel.
   const warmupExercises = [
     ...(jog ? [{ ...baseExercise(jog, 0), target_duration_seconds: 240, target_rest_seconds: 0 }] : []),
-    ...dynamicPool.slice(0, 2).map((e) => ({ ...baseExercise(e, 0), target_duration_seconds: 45, target_rest_seconds: 15 })),
+    ...dynamicPool.slice(0, 2).map((e) => ({ ...baseExercise(e, 0), target_duration_seconds: 45, target_rest_seconds: 0 })),
     ...drillPool.slice(0, 2).map((e) => ({ ...baseExercise(e, 0), target_sets: 2, target_distance_meters: 20, target_rest_seconds: 30 })),
     ...(buildUpRun ? [{ ...baseExercise(buildUpRun, 0), target_sets: 3, target_distance_meters: 30, target_rest_seconds: 60 }] : []),
   ].map((e, i) => ({ ...e, order_index: i }))
@@ -157,7 +157,7 @@ export function buildSpeedSession(input: {
       .filter((e) => !warmupSlugs.has(e.slug))
       .sort((a, b) => targeted(a) - targeted(b) || byIntensityThenSlug(a, b))
       .slice(0, 2)
-      .map((e) => ({ ...baseExercise(e, 0), target_duration_seconds: 45, target_rest_seconds: 15 })),
+      .map((e) => ({ ...baseExercise(e, 0), target_duration_seconds: 45, target_rest_seconds: 0 })),
   ].map((e, i) => ({ ...e, order_index: i }))
 
   const blocks: PlannedBlock[] = []

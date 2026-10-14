@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findV2Violations, buildV2SessionSchema, attachBlockEmphasis, withMeasurementMarkers } from '../run-session-v2'
+import { findV2Violations, buildV2SessionSchema, attachBlockEmphasis, withMeasurementMarkers, zeroWarmupCooldownRest } from '../run-session-v2'
 
 const session = (blocks: Array<{ block_type: string; slugs: string[] }>): any => ({
   name: 'W', mode_slug: 'full', estimated_duration_minutes: 60, day_of_week: 1,
@@ -305,5 +305,32 @@ describe('Block-Obergrenze (QA 11.10., programmatisch statt Prompt-Hoffnung)', (
 
   it('Warmup/Cooldown sind vom Max ausgenommen', () => {
     expect(findV2Violations(s('warmup', ['a', 'b', 'c', 'd', 'e', 'f']), p as any, ['warmup'])).toEqual([])
+  })
+})
+
+describe('zeroWarmupCooldownRest', () => {
+  const block = (block_type: string, exercises: any[]) => ({ block_type, exercises })
+
+  it('zeroes rest for non-distance exercises in warmup and cooldown', () => {
+    const blocks = [
+      block('warmup', [
+        { target_rest_seconds: 15, target_distance_meters: -1 },
+        { target_rest_seconds: 15 },
+      ]),
+      block('cooldown', [{ target_rest_seconds: 30, target_distance_meters: -1 }]),
+    ]
+    zeroWarmupCooldownRest(blocks as any)
+    expect(blocks[0].exercises.map((e: any) => e.target_rest_seconds)).toEqual([0, 0])
+    expect(blocks[1].exercises[0].target_rest_seconds).toBe(0)
+  })
+
+  it('keeps rest for distance drills (walk-back is the pause) and other blocks', () => {
+    const blocks = [
+      block('warmup', [{ target_rest_seconds: 60, target_distance_meters: 30 }]),
+      block('lower_strength', [{ target_rest_seconds: 180, target_distance_meters: -1 }]),
+    ]
+    zeroWarmupCooldownRest(blocks as any)
+    expect(blocks[0].exercises[0].target_rest_seconds).toBe(60)
+    expect(blocks[1].exercises[0].target_rest_seconds).toBe(180)
   })
 })

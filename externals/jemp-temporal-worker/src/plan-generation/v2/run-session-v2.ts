@@ -241,6 +241,22 @@ export function attachBlockEmphasis(
   }
 }
 
+/** Warmup/Cooldown ohne Satzpausen (QA 14.10.): Mobility-Drills ohne Last
+ * brauchen keine Pause — das LLM vergab trotzdem 15s, darum deterministisch
+ * genullt statt per Prompt erbeten. Distanz-Übungen (Lauf-ABC, Steigerungs-
+ * läufe) behalten ihre Pause: der Rückweg IST die Pause. */
+export function zeroWarmupCooldownRest(
+  blocks: Array<{ block_type: string; exercises: Array<{ target_rest_seconds: number; target_distance_meters?: number | null }> }>,
+): void {
+  for (const b of blocks) {
+    if (b.block_type !== 'warmup' && b.block_type !== 'cooldown') continue
+    for (const e of b.exercises ?? []) {
+      if ((e.target_distance_meters ?? 0) > 0) continue
+      e.target_rest_seconds = 0
+    }
+  }
+}
+
 export async function runSessionV2(
   input: V2SessionContext & {
     userContext: string
@@ -328,6 +344,7 @@ export async function runSessionV2(
   // before the cooldown — its minutes were already budgeted by the layout engine.
   const blocks = [...(lastSession as any).blocks]
   attachBlockEmphasis(blocks, workout.blocks as any)
+  zeroWarmupCooldownRest(blocks)
   if (day.carries_conditioning_finisher) {
     const cooldownIdx = blocks.findIndex((b: any) => b.block_type === 'cooldown')
     const insertAt = cooldownIdx === -1 ? blocks.length : cooldownIdx
