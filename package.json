@@ -15,7 +15,10 @@
     "db:push:prod": "bash ./scripts/supabase-push.sh prod",
     "functions:deploy:staging": "bash ./scripts/supabase-functions-deploy.sh staging",
     "functions:deploy:prod": "bash ./scripts/supabase-functions-deploy.sh prod",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "exercises:pull": "node scripts/pull-exercises-from-prod.mjs",
+    "exercises:push:staging": "node scripts/push-exercises.mjs staging",
+    "exercises:push:prod": "node scripts/push-exercises.mjs prod"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
