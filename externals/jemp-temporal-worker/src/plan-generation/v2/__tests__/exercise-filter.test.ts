@@ -43,9 +43,15 @@ describe('makeExerciseFilter (per-day environments)', () => {
     expect(makeExerciseFilter(m, 'env_outdoor')(row('sled'))).toBe(true)
   })
 
-  it('empty user equipment skips the equipment check (bisheriges Verhalten)', () => {
+  it('empty user equipment means bodyweight-only — equipment exercises are excluded', () => {
+    // QA 15.10.: der frühere Skip bei leerem Equipment ließ Langhantel-Übungen
+    // zu Null-Equipment-Usern durch. Leer heißt jetzt "nichts", nicht "unbekannt"
+    // (der Onboarding-Bug, der leere Profile erzeugte, ist gefixt + Re-Prompt).
     const m = maps({ userEquip: new Set<string>() })
-    expect(makeExerciseFilter(m, 'env_gym')(row('sled'))).toBe(true)
+    expect(makeExerciseFilter(m, 'env_gym')(row('sled'))).toBe(false)
+    expect(makeExerciseFilter(m, null)(row('sled'))).toBe(false)
+    // Übungen ohne Equipment-Anforderung bleiben natürlich drin
+    expect(makeExerciseFilter(m, 'env_outdoor')(row('sprint30'))).toBe(true)
   })
 })
 

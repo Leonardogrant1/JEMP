@@ -80,7 +80,9 @@ export function makeExerciseFilter(maps: ExerciseFilterMaps, dayEnvId: string | 
   }
   return (row: FilterableRow): boolean => {
     const required = maps.equipByExercise.get(row.id)
-    if (required && required.size > 0 && maps.userEquip.size > 0 && ![...required].some(equipUsable)) return false
+    // Leeres User-Equipment heißt "nichts", nicht "unbekannt" (QA 15.10.):
+    // der frühere size>0-Skip ließ Langhantel-Übungen zu Bodyweight-Usern durch.
+    if (required && required.size > 0 && ![...required].some(equipUsable)) return false
     const allowed = maps.envByExercise.get(row.id)
     if (allowed && allowed.size > 0) {
       if (dayEnvId !== null) {
