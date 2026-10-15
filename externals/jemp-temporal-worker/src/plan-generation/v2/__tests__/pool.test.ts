@@ -536,3 +536,15 @@ describe('Heavy-Fenster-Filter (QA 11.10.: Maximalkraft bleibt linear und schwer
     expect(all.has('single_leg_glute_bridge')).toBe(true)
   })
 })
+
+describe('isCnsMicroDoseExercise: warmup-getaggte COD-Drills (QA 15.10.)', () => {
+  it('cod + Warmup-Tag + Int ≤ 4 zählt als Mikro-Dosis', () => {
+    expect(isCnsMicroDoseExercise(ex({ slug: 'carioca', category_slug: 'cod', intensity_score: 4, legacy_block_slugs: ['warmup'] }))).toBe(true)
+  })
+  it('Int-Gate gilt weiter (lateral_shuffle Int 5 bleibt draußen)', () => {
+    expect(isCnsMicroDoseExercise(ex({ slug: 'lateral_shuffle', category_slug: 'cod', intensity_score: 5, legacy_block_slugs: ['warmup'] }))).toBe(false)
+  })
+  it('ohne expliziten Tag kein Warmup — untagged cod zählt nicht', () => {
+    expect(isCnsMicroDoseExercise(ex({ slug: 't_drill', category_slug: 'cod', intensity_score: 4 }))).toBe(false)
+  })
+})

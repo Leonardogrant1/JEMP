@@ -103,8 +103,11 @@ export function buildSpeedSession(input: {
     .sort(byIntensityThenSlug)
   // Lauf-ABC (A-/B-Skips, High Knees, Butt Kicks): Kategorie sprints ohne
   // sprint_type, warmup-getaggt. Intensität 4–5 ist hier normal — kein ≤3-Gate.
+  // Dazu COD-Drills (Carioca) mit EXPLIZITEM Warmup-Tag + Int ≤ 4 (QA 15.10.).
   const drillPool = exercises
-    .filter((e) => e.category_slug === 'sprints' && e.sprint_type === null && legacyBlockAllows(e, 'warmup'))
+    .filter((e) =>
+      (e.category_slug === 'sprints' && e.sprint_type === null && legacyBlockAllows(e, 'warmup')) ||
+      (e.category_slug === 'cod' && (e.intensity_score ?? 10) <= 4 && (e.legacy_block_slugs?.includes('warmup') ?? false)))
     .filter((e) => !SPEED_FRAMING_SLUGS.has(e.slug))
     .sort(byIntensityThenSlug)
 
@@ -146,7 +149,11 @@ export function buildSpeedSession(input: {
   const warmupExercises = [
     ...(jog ? [{ ...baseExercise(jog, 0), target_duration_seconds: 240, target_rest_seconds: 0 }] : []),
     ...dynamicPool.slice(0, 2).map((e) => ({ ...baseExercise(e, 0), target_duration_seconds: 45, target_rest_seconds: 0 })),
-    ...drillPool.slice(0, 2).map((e) => ({ ...baseExercise(e, 0), target_sets: 2, target_distance_meters: 20, target_rest_seconds: 30 })),
+    ...drillPool
+      // Dedupe gegen den COD-Block: derselbe Drill (Carioca) soll nicht
+      // zweimal in einer Session stehen — der Hauptteil hat Vorrang.
+      .filter((e) => !codExercises.some((c) => c.exercise_slug === e.slug))
+      .slice(0, 2).map((e) => ({ ...baseExercise(e, 0), target_sets: 2, target_distance_meters: 20, target_rest_seconds: 30 })),
     ...(buildUpRun ? [{ ...baseExercise(buildUpRun, 0), target_sets: 3, target_distance_meters: 30, target_rest_seconds: 60 }] : []),
   ].map((e, i) => ({ ...e, order_index: i }))
   const warmupSlugs = new Set(warmupExercises.map((e) => e.exercise_slug))

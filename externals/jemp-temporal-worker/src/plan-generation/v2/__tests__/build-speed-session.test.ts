@@ -153,3 +153,28 @@ describe('COD-Dosierung (Dosierungs-Härtung 11.10.: lateral_shuffle war 5×nich
     }
   })
 })
+
+describe('warmup-getaggte COD-Drills im Speed-Warmup (QA 15.10.: Carioca)', () => {
+  const carioca = ex({ slug: 'carioca', category_slug: 'cod', intensity_score: 4, measurement_type: 'duration', legacy_block_slugs: ['warmup'] })
+
+  it('nimmt explizit getaggte leichte cod-Drills in die Warmup-Rampe', () => {
+    const r = buildSpeedSession({ day: day(), exercises: [...basePool, carioca], levels: { sprints: 2, cod: 0 }, allowMaxVelocity: true, orderIndex: 0 })!
+    const warmup = r.session.blocks.find((b: any) => b.block_type === 'warmup')!.exercises.map((e: any) => e.exercise_slug)
+    expect(warmup).toContain('carioca')
+  })
+
+  it('dedupliziert gegen den COD-Block — kein Drill doppelt in einer Session', () => {
+    const pool = [ex({ slug: 'sprint_10m', sprint_type: 'acceleration', category_slug: 'sprints', measurement_type: 'time' }), carioca]
+    const r = buildSpeedSession({ day: day(), exercises: pool, levels: { sprints: 2, cod: 2 }, allowMaxVelocity: true, orderIndex: 0 })!
+    const slugs = (bt: string) => r.session.blocks.find((b: any) => b.block_type === bt)?.exercises.map((e: any) => e.exercise_slug) ?? []
+    expect(slugs('cod')).toContain('carioca')
+    expect(slugs('warmup')).not.toContain('carioca')
+  })
+
+  it('ohne Warmup-Tag bleibt ein cod-Drill draußen (Tag trägt die Semantik)', () => {
+    const untagged = ex({ slug: 'lateral_shuffle', category_slug: 'cod', intensity_score: 4, measurement_type: 'duration' })
+    const r = buildSpeedSession({ day: day(), exercises: [...basePool, untagged], levels: { sprints: 2, cod: 0 }, allowMaxVelocity: true, orderIndex: 0 })!
+    const warmup = r.session.blocks.find((b: any) => b.block_type === 'warmup')!.exercises.map((e: any) => e.exercise_slug)
+    expect(warmup).not.toContain('lateral_shuffle')
+  })
+})

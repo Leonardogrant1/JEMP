@@ -198,6 +198,10 @@ export function strengthPatternPools(
 export function isCnsMicroDoseExercise(ex: V2Exercise): boolean {
   if (ex.sprint_type !== null || (ex.intensity_score ?? 10) > 4) return false
   if (ex.category_slug === 'sprints') return !SPEED_FRAMING_SLUGS.has(ex.slug)
+  // COD-Drills (Carioca & Co.) nur mit EXPLIZITEM Warmup-Tag (QA 15.10.) —
+  // legacyBlockAllows würde ungetaggte Drills durchwinken, hier trägt der
+  // Tag bewusst die Semantik.
+  if (ex.category_slug === 'cod') return ex.legacy_block_slugs?.includes('warmup') ?? false
   return PLYO_CATEGORIES.has(ex.category_slug) && ex.is_explosive
 }
 
