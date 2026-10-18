@@ -1,4 +1,5 @@
 import GameIcon from '@/assets/icons/game.svg';
+import { InfoCallout } from '@/components/ui/info-callout';
 import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
 import { ENV_ICONS } from '@/constants/environment-icons';
@@ -228,9 +229,7 @@ export function WorkoutPrefsStep() {
                     availableDayCount: selectedDays.size, loadProfile,
                     pillarLevels: pillarLevelMap, sprintsCoveredByClub: sprintsCoveredByClub ?? false,
                 }) && (
-                    <JempText type="caption" color={theme.textMuted} style={styles.maxDaysHint}>
-                        {t('plan.speed_micro_hint')}
-                    </JempText>
+                    <InfoCallout icon="flash-outline" text={t('plan.speed_micro_hint')} />
                 )}
                 {(() => {
                     // Live-Zusammensetzung (§3.4): deterministisch aus dem Allocation-Spiegel —

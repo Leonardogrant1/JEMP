@@ -1,4 +1,5 @@
 import GameIcon from '@/assets/icons/game.svg';
+import { InfoCallout } from '@/components/ui/info-callout';
 import { JempText } from '@/components/jemp-text';
 import { WEEK_DAYS } from '@/constants/plan-generation-constants';
 import { getSportKind } from '@/constants/sports';
@@ -167,9 +168,7 @@ export function ScheduleStep() {
                     availableDayCount: preferredDays.size, loadProfile,
                     pillarLevels: wizardLevelMap, sprintsCoveredByClub: sprintClub,
                 }) && (
-                    <JempText type="caption" color={theme.textMuted} style={styles.maxDaysHint}>
-                        {t('plan.speed_micro_hint')}
-                    </JempText>
+                    <InfoCallout icon="flash-outline" text={t('plan.speed_micro_hint')} />
                 )}
                 {(() => {
                     // Live-Zusammensetzung (§3.4) — Spiegel der Generator-Zuteilung.
