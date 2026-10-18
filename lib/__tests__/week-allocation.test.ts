@@ -1,4 +1,4 @@
-import { computeWeekComposition, WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS } from '@/lib/week-allocation';
+import { computeWeekComposition, WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, speedFocusWithoutSpeedDay } from '@/lib/week-allocation';
 
 // ⚠️ Diese Vektoren replizieren die Worker-Tests (week-layout.test.ts, allocateDays) wörtlich —
 // App-Spiegel und Engine MÜSSEN dieselben Zahlen liefern.
@@ -61,5 +61,22 @@ describe('extraSessionAllowance (review fix I4: surplus days reachable)', () => 
     });
     it('combines speed and conditioning allowances', () => {
         expect(extraSessionAllowance({ loadProfile: 'low', pillarLevels: { sprints: 2, conditioning: 2 }, sprintsCoveredByClub: false })).toBe(2);
+    });
+});
+
+describe('speedFocusWithoutSpeedDay (QA 18.10.: COD-Fokus ohne Speed-Tag sichtbar machen)', () => {
+    it('warnt bei Level-2-Fokus ohne Überschuss-Tag', () => {
+        expect(speedFocusWithoutSpeedDay({ availableDayCount: 3, loadProfile: 'medium', pillarLevels: { cod: 2 }, sprintsCoveredByClub: false })).toBe(true);
+    });
+    it('kein Hinweis, wenn ein Überschuss-Tag die Speed-Session ermöglicht', () => {
+        expect(speedFocusWithoutSpeedDay({ availableDayCount: 4, loadProfile: 'medium', pillarLevels: { cod: 2 }, sprintsCoveredByClub: false })).toBe(false);
+    });
+    it('Level 3 bekommt die Session aus dem Cap heraus — kein Hinweis; bei 2 Tagen aber doch', () => {
+        expect(speedFocusWithoutSpeedDay({ availableDayCount: 4, loadProfile: 'low', pillarLevels: { sprints: 3 }, sprintsCoveredByClub: false })).toBe(false);
+        expect(speedFocusWithoutSpeedDay({ availableDayCount: 2, loadProfile: 'high', pillarLevels: { sprints: 3 }, sprintsCoveredByClub: false })).toBe(true);
+    });
+    it('Level <= 1 oder club-gedeckte Sprints ohne COD: nie ein Hinweis', () => {
+        expect(speedFocusWithoutSpeedDay({ availableDayCount: 2, loadProfile: 'medium', pillarLevels: { sprints: 1 }, sprintsCoveredByClub: false })).toBe(false);
+        expect(speedFocusWithoutSpeedDay({ availableDayCount: 3, loadProfile: 'medium', pillarLevels: { sprints: 3 }, sprintsCoveredByClub: true })).toBe(false);
     });
 });

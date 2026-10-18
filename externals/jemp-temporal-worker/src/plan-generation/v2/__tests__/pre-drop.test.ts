@@ -27,3 +27,28 @@ describe('preDropEmptyPools (review fix I2)', () => {
     expect(w.blocks.map((b: any) => b.block_type)).toContain('cooldown')
   })
 })
+
+import { codMicroCnsPool } from '../prepare-v2'
+
+describe('codMicroCnsPool (QA 18.10.: COD-Fokus ohne Speed-Tag → Mikro-Dosis)', () => {
+  const full = ['a_skip_drill', 'high_knees', 'carioca']
+  const cod = ['carioca']
+
+  it('verengt die CNS-Dosis auf COD-Drills: cod >= 2, kein Speed-Tag, erste zwei Sessions', () => {
+    expect(codMicroCnsPool(full, cod, 2, false, 0)).toEqual(['carioca'])
+    expect(codMicroCnsPool(full, cod, 3, false, 1)).toEqual(['carioca'])
+  })
+
+  it('ab der dritten Session gilt wieder der volle Pool (Dosis, kein Dauerprogramm)', () => {
+    expect(codMicroCnsPool(full, cod, 2, false, 2)).toEqual(full)
+  })
+
+  it('mit Speed-Tag oder cod <= 1 bleibt alles unverändert', () => {
+    expect(codMicroCnsPool(full, cod, 2, true, 0)).toEqual(full)
+    expect(codMicroCnsPool(full, cod, 1, false, 0)).toEqual(full)
+  })
+
+  it('ohne qualifizierte COD-Drills bleibt der volle Pool (Datenloch erzwingt nie Leere)', () => {
+    expect(codMicroCnsPool(full, [], 2, false, 0)).toEqual(full)
+  })
+})

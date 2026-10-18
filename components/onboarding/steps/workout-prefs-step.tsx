@@ -5,7 +5,7 @@ import { ENV_ICONS } from '@/constants/environment-icons';
 import { getSportKind } from '@/constants/sports';
 import { Colors, GradientMid } from '@/constants/theme';
 import { computeLoadProfile, maxWorkoutDays, MIN_WORKOUT_DAYS } from '@/lib/load-profile';
-import { computeWeekComposition, extraSessionAllowance } from '@/lib/week-allocation';
+import { computeWeekComposition, extraSessionAllowance, speedFocusWithoutSpeedDay } from '@/lib/week-allocation';
 import { JempDialog } from '@/components/ui/jemp-dialog';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTrainingAnimationBySlug } from '@/hooks/use-training-animation';
@@ -222,6 +222,14 @@ export function WorkoutPrefsStep() {
                 ) : atCap && (
                     <JempText type="caption" color={overCap ? '#ef4444' : theme.textMuted} style={styles.maxDaysHint}>
                         {t(overCap ? 'onboarding.workout_prefs_max_days_over' : 'onboarding.workout_prefs_max_days_hint', { count: maxDays })}
+                    </JempText>
+                )}
+                {selectedDays.size >= MIN_WORKOUT_DAYS && speedFocusWithoutSpeedDay({
+                    availableDayCount: selectedDays.size, loadProfile,
+                    pillarLevels: pillarLevelMap, sprintsCoveredByClub: sprintsCoveredByClub ?? false,
+                }) && (
+                    <JempText type="caption" color={theme.textMuted} style={styles.maxDaysHint}>
+                        {t('plan.speed_micro_hint')}
                     </JempText>
                 )}
                 {(() => {

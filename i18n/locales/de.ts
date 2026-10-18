@@ -155,6 +155,7 @@ const de: Record<TranslationKeys, string> = {
     'block_type.rotation': 'Rotation',
     'block_type.core': 'Core',
     'day_duration.short_hint': 'Bei kurzen Einheiten können Zusatzbereiche entfallen. Kraft und deine Fokus-Bereiche haben Vorrang.',
+    'plan.speed_micro_hint': 'Dein Sprint-/COD-Fokus bekommt in dieser Woche keine eigene Speed-Einheit — er fließt als kurze Technik-Dosis ins Aufwärmen. Ein zusätzlicher Trainingstag schafft Platz für eine echte Speed-Session.',
     'block_type.plyo': 'Sprungkraft',
     'block_type.plyo_upper': 'Explosivkraft',
     'block_type.sprint': 'Sprints',

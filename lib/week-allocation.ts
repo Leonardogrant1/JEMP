@@ -60,6 +60,15 @@ export function computeWeekComposition(input: AllocationInput): WeekComposition 
     return { workouts, speedDays, conditioningDay, mobilityDay, carrier };
 }
 
+/** Hinweis-Bedingung für die Tage-Wahl (QA 18.10.): Sprint-/COD-Fokus
+ *  (Level >= 2), aber die gewählte Woche ergibt keine eigene Speed-Session —
+ *  der Fokus läuft dann nur als Mikro-Dosis im Warmup. Nutzt die exakte
+ *  Mirror-Zuteilung statt einer Näherung. */
+export function speedFocusWithoutSpeedDay(input: AllocationInput): boolean {
+    if (effectiveSpeedLevel(input.pillarLevels, input.sprintsCoveredByClub) < 2) return false;
+    return computeWeekComposition(input).speedDays === 0;
+}
+
 /** Review fix I4 (Spec §3.1): Wie viele Tage ÜBER dem Workout-Cap darf der
  *  User anbieten, damit Speed-/Conditioning-Sessions überhaupt entstehen
  *  können? Macht die Überschuss-Zustände der Zuteilung im UI erreichbar. */

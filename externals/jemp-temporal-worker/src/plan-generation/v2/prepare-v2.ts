@@ -23,6 +23,20 @@ export function fillerWindowOffset(planCount: number, sessionOrdinal: number): n
   return planCount * 29 + sessionOrdinal * 4
 }
 
+/** COD-Mikro-Dosis (QA 18.10.): COD-Fokus (Level >= 2) ohne Speed-Tag
+ *  verschwand lautlos — COD-Arbeit lebt nur in Speed-Sessions. Jetzt wird die
+ *  CNS-Mikro-Dosis der ersten beiden Trainings-Sessions auf COD-Drills
+ *  (Carioca & Co.) verengt; der Validator erzwingt damit einen COD-Drill im
+ *  Warmup. Tage ohne qualifizierte COD-Drills behalten den vollen Pool
+ *  (Datenloch erzwingt nie Leere). */
+export function codMicroCnsPool(
+  fullCnsSlugs: string[], codCnsSlugs: string[],
+  codLevel: number, hasSpeedSession: boolean, sessionOrdinal: number,
+): string[] {
+  if (codLevel < 2 || hasSpeedSession || sessionOrdinal >= 2) return fullCnsSlugs
+  return codCnsSlugs.length > 0 ? codCnsSlugs : fullCnsSlugs
+}
+
 /** Ebenen-Entscheidung pro Pattern-Vorkommen (Spec 2026-10-11 §4) — pure,
  *  damit die Verdrahtung testbar ist (Final-Review-Fix): heavy nimmt am
  *  Zyklus nicht teil (konsumiert den Wochen-Zähler NICHT), sagittal oder
@@ -296,6 +310,9 @@ export async function prepareGenerationV2(
     day_minutes: input.day_minutes,
   })
   notes.push(...layout.notes)
+  if ((input.pillar_levels.cod ?? 0) >= 2 && !layout.placement.days.some((d) => d.session_type === 'speed')) {
+    notes.push('COD-Fokus ohne Speed-Tag: Richtungswechsel läuft als Mikro-Dosis im Warmup — ein zusätzlicher Trainingstag schafft eine echte Speed-Session')
+  }
 
   // ── 4. Prebuilt deterministic sessions ───────────────────────────────────
   const prebuiltSessions: PlannedSessionLike[] = []
@@ -399,9 +416,14 @@ export async function prepareGenerationV2(
       preferredSlugs: [...new Set(dayExercises.filter((e) => e.preferred).map((e) => e.slug))].sort(),
       // Dosierungs-Härtung (11.10.): CNS-Kandidaten, die im Warmup-Pool dieses
       // Tages tatsächlich wählbar sind — leer = Validator-Check entfällt.
+      // COD-Mikro-Dosis (18.10.): bei COD-Fokus ohne Speed-Tag verengt auf COD-Drills.
       warmupCnsPool: (() => {
         const warmupSlugs = new Set(poolRecord['warmup'] ?? [])
-        return dayExercises.filter((e) => warmupSlugs.has(e.slug) && isCnsMicroDoseExercise(e)).map((e) => e.slug).sort()
+        const cns = dayExercises.filter((e) => warmupSlugs.has(e.slug) && isCnsMicroDoseExercise(e))
+        const full = cns.map((e) => e.slug).sort()
+        const codDrills = cns.filter((e) => e.category_slug === 'cod').map((e) => e.slug).sort()
+        return codMicroCnsPool(full, codDrills, input.pillar_levels.cod ?? 0,
+          layout.placement.days.some((d) => d.session_type === 'speed'), workoutIdx)
       })(),
       // Mess-Typ je wählbarem Slug (11.10.): nur die Pool-Slugs, nicht der ganze
       // Katalog — der Context reist als Temporal-Payload.

@@ -153,6 +153,7 @@ const en = {
     'block_type.rotation': 'Rotation',
     'block_type.core': 'Core',
     'day_duration.short_hint': 'Short sessions may skip supplementary work. Strength and your focus areas take priority.',
+    'plan.speed_micro_hint': "Your sprint/COD focus won't get its own speed session this week — it runs as a short technique dose in the warm-up. Add another training day to fit a real speed session.",
     'block_type.plyo': 'Plyometrics',
     'block_type.plyo_upper': 'Upper-Body Power',
     'block_type.sprint': 'Sprints',

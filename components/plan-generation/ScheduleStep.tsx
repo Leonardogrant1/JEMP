@@ -6,7 +6,7 @@ import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTrainingAnimation } from '@/hooks/use-training-animation';
 import { computeLoadProfile, maxWorkoutDays, MIN_WORKOUT_DAYS } from '@/lib/load-profile';
-import { computeWeekComposition, extraSessionAllowance } from '@/lib/week-allocation';
+import { computeWeekComposition, extraSessionAllowance, speedFocusWithoutSpeedDay } from '@/lib/week-allocation';
 import { JempDialog } from '@/components/ui/jemp-dialog';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { usePlanWizardStore } from '@/stores/plan-wizard-store';
@@ -161,6 +161,14 @@ export function ScheduleStep() {
                 ) : atCap && (
                     <JempText type="caption" color={overCap ? '#ef4444' : theme.textMuted} style={styles.maxDaysHint}>
                         {t(overCap ? 'plan.schedule_max_days_over' : 'plan.schedule_max_days_hint', { count: maxDays })}
+                    </JempText>
+                )}
+                {preferredDays.size >= MIN_WORKOUT_DAYS && speedFocusWithoutSpeedDay({
+                    availableDayCount: preferredDays.size, loadProfile,
+                    pillarLevels: wizardLevelMap, sprintsCoveredByClub: sprintClub,
+                }) && (
+                    <JempText type="caption" color={theme.textMuted} style={styles.maxDaysHint}>
+                        {t('plan.speed_micro_hint')}
                     </JempText>
                 )}
                 {(() => {
