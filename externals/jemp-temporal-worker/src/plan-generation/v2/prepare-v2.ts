@@ -10,12 +10,17 @@ import type { PlanGenerationInput } from '../types'
 import { buildBlockPools, isCnsMicroDoseExercise, patternSlugWindow, pickPlanePin, preDropEmptyPools, rotatedPoolWindow, rotateSlugs, strengthPatternPools, type V2Exercise } from './pool'
 import { makePlaneCounter, pickPlaneEmphasis, resolvePlaneWeights, toPatternFamily, type PatternFamily, type PlaneWeights } from './plane-emphasis'
 
-/** Füller-Fenster-Offset (QA 11.10.): planCount allein ließ alle Sessions
- *  einer Woche dasselbe Fenster sehen — dieselben 2 Übungen, 3×/Woche, die
- *  ganze Planlaufzeit. Der Wochentag fächert die Fenster innerhalb der Woche
- *  auf; Stride 7 verhindert Überlapp zwischen Folgeplänen. */
-export function fillerWindowOffset(planCount: number, dayOfWeek: number): number {
-  return planCount * 7 + dayOfWeek
+/** Füller-Fenster-Offset (QA 11.10., nachgeschärft 18.10.): planCount allein
+ *  ließ alle Sessions einer Woche dasselbe Fenster sehen. Der erste Fix
+ *  (+dayOfWeek) reichte nicht: das Regionen-Round-Robin in rotatedPoolWindow
+ *  wählt bei Offset-Deltas < Fenstergröße nur andere RING-Positionen, aber
+ *  dieselbe SCHICHT pro Region — leo2-Befund: seated_calf_raise 3×/Woche
+ *  trotz Tages-Offset. Jetzt: ORDINAL der Trainings-Session (0..n-1, lückenlos
+ *  — dayOfWeek wäre sparsam und ließe Schichten kollidieren) × Fenstergröße 4,
+ *  damit jede Session der Woche eine andere Übungs-Schicht pro Region sieht;
+ *  Plan-Stride 29 (> max. Session-Anteil 4×6) hält Folgepläne versetzt. */
+export function fillerWindowOffset(planCount: number, sessionOrdinal: number): number {
+  return planCount * 29 + sessionOrdinal * 4
 }
 
 /** Ebenen-Entscheidung pro Pattern-Vorkommen (Spec 2026-10-11 §4) — pure,
@@ -327,12 +332,13 @@ export async function prepareGenerationV2(
   }
 
   // ── 5. Per-training-day contexts for runSessionV2 ────────────────────────
-  const sessionBuildInputs: SessionBuildInput[] = layout.workouts.map((workout) => {
+  const sessionBuildInputs: SessionBuildInput[] = layout.workouts.map((workout, workoutIdx) => {
     const day = trainingDays.find((d) => d.day_of_week === workout.day_of_week)!
     const dayExercises = exercisesForDay(workout.day_of_week)
-    // Fenster-Offset pro Session (QA 11.10.): jede Session der Woche sieht
-    // eine andere Scheibe der Füller-/Pattern-Pools.
-    const winOffset = fillerWindowOffset(priorPlans, workout.day_of_week)
+    // Fenster-Offset pro Session (QA 11.10./18.10.): jede Session der Woche
+    // sieht eine andere Scheibe der Füller-/Pattern-Pools — Ordinal statt
+    // Wochentag, damit die Schichten lückenlos durchrotieren.
+    const winOffset = fillerWindowOffset(priorPlans, workoutIdx)
     const sprintPoolSlugs = dayExercises
       .filter((e) => e.sprint_type !== null && (allowMaxVelocity || e.sprint_type !== 'max_velocity'))
       .map((e) => e.slug)

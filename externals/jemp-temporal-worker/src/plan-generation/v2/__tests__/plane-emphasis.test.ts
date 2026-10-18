@@ -147,10 +147,13 @@ describe('planeFocusForPattern (prepare-v2-Verdrahtung, Spec §4)', () => {
 })
 
 describe('Füller-Fenster & Pin pro Session (QA 11.10.)', () => {
-  it('fillerWindowOffset: verschiedene Tage → verschiedene Offsets, Folgeplan überlappt nicht', () => {
-    expect(fillerWindowOffset(0, 4)).not.toBe(fillerWindowOffset(0, 6))
-    expect(fillerWindowOffset(0, 6)).not.toBe(fillerWindowOffset(1, 4))
-    expect(fillerWindowOffset(2, 4)).toBe(2 * 7 + 4)
+  it('fillerWindowOffset: Session-Ordinale springen in Fenstergrößen-Schritten (QA 18.10.)', () => {
+    // Konsekutive Sessions rücken die Schicht um genau ein Fenster weiter —
+    // sonst wählt das Regionen-Round-Robin dieselbe Übungs-Schicht erneut.
+    expect(fillerWindowOffset(0, 1) - fillerWindowOffset(0, 0)).toBe(4)
+    expect(fillerWindowOffset(0, 2) - fillerWindowOffset(0, 1)).toBe(4)
+    expect(fillerWindowOffset(0, 5)).not.toBe(fillerWindowOffset(1, 0))
+    expect(fillerWindowOffset(2, 1)).toBe(2 * 29 + 4)
   })
 
   it('Plane-Pin rotiert pro Vorkommen: zwei gleiche Muster in einer Woche pinnen verschiedene Übungen', () => {
