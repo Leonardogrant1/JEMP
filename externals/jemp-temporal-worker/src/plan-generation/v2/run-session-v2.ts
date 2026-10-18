@@ -257,6 +257,28 @@ export function zeroWarmupCooldownRest(
   }
 }
 
+/** "0 kg"-Härtung (QA 18.10.): der Retry-Fallback übernimmt nach MAX_ATTEMPTS
+ * die letzte Session trotz offener Validator-Violations — kg-Lasten mit Wert 0
+ * erreichten so die App. Deterministische Reparatur statt Prompt-Hoffnung:
+ * Kraftblöcke -> RPE 7, Warmup/Cooldown -> bodyweight, Rest -> RPE 6. */
+const STRENGTH_BLOCK_TYPES = new Set(['lower_strength', 'upper_strength', 'push', 'pull', 'lower_body'])
+export function fixZeroKgLoads(
+  blocks: Array<{ block_type: string; exercises: Array<{ target_load_type: string; target_load_value: number }> }>,
+): void {
+  for (const b of blocks) {
+    for (const e of b.exercises ?? []) {
+      if (e.target_load_type !== 'kg' || e.target_load_value > 0) continue
+      if (b.block_type === 'warmup' || b.block_type === 'cooldown') {
+        e.target_load_type = 'bodyweight'
+        e.target_load_value = -1
+      } else {
+        e.target_load_type = 'rpe'
+        e.target_load_value = STRENGTH_BLOCK_TYPES.has(b.block_type) ? 7 : 6
+      }
+    }
+  }
+}
+
 export async function runSessionV2(
   input: V2SessionContext & {
     userContext: string
@@ -345,6 +367,7 @@ export async function runSessionV2(
   const blocks = [...(lastSession as any).blocks]
   attachBlockEmphasis(blocks, workout.blocks as any)
   zeroWarmupCooldownRest(blocks)
+  fixZeroKgLoads(blocks)
   if (day.carries_conditioning_finisher) {
     const cooldownIdx = blocks.findIndex((b: any) => b.block_type === 'cooldown')
     const insertAt = cooldownIdx === -1 ? blocks.length : cooldownIdx

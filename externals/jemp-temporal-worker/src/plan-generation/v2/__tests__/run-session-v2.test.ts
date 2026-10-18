@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findV2Violations, buildV2SessionSchema, attachBlockEmphasis, withMeasurementMarkers, zeroWarmupCooldownRest } from '../run-session-v2'
+import { findV2Violations, buildV2SessionSchema, attachBlockEmphasis, withMeasurementMarkers, zeroWarmupCooldownRest, fixZeroKgLoads } from '../run-session-v2'
 
 const session = (blocks: Array<{ block_type: string; slugs: string[] }>): any => ({
   name: 'W', mode_slug: 'full', estimated_duration_minutes: 60, day_of_week: 1,
@@ -332,5 +332,34 @@ describe('zeroWarmupCooldownRest', () => {
     zeroWarmupCooldownRest(blocks as any)
     expect(blocks[0].exercises[0].target_rest_seconds).toBe(60)
     expect(blocks[1].exercises[0].target_rest_seconds).toBe(180)
+  })
+})
+
+describe('fixZeroKgLoads (QA 18.10.: Retry-Fallback ließ "0 kg" durch)', () => {
+  const block = (block_type: string, exercises: any[]) => ({ block_type, exercises })
+
+  it('schreibt kg <= 0 deterministisch um: Kraft -> RPE 7, Zubehör -> RPE 6, Rahmen -> bodyweight', () => {
+    const blocks = [
+      block('lower_strength', [{ target_load_type: 'kg', target_load_value: 0 }]),
+      block('accessory', [{ target_load_type: 'kg', target_load_value: 0 }]),
+      block('core', [{ target_load_type: 'kg', target_load_value: -1 }]),
+      block('warmup', [{ target_load_type: 'kg', target_load_value: 0 }]),
+    ]
+    fixZeroKgLoads(blocks as any)
+    expect(blocks[0].exercises[0]).toMatchObject({ target_load_type: 'rpe', target_load_value: 7 })
+    expect(blocks[1].exercises[0]).toMatchObject({ target_load_type: 'rpe', target_load_value: 6 })
+    expect(blocks[2].exercises[0]).toMatchObject({ target_load_type: 'rpe', target_load_value: 6 })
+    expect(blocks[3].exercises[0]).toMatchObject({ target_load_type: 'bodyweight', target_load_value: -1 })
+  })
+
+  it('lässt echte Lasten und andere Load-Typen unangetastet', () => {
+    const blocks = [
+      block('upper_strength', [{ target_load_type: 'kg', target_load_value: 40 }]),
+      block('core', [{ target_load_type: 'rpe', target_load_value: 0 }]),
+      block('conditioning', [{ target_load_type: 'bodyweight', target_load_value: -1 }]),
+    ]
+    const before = JSON.parse(JSON.stringify(blocks))
+    fixZeroKgLoads(blocks as any)
+    expect(blocks).toEqual(before)
   })
 })
