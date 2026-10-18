@@ -40,6 +40,27 @@ export function blockMinutes(b: { block_type: WorkoutBlockType; patterns?: Array
   return BLOCK_MINUTES[b.block_type]
 }
 export const MAINTENANCE_DOSE_FACTOR = 0.7
+
+/** Minuten-Schätzung einer Session aus ihren Blöcken. Lebt bei den Konstanten,
+ *  damit auch composition.ts sie nutzen kann (week-layout importiert composition —
+ *  ein Import zurück wäre ein Zyklus). */
+export function estimateMinutes(
+  blocks: Array<{ block_type: WorkoutBlockType; patterns?: Array<{ pattern: string }> }>,
+  dose: 'normal' | 'maintenance', carriesSprintBlock: boolean,
+  carriesConditioningFinisher = false, compact = false,
+): number {
+  const content = blocks.reduce((sum, b) => {
+    const base = blockMinutes(b)
+    // Kompakt und Maintenance stapeln sich nicht — beide stehen für dieselbe
+    // Reduktion (weniger Sätze, kürzere Pausen).
+    const scaled = (b.block_type === 'warmup' || b.block_type === 'cooldown') ? base
+      : (dose === 'maintenance' || compact) ? base * MAINTENANCE_DOSE_FACTOR : base
+    return sum + scaled
+  }, 0)
+  return Math.round(content
+    + (carriesSprintBlock ? INTEGRATED_SPRINT_BLOCK_MINUTES : 0)
+    + (carriesConditioningFinisher ? CONDITIONING_FINISHER_MINUTES : 0))
+}
 /** Kompakt-Modus (QA 09.10.): kurze Sessions rechnen Content-Blöcke mit 0.7
  *  (2 Sätze, Supersätze, kürzere Pausen) — sonst bleibt bei 30 min nach dem
  *  geschützten Kern (Warmup/Lower/Cooldown) kein Platz für irgendetwas. */

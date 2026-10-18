@@ -9,7 +9,7 @@ export function circularDayDistance(from: number, to: number): number {
 }
 
 import type { WeeklySchedule } from './types'
-import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, WORKOUT_BLOCK_SEQUENCE, BLOCK_MINUTES, blockMinutes, MAINTENANCE_DOSE_FACTOR, COMPACT_SESSION_THRESHOLD_MINUTES, INTEGRATED_SPRINT_BLOCK_MINUTES, CONDITIONING_FINISHER_MINUTES, DROP_PRIORITY, BLOCK_TO_PILLAR } from './week-layout-constants'
+import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, WORKOUT_BLOCK_SEQUENCE, BLOCK_MINUTES, blockMinutes, MAINTENANCE_DOSE_FACTOR, COMPACT_SESSION_THRESHOLD_MINUTES, INTEGRATED_SPRINT_BLOCK_MINUTES, CONDITIONING_FINISHER_MINUTES, DROP_PRIORITY, BLOCK_TO_PILLAR, estimateMinutes } from './week-layout-constants'
 import { composeWeek } from './v2/composition'
 
 export type NewSessionType = 'training' | 'speed' | 'mobility' | 'conditioning'
@@ -326,22 +326,9 @@ export type FinalWorkout = {
   estimated_minutes: number
 }
 
-export function estimateMinutes(
-  blocks: PlannedWorkoutBlock[], dose: 'normal' | 'maintenance', carriesSprintBlock: boolean,
-  carriesConditioningFinisher = false, compact = false,
-): number {
-  const content = blocks.reduce((sum, b) => {
-    const base = blockMinutes(b)
-    // Kompakt und Maintenance stapeln sich nicht — beide stehen für dieselbe
-    // Reduktion (weniger Sätze, kürzere Pausen).
-    const scaled = (b.block_type === 'warmup' || b.block_type === 'cooldown') ? base
-      : (dose === 'maintenance' || compact) ? base * MAINTENANCE_DOSE_FACTOR : base
-    return sum + scaled
-  }, 0)
-  return Math.round(content
-    + (carriesSprintBlock ? INTEGRATED_SPRINT_BLOCK_MINUTES : 0)
-    + (carriesConditioningFinisher ? CONDITIONING_FINISHER_MINUTES : 0))
-}
+// estimateMinutes lebt jetzt in week-layout-constants (QA 18.10.: composition
+// braucht es für die Slack-bewusste Fokus-Platzierung; Re-Export für Bestand).
+export { estimateMinutes } from './week-layout-constants'
 
 // Composition-Rework (§3.2): applyScalingLevers ist auf einen Minuten-Sanity-
 // Clamp reduziert — composeWeek liefert bereits schlanke Sessions, hier wird nur

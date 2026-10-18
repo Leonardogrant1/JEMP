@@ -640,3 +640,25 @@ describe('composeWeek: Fokus-Min-1 verdrängt Core bei Mini-Budgets (QA 18.10.)'
     expect(allBlocks.filter((b) => b === 'core').length).toBe(3)
   })
 })
+
+describe('composeWeek: Fokus-Platzierung bevorzugt Tage mit Zeit-Spielraum (QA 18.10. Follow-up)', () => {
+  const mixedDays = (): any[] => [
+    { day_of_week: 2, session_type: 'training', minutes: 30, dose: 'normal', carries_sprint_block: false, carries_conditioning_finisher: false, heavy_lower: true },
+    { day_of_week: 4, session_type: 'training', minutes: 60, dose: 'normal', carries_sprint_block: false, carries_conditioning_finisher: false, heavy_lower: false },
+    { day_of_week: 6, session_type: 'training', minutes: 60, dose: 'normal', carries_sprint_block: false, carries_conditioning_finisher: false, heavy_lower: false },
+  ]
+
+  it('Upper-Plyo meidet den 30-min-Tag, wenn 60-min-Tage Platz haben', () => {
+    const plan = composeWeek({ trainingDays: mixedDays(), pillarLevels: { strength: 2, upper_body_plyometrics: 1 }, hasSpeedSession: false, loadProfile: 'medium' })
+    const plyoDays = [...plan.entries()].filter(([, bs]) => bs.some((b: any) => b.block_type === 'plyo')).map(([d]) => d)
+    expect(plyoDays.length).toBeGreaterThan(0)
+    expect(plyoDays).not.toContain(2)
+  })
+
+  it('passt der Block nirgends, bleibt die fachliche Reihenfolge (kein Verschwinden)', () => {
+    const tiny = mixedDays().map((d) => ({ ...d, minutes: 30 }))
+    const plan = composeWeek({ trainingDays: tiny, pillarLevels: { strength: 2, upper_body_plyometrics: 2 }, hasSpeedSession: false, loadProfile: 'medium' })
+    const allBlocks = [...plan.values()].flat().map((b: any) => b.block_type)
+    expect(allBlocks).toContain('plyo')
+  })
+})

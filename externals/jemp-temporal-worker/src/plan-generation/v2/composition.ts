@@ -3,7 +3,7 @@
 // Fokus-Blöcke nach Wochen-Budget, Core als Standard-Block.
 
 import type { PillarLevels, PillarSlug, PlacedDay, PlannedWorkoutBlock } from '../week-layout'
-import { COMPACT_SESSION_THRESHOLD_MINUTES, contentBlockCount } from '../week-layout-constants'
+import { COMPACT_SESSION_THRESHOLD_MINUTES, contentBlockCount, estimateMinutes } from '../week-layout-constants'
 
 /** Fokus-Säulen, die Content-Blöcke INNERHALB einer Training-Session erzeugen.
  *  sprints/cod/mobility werden vom Week-Layout als eigene Session-Typen platziert.
@@ -201,14 +201,33 @@ export function composeWeek(input: {
       if (!target.has(dow)) { target.add(dow); placed++ }
     }
   }
-  distribute(budget.lower_body_plyometrics ?? 0, plyoLowerAssigned, idxByPreference(isLowerPrimary))
+  // Slack-Check (QA 18.10. Follow-up): bevorzugt Tage, auf denen der Plyo-Block
+  // ins Minutenbudget passt — die fachliche Präferenz bleibt Tiebreak. Passt er
+  // nirgends, greift die bisherige Reihenfolge (transparenter Drop im Minuten-
+  // Clamp statt stiller Fehlplatzierung auf dem vollsten Tag).
+  const plyoFitsOnDay = (i: number): boolean => {
+    const day = days[i]
+    const committed: PlannedWorkoutBlock[] = [
+      { block_type: 'warmup' } as PlannedWorkoutBlock,
+      leadBlocks[i], companionBlocks[i],
+      { block_type: 'cooldown' } as PlannedWorkoutBlock,
+      { block_type: 'plyo' } as PlannedWorkoutBlock,
+    ]
+    if (coreDays.has(day.day_of_week)) committed.push({ block_type: 'core' } as PlannedWorkoutBlock)
+    const compact = day.minutes <= COMPACT_SESSION_THRESHOLD_MINUTES
+    return estimateMinutes(committed, day.dose ?? 'normal', !!day.carries_sprint_block, !!day.carries_conditioning_finisher, compact) <= day.minutes
+  }
+  const preferFitting = (order: number[]) =>
+    [...order].sort((a, b) => (plyoFitsOnDay(a) ? 0 : 1) - (plyoFitsOnDay(b) ? 0 : 1))
+
+  distribute(budget.lower_body_plyometrics ?? 0, plyoLowerAssigned, preferFitting(idxByPreference(isLowerPrimary)))
   // upper-Plyo: Tage ohne lower-Plyo (max 1 Plyo-Block/Session, E2E-Befund) und
   // ohne Push-Primary zuerst; Push-Tage als Fallback. Reicht es nicht, wird ein
   // lower-Tag zu upper umgewidmet — die geclampte upper-Säule geht nie verloren.
   const upperOrder = days.map((_, i) => i)
     .filter((i) => !plyoLowerAssigned.has(days[i].day_of_week))
     .sort((a, b) => (isPushPrimary(a) ? 1 : 0) - (isPushPrimary(b) ? 1 : 0))
-  distribute(budget.upper_body_plyometrics ?? 0, plyoUpperAssigned, upperOrder)
+  distribute(budget.upper_body_plyometrics ?? 0, plyoUpperAssigned, preferFitting(upperOrder))
   // Min-1-Garantie, nicht Voll-Budget (Fix 10.10.): vorher räumte Upper bei
   // Level 3 ALLE Lower-Tage leer — gewollt war nur "Säule geht nie verloren".
   if ((budget.upper_body_plyometrics ?? 0) > 0 && plyoUpperAssigned.size === 0) {
