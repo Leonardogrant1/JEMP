@@ -18,7 +18,11 @@
     "postinstall": "patch-package",
     "exercises:pull": "node scripts/pull-exercises-from-prod.mjs",
     "exercises:push:staging": "node scripts/push-exercises.mjs staging",
-    "exercises:push:prod": "node scripts/push-exercises.mjs prod"
+    "exercises:push:prod": "node scripts/push-exercises.mjs prod",
+    "worker:deploy:staging": "cd externals/jemp-temporal-worker && npm run deploy:staging",
+    "worker:deploy:prod": "cd externals/jemp-temporal-worker && npm run deploy:prod",
+    "api:deploy:staging": "cd externals/jemp-api && npm run deploy:staging",
+    "api:deploy:prod": "cd externals/jemp-api && npm run deploy:prod"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
