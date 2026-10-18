@@ -353,8 +353,20 @@ const SANITY_DROP_ORDER: WorkoutBlockType[] =
 
 export function applyScalingLevers(
   placement: WeekPlacement, blockPlan: Map<number, PlannedWorkoutBlock[]>,
-  _pillarLevels: PillarLevels = {},
+  pillarLevels: PillarLevels = {},
 ): { workouts: FinalWorkout[]; notes: string[] } {
+  // Fokus-Schutz (QA 18.10.): Säulen-Level graduell in die Drop-Reihenfolge —
+  // Blöcke niedriger Säulen fallen zuerst (Core/Accessory/Optional = 0),
+  // Kraft bleibt hinter allem (User-Invariante: Kraft ist das Fundament).
+  const pillarLevelFor = (b: PlannedWorkoutBlock): number => {
+    if (b.block_type === 'plyo') {
+      if (b.variant === 'upper') return pillarLevels.upper_body_plyometrics ?? 0
+      if (b.variant === 'lower') return pillarLevels.lower_body_plyometrics ?? 0
+      return Math.max(pillarLevels.lower_body_plyometrics ?? 0, pillarLevels.upper_body_plyometrics ?? 0)
+    }
+    if (b.block_type === 'conditioning') return pillarLevels.conditioning ?? 0
+    return 0
+  }
   const notes: string[] = []
   const workouts: FinalWorkout[] = []
   for (const day of placement.days.filter((d) => d.session_type === 'training')) {
@@ -374,9 +386,12 @@ export function applyScalingLevers(
     while (over()) {
       const droppable = blocks.filter((b) => !isProtected(b) && !isLastStrength(b))
       if (droppable.length === 0) break
+      const sanityIdx = (b: PlannedWorkoutBlock) =>
+        SANITY_DROP_ORDER.indexOf(b.block_type) === -1 ? 99 : SANITY_DROP_ORDER.indexOf(b.block_type)
       droppable.sort((a, b) =>
-        (SANITY_DROP_ORDER.indexOf(a.block_type) === -1 ? 99 : SANITY_DROP_ORDER.indexOf(a.block_type)) -
-        (SANITY_DROP_ORDER.indexOf(b.block_type) === -1 ? 99 : SANITY_DROP_ORDER.indexOf(b.block_type)))
+        ((STRENGTH_TYPES.has(a.block_type) ? 1 : 0) - (STRENGTH_TYPES.has(b.block_type) ? 1 : 0)) ||
+        (pillarLevelFor(a) - pillarLevelFor(b)) ||
+        (sanityIdx(a) - sanityIdx(b)))
       const victim = droppable[0]
       blocks.splice(blocks.indexOf(victim), 1)
       dropped.push({ block_type: victim.block_type, reason: 'time' })

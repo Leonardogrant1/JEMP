@@ -572,3 +572,71 @@ describe('Kraft-Floor im Sanity-Clamp (Review-Fix 10.10.)', () => {
     }
   })
 })
+
+describe('Fokus-Schutz im Sanity-Drop (QA 18.10.: Level-graduell, Kraft zuletzt)', () => {
+  const mkPlacement = (minutes: number): any => ({
+    days: [{ day_of_week: 1, session_type: 'training', minutes, dose: 'normal',
+      carries_sprint_block: false, carries_conditioning_finisher: false }],
+    notes: [], carrier: null,
+  })
+  const mkBlocks = (): any[] => [
+    { block_type: 'warmup', order_index: 0 },
+    { block_type: 'plyo', order_index: 1, variant: 'upper' },
+    { block_type: 'lower_strength', order_index: 2, emphasis: 'heavy', patterns: [] },
+    { block_type: 'upper_strength', order_index: 3, patterns: [] },
+    { block_type: 'core', order_index: 4 },
+    { block_type: 'accessory', order_index: 5 },
+    { block_type: 'cooldown', order_index: 6 },
+  ]
+
+  it('Fokus-Conditioning (Level 3) fällt NACH Optional/Accessory/Core statt zuerst', () => {
+    const placement = mkPlacement(20)
+    const blocks: any[] = [...mkBlocks(), { block_type: 'conditioning', order_index: 7 }, { block_type: 'optional', order_index: 8 }]
+    const { workouts } = applyScalingLevers(placement, new Map([[1, blocks]]), { conditioning: 3, upper_body_plyometrics: 2 })
+    const dropped = workouts[0].dropped.map((d) => d.block_type)
+    const idx = (t: string) => dropped.indexOf(t as any)
+    // Statische Reihenfolge würde conditioning als ERSTES droppen — mit
+    // Fokus-Level 3 muss es hinter optional, accessory und core fallen.
+    expect(idx('conditioning')).toBeGreaterThan(idx('optional'))
+    expect(idx('conditioning')).toBeGreaterThan(idx('accessory'))
+    expect(idx('conditioning')).toBeGreaterThan(idx('core'))
+  })
+
+  it('ohne Fokus fällt Plyo wie bisher vor der Komplement-Kraft, Kraft bleibt am längsten', () => {
+    const placement = mkPlacement(20)
+    const { workouts } = applyScalingLevers(placement, new Map([[1, mkBlocks()]]), {})
+    const dropped = workouts[0].dropped.map((d) => d.block_type)
+    // Reihenfolge: Zusatz (accessory/core) vor plyo vor upper_strength
+    const idx = (t: string) => dropped.indexOf(t as any)
+    if (idx('plyo') !== -1 && idx('upper_strength') !== -1) expect(idx('plyo')).toBeLessThan(idx('upper_strength'))
+    if (idx('core') !== -1 && idx('plyo') !== -1) expect(idx('core')).toBeLessThan(idx('plyo'))
+  })
+
+  it('auch Fokus-Plyo fällt VOR der Komplement-Kraft (Kraft ist Fundament)', () => {
+    const placement = mkPlacement(20)
+    const { workouts } = applyScalingLevers(placement, new Map([[1, mkBlocks()]]), { upper_body_plyometrics: 3 })
+    const dropped = workouts[0].dropped.map((d) => d.block_type)
+    const idx = (t: string) => dropped.indexOf(t as any)
+    if (idx('plyo') !== -1 && idx('upper_strength') !== -1) expect(idx('plyo')).toBeLessThan(idx('upper_strength'))
+  })
+})
+
+describe('composeWeek: Fokus-Min-1 verdrängt Core bei Mini-Budgets (QA 18.10.)', () => {
+  const days = (minutes: number): any[] => [2, 4, 6].map((d) => ({
+    day_of_week: d, session_type: 'training', minutes, dose: 'normal',
+    carries_sprint_block: false, carries_conditioning_finisher: false, heavy_lower: d === 2,
+  }))
+
+  it('bei 3×30 min bekommt eine Fokus-2-Säule trotzdem ihren Block', () => {
+    const plan = composeWeek({ trainingDays: days(30), pillarLevels: { strength: 2, upper_body_plyometrics: 2, lower_body_plyometrics: 1 }, hasSpeedSession: false, loadProfile: 'medium' })
+    const allBlocks = [...plan.values()].flat().map((b: any) => b.block_type)
+    expect(allBlocks).toContain('plyo')
+  })
+
+  it('bei 3×60 min bleibt alles wie gehabt: Plyo UND volle Core-Abdeckung', () => {
+    const plan = composeWeek({ trainingDays: days(60), pillarLevels: { strength: 2, upper_body_plyometrics: 2, lower_body_plyometrics: 1 }, hasSpeedSession: false, loadProfile: 'medium' })
+    const allBlocks = [...plan.values()].flat().map((b: any) => b.block_type)
+    expect(allBlocks.filter((b) => b === 'plyo').length).toBe(3)
+    expect(allBlocks.filter((b) => b === 'core').length).toBe(3)
+  })
+})

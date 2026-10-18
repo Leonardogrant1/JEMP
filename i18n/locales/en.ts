@@ -152,6 +152,7 @@ const en = {
     'block_type.upper_strength': 'Upper-Body Strength',
     'block_type.rotation': 'Rotation',
     'block_type.core': 'Core',
+    'day_duration.short_hint': 'Short sessions may skip supplementary work. Strength and your focus areas take priority.',
     'block_type.plyo': 'Plyometrics',
     'block_type.plyo_upper': 'Upper-Body Power',
     'block_type.sprint': 'Sprints',

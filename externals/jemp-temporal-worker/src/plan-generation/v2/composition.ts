@@ -165,15 +165,21 @@ export function composeWeek(input: {
   // Sport-spezifischer Mix bleibt Post-v1 (Spec §4); dünne Varianten-Pools
   // fallen in buildBlockPools auf den ungefilterten Core-Pool zurück.
   const CORE_VARIANT_ROTATION: (string | null)[] = ['transverse', 'sagittal', null]
-  const coreCount = Math.min(n, 3)
+  // Slot-Hierarchie (QA 18.10.): Kraft → Fokus-Min-1 (Level ≥ 2) → Core → Rest.
+  // Vorher reservierte Core seine Slots VOR dem Fokus-Budget — bei 3×30-min-
+  // Wochen verdrängte das Fokus-Plyo komplett, und die Core-Blöcke fielen
+  // anschließend selbst dem Minuten-Clamp zum Opfer. Bei ≥45-min-Wochen ändert
+  // sich nichts (genug Slots für beides).
+  const totalContentSlots = days.reduce((s, d) => s + contentBlockCount(d.minutes), 0)
+  const slotsAfterStrength = Math.max(0, totalContentSlots - 2 * n /* primaries + komplemente */)
+  const focusMinWanted = CONTENT_FOCUS_PILLARS.filter((p) => (input.pillarLevels[p] ?? 0) >= 2).length
+  const coreCount = Math.min(n, 3, Math.max(0, slotsAfterStrength - focusMinWanted))
   const coreVariantByDay = new Map<number, string | null>()
   days.slice(0, coreCount).forEach((d, i) => coreVariantByDay.set(d.day_of_week, CORE_VARIANT_ROTATION[i % 3]))
   const coreDays = new Set(coreVariantByDay.keys())
 
   // ── 4. Fokus-Budget (§1.4) + Verteilung auf Tage ──────────────────────────
-  const totalContentSlots = days.reduce((s, d) => s + contentBlockCount(d.minutes), 0)
-  const reserved = n /* primaries */ + n /* komplemente */ + coreCount
-  const freeSlots = Math.max(0, totalContentSlots - reserved)
+  const freeSlots = Math.max(0, slotsAfterStrength - coreCount)
   const budget = focusBlockBudget(input.pillarLevels, freeSlots, input.hasSpeedSession)
 
   // Fokus-Block-Instanzen verteilen (max 1 je Typ pro Tag), nach Tages-Präferenz

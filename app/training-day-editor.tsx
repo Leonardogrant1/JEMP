@@ -233,6 +233,12 @@ export default function TrainingDayEditorScreen() {
                             ))}
                         </View>
 
+                        {(currentMinutes ?? defaultMinutes) <= 45 && (
+                            <JempText type="caption" color={theme.textMuted} style={styles.durationHint}>
+                                {t('day_duration.short_hint')}
+                            </JempText>
+                        )}
+
                         <Pressable onPress={handleClose} style={styles.doneBtn}>
                             <LinearGradient
                                 colors={GRADIENT}
@@ -330,6 +336,10 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 8,
+    },
+    durationHint: {
+        marginTop: 8,
+        lineHeight: 16,
     },
     durationChip: {
         borderWidth: 1.5,

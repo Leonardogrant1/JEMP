@@ -154,6 +154,7 @@ const de: Record<TranslationKeys, string> = {
     'block_type.upper_strength': 'Oberkörper-Kraft',
     'block_type.rotation': 'Rotation',
     'block_type.core': 'Core',
+    'day_duration.short_hint': 'Bei kurzen Einheiten können Zusatzbereiche entfallen. Kraft und deine Fokus-Bereiche haben Vorrang.',
     'block_type.plyo': 'Sprungkraft',
     'block_type.plyo_upper': 'Explosivkraft',
     'block_type.sprint': 'Sprints',
