@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findV2Violations, buildV2SessionSchema, attachBlockEmphasis, withMeasurementMarkers, zeroWarmupCooldownRest, fixZeroKgLoads } from '../run-session-v2'
+import { findV2Violations, buildV2SessionSchema, attachBlockEmphasis, withMeasurementMarkers, zeroWarmupCooldownRest, fixInvalidLoads } from '../run-session-v2'
 
 const session = (blocks: Array<{ block_type: string; slugs: string[] }>): any => ({
   name: 'W', mode_slug: 'full', estimated_duration_minutes: 60, day_of_week: 1,
@@ -335,7 +335,7 @@ describe('zeroWarmupCooldownRest', () => {
   })
 })
 
-describe('fixZeroKgLoads (QA 18.10.: Retry-Fallback ließ "0 kg" durch)', () => {
+describe('fixInvalidLoads (QA 18.10.: Retry-Fallback ließ "0 kg"/"pace 0" durch)', () => {
   const block = (block_type: string, exercises: any[]) => ({ block_type, exercises })
 
   it('schreibt kg <= 0 deterministisch um: Kraft -> RPE 7, Zubehör -> RPE 6, Rahmen -> bodyweight', () => {
@@ -345,21 +345,51 @@ describe('fixZeroKgLoads (QA 18.10.: Retry-Fallback ließ "0 kg" durch)', () => 
       block('core', [{ target_load_type: 'kg', target_load_value: -1 }]),
       block('warmup', [{ target_load_type: 'kg', target_load_value: 0 }]),
     ]
-    fixZeroKgLoads(blocks as any)
+    fixInvalidLoads(blocks as any)
     expect(blocks[0].exercises[0]).toMatchObject({ target_load_type: 'rpe', target_load_value: 7 })
     expect(blocks[1].exercises[0]).toMatchObject({ target_load_type: 'rpe', target_load_value: 6 })
     expect(blocks[2].exercises[0]).toMatchObject({ target_load_type: 'rpe', target_load_value: 6 })
     expect(blocks[3].exercises[0]).toMatchObject({ target_load_type: 'bodyweight', target_load_value: -1 })
   })
 
-  it('lässt echte Lasten und andere Load-Typen unangetastet', () => {
+  it('lässt echte Lasten und bodyweight unangetastet', () => {
     const blocks = [
       block('upper_strength', [{ target_load_type: 'kg', target_load_value: 40 }]),
-      block('core', [{ target_load_type: 'rpe', target_load_value: 0 }]),
+      block('core', [{ target_load_type: 'rpe', target_load_value: 6.5 }]),
       block('conditioning', [{ target_load_type: 'bodyweight', target_load_value: -1 }]),
     ]
     const before = JSON.parse(JSON.stringify(blocks))
-    fixZeroKgLoads(blocks as any)
+    fixInvalidLoads(blocks as any)
+    expect(blocks).toEqual(before)
+  })
+})
+
+describe('fixInvalidLoads: pace/percent/rpe ohne Wert', () => {
+  const block = (block_type: string, exercises: any[]) => ({ block_type, exercises })
+
+  it('pace <= 0 wird bodyweight — ein Null-Pace ist überall sinnlos', () => {
+    const blocks = [
+      block('warmup', [{ target_load_type: 'pace', target_load_value: 0 }]),
+      block('conditioning', [{ target_load_type: 'pace', target_load_value: 0 }]),
+    ]
+    fixInvalidLoads(blocks as any)
+    for (const b of blocks) expect(b.exercises[0]).toMatchObject({ target_load_type: 'bodyweight', target_load_value: -1 })
+  })
+
+  it('percent_1rm <= 0 folgt dem kg-Pfad, rpe <= 0 bekommt den Block-Default', () => {
+    const blocks = [
+      block('lower_strength', [{ target_load_type: 'percent_1rm', target_load_value: 0 }]),
+      block('core', [{ target_load_type: 'rpe', target_load_value: 0 }]),
+    ]
+    fixInvalidLoads(blocks as any)
+    expect(blocks[0].exercises[0]).toMatchObject({ target_load_type: 'rpe', target_load_value: 7 })
+    expect(blocks[1].exercises[0]).toMatchObject({ target_load_type: 'rpe', target_load_value: 6 })
+  })
+
+  it('gültige Pace-/RPE-Werte bleiben unangetastet', () => {
+    const blocks = [block('conditioning', [{ target_load_type: 'pace', target_load_value: 5.5 }, { target_load_type: 'rpe', target_load_value: 7 }])]
+    const before = JSON.parse(JSON.stringify(blocks))
+    fixInvalidLoads(blocks as any)
     expect(blocks).toEqual(before)
   })
 })
