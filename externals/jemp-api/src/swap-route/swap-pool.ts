@@ -21,16 +21,30 @@ export type SwapPoolResult = {
 
 const LOCKED_LIMIT = 5
 
+/** Kraftblöcke: lower_strength/upper_strength sind die aktuelle Benennung,
+ *  push/pull/lower_body die Legacy-Slugs aus Alt-Plänen (Finding 2a) — beide
+ *  Varianten brauchen Pattern-Bindung + Heavy-Fallback, sonst bleibt der
+ *  Swap-Pool für Alt-Pläne leer. */
+const STRENGTH_BLOCK_SLUGS = new Set(['lower_strength', 'upper_strength', 'push', 'pull', 'lower_body'])
+
 /** Blockdefinition like-for-like aus der aktuellen Übung rekonstruieren —
  *  plyo-Variante ist nicht materialisiert (Spec §2): upper bleibt upper. */
 function blockDefFor(blockTypeSlug: string, current: V2Exercise): any {
   if (blockTypeSlug === 'plyo') {
     return { block_type: 'plyo', variant: current.category_slug === 'upper_body_plyometrics' ? 'upper' : 'lower' }
   }
-  if (blockTypeSlug === 'lower_strength' || blockTypeSlug === 'upper_strength') {
+  if (STRENGTH_BLOCK_SLUGS.has(blockTypeSlug)) {
+    // Legacy 'push'/'pull' auf upper_strength, 'lower_body' auf lower_strength
+    // ummünzen (Finding 2a) — exerciseMatchesBlock kennt diese Legacy-Slugs
+    // nur über blockDef.variant als Pattern, nicht als Pattern-Liste. Die
+    // eigentliche Einschränkung (push vs. pull, upper vs. lower) übernimmt
+    // ohnehin resolvePatterns über die Patterns der aktuellen Übung.
+    const mappedBlockType = blockTypeSlug === 'lower_body' ? 'lower_strength'
+      : blockTypeSlug === 'push' || blockTypeSlug === 'pull' ? 'upper_strength'
+      : blockTypeSlug
     // Pattern-Bindung läuft separat über matchesStrengthPattern — hier alle
     // Patterns erlauben, damit exerciseMatchesBlock nicht doppelt gated.
-    return { block_type: blockTypeSlug, variant: null, patterns: ALL_PATTERNS.map((p) => ({ pattern: p })) }
+    return { block_type: mappedBlockType, variant: null, patterns: ALL_PATTERNS.map((p) => ({ pattern: p })) }
   }
   return { block_type: blockTypeSlug, variant: null }
 }
@@ -47,14 +61,14 @@ function resolvePatterns(current: V2Exercise, assignedPattern: string | null): s
 /** Heavy like-for-like-Fallback für Alt-Pläne ohne pattern_emphasis-Spalte. */
 function isHeavy(current: V2Exercise, patternEmphasis: string | null, blockTypeSlug: string): boolean {
   if (patternEmphasis) return patternEmphasis === 'heavy'
-  const isStrengthBlock = blockTypeSlug === 'lower_strength' || blockTypeSlug === 'upper_strength'
+  const isStrengthBlock = STRENGTH_BLOCK_SLUGS.has(blockTypeSlug)
   return isStrengthBlock && current.movement_type === 'sagittal' && (current.intensity_score ?? 5) >= 5
 }
 
 export function buildSwapPool(input: SwapPoolInput): SwapPoolResult {
   const { exercises, maps, sportGate, dayEnvId, blockTypeSlug, currentExercise } = input
   const blockDef = blockDefFor(blockTypeSlug, currentExercise)
-  const patterns = (blockTypeSlug === 'lower_strength' || blockTypeSlug === 'upper_strength')
+  const patterns = STRENGTH_BLOCK_SLUGS.has(blockTypeSlug)
     ? resolvePatterns(currentExercise, input.assignedPattern)
     : []
   const heavy = patterns.length > 0 && isHeavy(currentExercise, input.patternEmphasis, blockTypeSlug)

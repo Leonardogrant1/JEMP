@@ -31,7 +31,11 @@ export function derivePrescription(
   }
   if (!candidate.requiresEquipment) {
     p.target_load_type = 'bodyweight'; p.target_load_value = -1
-  } else if (current.target_load_type === 'kg' || current.target_load_type === 'percent_1rm' || current.target_load_type === 'pace') {
+  } else if (current.target_load_type !== 'rpe') {
+    // Finding 3: jeder Nicht-RPE-Ausgangswert (bodyweight/kg/percent_1rm/pace/null)
+    // ist für einen Geräte-Kandidaten bedeutungslos (z.B. Plank → Kurzhantel-
+    // Übung darf nicht als "bodyweight" stehen bleiben) — auf RPE normalisieren.
+    // Ist die aktuelle Zeile schon RPE, bleibt ihr Wert erhalten (kein Downgrade).
     p.target_load_type = 'rpe'
     p.target_load_value = STRENGTH_BLOCK_TYPES.has(blockType) ? 7 : 6
   }

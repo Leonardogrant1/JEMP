@@ -143,3 +143,25 @@ test('Ebenen-Sortierung: gleiche movement_type wie aktuelle Übung zuerst', () =
   })
   assert.deepEqual(r.alternatives.map(a => a.slug), ['z_landmine', 'a_bench'])
 })
+test('Legacy-Blocktyp "pull": getaggte pull_horizontal-Zeile liefert nur Pull-Kandidaten (Finding 2a)', () => {
+  const pull = withCat(mkEx({ slug: 'cable_row', strength_pattern: 'pull_horizontal' }))
+  const pull2 = withCat(mkEx({ slug: 'barbell_row', strength_pattern: 'pull_horizontal' }))
+  const push = withCat(mkEx({ slug: 'bench_press', strength_pattern: 'push_horizontal' }))
+  const r = buildSwapPool({
+    exercises: [pull, pull2, push], maps: mkMaps(), sportGate: gate, dayEnvId: null,
+    blockTypeSlug: 'pull', currentExercise: pull,
+    assignedPattern: null, patternEmphasis: null,
+  })
+  assert.deepEqual(r.alternatives.map(a => a.slug), ['barbell_row'])
+})
+test('Legacy-Blocktyp "lower_body": knee_dominant-Zeile liefert keine Hinge-Kandidaten (Finding 2a)', () => {
+  const squat = withCat(mkEx({ slug: 'goblet_squat', strength_pattern: 'knee_dominant' }))
+  const frontSquat = withCat(mkEx({ slug: 'front_squat', strength_pattern: 'knee_dominant' }))
+  const deadlift = withCat(mkEx({ slug: 'rdl', strength_pattern: 'hinge' }))
+  const r = buildSwapPool({
+    exercises: [squat, frontSquat, deadlift], maps: mkMaps(), sportGate: gate, dayEnvId: null,
+    blockTypeSlug: 'lower_body', currentExercise: squat,
+    assignedPattern: null, patternEmphasis: null,
+  })
+  assert.deepEqual(r.alternatives.map(a => a.slug), ['front_squat'])
+})

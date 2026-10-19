@@ -37,3 +37,8 @@ test('Nicht-Kraftblock-Default ist RPE 6 (fixInvalidLoads-Parität)', () => {
   const p = derivePrescription(base, { measurement_type: 'reps', requiresEquipment: true }, 'accessory')
   assert.equal(p.target_load_value, 6)
 })
+test('Bodyweight-Zeile → Geräte-Kandidat bekommt RPE 7 im Kraftblock (Finding 3)', () => {
+  const cur = { ...base, target_load_type: 'bodyweight', target_load_value: -1 }
+  const p = derivePrescription(cur, { measurement_type: 'reps', requiresEquipment: true }, 'lower_strength')
+  assert.equal(p.target_load_type, 'rpe'); assert.equal(p.target_load_value, 7)
+})
