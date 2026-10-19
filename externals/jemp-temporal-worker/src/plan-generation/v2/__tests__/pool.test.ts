@@ -403,6 +403,34 @@ describe('Sport-Präferenz in Fenster & Pattern-Pools (QA 10.10.)', () => {
     expect(w2[0]).toBe('landmine_press')
     expect(w0).not.toEqual(w2)
   })
+
+  // Gewichtetes Fenster (QA 19.10.): Score = Intensität (+ Exklusiv-Bonus),
+  // Rotation nur noch als Tiebreaker im Score-Gleichstand.
+  const pull = (slug: string, intensity_score: number) =>
+    ex({ slug, strength_pattern: 'pull_horizontal', intensity_score })
+  it('patternSlugWindow: Activation-Bänder (Int 4) fliegen aus dem Fenster, solange Besseres da ist', () => {
+    const pool = [
+      pull('banded_row', 4), pull('dumbbell_row', 5), pull('cable_row', 5),
+      pull('inverted_row', 5), pull('hip_hinge_row', 7),
+    ]
+    const w0 = patternSlugWindow(pool, 'normal', 0)
+    const w1 = patternSlugWindow(pool, 'normal', 1)
+    expect(w0[0]).toBe('hip_hinge_row') // einziger 7er → stabil vorn
+    expect(w1[0]).toBe('hip_hinge_row')
+    expect(w0).not.toContain('banded_row')
+    expect(w0.slice(1)).not.toEqual(w1.slice(1)) // 5er-Gleichstand rotiert weiter
+  })
+  it('patternSlugWindow: dünner Pool — Band bleibt verfügbar, steht aber hinten', () => {
+    const pool = [pull('banded_row', 4), pull('towel_row', 4), pull('table_inverted_row', 5)]
+    const w = patternSlugWindow(pool, 'normal', 0)
+    expect(w[0]).toBe('table_inverted_row')
+    expect(w).toContain('banded_row')
+  })
+  it('patternSlugWindow: Umgebungs-Exklusiv-Bonus hebt die Nur-hier-Übung über Gleichstarke', () => {
+    const pool = [pull('dumbbell_row', 5), pull('cable_row', 5)]
+    const w = patternSlugWindow(pool, 'normal', 0, null, new Set(['cable_row']))
+    expect(w[0]).toBe('cable_row')
+  })
 })
 
 describe('pickPlanePin + patternSlugWindow planePin (Spec 2026-10-11 §4.2)', () => {
@@ -526,14 +554,17 @@ describe('Heavy-Fenster-Filter (QA 11.10.: Maximalkraft bleibt linear und schwer
     expect(patternSlugWindow(withPref, 'heavy', 0)[0]).toBe('sumo_deadlift')
   })
 
-  it('normal-Fenster bleibt ungefiltert (Rotation/Activation weiter wählbar)', () => {
+  it('normal-Fenster: Rotation/Multiplanar bleibt wählbar, Activation (Int < 5) rückt hinter die soliden Optionen (QA 19.10.)', () => {
     const all = new Set([
       ...patternSlugWindow(pool, 'normal', 0), ...patternSlugWindow(pool, 'normal', 1),
       ...patternSlugWindow(pool, 'normal', 2), ...patternSlugWindow(pool, 'normal', 3),
       ...patternSlugWindow(pool, 'normal', 4), ...patternSlugWindow(pool, 'normal', 5),
     ])
+    // Nicht-sagittale Übungen bleiben (anders als im Heavy-Fenster) wählbar …
     expect(all.has('rotational_cable_row_hinge')).toBe(true)
-    expect(all.has('single_leg_glute_bridge')).toBe(true)
+    // … aber Activation (Int 4) schafft es bei vollem Pool nicht mehr ins
+    // 4er-Fenster — sie bleibt nur in dünnen Pools erreichbar (eigener Test).
+    expect(all.has('single_leg_glute_bridge')).toBe(false)
   })
 })
 

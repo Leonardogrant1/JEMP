@@ -156,7 +156,7 @@ export function pickPlanePin(pool: V2Exercise[], plane: string, offset: number):
  *  Fenster zu vergrößern — die Verknappung ist der Steuerungsmechanismus. */
 export function patternSlugWindow(
   pool: V2Exercise[], emphasis: 'heavy' | 'normal', offset: number,
-  planePin?: string | null,
+  planePin?: string | null, exclusiveSlugs?: Set<string>,
 ): string[] {
   // Heavy-Slot-Filter (QA 11.10.): Maximalkraft bleibt linear und schwer —
   // Rotations-/Frontal-Übungen und Activation (Int < 5) gehören in die
@@ -168,7 +168,25 @@ export function patternSlugWindow(
     if (strong.length >= 3) pool = strong
   }
   let pinned = pool.filter((e) => e.preferred).map((e) => e.slug).sort()
-  let rest = rotateSlugs(pool.filter((e) => !e.preferred).map((e) => e.slug), offset)
+  // Gewichtetes Normal-Fenster (QA 19.10., Basketball-Befund): Score =
+  // Intensität + Umgebungs-Exklusiv-Bonus, Rotation nur noch als Tiebreaker
+  // innerhalb gleicher Scores. Die blinde Voll-Rotation spülte Activation-
+  // Bänder (Int 4) vor die Hantel-Klassiker ins Gym-Fenster; jetzt rücken
+  // sie nur nach, wenn davor nichts mehr ist (Home-/Band-only-Pools) — und
+  // Übungen, die NUR in der heutigen Umgebung gehen, werden dort vorgezogen,
+  // weil die anderen Tage sie nicht abdecken können.
+  const windowScore = (e: V2Exercise): number =>
+    (e.intensity_score ?? 5) + (exclusiveSlugs?.has(e.slug) ? 3 : 0)
+  const byScore = new Map<number, V2Exercise[]>()
+  for (const e of pool.filter((x) => !x.preferred)) {
+    const s = windowScore(e)
+    if (!byScore.has(s)) byScore.set(s, [])
+    byScore.get(s)!.push(e)
+  }
+  let rest: string[] = []
+  for (const s of [...byScore.keys()].sort((a, b) => b - a)) {
+    rest.push(...rotateSlugs(byScore.get(s)!.map((e) => e.slug), offset))
+  }
   if (planePin && emphasis === 'normal') {
     if (pinned.includes(planePin)) {
       pinned = [planePin, ...pinned.filter((s) => s !== planePin)]

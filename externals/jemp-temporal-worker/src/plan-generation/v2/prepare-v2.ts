@@ -254,6 +254,34 @@ export async function prepareGenerationV2(
     notes.push('COD-Fokus ohne Speed-Tag: Richtungswechsel läuft als Mikro-Dosis im Warmup — ein zusätzlicher Trainingstag schafft eine echte Speed-Session')
   }
 
+  // Umgebungs-Exklusivität (QA 19.10., gewichtete Fenster): Übungen, die von
+  // den gewählten Umgebungen aus NUR am heutigen Ort machbar sind, werden im
+  // Pattern-Fenster vorgezogen — die anderen Trainingstage können sie nicht
+  // abdecken. Nur sinnvoll bei >1 Umgebung und festem Tages-Env.
+  const envSlugSets = new Map<string, Set<string>>()
+  const slugsForEnv = (envId: string): Set<string> => {
+    if (!envSlugSets.has(envId)) {
+      envSlugSets.set(envId, new Set(
+        (exerciseRows ?? []).filter(sportGate).filter(makeExerciseFilter(filterMaps, envId)).map((r: any) => r.slug as string),
+      ))
+    }
+    return envSlugSets.get(envId)!
+  }
+  const exclusiveCache = new Map<string, Set<string>>()
+  const exclusiveForDay = (dayOfWeek: number): Set<string> | undefined => {
+    const envId = dayEnvById.get(dayOfWeek)
+    if (!envId || input.environment_ids.length < 2) return undefined
+    if (!exclusiveCache.has(envId)) {
+      const coveredElsewhere = new Set<string>()
+      for (const other of input.environment_ids) {
+        if (other === envId) continue
+        for (const s of slugsForEnv(other)) coveredElsewhere.add(s)
+      }
+      exclusiveCache.set(envId, new Set([...slugsForEnv(envId)].filter((s) => !coveredElsewhere.has(s))))
+    }
+    return exclusiveCache.get(envId)
+  }
+
   // ── 4. Prebuilt deterministic sessions ───────────────────────────────────
   const prebuiltSessions: PlannedSessionLike[] = []
   let orderIndex = 0
@@ -322,7 +350,7 @@ export async function prepareGenerationV2(
           p.pattern, p.emphasis, planeWeights, nextPlanePosition, poolForPattern)
         patternReqs.push({
           block_type: block.block_type, pattern: p.pattern, emphasis: p.emphasis,
-          slugs: patternSlugWindow(poolForPattern, p.emphasis, winOffset, planePin),
+          slugs: patternSlugWindow(poolForPattern, p.emphasis, winOffset, planePin, exclusiveForDay(workout.day_of_week)),
           ...(planeFocus ? { planeFocus, planeSlugs: [planePin!] } : {}),
         })
         return true
