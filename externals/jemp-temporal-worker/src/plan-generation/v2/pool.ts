@@ -3,7 +3,7 @@
 // BODY_REGION_TO_PATTERN derivation so the partial backfill never
 // empties a pool (phase 2b review focus 2).
 
-import { BODY_REGION_TO_PATTERN, effectiveRegion } from '../generate-plan'
+import { BODY_REGION_TO_PATTERN, effectiveRegion } from '../taxonomy'
 import type { PlannedWorkoutBlock, WorkoutBlockType } from '../week-layout'
 
 export type V2Exercise = {

@@ -94,12 +94,8 @@ function lighterMode(a: SessionModeSlug, b: SessionModeSlug): SessionModeSlug {
 
 // ─── Kraftmuster (movement patterns) ──────────────────────────
 
-export const BODY_REGION_TO_PATTERN: Record<string, string> = {
-  quad: 'squat',
-  hamstring: 'hinge', glute: 'hinge',
-  chest: 'push', shoulder: 'push', tricep: 'push',
-  upper_back: 'pull', bicep: 'pull',
-}
+import { BODY_REGION_TO_PATTERN, effectiveRegion } from './taxonomy'
+export { BODY_REGION_TO_PATTERN, effectiveRegion }
 
 export const PATTERN_TO_REGIONS: Record<string, string[]> = {
   squat: ['quad'],
@@ -112,14 +108,6 @@ export const ALL_PATTERNS = ['squat', 'hinge', 'push', 'pull']
 
 export function patternsFromRegions(regions: string[]): string[] {
   return [...new Set(regions.map((r) => BODY_REGION_TO_PATTERN[r]).filter(Boolean))]
-}
-
-// Effektive Region einer Übung für Filter und Kraftmuster: full_body-Übungen
-// mit gepflegter dominant_region (z.B. power_clean → glute) werden über diese
-// sichtbar; ohne dominant_region bleiben sie bewusst allgemein.
-export function effectiveRegion(e: { body_region?: string | null; dominant_region?: string | null }): string | null {
-  if (e.body_region === 'full_body') return e.dominant_region ?? e.body_region ?? null
-  return e.body_region ?? null
 }
 
 // Höchste verfügbare Intensität pro Kraftmuster im Pool — Grundlage für den
