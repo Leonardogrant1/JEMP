@@ -121,6 +121,17 @@ test('Equipment-Fail und Sport-Gate halten Kandidaten draußen (Spec §6)', () =
   assert.equal(r.alternatives.length, 0)
   assert.equal(r.locked.length, 0)
 })
+test('Ungetaggte Alt-Plan-Zeile (coarse push): getaggte Push-Kandidaten bleiben im Pool', () => {
+  const cur = withCat(mkEx({ slug: 'old_press', strength_pattern: null, body_region: 'chest' }))
+  const tagged = withCat(mkEx({ slug: 'bench_press', strength_pattern: 'push_horizontal' }))
+  const pullEx = withCat(mkEx({ slug: 'barbell_row', strength_pattern: 'pull_horizontal' }))
+  const r = buildSwapPool({
+    exercises: [cur, tagged, pullEx], maps: mkMaps(), sportGate: gate, dayEnvId: null,
+    blockTypeSlug: 'upper_strength', currentExercise: cur,
+    assignedPattern: null, patternEmphasis: null,
+  })
+  assert.deepEqual(r.alternatives.map(a => a.slug), ['bench_press'])
+})
 test('Ebenen-Sortierung: gleiche movement_type wie aktuelle Übung zuerst', () => {
   const cur = withCat(mkEx({ slug: 'rot_press', strength_pattern: 'push_horizontal', movement_type: 'transverse' }))
   const sag = withCat(mkEx({ slug: 'a_bench', strength_pattern: 'push_horizontal', movement_type: 'sagittal' }))

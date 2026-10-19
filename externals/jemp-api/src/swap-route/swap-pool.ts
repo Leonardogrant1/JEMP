@@ -3,7 +3,6 @@
 // Änderungen an v2/pool.ts oder v2/exercise-filter.ts brauchen API-Redeploy.
 import { makeExerciseFilter, type ExerciseFilterMaps } from '../../../jemp-temporal-worker/src/plan-generation/v2/exercise-filter'
 import { exerciseMatchesBlock, matchesStrengthPattern, type V2Exercise } from '../../../jemp-temporal-worker/src/plan-generation/v2/pool'
-import { BODY_REGION_TO_PATTERN, effectiveRegion } from '../../../jemp-temporal-worker/src/plan-generation/taxonomy'
 
 export type SwapPoolInput = {
   exercises: V2Exercise[]
@@ -37,14 +36,12 @@ function blockDefFor(blockTypeSlug: string, current: V2Exercise): any {
 }
 const ALL_PATTERNS = ['push_vertical', 'push_horizontal', 'pull_vertical', 'pull_horizontal', 'knee_dominant', 'hinge', 'rotation']
 
-/** Pattern der Zeile: Spalte, sonst Ableitung aus der Übung (eindeutig). */
-function resolvePattern(current: V2Exercise, assignedPattern: string | null): string | null {
-  if (assignedPattern) return assignedPattern
-  if (current.strength_pattern) return current.strength_pattern
-  if (current.category_slug !== 'strength') return null
-  const region = effectiveRegion(current)
-  const coarse = region ? BODY_REGION_TO_PATTERN[region] ?? null : null
-  return coarse === 'squat' ? 'knee_dominant' : coarse
+/** Pattern-Menge der Zeile: Spalte exakt, sonst alle Patterns, die die
+ *  aktuelle Übung selbst erfüllt (Coarse-Fallback inklusive) — der bare
+ *  BODY_REGION_TO_PATTERN-String ('push') matcht getaggte Kandidaten nie. */
+function resolvePatterns(current: V2Exercise, assignedPattern: string | null): string[] {
+  if (assignedPattern) return [assignedPattern]
+  return ALL_PATTERNS.filter((p) => matchesStrengthPattern(current, p))
 }
 
 /** Heavy like-for-like-Fallback für Alt-Pläne ohne pattern_emphasis-Spalte. */
@@ -57,10 +54,10 @@ function isHeavy(current: V2Exercise, patternEmphasis: string | null, blockTypeS
 export function buildSwapPool(input: SwapPoolInput): SwapPoolResult {
   const { exercises, maps, sportGate, dayEnvId, blockTypeSlug, currentExercise } = input
   const blockDef = blockDefFor(blockTypeSlug, currentExercise)
-  const pattern = (blockTypeSlug === 'lower_strength' || blockTypeSlug === 'upper_strength')
-    ? resolvePattern(currentExercise, input.assignedPattern)
-    : null
-  const heavy = pattern !== null && isHeavy(currentExercise, input.patternEmphasis, blockTypeSlug)
+  const patterns = (blockTypeSlug === 'lower_strength' || blockTypeSlug === 'upper_strength')
+    ? resolvePatterns(currentExercise, input.assignedPattern)
+    : []
+  const heavy = patterns.length > 0 && isHeavy(currentExercise, input.patternEmphasis, blockTypeSlug)
 
   const fullFilter = makeExerciseFilter(maps, dayEnvId)
   // Locked = alles außer Level: Filter-Klon ohne Level-Daten überspringt den Check.
@@ -70,7 +67,7 @@ export function buildSwapPool(input: SwapPoolInput): SwapPoolResult {
     if (e.id === currentExercise.id) return false
     if (!sportGate(e as any)) return false
     if (!exerciseMatchesBlock(e, blockDef)) return false
-    if (pattern && !matchesStrengthPattern(e, pattern)) return false
+    if (patterns.length > 0 && !patterns.some((p) => matchesStrengthPattern(e, p))) return false
     if (heavy && (e.movement_type !== 'sagittal' || (e.intensity_score ?? 5) < 5)) return false
     return true
   }
