@@ -23,7 +23,7 @@ async function fetchActivePlan(userId: string) {
                 estimated_duration_minutes, workout_plan_session_id, rest_adjust_seconds,
                 workout_session_blocks(
                     block_type:block_types(slug),
-                    workout_session_block_exercises(order_index, exercise:exercises(slug, image_group, category:categories(slug)))
+                    workout_session_block_exercises(order_index, exercise:exercises!workout_session_block_exercises_exercise_id_fkey(slug, image_group, category:categories(slug)))
                 )
             `)
             .eq('workout_plan_id', plan.id)
