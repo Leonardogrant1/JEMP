@@ -295,6 +295,26 @@ export function fixInvalidLoads(
   }
 }
 
+/** Swap-Grundlage (Spec 2026-10-19): schreibt pro Kraft-Übung das erfüllte
+ *  Pattern + dessen Emphasis aus den patternReqs an die Übung — save-plan
+ *  persistiert beides, der Swap-Endpoint filtert damit ohne zu raten.
+ *  Übungen ohne Req-Treffer (z. B. Datenloch) bleiben unannotiert → null. */
+export function attachPatternAssignment(
+  blocks: Array<{ block_type: string; exercises: Array<{ exercise_slug: string }> }>,
+  patternReqs: PatternRequirement[],
+): void {
+  for (const b of blocks) {
+    const reqs = patternReqs.filter((r) => r.block_type === b.block_type)
+    if (reqs.length === 0) continue
+    for (const e of b.exercises ?? []) {
+      const req = reqs.find((r) => r.slugs.has(e.exercise_slug))
+      if (!req) continue
+      ;(e as any).assigned_pattern = req.pattern
+      ;(e as any).pattern_emphasis = req.emphasis
+    }
+  }
+}
+
 export async function runSessionV2(
   input: V2SessionContext & {
     userContext: string
@@ -384,6 +404,7 @@ export async function runSessionV2(
   attachBlockEmphasis(blocks, workout.blocks as any)
   zeroWarmupCooldownRest(blocks)
   fixInvalidLoads(blocks)
+  attachPatternAssignment(blocks, patternReqs)
   if (day.carries_conditioning_finisher) {
     const cooldownIdx = blocks.findIndex((b: any) => b.block_type === 'cooldown')
     const insertAt = cooldownIdx === -1 ? blocks.length : cooldownIdx

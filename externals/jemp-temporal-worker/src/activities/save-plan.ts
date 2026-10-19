@@ -109,6 +109,10 @@ export async function savePlan(input: {
     target_load_value: number | null
     is_amrap: boolean
     target_rounds: number | null
+    // Swap-Grundlage (Spec 2026-10-19): erfülltes Pattern + dessen Emphasis,
+    // vom Generator annotiert — null bei Nicht-Kraftblöcken/Datenlöchern.
+    assigned_pattern: string | null
+    pattern_emphasis: string | null
   }
 
   const planBlocksBySessionId = new Map<string, PlanBlockRecord[]>()
@@ -208,6 +212,8 @@ export async function savePlan(input: {
             target_load_value: ex.target_load_value >= 0 ? ex.target_load_value : null,
             is_amrap: (ex as any).is_amrap === true,
             target_rounds: (ex as any).target_rounds ?? null,
+            assigned_pattern: (ex as any).assigned_pattern ?? null,
+            pattern_emphasis: (ex as any).pattern_emphasis ?? null,
           }
         })
         .filter((x): x is NonNullable<typeof x> => x !== null)
@@ -217,7 +223,7 @@ export async function savePlan(input: {
       const { data: insertedExercises, error: exInsertError } = await supabase
         .from('workout_plan_session_block_exercises')
         .insert(exercisesToInsert)
-        .select('id, exercise_id, order_index, target_sets, target_reps_min, target_reps_max, target_duration_seconds, target_distance_meters, target_rest_seconds, target_load_type, target_load_value, is_amrap, target_rounds')
+        .select('id, exercise_id, order_index, target_sets, target_reps_min, target_reps_max, target_duration_seconds, target_distance_meters, target_rest_seconds, target_load_type, target_load_value, is_amrap, target_rounds, assigned_pattern, pattern_emphasis')
 
       if (exInsertError || !insertedExercises) {
         console.error('Failed to insert exercises:', exInsertError?.message)
@@ -238,6 +244,8 @@ export async function savePlan(input: {
         target_load_value: e.target_load_value,
         is_amrap: e.is_amrap,
         target_rounds: e.target_rounds ?? null,
+        assigned_pattern: e.assigned_pattern ?? null,
+        pattern_emphasis: e.pattern_emphasis ?? null,
       })))
     }
 
@@ -329,6 +337,8 @@ export async function savePlan(input: {
         target_load_value: planEx.target_load_value,
         is_amrap: planEx.is_amrap,
         target_rounds: planEx.target_rounds ?? null,
+        assigned_pattern: planEx.assigned_pattern,
+        pattern_emphasis: planEx.pattern_emphasis,
       })
     }
   }
