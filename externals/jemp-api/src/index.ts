@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import { checkPlanGenerationAccess, fetchRevenueCatSubscriber } from './plan-generation-route/check-access';
 import { versionCheckHandler } from './routes/version-check-route';
 import storeInfoRouter from './store-info-route';
+import { swapAlternativesHandler } from './swap-route';
 
 dotenv.config();
 
@@ -102,6 +103,9 @@ app.post('/api/plan-generation/start', async (req, res) => {
 
     res.json({ job_id: job.id });
 });
+
+// GET /api/swap-alternatives/:blockExerciseId (Spec 2026-10-19 §2).
+app.get('/api/swap-alternatives/:blockExerciseId', swapAlternativesHandler);
 
 app.listen(PORT, () => {
     console.log(`jemp-api listening on port ${PORT}`);
