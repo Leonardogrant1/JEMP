@@ -3,6 +3,7 @@
 // Änderungen an v2/pool.ts oder v2/exercise-filter.ts brauchen API-Redeploy.
 import { makeExerciseFilter, type ExerciseFilterMaps } from '../../../jemp-temporal-worker/src/plan-generation/v2/exercise-filter'
 import { exerciseMatchesBlock, matchesStrengthPattern, type V2Exercise } from '../../../jemp-temporal-worker/src/plan-generation/v2/pool'
+import { effectiveRegion } from '../../../jemp-temporal-worker/src/plan-generation/taxonomy'
 
 export type SwapPoolInput = {
   exercises: V2Exercise[]
@@ -26,6 +27,16 @@ const LOCKED_LIMIT = 5
  *  Varianten brauchen Pattern-Bindung + Heavy-Fallback, sonst bleibt der
  *  Swap-Pool für Alt-Pläne leer. */
 const STRENGTH_BLOCK_SLUGS = new Set(['lower_strength', 'upper_strength', 'push', 'pull', 'lower_body'])
+
+/** Region-Bindung (QA 19.10.): In den Nicht-Kraftblöcken ist der Block-Pool
+ *  regionsübergreifend (Accessory = groin/hip/calf/ankle gemischt) — für den
+ *  Generator gleichwertig besetzbar, beim manuellen Tausch aber falsch: Wer
+ *  eine Wadenübung tauscht, erwartet Waden-Alternativen. Kandidaten müssen
+ *  dieselbe effectiveRegion treffen wie die aktuelle Übung (dasselbe
+ *  Gruppierungskriterium wie rotatedPoolWindow). Kraft bindet übers Pattern,
+ *  Plyo über die Variante, Core bleibt frei (alles Rumpf, Ebenen-Sortierung
+ *  priorisiert like-for-like). */
+const REGION_BOUND_BLOCKS = new Set(['accessory', 'optional', 'warmup', 'cooldown'])
 
 /** Blockdefinition like-for-like aus der aktuellen Übung rekonstruieren —
  *  plyo-Variante ist nicht materialisiert (Spec §2): upper bleibt upper. */
@@ -72,6 +83,7 @@ export function buildSwapPool(input: SwapPoolInput): SwapPoolResult {
     ? resolvePatterns(currentExercise, input.assignedPattern)
     : []
   const heavy = patterns.length > 0 && isHeavy(currentExercise, input.patternEmphasis, blockTypeSlug)
+  const currentRegion = REGION_BOUND_BLOCKS.has(blockTypeSlug) ? effectiveRegion(currentExercise) : undefined
 
   const fullFilter = makeExerciseFilter(maps, dayEnvId)
   // Locked = alles außer Level: Filter-Klon ohne Level-Daten überspringt den Check.
@@ -81,6 +93,7 @@ export function buildSwapPool(input: SwapPoolInput): SwapPoolResult {
     if (e.id === currentExercise.id) return false
     if (!sportGate(e as any)) return false
     if (!exerciseMatchesBlock(e, blockDef)) return false
+    if (currentRegion !== undefined && effectiveRegion(e) !== currentRegion) return false
     if (patterns.length > 0 && !patterns.some((p) => matchesStrengthPattern(e, p))) return false
     if (heavy && (e.movement_type !== 'sagittal' || (e.intensity_score ?? 5) < 5)) return false
     return true

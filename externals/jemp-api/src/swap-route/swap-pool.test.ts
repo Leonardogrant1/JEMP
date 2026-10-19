@@ -64,15 +64,29 @@ test('Heavy-Filter über pattern_emphasis: frontal/Activation fliegt raus', () =
   })
   assert.deepEqual(r.alternatives.map(a => a.slug), ['front_squat'])
 })
-test('Accessory ohne Pattern: Bindung greift nicht, Block-Pool zählt (Review Focus 3)', () => {
+test('Accessory ohne Pattern: Region-Bindung statt voller Block-Pool (QA 19.10.)', () => {
   const cur = withCat(mkEx({ slug: 'calf_raise', strength_pattern: null, body_region: 'calf' }))
-  const alt = withCat(mkEx({ slug: 'tib_raise', strength_pattern: null, body_region: 'ankle' }))
+  const sameRegion = withCat(mkEx({ slug: 'seated_calf_raise', strength_pattern: null, body_region: 'calf' }))
+  const otherRegion = withCat(mkEx({ slug: 'tib_raise', strength_pattern: null, body_region: 'ankle' }))
   const r = buildSwapPool({
-    exercises: [cur, alt], maps: mkMaps(), sportGate: gate, dayEnvId: null,
+    exercises: [cur, sameRegion, otherRegion], maps: mkMaps(), sportGate: gate, dayEnvId: null,
     blockTypeSlug: 'accessory', currentExercise: cur,
     assignedPattern: null, patternEmphasis: null,
   })
-  assert.deepEqual(r.alternatives.map(a => a.slug), ['tib_raise'])
+  // ankle liegt zwar im Accessory-Block-Pool, trifft aber nicht die Region
+  // der getauschten Übung — Waden tauschen nur gegen Waden.
+  assert.deepEqual(r.alternatives.map(a => a.slug), ['seated_calf_raise'])
+})
+test('Warmup: Mobility tauscht nur innerhalb derselben Region (QA 19.10.)', () => {
+  const cur = withCat(mkEx({ slug: 'ankle_cars', strength_pattern: null, category_slug: 'mobility', body_region: 'ankle', legacy_block_slugs: ['warmup'] }))
+  const sameRegion = withCat(mkEx({ slug: 'ankle_rocks', strength_pattern: null, category_slug: 'mobility', body_region: 'ankle', legacy_block_slugs: ['warmup'] }))
+  const otherRegion = withCat(mkEx({ slug: 'thoracic_rotation', strength_pattern: null, category_slug: 'mobility', body_region: 'thoracic', legacy_block_slugs: ['warmup'] }))
+  const r = buildSwapPool({
+    exercises: [cur, sameRegion, otherRegion], maps: mkMaps(), sportGate: gate, dayEnvId: null,
+    blockTypeSlug: 'warmup', currentExercise: cur,
+    assignedPattern: null, patternEmphasis: null,
+  })
+  assert.deepEqual(r.alternatives.map(a => a.slug), ['ankle_rocks'])
 })
 test('Level-Lock: zu schwere Übung landet in locked mit unlock_level (nie in alternatives)', () => {
   const cur = withCat(mkEx({ slug: 'squat', strength_pattern: 'knee_dominant' }))

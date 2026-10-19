@@ -105,6 +105,13 @@ die Zeile muss zu einer Session des anfragenden Users gehören, sonst 404).
    kein Raten); Filter wie in `patternSlugWindow` (sagittal,
    `intensity_score >= 5`). Fallback für Alt-Pläne ohne Spalte: like-for-like
    — Heavy-Filter nur, wenn die aktuelle Übung ihn selbst besteht.
+   **Region-Bindung (QA 19.10.):** In den Nicht-Kraftblöcken (accessory,
+   optional, warmup, cooldown) müssen Kandidaten dieselbe `effectiveRegion`
+   wie die aktuelle Übung treffen — der Block-Pool allein ist dort
+   regionsübergreifend (Accessory mischt groin/hip/calf/ankle), beim
+   manuellen Tausch erwartet der User aber Waden gegen Waden. Kraft bindet
+   übers Pattern, Plyo über die Variante, Core bleibt frei (alles Rumpf,
+   Ebenen-Sortierung priorisiert like-for-like).
 3. Teilt die Kandidaten:
    - `alternatives`: bestehen alle Filter; aktuelle Übung ausgenommen.
    - `locked`: bestehen alle Filter AUSSER Level, und zwar nur
