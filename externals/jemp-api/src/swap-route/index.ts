@@ -13,6 +13,15 @@ import type { V2Exercise } from '../../../jemp-temporal-worker/src/plan-generati
 // makeExerciseFilter/buildSwapPool — Task 5 prüft row.categories.id direkt).
 type CatalogExercise = V2Exercise & { categories: { id: string } | null; thumbnail_storage_path: string | null }
 
+// Fehler-Guard (Review-Fund 1): ungeprüfte Supabase-Fehler liefen bisher via
+// `?? []`/`?? null` klaglos durch und maskierten einen Ausfall als leere
+// Antwort (200 mit alternatives: []). `must` wirft stattdessen — der
+// Handler-weite try/catch fängt, loggt und antwortet 500.
+function must<T>(r: { data: T | null; error: { message: string } | null }, what: string): T {
+  if (r.error) throw new Error(`${what}: ${r.error.message}`)
+  return r.data as T
+}
+
 export async function swapAlternativesHandler(req: Request, res: Response): Promise<void> {
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) { res.status(401).json({ error: 'Unauthorized' }); return }
@@ -20,8 +29,9 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
   const { data: { user }, error: authError } = await supabase.auth.getUser(token)
   if (authError || !user) { res.status(401).json({ error: 'Unauthorized' }); return }
 
+  try {
   // 1. Zeile + Kontext (Service-Role: Ownership selbst prüfen!)
-  const { data: row } = await supabase
+  const { data: row, error: rowError } = await supabase
     .from('workout_session_block_exercises')
     .select(`id, exercise_id, assigned_pattern, pattern_emphasis,
       target_sets, target_reps_min, target_reps_max, target_duration_seconds,
@@ -31,23 +41,27 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
         workout_sessions!inner ( id, user_id, scheduled_at, environment_id ) )`)
     .eq('id', req.params.blockExerciseId)
     .maybeSingle()
+  if (rowError) {
+    console.error('swap-alternatives: row fetch failed', rowError.message)
+    res.status(500).json({ error: 'Internal error' }); return
+  }
   const session = (row as any)?.workout_session_blocks?.workout_sessions
   if (!row || session?.user_id !== user.id) { res.status(404).json({ error: 'Not found' }); return }
   const blockTypeSlug = (row as any).workout_session_blocks?.block_types?.slug as string
 
   // 2. User-Presets + Übungskatalog (Selects wie prepareGenerationV2/prepare-plan-generation)
   const [
-    { data: userProfile },
-    { data: userEquipRows },
-    { data: userEnvRows },
-    { data: equipEnvRows },
-    { data: exerciseRows },
-    { data: exerciseEnvRows },
-    { data: exerciseEquipRows },
-    { data: exerciseBlockRows },
-    { data: exerciseRegionRows },
-    { data: sportGroupRows },
-    { data: equipmentRows },
+    userProfileRes,
+    userEquipRes,
+    userEnvRes,
+    equipEnvRes,
+    exerciseRes,
+    exerciseEnvRes,
+    exerciseEquipRes,
+    exerciseBlockRes,
+    exerciseRegionRes,
+    sportGroupRes,
+    equipmentRes,
   ] = await Promise.all([
     supabase.from('user_profiles').select('sport_id, user_category_levels(category_id, level_score)').eq('id', user.id).single(),
     supabase.from('user_equipments').select('equipment_id').eq('user_id', user.id),
@@ -61,10 +75,22 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
     supabase.from('exercise_sport_groups').select('exercise_id, sport_group'),
     supabase.from('equipments').select('id, name_i18n'),
   ])
+  const userProfile = must(userProfileRes, 'user_profiles')
+  const userEquipRows = must(userEquipRes, 'user_equipments')
+  const userEnvRows = must(userEnvRes, 'user_environments')
+  const equipEnvRows = must(equipEnvRes, 'user_equipment_environments')
+  const exerciseRows = must(exerciseRes, 'exercises')
+  const exerciseEnvRows = must(exerciseEnvRes, 'exercise_environments')
+  const exerciseEquipRows = must(exerciseEquipRes, 'exercise_equipments')
+  const exerciseBlockRows = must(exerciseBlockRes, 'exercise_blocks')
+  const exerciseRegionRows = must(exerciseRegionRes, 'exercise_regions')
+  const sportGroupRows = must(sportGroupRes, 'exercise_sport_groups')
+  const equipmentRows = must(equipmentRes, 'equipments')
 
-  const { data: sportData } = userProfile?.sport_id
+  const sportDataRes = userProfile?.sport_id
     ? await supabase.from('sports').select('group_name').eq('id', userProfile.sport_id).single()
-    : { data: null as { group_name: string } | null }
+    : { data: null as { group_name: string } | null, error: null }
+  const sportData = must(sportDataRes, 'sports')
   const sportGroupName = sportData?.group_name ?? undefined
 
   const categoryLevels = (userProfile?.user_category_levels ?? []) as Array<{ category_id: string; level_score: number }>
@@ -139,6 +165,9 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
     is_sport_specific: r.is_sport_specific ?? false,
     categories: r.categories ?? null,
     thumbnail_storage_path: r.thumbnail_storage_path ?? null,
+    // Paritäts-Fix (Review-Fund 2): wie toV2 im Worker (prepare-v2.ts) — buildSwapPool
+    // liest preferred heute nicht, künftige Sortierung könnte aber darauf aufbauen.
+    preferred: !!sportGroupName && (sportGroupsByExercise.get(r.id)?.has(sportGroupName) ?? false),
   })
 
   // Roh-Katalog, NICHT vorgefiltert (anders als prepareGenerationV2): buildSwapPool
@@ -170,13 +199,14 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
   let futureOccurrenceCount = 0
   const blueprintExerciseId = (row as any).workout_plan_session_block_exercise_id as string | null
   if (blueprintExerciseId && session.scheduled_at) {
-    const { count } = await supabase
+    const { count, error: countError } = await supabase
       .from('workout_session_block_exercises')
       .select('id, workout_session_blocks!inner(workout_sessions!inner(scheduled_at, status))', { count: 'exact', head: true })
       .eq('workout_plan_session_block_exercise_id', blueprintExerciseId)
       .neq('id', (row as any).id)
       .gte('workout_session_blocks.workout_sessions.scheduled_at', session.scheduled_at)
       .in('workout_session_blocks.workout_sessions.status', ['scheduled', 'in_progress'])
+    if (countError) throw new Error(`future_occurrence_count: ${countError.message}`)
     futureOccurrenceCount = count ?? 0
   }
 
@@ -197,4 +227,9 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
     locked: locked.map((l) => ({ exercise: toExerciseDto(l.exercise as CatalogExercise), unlock_level: l.unlock_level })),
     future_occurrence_count: futureOccurrenceCount,
   })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('swap-alternatives: failed', message)
+    res.status(500).json({ error: 'Internal error' })
+  }
 }
