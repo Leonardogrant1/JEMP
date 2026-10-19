@@ -963,6 +963,7 @@ const de: Record<TranslationKeys, string> = {
     'profile.subscription_modal_active': 'Du hast ein aktives JEMP Abonnement. Vielen Dank für deine Unterstützung!',
 
     'swap.title': 'Übung tauschen',
+    'swap.action': 'Übung austauschen',
     'swap.subtitle': 'Gleichwertige Alternativen aus deinem Pool',
     'swap.empty': 'Für diese Übung gibt es aktuell keine passenden Alternativen.',
     'swap.error': 'Alternativen konnten nicht geladen werden.',

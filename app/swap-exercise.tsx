@@ -1,5 +1,6 @@
 import { JempText } from '@/components/jemp-text';
 import { SessionChip } from '@/components/plan/SessionChip';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Colors, GradientMid } from '@/constants/theme';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
 import { formatTargetReps } from '@/helpers/format';
@@ -200,7 +201,22 @@ export default function SwapExerciseScreen() {
                                 </Pressable>
                             </View>
                         ) : isLoading ? (
-                            <ActivityIndicator color={GradientMid} style={styles.spinner} />
+                            // Skeleton-Rows statt Spinner (QA 19.10.): spiegeln die
+                            // Alternativen-Zeile (Thumb + zwei Textzeilen), damit das
+                            // Sheet beim Laden nicht springt. Blöcke auf background,
+                            // weil das Sheet selbst surface ist.
+                            <View style={styles.list}>
+                                {[0, 1, 2, 3].map((i) => (
+                                    <View key={i} style={[styles.row, { borderColor: theme.borderDivider }]}>
+                                        <Skeleton width={52} height={52} borderRadius={12} style={{ backgroundColor: theme.background }} />
+                                        <View style={styles.rowInfo}>
+                                            <Skeleton width={i % 2 === 0 ? '62%' : '48%'} height={15} style={{ backgroundColor: theme.background }} />
+                                            <Skeleton width="30%" height={11} style={{ backgroundColor: theme.background }} />
+                                        </View>
+                                        <Skeleton width={44} height={11} style={{ backgroundColor: theme.background }} />
+                                    </View>
+                                ))}
+                            </View>
                         ) : isError ? (
                             <JempText type="body-l" color={theme.textMuted} style={styles.hint}>
                                 {t('swap.error')}

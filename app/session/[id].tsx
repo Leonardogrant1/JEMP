@@ -5,6 +5,7 @@ import { CATEGORY_SVG_ICONS } from '@/constants/category-icons';
 import { CategoryChip, ModeChip, SessionChip } from '@/components/plan/SessionChip';
 import { StatsStrip } from '@/components/profile/stats-strip';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ExerciseActionsMenu } from '@/components/ui/exercise-actions-menu';
 import { HERO_BLOCK_ORDER, isContentBlock, isFocusChipBlock } from '@/constants/blocks';
 import { distancePrescription, intervalPrescription } from '@/lib/prescription';
 import { getSessionImage } from '@/constants/session-images';
@@ -21,7 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, {
@@ -75,6 +76,7 @@ export default function SessionDetailScreen() {
     const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+    const [menuSwapUrl, setMenuSwapUrl] = useState<string | null>(null);
 
     const { data: session, isLoading } = useSessionDetailQuery(id);
     const stats = useMemo(() => session ? computeStats(session) : null, [session]);
@@ -331,18 +333,18 @@ export default function SessionDetailScreen() {
                                         </View>
                                     </View>
 
-                                    {/* Swap-Icon — nur solange die Session noch bevorsteht/läuft;
-                                        abgeschlossene Sessions sind Historie. Separater Touchable
-                                        (kein Bubbling in RN), daher kein stopPropagation nötig.
-                                        Zusätzlich nur bei Blocktypen, die der Swap-Pool-Builder
-                                        unterstützt (Finding 2b, Spec §0.4-Abweichung) — sonst
-                                        Dead-End-Sheet ohne Alternativen. */}
+                                    {/* ⋯-Menü (QA 19.10.) — nur solange die Session noch
+                                        bevorsteht/läuft; abgeschlossene Sessions sind Historie.
+                                        Separater Touchable (kein Bubbling in RN), daher kein
+                                        stopPropagation nötig. Nur bei Blocktypen, die der
+                                        Swap-Pool-Builder unterstützt (Finding 2b) — sonst wäre
+                                        das Menü ohne sinnvolle Aktion. */}
                                     {(session.status === 'scheduled' || session.status === 'in_progress') && session.scheduled_at && isSwappableBlock(block.block_type?.slug) && (
                                         <TouchableOpacity
                                             hitSlop={8}
-                                            onPress={() => router.push(`/swap-exercise?sessionId=${session.id}&blockExerciseId=${ex.id}&planBlockExerciseId=${ex.workout_plan_session_block_exercise_id ?? ''}&scheduledAt=${encodeURIComponent(session.scheduled_at ?? '')}&exerciseId=${ex.exercise.id}&hasLoggedSets=0` as never)}
+                                            onPress={() => setMenuSwapUrl(`/swap-exercise?sessionId=${session.id}&blockExerciseId=${ex.id}&planBlockExerciseId=${ex.workout_plan_session_block_exercise_id ?? ''}&scheduledAt=${encodeURIComponent(session.scheduled_at ?? '')}&exerciseId=${ex.exercise.id}&hasLoggedSets=0`)}
                                         >
-                                            <Ionicons name="swap-horizontal" size={18} color={theme.textMuted} />
+                                            <Ionicons name="ellipsis-vertical" size={18} color={theme.textMuted} />
                                         </TouchableOpacity>
                                     )}
                                 </Pressable>
@@ -357,6 +359,12 @@ export default function SessionDetailScreen() {
             <Pressable onPress={() => router.back()} hitSlop={12} style={[styles.backBtn, { top: insets.top + 8 }]}>
                 <Ionicons name="chevron-back" size={22} color="#fff" />
             </Pressable>
+
+            <ExerciseActionsMenu
+                visible={menuSwapUrl !== null}
+                onClose={() => setMenuSwapUrl(null)}
+                onSwap={() => { if (menuSwapUrl) router.push(menuSwapUrl as never); }}
+            />
         </View>
     );
 }

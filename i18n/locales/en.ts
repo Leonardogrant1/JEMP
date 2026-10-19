@@ -961,6 +961,7 @@ const en = {
     'profile.subscription_modal_active': 'You have an active JEMP subscription. Thank you for your support!',
 
     'swap.title': 'Swap exercise',
+    'swap.action': 'Swap exercise',
     'swap.subtitle': 'Equivalent alternatives from your pool',
     'swap.empty': 'No matching alternatives for this exercise right now.',
     'swap.error': 'Couldn\'t load alternatives.',
