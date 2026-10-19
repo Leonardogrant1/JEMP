@@ -175,8 +175,12 @@ export function patternSlugWindow(
   // sie nur nach, wenn davor nichts mehr ist (Home-/Band-only-Pools) — und
   // Übungen, die NUR in der heutigen Umgebung gehen, werden dort vorgezogen,
   // weil die anderen Tage sie nicht abdecken können.
+  // Exklusiv-Bonus 0.5, nicht mehr (QA 19.10., Mixed-Befund): Er bricht nur
+  // Gleichstände ("gleich stark → nimm die Nur-hier-Übung"), überspringt aber
+  // nie eine Intensitätsstufe — mit +3 hob ein home-only-Band (Int 4) die
+  // banded_squat über die Kurzhantel-Optionen (Int 6) des Home-Tags.
   const windowScore = (e: V2Exercise): number =>
-    (e.intensity_score ?? 5) + (exclusiveSlugs?.has(e.slug) ? 3 : 0)
+    (e.intensity_score ?? 5) + (exclusiveSlugs?.has(e.slug) ? 0.5 : 0)
   const byScore = new Map<number, V2Exercise[]>()
   for (const e of pool.filter((x) => !x.preferred)) {
     const s = windowScore(e)
