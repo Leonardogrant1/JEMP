@@ -10,4 +10,9 @@ describe('SESSION_DETAIL_SELECT', () => {
         // Plyo-Varianten-Label (Sprungkraft vs. Explosivkraft) braucht die Kategorie
         expect(SESSION_DETAIL_SELECT).toContain('category:categories ( slug )');
     });
+
+    it('selektiert workout_plan_session_block_exercise_id für Scope-Mutation', () => {
+        // Task 8 braucht die Blueprint-Referenz für die Scope-Mutation
+        expect(SESSION_DETAIL_SELECT).toContain('workout_plan_session_block_exercise_id');
+    });
 });

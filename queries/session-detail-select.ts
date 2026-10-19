@@ -8,7 +8,7 @@ export const SESSION_DETAIL_SELECT = `
         block_type:block_types ( slug ),
         focused_category:categories ( slug ),
         workout_session_block_exercises (
-            id, order_index,
+            id, order_index, workout_plan_session_block_exercise_id,
             target_sets, target_reps_min, target_reps_max,
             target_duration_seconds, target_rest_seconds,
             target_distance_meters, target_rounds,
