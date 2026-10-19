@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client';
+import i18n from '@/i18n';
 
 export type SwapAlternative = {
   exercise: { id: string; slug: string; name: string; thumbnail_storage_path: string | null; equipment: string[] }
@@ -15,7 +16,11 @@ export async function fetchSwapAlternatives(blockExerciseId: string): Promise<Sw
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('No auth session');
     const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
-    const res = await fetch(`${backendUrl}/api/swap-alternatives/${blockExerciseId}`, {
+    // Namen der Alternativen kommen server-seitig aus name_i18n (Finding 4) —
+    // ohne lang-Param liefert der Server immer 'de' (Fallback), Englisch-User
+    // sähen deutsche Übungsnamen im Swap-Sheet.
+    const lang = i18n.language?.startsWith('en') ? 'en' : 'de';
+    const res = await fetch(`${backendUrl}/api/swap-alternatives/${blockExerciseId}?lang=${lang}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
     });
     if (!res.ok) {

@@ -11,6 +11,7 @@ import { getSessionImage } from '@/constants/session-images';
 import { Colors, GradientMid, Neutral } from '@/constants/theme';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
 import { formatLoad, formatReps, formatRest } from '@/helpers/format';
+import { isSwappableBlock } from '@/helpers/swap-support';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { usePlan } from '@/providers/plan-provider';
@@ -332,8 +333,11 @@ export default function SessionDetailScreen() {
 
                                     {/* Swap-Icon — nur solange die Session noch bevorsteht/läuft;
                                         abgeschlossene Sessions sind Historie. Separater Touchable
-                                        (kein Bubbling in RN), daher kein stopPropagation nötig. */}
-                                    {(session.status === 'scheduled' || session.status === 'in_progress') && session.scheduled_at && (
+                                        (kein Bubbling in RN), daher kein stopPropagation nötig.
+                                        Zusätzlich nur bei Blocktypen, die der Swap-Pool-Builder
+                                        unterstützt (Finding 2b, Spec §0.4-Abweichung) — sonst
+                                        Dead-End-Sheet ohne Alternativen. */}
+                                    {(session.status === 'scheduled' || session.status === 'in_progress') && session.scheduled_at && isSwappableBlock(block.block_type?.slug) && (
                                         <TouchableOpacity
                                             hitSlop={8}
                                             onPress={() => router.push(`/swap-exercise?sessionId=${session.id}&blockExerciseId=${ex.id}&planBlockExerciseId=${ex.workout_plan_session_block_exercise_id ?? ''}&scheduledAt=${encodeURIComponent(session.scheduled_at ?? '')}&exerciseId=${ex.exercise.id}&hasLoggedSets=0` as never)}

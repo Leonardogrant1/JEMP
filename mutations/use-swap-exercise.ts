@@ -45,16 +45,41 @@ async function swapExercise(input: {
         .gte('workout_session_blocks.workout_sessions.scheduled_at', input.scheduledAt)
         .in('workout_session_blocks.workout_sessions.status', ['scheduled', 'in_progress']);
     if (selError) throw selError;
-    const ids = [...new Set([input.blockExerciseId, ...(siblings ?? []).map(s => s.id)])];
+    const siblingIds = (siblings ?? []).map(s => s.id);
+
+    // Zweite Sperre-Prüfung für Geschwister-Zeilen (Finding 1): die Sperre
+    // oben greift nur für die Referenzzeile. Eine Sibling-Occurrence kann
+    // aber selbst schon geloggte Sätze haben (z.B. eine zwischenzeitlich
+    // begonnene/gestartete künftige Session) — die darf trotz `this_and_future`
+    // nicht überschrieben werden, sonst zeigt die Historie nachträglich
+    // Sätze einer anderen Übung, als tatsächlich geloggt wurde.
+    let lockedSiblingIds = new Set<string>();
+    if (siblingIds.length > 0) {
+        const { data: lockedRows, error: lockedError } = await supabase
+            .from('workout_session_performed_sets')
+            .select('workout_session_block_exercise_id')
+            .in('workout_session_block_exercise_id', siblingIds);
+        if (lockedError) throw lockedError;
+        lockedSiblingIds = new Set((lockedRows ?? []).map((r) => r.workout_session_block_exercise_id));
+    }
+
+    const ids = [...new Set([input.blockExerciseId, ...siblingIds.filter((id) => !lockedSiblingIds.has(id))])];
     const { error } = await supabase
         .from('workout_session_block_exercises').update(patch).in('id', ids);
     if (error) throw error;
 }
 
 export function useSwapExercise() {
-    const { invalidateSessionDetail } = useInvalidate();
+    const { invalidatePlan, invalidateSessionDetail } = useInvalidate();
     return useMutation({
         mutationFn: swapExercise,
-        onSuccess: async (_, input) => { await invalidateSessionDetail(input.sessionId); },
+        onSuccess: async (_, input) => {
+            await invalidateSessionDetail(input.sessionId);
+            // `this_and_future` ändert auch andere Sessions + die Plan-Übersicht
+            // (Finding 5) — der Cache dieser Session alleine reicht nicht.
+            if (input.scope === 'this_and_future') {
+                await Promise.all([invalidatePlan(), invalidateSessionDetail()]);
+            }
+        },
     });
 }

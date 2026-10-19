@@ -2,6 +2,7 @@ import { JempText } from '@/components/jemp-text';
 import { SessionChip } from '@/components/plan/SessionChip';
 import { Colors } from '@/constants/theme';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
+import { isSwappableBlock } from '@/helpers/swap-support';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useActiveSessionTransition } from '@/providers/active-session-transition-provider';
 import { useActiveSessionStore } from '@/stores/active-session-store';
@@ -53,8 +54,10 @@ export function ExerciseCard() {
                 {/* Swap-Icon — nur solange scheduled_at vorliegt (defensiv: fehlen
                     Daten, lieber Button ausblenden statt kaputte Route pushen).
                     Bei bereits geloggten Sätzen gedimmt, aber weiterhin bedienbar —
-                    das Sheet zeigt dann nur den Hinweis-Toast. */}
-                {session?.scheduled_at && (
+                    das Sheet zeigt dann nur den Hinweis-Toast. Zusätzlich nur bei
+                    Blocktypen, die der Swap-Pool-Builder unterstützt (Finding 2b,
+                    Spec §0.4-Abweichung) — sonst Dead-End-Sheet ohne Alternativen. */}
+                {session?.scheduled_at && isSwappableBlock(current.blockType?.slug) && (
                     <TouchableOpacity
                         hitSlop={8}
                         style={hasLoggedSets ? styles.swapButtonDimmed : undefined}
