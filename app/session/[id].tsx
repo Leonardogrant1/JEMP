@@ -22,7 +22,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, {
     Extrapolation,
     interpolate,
@@ -329,6 +329,18 @@ export default function SessionDetailScreen() {
                                             )}
                                         </View>
                                     </View>
+
+                                    {/* Swap-Icon — nur solange die Session noch bevorsteht/läuft;
+                                        abgeschlossene Sessions sind Historie. Separater Touchable
+                                        (kein Bubbling in RN), daher kein stopPropagation nötig. */}
+                                    {(session.status === 'scheduled' || session.status === 'in_progress') && session.scheduled_at && (
+                                        <TouchableOpacity
+                                            hitSlop={8}
+                                            onPress={() => router.push(`/swap-exercise?sessionId=${session.id}&blockExerciseId=${ex.id}&planBlockExerciseId=${ex.workout_plan_session_block_exercise_id ?? ''}&scheduledAt=${encodeURIComponent(session.scheduled_at ?? '')}&exerciseId=${ex.exercise.id}&hasLoggedSets=0` as never)}
+                                        >
+                                            <Ionicons name="swap-horizontal" size={18} color={theme.textMuted} />
+                                        </TouchableOpacity>
+                                    )}
                                 </Pressable>
                             );
                         })}

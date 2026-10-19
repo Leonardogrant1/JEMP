@@ -4,12 +4,13 @@ import { Colors } from '@/constants/theme';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useActiveSessionTransition } from '@/providers/active-session-transition-provider';
+import { useActiveSessionStore } from '@/stores/active-session-store';
 import { useActiveSessionUIStore } from '@/stores/active-session-ui-store';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
@@ -22,7 +23,16 @@ export function ExerciseCard() {
 
     const { exerciseIdx, exSlideX, exOpacity } = useActiveSessionTransition();
     const allExercises = useActiveSessionUIStore(s => s.allExercises);
+    const session = useActiveSessionUIStore(s => s.session);
     const current = allExercises[exerciseIdx] ?? null;
+
+    // Gibt es für diese Übung schon eingetragene Sätze? Harte Sperre bleibt die
+    // performed_sets-Prüfung in der Swap-Mutation (Task 8) — hier nur die UI-Dimmung
+    // + der Hinweis-Flag für das Sheet.
+    const pendingSets = useActiveSessionStore(s => s.pendingSets);
+    const hasLoggedSets = current
+        ? pendingSets.some(s => s.workout_session_block_exercise_id === current.id)
+        : false;
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ translateX: exSlideX.value }],
@@ -40,6 +50,19 @@ export function ExerciseCard() {
                 <View style={styles.titleLeft}>
                     <JempText type="h1">{current.exercise.name}</JempText>
                 </View>
+                {/* Swap-Icon — nur solange scheduled_at vorliegt (defensiv: fehlen
+                    Daten, lieber Button ausblenden statt kaputte Route pushen).
+                    Bei bereits geloggten Sätzen gedimmt, aber weiterhin bedienbar —
+                    das Sheet zeigt dann nur den Hinweis-Toast. */}
+                {session?.scheduled_at && (
+                    <TouchableOpacity
+                        hitSlop={8}
+                        style={hasLoggedSets ? styles.swapButtonDimmed : undefined}
+                        onPress={() => router.push(`/swap-exercise?sessionId=${session.id}&blockExerciseId=${current.id}&planBlockExerciseId=${current.workout_plan_session_block_exercise_id ?? ''}&scheduledAt=${encodeURIComponent(session.scheduled_at ?? '')}&exerciseId=${current.exercise.id}&hasLoggedSets=${hasLoggedSets ? '1' : '0'}` as never)}
+                    >
+                        <Ionicons name="swap-horizontal" size={18} color={theme.textMuted} />
+                    </TouchableOpacity>
+                )}
             </View>
 
             {/* Thumbnail statt eingebettetem Video-Player — Details (inkl. Video)
@@ -80,6 +103,7 @@ const styles = StyleSheet.create({
     card: { gap: 16 },
     titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
     titleLeft: { flex: 1, gap: 6 },
+    swapButtonDimmed: { opacity: 0.35 },
     thumbCard: {
         height: 180,
         borderRadius: 20,

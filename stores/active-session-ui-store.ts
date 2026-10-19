@@ -5,6 +5,9 @@ import { create } from 'zustand';
 
 export type FlatExercise = {
     id: string;
+    // Referenz auf den Plan-Baustein — für den Swap-Scope (überall oder nur
+    // dieses Vorkommen); leer bei ad-hoc eingefügten/bereits ersetzten Übungen.
+    workout_plan_session_block_exercise_id: string | null;
     blockId: string;
     blockType: { slug: string } | null;
     exercise: {
