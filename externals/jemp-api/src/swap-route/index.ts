@@ -49,6 +49,15 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
   if (!row || session?.user_id !== user.id) { res.status(404).json({ error: 'Not found' }); return }
   const blockTypeSlug = (row as any).workout_session_blocks?.block_types?.slug as string
 
+  // Session-Dedupe (QA 19.10.): Übungen, die in DIESER Session schon verplant
+  // sind, sind keine Alternativen — ein zweites Vorkommen derselben Übung in
+  // der Session (erst recht im selben Block) ist nie gewollt.
+  const sessionRowsRes = await supabase
+    .from('workout_session_block_exercises')
+    .select('exercise_id, workout_session_blocks!inner(workout_session_id)')
+    .eq('workout_session_blocks.workout_session_id', session.id)
+  const sessionExerciseIds = new Set((must(sessionRowsRes, 'session exercises') ?? []).map((r: any) => r.exercise_id as string))
+
   // 2. User-Presets + Übungskatalog (Selects wie prepareGenerationV2/prepare-plan-generation)
   const [
     userProfileRes,
@@ -184,6 +193,7 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
     blockTypeSlug, currentExercise,
     assignedPattern: (row as any).assigned_pattern ?? null,
     patternEmphasis: (row as any).pattern_emphasis ?? null,
+    excludeExerciseIds: sessionExerciseIds,
   })
 
   const currentPrescription: CurrentPrescription = {

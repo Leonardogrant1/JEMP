@@ -14,6 +14,10 @@ export type SwapPoolInput = {
   currentExercise: V2Exercise
   assignedPattern: string | null
   patternEmphasis: 'heavy' | 'normal' | null
+  /** Session-Dedupe (QA 19.10.): Übungen, die in der Session schon verplant
+   *  sind — nie als Alternative anbieten (die aktuelle Übung ist ohnehin
+   *  drin und bleibt über den id-Check draußen). Optional für Tests. */
+  excludeExerciseIds?: Set<string>
 }
 export type SwapPoolResult = {
   alternatives: V2Exercise[]
@@ -91,9 +95,20 @@ export function buildSwapPool(input: SwapPoolInput): SwapPoolResult {
 
   const inGroup = (e: V2Exercise): boolean => {
     if (e.id === currentExercise.id) return false
+    if (input.excludeExerciseIds?.has(e.id)) return false
     if (!sportGate(e as any)) return false
     if (!exerciseMatchesBlock(e, blockDef)) return false
-    if (currentRegion !== undefined && effectiveRegion(e) !== currentRegion) return false
+    // full_body ist Joker in beide Richtungen (QA 19.10.: strikte Gleichheit
+    // ließ groin-Warmups leer zurück) — Ganzkörper-Drills passen zu jeder
+    // Region, nur Fremd-Region zu Fremd-Region bleibt verboten. Joker über
+    // das ROHE body_region: effectiveRegion löst full_body zur Dominant-
+    // Region auf (worlds_greatest_stretch → hip) und würde den Joker nie
+    // zünden.
+    if (currentRegion !== undefined) {
+      const matches = effectiveRegion(e) === currentRegion
+        || e.body_region === 'full_body' || currentExercise.body_region === 'full_body'
+      if (!matches) return false
+    }
     if (patterns.length > 0 && !patterns.some((p) => matchesStrengthPattern(e, p))) return false
     if (heavy && (e.movement_type !== 'sagittal' || (e.intensity_score ?? 5) < 5)) return false
     return true

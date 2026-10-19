@@ -77,6 +77,31 @@ test('Accessory ohne Pattern: Region-Bindung statt voller Block-Pool (QA 19.10.)
   // der getauschten Übung — Waden tauschen nur gegen Waden.
   assert.deepEqual(r.alternatives.map(a => a.slug), ['seated_calf_raise'])
 })
+test('Region-Joker: full_body-Drills passen zu jeder Region, Fremd-Region bleibt draußen', () => {
+  const cur = withCat(mkEx({ slug: 'cossack_squat', strength_pattern: null, category_slug: 'mobility', body_region: 'groin', legacy_block_slugs: ['warmup'] }))
+  // dominant_region gesetzt: effectiveRegion wäre 'hip' — der Joker muss
+  // trotzdem über das rohe body_region='full_body' greifen.
+  const fullBody = withCat(mkEx({ slug: 'worlds_greatest_stretch', strength_pattern: null, category_slug: 'mobility', body_region: 'full_body', dominant_region: 'hip', legacy_block_slugs: ['warmup'] }))
+  const foreign = withCat(mkEx({ slug: 'arm_circle', strength_pattern: null, category_slug: 'mobility', body_region: 'shoulder', legacy_block_slugs: ['warmup'] }))
+  const r = buildSwapPool({
+    exercises: [cur, fullBody, foreign], maps: mkMaps(), sportGate: gate, dayEnvId: null,
+    blockTypeSlug: 'warmup', currentExercise: cur,
+    assignedPattern: null, patternEmphasis: null,
+  })
+  assert.deepEqual(r.alternatives.map(a => a.slug), ['worlds_greatest_stretch'])
+})
+test('Session-Dedupe: bereits verplante Übungen sind keine Alternativen (QA 19.10.)', () => {
+  const cur = withCat(mkEx({ slug: 'barbell_row', strength_pattern: 'pull_horizontal' }))
+  const inSession = withCat(mkEx({ slug: 'cable_row', strength_pattern: 'pull_horizontal' }))
+  const fresh = withCat(mkEx({ slug: 'db_row', strength_pattern: 'pull_horizontal' }))
+  const r = buildSwapPool({
+    exercises: [cur, inSession, fresh], maps: mkMaps(), sportGate: gate, dayEnvId: null,
+    blockTypeSlug: 'upper_strength', currentExercise: cur,
+    assignedPattern: 'pull_horizontal', patternEmphasis: 'normal',
+    excludeExerciseIds: new Set([inSession.id]),
+  })
+  assert.deepEqual(r.alternatives.map(a => a.slug), ['db_row'])
+})
 test('Warmup: Mobility tauscht nur innerhalb derselben Region (QA 19.10.)', () => {
   const cur = withCat(mkEx({ slug: 'ankle_cars', strength_pattern: null, category_slug: 'mobility', body_region: 'ankle', legacy_block_slugs: ['warmup'] }))
   const sameRegion = withCat(mkEx({ slug: 'ankle_rocks', strength_pattern: null, category_slug: 'mobility', body_region: 'ankle', legacy_block_slugs: ['warmup'] }))
