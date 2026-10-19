@@ -961,6 +961,19 @@ const de: Record<TranslationKeys, string> = {
     'profile.subscription_manage': 'Abo verwalten',
     'profile.subscription_modal_title': 'Mein Abonnement',
     'profile.subscription_modal_active': 'Du hast ein aktives JEMP Abonnement. Vielen Dank für deine Unterstützung!',
+
+    'swap.title': 'Übung tauschen',
+    'swap.subtitle': 'Gleichwertige Alternativen aus deinem Pool',
+    'swap.empty': 'Für diese Übung gibt es aktuell keine passenden Alternativen.',
+    'swap.error': 'Alternativen konnten nicht geladen werden.',
+    'swap.locked_section': 'Noch gesperrt',
+    'swap.locked_level': 'Ab Level {{level}}',
+    'swap.locked_tap_hint': 'Diese Übung schaltest du mit steigendem Level frei.',
+    'swap.scope_title': 'Wo soll getauscht werden?',
+    'swap.scope_this': 'Nur diese Session',
+    'swap.scope_future': 'Diese und alle folgenden',
+    'swap.success': 'Übung getauscht',
+    'swap.blocked_logged': 'Bereits Sätze geloggt — Tausch nicht mehr möglich.',
 };
 
 export default de;

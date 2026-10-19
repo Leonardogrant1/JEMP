@@ -959,6 +959,19 @@ const en = {
     'profile.subscription_manage': 'Manage Subscription',
     'profile.subscription_modal_title': 'My Subscription',
     'profile.subscription_modal_active': 'You have an active JEMP subscription. Thank you for your support!',
+
+    'swap.title': 'Swap exercise',
+    'swap.subtitle': 'Equivalent alternatives from your pool',
+    'swap.empty': 'No matching alternatives for this exercise right now.',
+    'swap.error': 'Couldn\'t load alternatives.',
+    'swap.locked_section': 'Still locked',
+    'swap.locked_level': 'From level {{level}}',
+    'swap.locked_tap_hint': 'You unlock this exercise as your level grows.',
+    'swap.scope_title': 'Where should it swap?',
+    'swap.scope_this': 'Only this session',
+    'swap.scope_future': 'This and all upcoming',
+    'swap.success': 'Exercise swapped',
+    'swap.blocked_logged': 'Sets already logged — swapping is no longer possible.',
 } as const;
 
 export type TranslationKeys = keyof typeof en;
