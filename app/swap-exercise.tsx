@@ -33,8 +33,10 @@ type SwapParams = {
 // Formel für alle drei Messtypen, analog zu den Prescription-Helfern.
 function formatAlternativeLine(p: SwapAlternative['prescription']): string {
     const sets = plannedSetCount(p);
-    if (p.target_duration_seconds) return `${sets}×${p.target_duration_seconds}s`;
-    if (p.target_distance_meters) return `${sets}×${p.target_distance_meters}m`;
+    // Truthiness würde ein reales "0" fälschlich auf das Reps-Format
+    // zurückfallen lassen — deshalb explizit auf gesetzt + positiv prüfen.
+    if ((p.target_duration_seconds ?? 0) > 0) return `${sets}×${p.target_duration_seconds}s`;
+    if ((p.target_distance_meters ?? 0) > 0) return `${sets}×${p.target_distance_meters}m`;
     return `${sets}×${formatTargetReps(p.target_reps_min, p.target_reps_max)}`;
 }
 
@@ -79,6 +81,9 @@ export default function SwapExerciseScreen() {
     }
 
     function handleClose() {
+        // Während ein Swap läuft: Backdrop-Tap und X ignorieren, statt das
+        // Sheet unter einer laufenden Mutation wegzuanimieren.
+        if (isPending) return;
         overlayValue.value = withTiming(0, { duration: 200 });
         slideValue.value = withTiming(600, { duration: 200 }, (finished) => {
             if (finished) scheduleOnRN(goBack);
@@ -119,6 +124,9 @@ export default function SwapExerciseScreen() {
     }
 
     function handlePickAlternative(alternative: SwapAlternative) {
+        // Doppel-Tap-Schutz: deckt die Race vor dem nächsten Re-Render ab —
+        // disabled={isPending} auf der Row allein kommt erst nach dem State-Update.
+        if (isPending) return;
         if ((data?.future_occurrence_count ?? 0) > 0) {
             setPendingAlternative(alternative);
             return;
@@ -212,6 +220,7 @@ export default function SwapExerciseScreen() {
                                                     key={alt.exercise.id}
                                                     style={[styles.row, { borderColor: theme.borderDivider }]}
                                                     onPress={() => handlePickAlternative(alt)}
+                                                    disabled={isPending}
                                                 >
                                                     <View style={[styles.thumb, { backgroundColor: theme.background }]}>
                                                         {thumbUrl && (
