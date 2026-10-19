@@ -315,6 +315,32 @@ export function attachPatternAssignment(
   }
 }
 
+/** Mess-Typ erzwingen statt nur prüfen (QA 19.10.): Der Validator verlangt
+ *  bei Dauer-Übungen nur target_duration_seconds > 0 — das LLM setzte teils
+ *  ZUSÄTZLICH Reps (high_knees "2×15–20"), und Anzeige/Print bevorzugen Reps.
+ *  Deterministisch: Dauer-Übungen verlieren ihre Reps (fehlende Dauer → 15s
+ *  Drill-Default, Parität zur Migration 20261014100000); Distanz-Übungen mit
+ *  gesetzter Distanz ebenso. */
+export function enforceMeasurementTypes(
+  blocks: Array<{ exercises: Array<{ exercise_slug: string; target_reps_min: number; target_reps_max: number; target_duration_seconds: number; target_distance_meters?: number | null }> }>,
+  measurementBySlug: Record<string, string> | undefined,
+): void {
+  if (!measurementBySlug) return
+  for (const b of blocks) {
+    for (const e of b.exercises ?? []) {
+      const m = measurementBySlug[e.exercise_slug]
+      if (m === 'duration') {
+        if (!(e.target_duration_seconds > 0)) e.target_duration_seconds = 15
+        e.target_reps_min = 0
+        e.target_reps_max = 0
+      } else if (m === 'distance' && (e.target_distance_meters ?? 0) > 0) {
+        e.target_reps_min = 0
+        e.target_reps_max = 0
+      }
+    }
+  }
+}
+
 export async function runSessionV2(
   input: V2SessionContext & {
     userContext: string
@@ -405,6 +431,7 @@ export async function runSessionV2(
   zeroWarmupCooldownRest(blocks)
   fixInvalidLoads(blocks)
   attachPatternAssignment(blocks, patternReqs)
+  enforceMeasurementTypes(blocks, input.measurementBySlug)
   if (day.carries_conditioning_finisher) {
     const cooldownIdx = blocks.findIndex((b: any) => b.block_type === 'cooldown')
     const insertAt = cooldownIdx === -1 ? blocks.length : cooldownIdx
