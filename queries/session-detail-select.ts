@@ -13,7 +13,7 @@ export const SESSION_DETAIL_SELECT = `
             target_duration_seconds, target_rest_seconds,
             target_distance_meters, target_rounds,
             target_load_type, target_load_value, is_amrap,
-            exercise:exercises ( id, name, slug, image_group, body_region, movement_pattern, thumbnail_storage_path, video_storage_path, youtube_url, laterality, measurement_type, category:categories ( slug ) )
+            exercise:exercises!workout_session_block_exercises_exercise_id_fkey ( id, name, slug, image_group, body_region, movement_pattern, thumbnail_storage_path, video_storage_path, youtube_url, laterality, measurement_type, category:categories ( slug ) )
         )
     )
 ` as const;

@@ -46,7 +46,7 @@ async function fetchPlanExerciseProgress(planId: string): Promise<PlanProgress> 
             workout_sessions!inner ( id, workout_plan_id, scheduled_at ),
             workout_session_block_exercises!inner (
                 target_load_type,
-                exercise:exercises ( id, name ),
+                exercise:exercises!workout_session_block_exercises_exercise_id_fkey ( id, name ),
                 workout_session_blocks!inner ( block_type:block_types ( slug ) )
             )
         `)
