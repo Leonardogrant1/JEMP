@@ -2,7 +2,7 @@
 // wird importiert und gebundelt, nie kopiert. Deploy-Kopplung beachten:
 // Änderungen an v2/pool.ts oder v2/exercise-filter.ts brauchen API-Redeploy.
 import { makeExerciseFilter, type ExerciseFilterMaps } from '../../../jemp-temporal-worker/src/plan-generation/v2/exercise-filter'
-import { exerciseMatchesBlock, matchesStrengthPattern, type V2Exercise } from '../../../jemp-temporal-worker/src/plan-generation/v2/pool'
+import { exerciseMatchesBlock, isCnsMicroDoseExercise, matchesStrengthPattern, type V2Exercise } from '../../../jemp-temporal-worker/src/plan-generation/v2/pool'
 import { effectiveRegion } from '../../../jemp-temporal-worker/src/plan-generation/taxonomy'
 
 export type SwapPoolInput = {
@@ -41,6 +41,18 @@ const STRENGTH_BLOCK_SLUGS = new Set(['lower_strength', 'upper_strength', 'push'
  *  Plyo über die Variante, Core bleibt frei (alles Rumpf, Ebenen-Sortierung
  *  priorisiert like-for-like). */
 const REGION_BOUND_BLOCKS = new Set(['accessory', 'optional', 'warmup', 'cooldown'])
+
+/** Warmup-Unterfamilie (QA 19.10.): Der Warmup-Pool mischt drei Rollen —
+ *  CNS-Mikro-Dosis (A-Skips, Carioca), Mobility-Drills und Prep-Plyo (Leg
+ *  Swings). Getauscht wird nur innerhalb der Rolle: Ein CNS-Drill gegen
+ *  einen statischen Stretch würde die validator-erzwungene CNS-Dosis der
+ *  Session aushebeln; umgekehrt flutete der full_body-Joker die Mobility-
+ *  Swaps mit CNS-Drills. */
+function warmupFamily(e: V2Exercise): 'cns' | 'mobility' | 'prep' {
+  if (isCnsMicroDoseExercise(e)) return 'cns'
+  if (e.category_slug === 'mobility') return 'mobility'
+  return 'prep'
+}
 
 /** Blockdefinition like-for-like aus der aktuellen Übung rekonstruieren —
  *  plyo-Variante ist nicht materialisiert (Spec §2): upper bleibt upper. */
@@ -98,6 +110,7 @@ export function buildSwapPool(input: SwapPoolInput): SwapPoolResult {
     if (input.excludeExerciseIds?.has(e.id)) return false
     if (!sportGate(e as any)) return false
     if (!exerciseMatchesBlock(e, blockDef)) return false
+    if (blockTypeSlug === 'warmup' && warmupFamily(e) !== warmupFamily(currentExercise)) return false
     // full_body ist Joker in beide Richtungen (QA 19.10.: strikte Gleichheit
     // ließ groin-Warmups leer zurück) — Ganzkörper-Drills passen zu jeder
     // Region, nur Fremd-Region zu Fremd-Region bleibt verboten. Joker über

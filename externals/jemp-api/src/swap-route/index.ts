@@ -27,7 +27,12 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
   if (!token) { res.status(401).json({ error: 'Unauthorized' }); return }
   const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
   const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-  if (authError || !user) { res.status(401).json({ error: 'Unauthorized' }); return }
+  if (authError || !user) {
+    // 401-Diagnose nur lokal: unterscheidet Signatur-Mismatch (Token von
+    // anderer Supabase-Instanz) von session_not_found (lokale DB resettet).
+    if (process.env.NODE_ENV !== 'production') console.warn('swap-alternatives 401:', authError?.message ?? 'no user')
+    res.status(401).json({ error: 'Unauthorized' }); return
+  }
 
   try {
   // 1. Zeile + Kontext (Service-Role: Ownership selbst prüfen!)

@@ -14,6 +14,15 @@ const app = express();
 app.use(helmet());
 app.use(express.json());
 
+// Dev-Request-Log (nicht in Prod): macht lokale On-Device-Fehlersuche möglich —
+// ohne das war nicht unterscheidbar, ob Requests die API überhaupt erreichen.
+if (process.env.NODE_ENV !== 'production') {
+    app.use((req, res, next) => {
+        res.on('finish', () => console.log(new Date().toISOString(), req.method, req.url, '->', res.statusCode));
+        next();
+    });
+}
+
 const PORT = process.env.PORT || 3001;
 const TEMPORAL_ADDRESS = process.env.TEMPORAL_ADDRESS ?? 'localhost:7233';
 const TEMPORAL_NAMESPACE = process.env.TEMPORAL_NAMESPACE ?? 'default';

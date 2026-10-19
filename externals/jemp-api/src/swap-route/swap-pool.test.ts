@@ -90,6 +90,29 @@ test('Region-Joker: full_body-Drills passen zu jeder Region, Fremd-Region bleibt
   })
   assert.deepEqual(r.alternatives.map(a => a.slug), ['worlds_greatest_stretch'])
 })
+test('Warmup-Familie: CNS-Drill tauscht nur gegen CNS-Drill, Mobility bleibt draußen', () => {
+  // sprints-Kategorie ohne sprint_type + Int <= 4 = CNS-Mikro-Dosis-Drill
+  const cur = withCat(mkEx({ slug: 'a_skip_drill', strength_pattern: null, category_slug: 'sprints', sprint_type: null, intensity_score: 4, body_region: 'full_body' }))
+  const cns = withCat(mkEx({ slug: 'high_knees', strength_pattern: null, category_slug: 'sprints', sprint_type: null, intensity_score: 4, body_region: 'full_body' }))
+  const mob = withCat(mkEx({ slug: 'ankle_cars', strength_pattern: null, category_slug: 'mobility', body_region: 'ankle', legacy_block_slugs: ['warmup'] }))
+  const r = buildSwapPool({
+    exercises: [cur, cns, mob], maps: mkMaps(), sportGate: gate, dayEnvId: null,
+    blockTypeSlug: 'warmup', currentExercise: cur,
+    assignedPattern: null, patternEmphasis: null,
+  })
+  assert.deepEqual(r.alternatives.map(a => a.slug), ['high_knees'])
+})
+test('Warmup-Familie: Mobility-Drill bekommt keine CNS-Drills angeboten', () => {
+  const cur = withCat(mkEx({ slug: 'shoulder_cars', strength_pattern: null, category_slug: 'mobility', body_region: 'shoulder', legacy_block_slugs: ['warmup'] }))
+  const cns = withCat(mkEx({ slug: 'carioca', strength_pattern: null, category_slug: 'sprints', sprint_type: null, intensity_score: 4, body_region: 'full_body' }))
+  const mob = withCat(mkEx({ slug: 'arm_circle', strength_pattern: null, category_slug: 'mobility', body_region: 'shoulder', legacy_block_slugs: ['warmup'] }))
+  const r = buildSwapPool({
+    exercises: [cur, cns, mob], maps: mkMaps(), sportGate: gate, dayEnvId: null,
+    blockTypeSlug: 'warmup', currentExercise: cur,
+    assignedPattern: null, patternEmphasis: null,
+  })
+  assert.deepEqual(r.alternatives.map(a => a.slug), ['arm_circle'])
+})
 test('Session-Dedupe: bereits verplante Übungen sind keine Alternativen (QA 19.10.)', () => {
   const cur = withCat(mkEx({ slug: 'barbell_row', strength_pattern: 'pull_horizontal' }))
   const inSession = withCat(mkEx({ slug: 'cable_row', strength_pattern: 'pull_horizontal' }))

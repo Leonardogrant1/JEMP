@@ -111,7 +111,14 @@ die Zeile muss zu einer Session des anfragenden Users gehören, sonst 404).
    regionsübergreifend (Accessory mischt groin/hip/calf/ankle), beim
    manuellen Tausch erwartet der User aber Waden gegen Waden. Kraft bindet
    übers Pattern, Plyo über die Variante, Core bleibt frei (alles Rumpf,
-   Ebenen-Sortierung priorisiert like-for-like).
+   Ebenen-Sortierung priorisiert like-for-like). `body_region = 'full_body'`
+   (roh, nicht effectiveRegion) ist Joker in beide Richtungen — sonst wären
+   dünn besetzte Regionen (groin) leer. Zusätzlich bindet das Warmup an die
+   Unterfamilie (CNS-Mikro-Dosis via `isCnsMicroDoseExercise` / Mobility /
+   Prep-Plyo): Ein CNS-Drill tauscht nur gegen CNS-Drills — sonst ließe sich
+   die validator-erzwungene CNS-Dosis wegtauschen, und der full_body-Joker
+   flutete Mobility-Swaps mit Lauf-ABC. Bereits in der Session verplante
+   Übungen sind nie Alternativen (Session-Dedupe).
 3. Teilt die Kandidaten:
    - `alternatives`: bestehen alle Filter; aktuelle Übung ausgenommen.
    - `locked`: bestehen alle Filter AUSSER Level, und zwar nur
