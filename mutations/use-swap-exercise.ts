@@ -14,10 +14,11 @@ async function swapExercise(input: {
 }) {
     // Sperre (Spec §4): Zeilen mit geloggten Sätzen sind nie tauschbar —
     // die UI graut aus, hier die harte zweite Verteidigungslinie.
-    const { count: performed } = await supabase
+    const { count: performed, error: lockError } = await supabase
         .from('workout_session_performed_sets')
         .select('id', { count: 'exact', head: true })
         .eq('workout_session_block_exercise_id', input.blockExerciseId);
+    if (lockError) throw lockError;
     if ((performed ?? 0) > 0) throw new Error('swap_blocked_logged_sets');
 
     // Kein `notes`-Feld hier: das existiert nur auf workout_plan_session_block_exercises,
