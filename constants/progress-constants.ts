@@ -6,19 +6,27 @@ const ALL_STAT_SLUGS = [
     'strength',
     'lower_body_plyometrics',
     'upper_body_plyometrics',
-    'jumps',
+    'sprints',
+    'cod',
+    'conditioning',
     'mobility',
 ] as const;
 
 const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
     strength: 'barbell',
     jumps: 'arrow-up',
-    lower_body_plyometrics: 'footsteps',
+    sprints: 'footsteps',
+    cod: 'shuffle',
+    conditioning: 'pulse',
+    lower_body_plyometrics: 'arrow-up',
     upper_body_plyometrics: 'hand-right',
     mobility: 'body',
 };
 
 const STAT_LABELS: Record<string, string> = {
+    sprints: 'Sprints',
+    cod: 'COD',
+    conditioning: 'Conditioning',
     strength: 'Strength',
     jumps: 'Jump',
     lower_body_plyometrics: 'Lower Plyo',
@@ -26,9 +34,11 @@ const STAT_LABELS: Record<string, string> = {
     mobility: 'Mobility',
 };
 
-const RADAR_SLUGS = ['jumps', 'strength', 'upper_body_plyometrics', 'lower_body_plyometrics', 'mobility'] as const;
+const RADAR_SLUGS = ['sprints', 'strength', 'upper_body_plyometrics', 'lower_body_plyometrics', 'cod', 'mobility'] as const;
 
 const RADAR_LABELS: Record<string, string> = {
+    sprints: 'Sprint',
+    cod: 'COD',
     jumps: 'Jump',
     strength: 'Strength',
     upper_body_plyometrics: 'Up Plyo',

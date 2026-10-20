@@ -1,4 +1,3 @@
-import InfoIcon from '@/assets/icons/info.svg';
 import { AchievementCelebration } from '@/components/achievements/achievement-celebration';
 import { JempText } from '@/components/jemp-text';
 import { JempDialog } from '@/components/ui/jemp-dialog';
@@ -26,12 +25,15 @@ import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { CooperCountdown } from '@/components/assessments/cooper-countdown';
+import { RstAssessment } from '@/components/assessments/rst-assessment';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    ActivityIndicator, Pressable,
-    StyleSheet, View,
+    ActivityIndicator, Keyboard, Pressable,
+    StyleSheet, TextInput, View,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function lerpColor(a: string, b: string, t: number): string {
@@ -71,6 +73,7 @@ export default function AssessmentScreen() {
     const [tapeCm, setTapeCm] = useState(0);
     const [repCount, setRepCount] = useState(0);
     const [secInt, setSecInt] = useState(0);
+    const [metersInput, setMetersInput] = useState('');
     const [secTenth, setSecTenth] = useState(0);
     const [weightMain, setWeightMain] = useState(0);
     const [weightTenth, setWeightTenth] = useState(0);
@@ -110,7 +113,7 @@ export default function AssessmentScreen() {
                             <Ionicons name="chevron-back" size={24} color={theme.text} />
                         </Pressable>
                         <Skeleton width={150} height={20} borderRadius={10} />
-                        <Skeleton width={22} height={22} borderRadius={11} />
+                        <View style={{ width: 24 }} />
                     </View>
                     <View style={styles.content}>
                         <View style={styles.skeletonRow}>
@@ -139,6 +142,12 @@ export default function AssessmentScreen() {
         );
     }
 
+    // RST hat einen eigenen Mehrlauf-Flow (6 Zeiten statt eines Werts) —
+    // gleiche Route, eigene Komponente.
+    if (data.assessment?.slug === 'repeated_sprint_test') {
+        return <RstAssessment id={id} />;
+    }
+
 
     const { assessment } = data;
     const locale = i18n.language;
@@ -146,6 +155,9 @@ export default function AssessmentScreen() {
     const description = (assessment.description_i18n as Record<string, string> | null)?.[locale]
         ?? assessment.description
         ?? '';
+    // Heuristik statt onTextLayout (plattform-inkonsistent): ~55 Zeichen/Zeile
+    // bei body-sm — ab ~3 Zeilen gibt es den "Mehr anzeigen"-Link.
+    const descLong = description.length > 150;
     const metric = assessment.metric;
     const unitKey = metric?.unit ?? 'count';
     const isTimeBased = unitKey === 's';
@@ -153,6 +165,7 @@ export default function AssessmentScreen() {
     const isRatingBased = unitKey === 'rating';
     const isCmBased = unitKey === 'cm';
     const isCountBased = unitKey === 'count';
+    const isMetersBased = unitKey === 'm';
     // Vertical Jump lässt sich per Video über die Flugzeit messen
     const isVideoMeasurable = assessment.slug === 'vertical_jump';
     const repMax = REP_RAIL_MAX[assessment.slug] ?? REP_RAIL_DEFAULT_MAX;
@@ -197,7 +210,9 @@ export default function AssessmentScreen() {
                 ? repCount > 0 ? String(repCount) : ''
                 : isTimeBased
                     ? secInt + secTenth > 0 ? (secInt + secTenth / 10).toFixed(1) : ''
-                    : weightKgValue > 0 ? String(weightKgValue) : '';
+                    : isMetersBased
+                        ? (parseInt(metersInput, 10) > 0 ? String(parseInt(metersInput, 10)) : '')
+                        : weightKgValue > 0 ? String(weightKgValue) : '';
 
     // Weighted pull-ups: convert over total load (incl. bodyweight), not just the added plates
     const pullupBodyweight = assessment.slug === 'weighted_pullups_1rm' ? profile?.weight_in_kg ?? undefined : undefined;
@@ -301,21 +316,43 @@ export default function AssessmentScreen() {
 
     return (
         <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]} edges={['top']}>
-            <View style={styles.scroll}>
+            {/* QA 10.10.: KAV hebt Cooper-Input + CTA über das Keyboard. Der
+                Container schließt es bei Tap daneben (number-pad hat keine
+                „Fertig"-Taste) — via onStartShouldSetResponder mit return false,
+                damit er NIE Responder wird und Wheel-/Slider-Gesten unberührt
+                lässt (ein Pressable-Wrapper blockierte das 505-Zahlenrad). */}
+            <KeyboardAvoidingView behavior="padding" style={styles.root}>
+            <View style={styles.scroll} onStartShouldSetResponder={() => { Keyboard.dismiss(); return false; }}>
                 {/* Header */}
                 <View style={styles.header}>
                     <Pressable onPress={() => router.back()} hitSlop={12}>
                         <Ionicons name="chevron-back" size={24} color={theme.text} />
                     </Pressable>
                     <JempText type="body-l" color={theme.text}>{assessmentName}</JempText>
-                    {description ? (
-                        <Pressable onPress={() => setShowInfo(true)} hitSlop={12}>
-                            <InfoIcon width={22} height={22} color={Cyan[500]} />
-                        </Pressable>
-                    ) : (
-                        <View style={{ width: 24 }} />
-                    )}
+                    <View style={{ width: 24 }} />
                 </View>
+
+                {/* Anleitung inline (QA 08.10.): 3 Zeilen gekappt; lange Texte
+                    bekommen einen sichtbaren "Mehr anzeigen"-Link, der das
+                    Info-Modal öffnet (Affordance statt unsichtbarem Tap). */}
+                {description ? (
+                    <Pressable onPress={() => setShowInfo(true)} disabled={!descLong}>
+                        <JempText
+                            type="body-sm"
+                            color={theme.textMuted}
+                            numberOfLines={3}
+                            style={styles.descriptionInline}
+                        >
+                            {description}
+                        </JempText>
+                        {descLong && (
+                            <View style={styles.showMoreRow}>
+                                <JempText type="caption" color={GradientMid}>{t('ui.show_more')}</JempText>
+                                <Ionicons name="chevron-down" size={12} color={GradientMid} />
+                            </View>
+                        )}
+                    </Pressable>
+                ) : null}
 
                 {/* Explainer video — pinned below the header, outside the centered content */}
                 {(assessment.video_storage_path || assessment.youtube_url) && (
@@ -473,6 +510,19 @@ export default function AssessmentScreen() {
                                 </Pressable>
                             </>
                         )}
+                    </View>
+                ) : !isRatingBased && isMetersBased ? (
+                    <View style={styles.section}>
+                        <CooperCountdown />
+                        <JempText type="caption" color={theme.textMuted}>{t('cooper.meters_label')}</JempText>
+                        <TextInput
+                            value={metersInput}
+                            onChangeText={(v) => setMetersInput(v.replace(/[^0-9]/g, ''))}
+                            keyboardType="number-pad"
+                            placeholder={t('cooper.meters_placeholder')}
+                            placeholderTextColor={theme.textSubtle}
+                            style={[styles.metersInput, { color: theme.text, borderColor: theme.borderStrong }]}
+                        />
                     </View>
                 ) : !isRatingBased && mode === 'manual' && isCountBased ? (
                     <View style={styles.inputSection}>
@@ -720,7 +770,7 @@ export default function AssessmentScreen() {
                 message={description}
                 buttonLabel={t('ui.got_it')}
                 icon="information-circle-outline"
-                iconColor={Cyan[500]}
+                iconColor={GradientMid}
                 onDismiss={() => setShowInfo(false)}
             />
 
@@ -755,6 +805,7 @@ export default function AssessmentScreen() {
                     </LinearGradient>
                 </Pressable>
             </View>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
@@ -762,6 +813,8 @@ export default function AssessmentScreen() {
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+    metersInput: { borderWidth: 1.5, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16, fontSize: 22, marginTop: 6 },
+    section: { gap: 4 },
     root: { flex: 1 },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     scroll: { flex: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120 },
@@ -775,6 +828,8 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingVertical: 8,
     },
+    descriptionInline: { marginTop: 4, lineHeight: 19 },
+    showMoreRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4, alignSelf: 'flex-start' },
 
     videoBtn: {
         flexDirection: 'row',

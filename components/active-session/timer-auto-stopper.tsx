@@ -1,4 +1,5 @@
 import { useExerciseTimer } from "@/providers/timer-ref-provider";
+import { isDurationMode } from '@/lib/prescription';
 import { useActiveSessionStore } from "@/stores/active-session-store";
 import { useActiveSessionUIStore } from "@/stores/active-session-ui-store";
 import { useEffect } from "react";
@@ -18,7 +19,7 @@ export function TimerAutoStopper({ children }: { children: React.ReactNode }) {
 
     const current = allExercises[currentExerciseIdx] ?? null;
 
-    const isDuration = current?.exercise.measurement_type === 'duration';
+    const isDuration = current != null && isDurationMode(current.exercise.measurement_type, current);
     const target = isDuration ? current?.target_duration_seconds ?? 0 : 0;
 
     useEffect(() => {

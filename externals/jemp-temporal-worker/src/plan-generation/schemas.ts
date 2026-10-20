@@ -12,10 +12,13 @@ const exerciseSchema = z.object({
   target_rest_seconds: z.number(),
   target_load_type: z.enum(["bodyweight", "kg", "rpe", "pace"]),
   target_load_value: z.number(),
+  // v2 conditioning prescription (spec §1.4) — optional, legacy outputs never set it
+  target_rounds: z.number().nullable().optional(),
 })
 
 const blockSchema = z.object({
-  block_type: z.enum(["warmup", "primary", "secondary", "accessory", "cooldown"]),
+  // Widened for v2 session types (spec §1.2); legacy dynamic LLM builders below keep their narrow enums.
+  block_type: z.enum(["warmup", "primary", "secondary", "accessory", "cooldown", "push", "pull", "lower_body", "rotation", "core", "plyo", "sprint", "cod", "conditioning", "mobility"]),
   order_index: z.number(),
   focused_category_slug: z.string(),
   exercises: z.array(exerciseSchema),
@@ -27,9 +30,11 @@ const sessionSchema = z.object({
   estimated_duration_minutes: z.number(),
   day_of_week: z.number(),
   order_index: z.number(),
-  session_type: z.enum(["training", "recovery"]),
+  session_type: z.enum(["training", "recovery", "speed", "mobility", "conditioning"]),
   description: z.string(),
   pause_between_sets: z.number(),
+  // v2 breadth-lever audit trail (spec §2.9) — optional, legacy never sets it
+  dropped_blocks: z.array(z.object({ block_type: z.string(), reason: z.enum(["time", "coverage"]) })).optional(),
   blocks: z.array(blockSchema),
 })
 

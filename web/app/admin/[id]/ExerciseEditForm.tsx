@@ -15,6 +15,7 @@ import {
 import { generateThumbnail } from '../../actions/thumbnail-ai'
 import { asI18n } from '@/lib/i18n'
 import { DropZone } from '../_components/DropZone'
+import { VideoFramePicker } from '../_components/VideoFramePicker'
 import type { Json } from '../../../../database.types'
 
 type ThumbnailSource = { id: string; name: string; image_group: string | null }
@@ -98,6 +99,7 @@ export function ExerciseEditForm({ exercise: initial, relations, thumbnailSource
 
   const [pendingVideo, setPendingVideo] = useState<File | null>(null)
   const [videoPreview, setVideoPreview] = useState<string | null>(null)
+  const [framePickerOpen, setFramePickerOpen] = useState(false)
 
   // Revoke object URLs on unmount to avoid memory leaks
   useEffect(() => {
@@ -656,6 +658,14 @@ export function ExerciseEditForm({ exercise: initial, relations, thumbnailSource
               label="Drop thumbnail here"
               onFile={selectThumbnail}
             />
+            {(videoPreview || exercise.video_storage_path) && (
+              <button
+                onClick={() => setFramePickerOpen(true)}
+                className="px-4 py-2 bg-gray-800 text-gray-200 border border-gray-700 rounded text-sm font-medium hover:bg-gray-700"
+              >
+                🎞 Frame aus Video
+              </button>
+            )}
           </div>
         )}
 
@@ -778,6 +788,14 @@ export function ExerciseEditForm({ exercise: initial, relations, thumbnailSource
         </div>
         {deleteStatus && <p className="text-xs text-red-400 mt-2">{deleteStatus}</p>}
       </section>
+
+      {framePickerOpen && (videoPreview || exercise.video_storage_path) && (
+        <VideoFramePicker
+          videoUrl={videoPreview ?? `${storageBase}/${exercise.video_storage_path}`}
+          onSelect={selectThumbnail}
+          onClose={() => setFramePickerOpen(false)}
+        />
+      )}
     </div>
   )
 }

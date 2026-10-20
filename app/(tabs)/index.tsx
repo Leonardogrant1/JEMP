@@ -1,3 +1,4 @@
+import { FlexibleWeekList } from '@/components/plan/FlexibleWeekList';
 import { DayVariant, RestDayCard } from '@/components/rest-day-card';
 import { useTabBarInset } from '@/components/tab-bar';
 import { PlanCompletedHomeCard } from '@/components/today-session/PlanCompletedHomeCard';
@@ -67,6 +68,9 @@ export default function HomeScreen() {
                             nextSessionDate={nextScheduledSession ? new Date(nextScheduledSession.scheduled_at!) : undefined}
                         />
                     )}
+
+                    {/* Flexible Wochen-Sessions (Sprint/Mobility) als To-do-Checkliste */}
+                    {!planExpired && <FlexibleWeekList theme={theme} />}
 
                 </View>}
         </SafeAreaView>

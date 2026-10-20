@@ -152,7 +152,8 @@ ${dayPresetEnvironments.length > 0
 // ── Phase C: Session Assembly — all blocks in one call ────────────────────────
 
 type BlockPool = {
-  block_type: "primary" | "secondary" | "accessory"
+  // Widened for v2 pattern blocks (typing only — legacy emits the original three)
+  block_type: string
   category_slug: string
   exercisesString: string
   slugs: string

@@ -28,11 +28,9 @@ fi
 echo "Deploying $PROJECT to Fly.io in $ENV environment"
 
 
-# Set APPNAME based on environment
-if [[ $ENV == "prod" ]]; then
-  APPNAME="$PROJECT-prod"
-elif [[ $ENV == "dev" ]]; then
-  APPNAME="$PROJECT-dev"
+# Set APPNAME based on environment (any env → suffix, e.g. prod/dev/staging)
+if [[ -n $ENV ]]; then
+  APPNAME="$PROJECT-$ENV"
 else
   # No env specified → use app name as-is (no suffix)
   APPNAME="$PROJECT"
@@ -45,7 +43,7 @@ echo $PATH_TO_PROJECT
 
 # Read env vars from env.<ENV>.yaml in the project directory (or env.yaml if no env)
 # Format: KEY: "VALUE"  or  KEY: VALUE
-if [[ $ENV == "prod" || $ENV == "dev" ]]; then
+if [[ -n $ENV ]]; then
   YAML_FILE="$PATH_TO_PROJECT/env.$ENV.yaml"
 else
   YAML_FILE="$PATH_TO_PROJECT/env.yaml"
@@ -64,6 +62,11 @@ if [ -f "$YAML_FILE" ]; then
     value=$(echo "$line" | awk -F': ' '{$1=""; print $0}' | xargs | sed 's/^"//;s/"$//')
 
     [[ -z "$key" || -z "$value" ]] && continue
+
+    if [[ "$value" == *"TODO"* ]]; then
+      echo "Error: $key in $YAML_FILE still contains a TODO placeholder. Fill it in before deploying."
+      exit 1
+    fi
 
     env_vars+=("${key}=${value}")
   done < "$YAML_FILE"
@@ -112,8 +115,8 @@ for env_var in "${env_vars[@]}"; do
   $FLYCTL secrets set --stage $env_var --app $APPNAME
 done
 
-# Use env-specific fly config (fly.dev.toml / fly.prod.toml) or fly.toml if no env
-if [[ $ENV == "prod" || $ENV == "dev" ]]; then
+# Use env-specific fly config (fly.dev.toml / fly.prod.toml / fly.staging.toml) or fly.toml if no env
+if [[ -n $ENV ]]; then
   CONFIG_PATH="$PATH_TO_PROJECT/fly.$ENV.toml"
 else
   CONFIG_PATH="$PATH_TO_PROJECT/fly.toml"

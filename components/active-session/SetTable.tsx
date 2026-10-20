@@ -1,4 +1,5 @@
 import { JempText } from '@/components/jemp-text';
+import { isDurationMode, plannedSetCount } from '@/lib/prescription';
 import { Colors, GradientMid } from '@/constants/theme';
 import { formatTimer } from '@/helpers/active-session-helpers';
 import { formatTargetReps, loadUnit } from '@/helpers/format';
@@ -38,9 +39,9 @@ export function SetTable() {
     const current = allExercises[exerciseIdx] ?? null;
     if (!current) return null;
 
-    const totalSets = current.target_sets ?? 1;
+    const totalSets = plannedSetCount(current);
     const unit = loadUnit(current.target_load_type);
-    const isDuration = current.exercise.measurement_type === 'duration';
+    const isDuration = isDurationMode(current.exercise.measurement_type, current);
     const isUnilateral = current.exercise.laterality === 'unilateral';
 
     const targetLabel = isDuration

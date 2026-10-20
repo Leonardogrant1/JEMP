@@ -84,11 +84,28 @@ export default function MagicLinkScreen() {
     }
 
     function handleOtpChange(value: string, index: number) {
-        const digit = value.replace(/[^0-9]/g, '').slice(-1);
+        const digits = value.replace(/[^0-9]/g, '');
+        setError(null);
+
+        // Paste/Autofill: mehr als ein Zeichen → Code von vorne auf die
+        // Felder verteilen (maxLength=1 würde den Paste nativ abschneiden,
+        // darum tragen die Boxen maxLength=OTP_LENGTH)
+        if (digits.length > 1) {
+            const next = Array<string>(OTP_LENGTH).fill('');
+            digits.slice(0, OTP_LENGTH).split('').forEach((d, i) => { next[i] = d; });
+            setOtp(next);
+            const lastFilled = Math.min(digits.length, OTP_LENGTH) - 1;
+            inputRefs.current[lastFilled]?.focus();
+            if (digits.length >= OTP_LENGTH) {
+                verifyOtp(digits.slice(0, OTP_LENGTH));
+            }
+            return;
+        }
+
+        const digit = digits.slice(-1);
         const next = [...otp];
         next[index] = digit;
         setOtp(next);
-        setError(null);
 
         if (digit && index < OTP_LENGTH - 1) {
             inputRefs.current[index + 1]?.focus();
@@ -169,8 +186,10 @@ export default function MagicLinkScreen() {
                                     onChangeText={v => handleOtpChange(v, i)}
                                     onKeyPress={e => handleOtpKeyPress(e, i)}
                                     keyboardType="number-pad"
-                                    maxLength={1}
+                                    maxLength={OTP_LENGTH}
                                     selectTextOnFocus
+                                    textContentType="oneTimeCode"
+                                    autoComplete="one-time-code"
                                     editable={!verifying}
                                 />
                             ))}

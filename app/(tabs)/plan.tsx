@@ -1,5 +1,6 @@
 import { JempText } from '@/components/jemp-text';
 import { EmptyPlanCard } from '@/components/plan/EmptyPlanCard';
+import { FlexibleWeekList } from '@/components/plan/FlexibleWeekList';
 import { PlanCompletedCard } from '@/components/plan/PlanCompletedCard';
 import { PlanGenerationScreen } from '@/components/plan/PlanGenerationScreen';
 import { PlanSessionCard } from '@/components/plan/PlanSessionCard';
@@ -14,11 +15,12 @@ import { MONTHS } from '@/constants/date-constants';
 import { Colors, Cyan, Electric, GradientMid } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { getISOWeek, getPreviewSession, getWeekDays, toDateStr } from '@/helpers/date-helpers';
-import { getDayVariant, toDatabaseDow } from '@/helpers/session-helpers';
+import { getDayVariant, isPlanCompleted, toDatabaseDow } from '@/helpers/session-helpers';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { hasCompletePlanSettings } from '@/lib/plan-settings-complete';
 import { startPlanGeneration } from '@/lib/start-plan-generation';
 import { useEquipmentSanityCheck } from '@/hooks/use-equipment-sanity-check';
+import { useNewEquipmentPrompt } from '@/hooks/use-new-equipment-prompt';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { type PlanSession, type WorkoutSession, usePlan } from '@/providers/plan-provider';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
@@ -53,6 +55,8 @@ export default function PlanScreen() {
     // Kaputte Equipment-Profile (Gym ohne Hanteln, Onboarding-Bug) einmal pro
     // App-Start zur Korrektur anbieten — Ursache für Bodyweight-only-Pläne
     useEquipmentSanityCheck(profile?.id);
+    // Einmal-Hinweis auf die neuen Cardio-Geräte (Conditioning-Formate 10.10.)
+    useNewEquipmentPrompt(profile?.id);
 
 
     useEffect(() => {
@@ -75,9 +79,9 @@ export default function PlanScreen() {
     const today = new Date();
     const weekDays = useMemo(() => getWeekDays(today), [today]);
 
-    // Plan has run past its end date — no sessions exist beyond it, so show
-    // a completion state with a CTA instead of an empty week
-    const planExpired = !!plan?.end_date && plan.end_date < toDateStr(today);
+    // Plan is past its end date — or on the end date itself with nothing left
+    // open — so show a completion state with a CTA instead of an empty week
+    const planExpired = isPlanCompleted(plan?.end_date, sessions, toDateStr(today));
 
     const weekNumber = getISOWeek(today);
     const month = MONTHS[today.getMonth()];
@@ -296,6 +300,9 @@ export default function PlanScreen() {
                             >
                                 {renderSelectedDayContent()}
                             </Reanimated.View>
+
+                            {/* Flexible Wochen-Sessions (Sprint/Mobility) als To-do-Checkliste */}
+                            <FlexibleWeekList theme={theme} />
                         </>
                     )}
                 </View>

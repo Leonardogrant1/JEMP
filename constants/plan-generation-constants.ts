@@ -20,7 +20,7 @@ const WEEK_DAYS: { dow: number; key: string }[] = [
 
 // Sport-Woche VOR den JEMP-Trainingstagen — die Sport-Termine sind Fixpunkte,
 // um die herum die JEMP-Tage gelegt werden (und in deren Rows sie gehintet sind)
-const PHASES: Phase[] = ['environment', 'equipment', 'equipment-env', 'goals', 'body', 'weekly', 'schedule', 'schedule-detail'];
+const PHASES: Phase[] = ['environment', 'equipment', 'equipment-env', 'goals', 'sprint-context', 'body', 'weekly', 'schedule', 'schedule-detail'];
 
 
 export { DURATIONS, PHASES, WEEK_DAYS };

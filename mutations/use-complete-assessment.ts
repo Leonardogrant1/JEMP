@@ -1,4 +1,7 @@
 import { calculateAssessmentScore, AssessmentUserProfile } from '@/lib/score-calculators/assessment-score';
+import { rstConditioningLevel } from '@/lib/score-calculators/conditioning';
+import { rstDerive, shouldFeedSprintScore } from '@/lib/rst';
+import { calculateAge } from '@/types/user-data';
 import { queryKeys } from '@/queries/query-keys';
 import { supabase } from '@/services/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -15,13 +18,92 @@ type CompleteAssessmentParams = {
     assessmentSlug: string;
     categoryId: string;
     userProfile: AssessmentUserProfile;
+    /** RST-Flow (Spec §4.4): 6 Zeiten — value trägt dann den Drop-off %. */
+    rstTimes?: number[];
+    /** 'derived' für RST-gespeiste Sprint-Einträge (Prioritäts-Regel, Review I2). */
+    sourceType?: 'assessment' | 'derived';
+    /** Innerer Feed-Call: Snapshot nur einmal pro RST schreiben (Review I7). */
+    skipSnapshot?: boolean;
 };
 
 async function completeAssessment({
     userAssessmentId, assessmentId, userId, metricId, value,
     assessmentSlug, categoryId, userProfile,
+    rstTimes, sourceType, skipSnapshot,
 }: CompleteAssessmentParams): Promise<{ newUnlocks: AchievementDef[] }> {
-    const score = calculateAssessmentScore(assessmentSlug, value, userProfile);
+    let score = calculateAssessmentScore(assessmentSlug, value, userProfile);
+    let entryValue = value;
+
+    // ── RST-Sonderfall (Spec §4.4): Score aus 6 Zeiten, zweiter Metric-Eintrag
+    //    für die Durchschnittszeit, Lauf 1 füttert optional den Sprint-Score.
+    if (assessmentSlug === 'repeated_sprint_test' && rstTimes) {
+        const derived = rstDerive(rstTimes);
+        if (!derived) throw new Error('RST: ungültige Zeiten');
+        const age = calculateAge(userProfile.birth_date);
+        score = rstConditioningLevel(rstTimes, age, userProfile.gender);
+        entryValue = derived.dropOffPct;
+
+        const { data: meanMetric } = await supabase.from('metrics').select('id').eq('slug', 'rst_mean_time').single();
+        if (meanMetric) {
+            const { error: meanError } = await supabase.from('metric_entries').insert({
+                user_id: userId, metric_id: meanMetric.id, value: derived.meanTime,
+                source_type: 'assessment', user_assessment_id: userAssessmentId,
+            });
+            if (meanError) throw meanError;
+        }
+
+        // Prioritäts-Regel: dedizierter Sprint-Test ≤120 Tage gewinnt.
+        const { data: dedicated } = await supabase
+            .from('user_assessments')
+            .select('completed_at, assessment:assessments!inner ( slug ), metric_entries ( source_type )')
+            .eq('user_id', userId)
+            .eq('status', 'completed')
+            .in('assessment.slug', ['sprint_10m', 'sprint_30m', 'sprint_10m_flying']);
+        const existing = (dedicated ?? [])
+            .filter((r: any) => r.completed_at)
+            .map((r: any) => ({
+                assessmentSlug: r.assessment.slug,
+                completedAt: r.completed_at,
+                sourceType: r.metric_entries?.[0]?.source_type as string | undefined,
+            }));
+        if (shouldFeedSprintScore(existing, new Date())) {
+            // Lauf 1 ist eine echte 30m-Zeit → als Sprint-Messung über den
+            // regulären Pfad (eigene user_assessment-Zeile für sprint_30m).
+            const { data: sprintAssessment } = await supabase
+                .from('assessments')
+                .select('id, measured_metric_id, category_id')
+                .eq('slug', 'sprint_30m')
+                .single();
+            if (sprintAssessment?.measured_metric_id && sprintAssessment.category_id) {
+                const { data: ua } = await supabase
+                    .from('user_assessments')
+                    .insert({ user_id: userId, assessment_id: sprintAssessment.id, status: 'in_progress', started_at: new Date().toISOString() })
+                    .select('id')
+                    .single();
+                if (ua) {
+                    // Feed-Fehler degradieren sanft (Review I7): der RST selbst
+                    // darf daran nicht scheitern.
+                    try {
+                        await completeAssessment({
+                            userAssessmentId: ua.id,
+                            assessmentId: sprintAssessment.id,
+                            userId,
+                            metricId: sprintAssessment.measured_metric_id,
+                            value: derived.run1,
+                            assessmentSlug: 'sprint_30m',
+                            categoryId: sprintAssessment.category_id,
+                            userProfile,
+                            sourceType: 'derived',
+                            skipSnapshot: true,
+                        });
+                    } catch (e) {
+                        console.warn('[rst] sprint feed failed — skipping', e);
+                        await supabase.from('user_assessments').delete().eq('id', ua.id);
+                    }
+                }
+            }
+        }
+    }
 
     // 1. Insert metric entry (with score if calculable)
     const { error: metricError } = await supabase
@@ -29,8 +111,8 @@ async function completeAssessment({
         .insert({
             user_id: userId,
             metric_id: metricId,
-            value,
-            source_type: 'assessment',
+            value: entryValue,
+            source_type: sourceType ?? 'assessment',
             user_assessment_id: userAssessmentId,
             ...(score !== null && { score }),
         });
@@ -76,16 +158,19 @@ async function completeAssessment({
         const { error: upsertError } = await supabase
             .from('user_category_levels')
             .upsert(
-                { user_id: userId, category_id: categoryId, level_score: avgScore },
+                // Phase 5 (§4.1): Assessment-Abschluss macht die Säule 'measured'
+                { user_id: userId, category_id: categoryId, level_score: avgScore, source: 'measured', measured_at: new Date().toISOString() },
                 { onConflict: 'user_id,category_id' },
             );
         if (upsertError) throw upsertError;
 
         // Snapshot current levels into history so the chart updates immediately
-        const { error: snapshotError } = await supabase.rpc('fn_take_user_category_level_snapshot', {
-            p_user_id: userId,
-        });
-        if (snapshotError) throw snapshotError;
+        if (!skipSnapshot) {
+            const { error: snapshotError } = await supabase.rpc('fn_take_user_category_level_snapshot', {
+                p_user_id: userId,
+            });
+            if (snapshotError) throw snapshotError;
+        }
     }
 
     // 3. Mark assessment as completed (last step — so the query above sees correct state)

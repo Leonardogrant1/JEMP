@@ -1,5 +1,7 @@
 import { getCategoryLabel, type CategoryI18n } from '@/constants/category-labels';
 import { ENV_ICONS } from '@/constants/environment-icons';
+import { initialLevels, normalizeToBudget, pillarBudget, visiblePillars, type PillarLevel } from '@/lib/pillar-budget';
+import type { PillarListItem } from '@/components/pillars/pillar-stepper-list';
 import { computeLoadProfile } from '@/lib/load-profile';
 import { startPlanGeneration } from '@/lib/start-plan-generation';
 import { UserProfile } from '@/providers/current-user-provider';
@@ -41,8 +43,12 @@ export type PlanWizardState = {
 
     // Goals
     allCategories: CategoryItem[];
-    selectedCategoryIds: Set<string>;
-    rankedCategories: CategoryItem[];
+    pillarItems: PillarListItem[];
+    pillarLevels: PillarLevel[];
+    sprintClub: boolean;
+    sprintClubAnswered: boolean;
+    sprintDistance: 'under_20m' | '20_40m' | 'over_40m' | null;
+    dayDurations: Array<{ day_of_week: number; minutes: number }>;
 
     // Body
     weightKg: number;
@@ -64,7 +70,10 @@ export type PlanWizardState = {
     toggleEquipment: (id: string) => void;
     handleEquipmentNext: () => void;
     toggleEquipmentEnv: (equipmentId: string, envId: string) => void;
-    toggleCategory: (id: string) => void;
+    setPillarLevels: (levels: PillarLevel[]) => void;
+    setSprintClub: (value: boolean) => void;
+    setSprintDistance: (value: 'under_20m' | '20_40m' | 'over_40m') => void;
+    setDayDuration: (day: number, minutes: number | null) => void;
     togglePreferredDay: (dow: number) => void;
     toggleDayEnv: (dow: number, envId: string) => void;
     toggleSportDay: (day: number) => void;
@@ -97,8 +106,12 @@ function getInitialState() {
         equipmentEnvSelections: new Map<string, Set<string>>(),
         savedEquipmentEnvMappings: [] as { equipment_id: string; environment_id: string }[],
         allCategories: [],
-        selectedCategoryIds: new Set<string>(),
-        rankedCategories: [],
+        pillarItems: [] as PillarListItem[],
+        pillarLevels: [] as PillarLevel[],
+        sprintClub: false,
+        sprintClubAnswered: false,
+        sprintDistance: null as 'under_20m' | '20_40m' | 'over_40m' | null,
+        dayDurations: [] as Array<{ day_of_week: number; minutes: number }>,
         weightKg: 75,
         heightCm: 175,
         preferredDays: new Set([1, 2, 3, 4, 5, 6, 7]),
@@ -126,6 +139,10 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
             preferredDuration: profile.preferred_session_duration ?? null,
             scheduleNotes: profile.schedule_notes ?? '',
             sportSessions: (profile as any).weekly_schedule?.sessions ?? [],
+            sprintClub: (profile as any).sprints_covered_by_club ?? false,
+            sprintDistance: (profile as any).sprint_distance ?? null,
+            sprintClubAnswered: ((profile as any).sprint_distance ?? null) !== null,
+            dayDurations: ((profile as any).preferred_day_durations as Array<{ day_of_week: number; minutes: number }> | null) ?? [],
         });
 
         const savedDayEnvs = (profile as any).day_environments as { day_of_week: number; environment_id: string }[] | null;
@@ -141,31 +158,30 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
             supabase.from('environments').select('id, slug, name_i18n, description_i18n'),
             supabase.from('user_equipments').select('equipment_id').eq('user_id', profile.id),
             supabase.from('environment_equipments').select('environment_id, equipment:equipments(id, slug, name_i18n)'),
-            supabase.from('categories').select('id, slug, name_i18n'),
-            supabase.from('user_targeted_categories').select('category_id, priority').eq('user_id', profile.id).order('priority'),
+            supabase.from('sport_category_relevance').select('relevance, categories!inner(id, slug, name_i18n, description_i18n, is_active)').eq('sport_id', (profile as any).sport_id).eq('categories.is_active', true),
+            supabase.from('user_pillar_levels').select('level, categories(id, slug)').eq('user_id', profile.id),
             supabase.from('user_environments').select('environment_id').eq('user_id', profile.id),
             (supabase as any).from('user_equipment_environments').select('equipment_id, environment_id').eq('user_id', profile.id),
         ]);
 
         const t = i18next.t.bind(i18next);
 
-        const catItems: CategoryItem[] = (catsRes.data ?? []).map(c => ({
-            id: c.id,
-            slug: c.slug,
-            name_i18n: c.name_i18n as CategoryI18n,
-            label: getCategoryLabel(c.slug, t, c.name_i18n as CategoryI18n),
+        const presets = (catsRes.data ?? []).map((r: any) => ({
+            categoryId: r.categories.id,
+            slug: r.categories.slug,
+            level: r.relevance,
+            label: getCategoryLabel(r.categories.slug, t, r.categories.name_i18n as CategoryI18n),
+            description_i18n: r.categories.description_i18n as CategoryI18n | null,
         }));
+        const visible = visiblePillars(presets) as typeof presets;
+        const storedPillarRows: PillarLevel[] = (targetedRes.data ?? []).map((r: any) => ({
+            categoryId: r.categories.id, slug: r.categories.slug, level: r.level,
+        }));
+        const pillarLevels = normalizeToBudget(
+            initialLevels(visible, storedPillarRows.length > 0 ? storedPillarRows : null),
+            pillarBudget(visible.length),
+        );
 
-        let selectedCategoryIds = new Set<string>();
-        let rankedCategories: CategoryItem[] = [];
-
-        if (targetedRes.data?.length) {
-            selectedCategoryIds = new Set(targetedRes.data.map(r => r.category_id));
-            rankedCategories = targetedRes.data
-                .sort((a, b) => a.priority - b.priority)
-                .map(r => catItems.find(c => c.id === r.category_id)!)
-                .filter(Boolean);
-        }
 
         const currentEquipIds = new Set((userEquipRes.data ?? []).map(r => r.equipment_id));
 
@@ -209,9 +225,8 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
                 allEnvs: envItems,
                 selectedEnvIds,
                 equipmentByEnv: byEnv,
-                allCategories: catItems,
-                selectedCategoryIds,
-                rankedCategories,
+                pillarItems: visible,
+                pillarLevels,
                 selectedEquipmentIds: currentEquipIds,
                 savedEquipmentEnvMappings: userEqEnvRes.data ?? [],
                 loading: false,
@@ -301,13 +316,13 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
         });
     },
 
-    toggleCategory: (id) => {
-        set(state => {
-            const next = new Set(state.selectedCategoryIds);
-            next.has(id) ? next.delete(id) : next.add(id);
-            return { selectedCategoryIds: next };
-        });
-    },
+    setPillarLevels: (levels) => set({ pillarLevels: levels }),
+    setSprintClub: (value) => set({ sprintClub: value, sprintClubAnswered: true }),
+    setSprintDistance: (value) => set({ sprintDistance: value }),
+    setDayDuration: (day, minutes) => set(state => {
+        const rest = state.dayDurations.filter((d) => d.day_of_week !== day);
+        return { dayDurations: minutes === null ? rest : [...rest, { day_of_week: day, minutes }] };
+    }),
 
     togglePreferredDay: (dow) => {
         set(state => {
@@ -367,25 +382,25 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
             set({ phase: ambiguousEquipment.length > 0 ? 'equipment-env' : 'equipment' });
             return;
         }
-        if (phase === 'body') { set({ phase: 'goals' }); return; }
+        if (phase === 'sprint-context') { set({ phase: 'goals' }); return; }
+        if (phase === 'body') {
+            const hasSpeed = get().pillarItems.some((p) => p.slug === 'sprints' || p.slug === 'cod');
+            set({ phase: hasSpeed ? 'sprint-context' : 'goals' });
+            return;
+        }
         if (phase === 'weekly') { set({ phase: 'body' }); return; }
         if (phase === 'schedule') { set({ phase: 'weekly' }); return; }
         if (phase === 'schedule-detail') { set({ phase: 'schedule' }); return; }
     },
 
     goNext: () => {
-        const { phase, allCategories, selectedCategoryIds } = get();
+        const { phase, pillarItems } = get();
+        const hasSpeedPillar = pillarItems.some((p) => p.slug === 'sprints' || p.slug === 'cod');
         if (phase === 'environment') { get().goToEquipment(); return; }
         if (phase === 'equipment') { get().handleEquipmentNext(); return; }
         if (phase === 'equipment-env') { set({ phase: 'goals' }); return; }
-        if (phase === 'goals') {
-            // Tap order in the Set = priority order
-            const ranked = [...selectedCategoryIds]
-                .map(id => allCategories.find(c => c.id === id))
-                .filter((c): c is CategoryItem => !!c);
-            set({ rankedCategories: ranked, phase: 'body' });
-            return;
-        }
+        if (phase === 'goals') { set({ phase: hasSpeedPillar ? 'sprint-context' : 'body' }); return; }
+        if (phase === 'sprint-context') { set({ phase: 'body' }); return; }
         if (phase === 'body') { set({ phase: 'weekly' }); return; }
         if (phase === 'weekly') { set({ phase: 'schedule' }); return; }
         if (phase === 'schedule') { set({ phase: 'schedule-detail' }); return; }
@@ -397,7 +412,7 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
         const {
             profileId,
             selectedEnvIds, selectedEquipmentIds, equipmentEnvSelections,
-            rankedCategories, preferredDays, preferredDuration,
+            preferredDays, preferredDuration,
             scheduleNotes, sportSessions, dayEnvMap,
             weightKg, heightCm,
         } = get();
@@ -443,12 +458,17 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
                 await (supabase as any).from('user_equipment_environments').insert(equipEnvRows);
             }
 
-            // 5. Update goals
-            await supabase.from('user_targeted_categories').delete().eq('user_id', profileId);
-            if (rankedCategories.length > 0) {
-                await supabase.from('user_targeted_categories').insert(
-                    rankedCategories.map((cat, i) => ({ user_id: profileId, category_id: cat.id, priority: i + 1 }))
+            // 5. Säulen-Stufen (§6.5-Aktivierung: set_by_wizard schaltet auf v2)
+            const { pillarLevels, sprintClub, sprintDistance, dayDurations } = get();
+            // §6.5-Aktivierung — Fehler hier dürfen NICHT still bleiben: ein
+            // fehlgeschriebener Marker hieße v1-Plan ohne sichtbare Ursache.
+            if (pillarLevels.length > 0) {
+                const { error: delErr } = await supabase.from('user_pillar_levels').delete().eq('user_id', profileId);
+                if (delErr) throw delErr;
+                const { error: insErr } = await supabase.from('user_pillar_levels').insert(
+                    pillarLevels.map(({ categoryId, level }) => ({ user_id: profileId, category_id: categoryId, level, set_by_wizard: true }))
                 );
+                if (insErr) throw insErr;
             }
 
             // 6. Update schedule
@@ -456,8 +476,13 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
             await supabase.from('user_profiles')
                 .update({
                     preferred_workout_days: [...preferredDays].sort((a, b) => a - b),
-                    preferred_session_duration: preferredDuration,
+                    // Dauer wird seit 09.10. pro Tag im Tag-Editor gewählt; die
+                    // globale Dauer bleibt als Fallback für Tage ohne Override.
+                    preferred_session_duration: preferredDuration ?? '60min',
                     schedule_notes: scheduleNotes.trim() || null,
+                    sprints_covered_by_club: sprintClub,
+                    sprint_distance: sprintDistance,
+                    preferred_day_durations: dayDurations.length > 0 ? (dayDurations as any) : null,
                     weekly_schedule: { sessions: sportSessions, notes: null } as any,
                     day_environments: Object.entries(dayEnvMap).map(([day, environment_id]) => ({
                         day_of_week: Number(day),

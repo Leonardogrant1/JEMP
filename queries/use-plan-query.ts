@@ -1,4 +1,5 @@
 import { useCurrentUser } from '@/providers/current-user-provider';
+import { HERO_BLOCK_ORDER, isFocusChipBlock } from '@/constants/blocks';
 import { supabase } from '@/services/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from './query-keys';
@@ -22,7 +23,7 @@ async function fetchActivePlan(userId: string) {
                 estimated_duration_minutes, workout_plan_session_id, rest_adjust_seconds,
                 workout_session_blocks(
                     block_type:block_types(slug),
-                    workout_session_block_exercises(order_index, exercise:exercises(slug, image_group, category:categories(slug)))
+                    workout_session_block_exercises(order_index, exercise:exercises!workout_session_block_exercises_exercise_id_fkey(slug, image_group, category:categories(slug)))
                 )
             `)
             .eq('workout_plan_id', plan.id)
@@ -31,8 +32,9 @@ async function fetchActivePlan(userId: string) {
             .from('workout_plan_sessions')
             .select(`
                 id, plan_id, name, description, session_type, day_of_week,
-                estimated_duration_minutes, mode_slug,
+                estimated_duration_minutes, mode_slug, flexible_window,
                 workout_plan_session_blocks(
+                    emphasis,
                     block_type:block_types(slug),
                     workout_plan_session_block_exercises(order_index, exercise:exercises(slug, image_group, category:categories(slug)))
                 )
@@ -41,7 +43,7 @@ async function fetchActivePlan(userId: string) {
     ]);
 
     function extractPrimaryExerciseInfo(blocks: any[]): { slug: string | null; imageGroup: string | null } {
-        for (const blockSlug of ['primary', 'secondary', 'accessory'] as const) {
+        for (const blockSlug of HERO_BLOCK_ORDER) {
             const block = (blocks ?? []).find((b: any) => b.block_type?.slug === blockSlug);
             if (!block) continue;
             const exercises = (block.workout_session_block_exercises ?? block.workout_plan_session_block_exercises ?? []);
@@ -56,7 +58,7 @@ async function fetchActivePlan(userId: string) {
     function extractFocusCategories(blocks: any[]): string[] {
         const counts = new Map<string, number>();
         for (const block of (blocks ?? [])) {
-            if (!['primary', 'secondary'].includes(block.block_type?.slug)) continue;
+            if (!isFocusChipBlock(block.block_type?.slug)) continue;
             const exercises = (block.workout_session_block_exercises ?? block.workout_plan_session_block_exercises ?? []);
             for (const ex of exercises) {
                 const cat = ex.exercise?.category?.slug;
@@ -79,7 +81,12 @@ async function fetchActivePlan(userId: string) {
         planSessions: (planSessionsRes.data ?? []).map(ps => {
             const blocks = (ps as any).workout_plan_session_blocks ?? [];
             const { slug, imageGroup } = extractPrimaryExerciseInfo(blocks);
-            return { ...ps, primary_exercise_slug: slug, primary_image_group: imageGroup, focus_categories: extractFocusCategories(blocks) };
+            // Harter Beintag = Lower-Body-Block als heavy Primary (Komposition
+            // persistiert die Emphasis) — Basis der Sprint-Abstands-Warnung
+            // lower_strength = neue Welt (Spec 2026-10-10), lower_body = Alt-Pläne
+            const hasHeavyLower = blocks.some((b: any) =>
+                (b.block_type?.slug === 'lower_strength' || b.block_type?.slug === 'lower_body') && b.emphasis === 'heavy');
+            return { ...ps, primary_exercise_slug: slug, primary_image_group: imageGroup, focus_categories: extractFocusCategories(blocks), has_heavy_lower: hasHeavyLower };
         }),
     };
 }

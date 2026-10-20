@@ -9,6 +9,21 @@ function toDatabaseDow(date: Date): number {
     return jsDay === 0 ? 7 : jsDay;
 }
 
+// Plan gilt als abgeschlossen, sobald das end_date vorbei ist — oder bereits
+// am End-Tag selbst, wenn keine Session mehr offen ist (sonst würde der
+// Completed-Screen eine noch anstehende Session verdecken)
+function isPlanCompleted(
+    endDate: string | null | undefined,
+    sessions: { status: string }[],
+    todayStr: string
+): boolean {
+    if (!endDate) return false;
+    if (endDate < todayStr) return true;
+    if (endDate > todayStr) return false;
+    return sessions.length > 0
+        && sessions.every(s => s.status !== 'scheduled' && s.status !== 'in_progress');
+}
+
 function getSessionModeSlug(
     session: WorkoutSession | null | undefined,
     planSessions: PlanSession[]
@@ -70,4 +85,4 @@ function getDayVariant(date: Date, weeklySchedule: WeeklySchedule | null | undef
 }
 
 
-export { getNextScheduledSession, getTodaySessions, getDayVariant, toDatabaseDow, getSessionModeSlug };
+export { getNextScheduledSession, getTodaySessions, getDayVariant, isPlanCompleted, toDatabaseDow, getSessionModeSlug };

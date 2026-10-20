@@ -1,0 +1,10 @@
+app = "jemp-temporal-worker-staging"
+primary_region = "fra"
+
+[deploy]
+  strategy = "immediate"
+
+[vm]
+  memory = "2gb"
+  cpu_kind = "shared"
+  cpus = 2

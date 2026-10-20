@@ -79,7 +79,7 @@ export default function GoalsScreen() {
         setLoading(true);
 
         Promise.all([
-            supabase.from('categories').select('id, slug, name_i18n'),
+            supabase.from('categories').select('id, slug, name_i18n').eq('is_active', true),
             supabase.from('user_targeted_categories').select('category_id, priority').eq('user_id', userId).order('priority'),
             supabase.from('user_category_levels').select('category_id, level_score').eq('user_id', userId),
         ]).then(([catsRes, targetedRes, levelsRes]) => {

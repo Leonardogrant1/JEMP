@@ -167,6 +167,7 @@ function MainStack({ languageReady }: { languageReady: boolean }) {
         <Stack.Screen name="sign-out-confirm" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="assessment-confirm" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="session-manage" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+        <Stack.Screen name="swap-exercise" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="session-reschedule" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="session-rest-adjust" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="equipment" options={{ animation: 'slide_from_bottom', headerShown: false, gestureEnabled: false }} />

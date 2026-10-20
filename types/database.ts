@@ -32,6 +32,9 @@ export type UserProfile = {
   preferred_workout_days: number[]
   preferred_session_duration: SessionDuration | null
   schedule_notes: string | null
+  sprints_covered_by_club: boolean
+  sprint_distance: 'under_20m' | '20_40m' | 'over_40m' | null
+  preferred_day_durations: Array<{ day_of_week: number; minutes: number }> | null
   unit_system: 'metric' | 'imperial'
   preferred_language: 'en' | 'de' | null
   push_token: string | null

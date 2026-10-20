@@ -1,30 +1,25 @@
 import GameIcon from '@/assets/icons/game.svg';
+import { InfoCallout } from '@/components/ui/info-callout';
 import { JempText } from '@/components/jemp-text';
 import { useOnboardingControl } from '@/components/onboarding/onboarding-control-context';
-import { SelectableChip } from '@/components/ui/selectable-chip';
 import { ENV_ICONS } from '@/constants/environment-icons';
 import { getSportKind } from '@/constants/sports';
 import { Colors, GradientMid } from '@/constants/theme';
+import { computeLoadProfile, maxWorkoutDays, MIN_WORKOUT_DAYS } from '@/lib/load-profile';
+import { computeWeekComposition, extraSessionAllowance, speedFocusWithoutSpeedDay } from '@/lib/week-allocation';
+import { JempDialog } from '@/components/ui/jemp-dialog';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTrainingAnimationBySlug } from '@/hooks/use-training-animation';
 import { supabase } from '@/services/supabase/client';
 import { useOnboardingStore } from '@/stores/onboarding-store';
-import { SessionDuration } from '@/types/database';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, View, Pressable } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-
-const DURATIONS: { value: SessionDuration; label: string }[] = [
-    { value: '30min', label: '30 min' },
-    { value: '45min', label: '45 min' },
-    { value: '60min', label: '60 min' },
-    { value: '90min', label: '90 min' },
-];
 
 type EnvItem = { id: string; slug: string; name_i18n: Record<string, string> | null };
 
@@ -32,6 +27,10 @@ export function WorkoutPrefsStep() {
     const { t } = useTranslation();
     const { setCanContinue } = useOnboardingControl();
     const storedDays = useOnboardingStore((s) => s.preferred_workout_days);
+    const pillarLevels = useOnboardingStore((s) => s.pillarLevels);
+    const sprintsCoveredByClub = useOnboardingStore((s) => s.sprints_covered_by_club);
+    const [showCapInfo, setShowCapInfo] = useState(false);
+    const dayDurations = useOnboardingStore((s) => s.preferred_day_durations);
     const storedDuration = useOnboardingStore((s) => s.preferred_session_duration);
     const storedDayEnvironments = useOnboardingStore((s) => s.dayEnvironments);
     const environmentIds = useOnboardingStore((s) => s.environmentIds);
@@ -54,8 +53,14 @@ export function WorkoutPrefsStep() {
         { value: 7, label: t('onboarding.workout_prefs_day_sun') },
     ];
 
-    const [selectedDuration, setSelectedDuration] = useState<SessionDuration | null>(storedDuration ?? null);
     const [environments, setEnvironments] = useState<EnvItem[]>([]);
+
+    // Dauer wird pro Tag im Tag-Editor gewählt — global bleibt nur noch der
+    // 60-min-Fallback für Tage ohne Override (QA 09.10.).
+    useEffect(() => {
+        if (!storedDuration) setStore({ preferred_session_duration: '60min' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Tage + Env-Zuordnung leben direkt im Store — der training-day-editor-Sheet
     // schreibt dorthin, die Rows spiegeln seine Änderungen live
@@ -64,10 +69,25 @@ export function WorkoutPrefsStep() {
     storedDayEnvironments.forEach((de) => { dayEnvMap[de.day_of_week] = de.environment_id; });
     const multiEnv = environmentIds.length > 1;
 
+    // Mehr Vereinsbelastung → weniger wählbare eigene Einheiten
+    // Cap = Workout-Cap + Session-Allowance (Spec §3.1): Überschuss-Tage werden
+    // zu Speed-/Conditioning-Einheiten — der Tage-Cap muss sie zulassen.
+    const loadProfile = computeLoadProfile(sportSessions).load_profile;
+    const pillarLevelMap: Record<string, 1 | 2 | 3> = {};
+    pillarLevels.forEach((l) => { pillarLevelMap[l.slug] = l.level; });
+    const allowance = extraSessionAllowance({ loadProfile, pillarLevels: pillarLevelMap, sprintsCoveredByClub: sprintsCoveredByClub ?? false });
+    const maxDays = maxWorkoutDays(loadProfile) + allowance;
+    const atCap = selectedDays.size >= maxDays;
+    const overCap = selectedDays.size > maxDays;
+    const missingDays = MIN_WORKOUT_DAYS - selectedDays.size;
+
     useEffect(() => {
-        setCanContinue(selectedDays.size > 0 && selectedDuration !== null);
+        setCanContinue(
+            selectedDays.size >= MIN_WORKOUT_DAYS
+            && selectedDays.size <= maxDays,
+        );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [storedDays, selectedDuration]);
+    }, [storedDays, maxDays]);
 
     useEffect(() => {
         if (environmentIds.length > 1) {
@@ -81,29 +101,18 @@ export function WorkoutPrefsStep() {
         }
     }, [environmentIds]);
 
-    // Wizard-Logik: neuer Tag → an + (bei mehreren Orten) Sheet zur Ort-Wahl;
-    // aktiver Tag → Sheet (dort „Tag leeren") bzw. bei einem Ort direkt abwählen
+    // Tap öffnet immer den Tag-Editor (Ort + Dauer); Abwählen passiert dort
+    // über "Tag leeren" (QA 09.10. — Dauer pro Tag statt globaler Auswahl).
     function handleDayPress(dow: number) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         const active = selectedDays.has(dow);
-        if (!active) {
-            setStore({ preferred_workout_days: [...(storedDays ?? []), dow] });
-            if (multiEnv) router.push(`/training-day-editor?day=${dow}&source=onboarding`);
+        if (!active && atCap) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            setShowCapInfo(true);
             return;
         }
-        if (multiEnv) {
-            router.push(`/training-day-editor?day=${dow}&source=onboarding`);
-            return;
-        }
-        setStore({
-            preferred_workout_days: (storedDays ?? []).filter((d) => d !== dow),
-            dayEnvironments: storedDayEnvironments.filter((de) => de.day_of_week !== dow),
-        });
-    }
-
-    function selectDuration(value: SessionDuration) {
-        setSelectedDuration(value);
-        setStore({ preferred_session_duration: value });
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        if (!active) setStore({ preferred_workout_days: [...(storedDays ?? []), dow] });
+        router.push(`/training-day-editor?day=${dow}&source=onboarding`);
     }
 
     return (
@@ -120,6 +129,7 @@ export function WorkoutPrefsStep() {
             <Animated.View entering={FadeInDown.delay(360).duration(500).springify()} style={styles.dayList}>
                 {DAYS.map(({ value: dow, label }) => {
                     const active = selectedDays.has(dow);
+                    const blocked = !active && atCap;
                     return (
                         <TouchableOpacity
                             key={dow}
@@ -130,6 +140,7 @@ export function WorkoutPrefsStep() {
                                 active
                                     ? { backgroundColor: `${GradientMid}18`, borderColor: GradientMid }
                                     : { backgroundColor: 'transparent', borderColor: theme.borderDivider },
+                                blocked && styles.dayRowBlocked,
                             ]}
                         >
                             <JempText
@@ -190,6 +201,13 @@ export function WorkoutPrefsStep() {
                                         />
                                     );
                                 })()}
+                                {/* Dauer-Override nur anzeigen — geändert wird sie im Tag-Editor */}
+                                {active && (() => {
+                                    const override = (dayDurations ?? []).find((d) => d.day_of_week === dow);
+                                    return override
+                                        ? <JempText type="caption" color={GradientMid}>{`${override.minutes}m`}</JempText>
+                                        : null;
+                                })()}
                                 {active
                                     ? <Ionicons name="checkmark-circle" size={16} color={GradientMid} />
                                     : <Ionicons name="add" size={18} color={theme.textSubtle} />
@@ -198,25 +216,56 @@ export function WorkoutPrefsStep() {
                         </TouchableOpacity>
                     );
                 })}
+                {missingDays > 0 ? (
+                    <JempText type="caption" color={theme.textMuted} style={styles.maxDaysHint}>
+                        {t(missingDays === 1 ? 'onboarding.workout_prefs_min_days_hint_one' : 'onboarding.workout_prefs_min_days_hint', { count: missingDays })}
+                    </JempText>
+                ) : atCap && (
+                    <JempText type="caption" color={overCap ? '#ef4444' : theme.textMuted} style={styles.maxDaysHint}>
+                        {t(overCap ? 'onboarding.workout_prefs_max_days_over' : 'onboarding.workout_prefs_max_days_hint', { count: maxDays })}
+                    </JempText>
+                )}
+                {selectedDays.size >= MIN_WORKOUT_DAYS && speedFocusWithoutSpeedDay({
+                    availableDayCount: selectedDays.size, loadProfile,
+                    pillarLevels: pillarLevelMap, sprintsCoveredByClub: sprintsCoveredByClub ?? false,
+                }) && (
+                    <InfoCallout icon="flash-outline" text={t('plan.speed_micro_hint')} />
+                )}
+                {(() => {
+                    // Live-Zusammensetzung (§3.4): deterministisch aus dem Allocation-Spiegel —
+                    // verspricht exakt das, was der Generator baut.
+                    if (selectedDays.size < MIN_WORKOUT_DAYS || pillarLevels.length === 0) return null;
+                    const levelMap: Record<string, 1 | 2 | 3> = {};
+                    pillarLevels.forEach((l) => { levelMap[l.slug] = l.level; });
+                    const comp = computeWeekComposition({
+                        availableDayCount: selectedDays.size,
+                        loadProfile,
+                        pillarLevels: levelMap,
+                        sprintsCoveredByClub: sprintsCoveredByClub ?? false,
+                    });
+                    const parts: string[] = [t('week_composition.workouts', { count: comp.workouts })];
+                    if (comp.speedDays === 1) parts.push(t('week_composition.speed_days', { count: 1 }));
+                    if (comp.speedDays > 1) parts.push(t('week_composition.speed_days_plural', { count: comp.speedDays }));
+                    if (comp.speedDays === 0 && comp.carrier === 'integrated') parts.push(t('week_composition.sprint_integrated'));
+                    if (comp.conditioningDay) parts.push(t('week_composition.conditioning_day'));
+                    const line = parts.join(' + ') + (comp.mobilityDay ? ` · ${t('week_composition.mobility')}` : '');
+                    return (
+                        <JempText type="caption" color={GradientMid} style={styles.maxDaysHint}>
+                            {line}
+                        </JempText>
+                    );
+                })()}
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(480).duration(500).springify()} style={styles.section}>
-                <JempText type="caption" color={theme.textMuted} style={styles.sectionLabel}>
-                    {t('onboarding.workout_prefs_duration_label')}
-                </JempText>
-                <View style={styles.durationRow}>
-                    {DURATIONS.map((d) => (
-                        <SelectableChip
-                            key={d.value}
-                            label={d.label}
-                            selected={selectedDuration === d.value}
-                            onPress={() => selectDuration(d.value)}
-                            style={styles.durationChip}
-                        />
-                    ))}
-                </View>
-            </Animated.View>
-
+            <JempDialog
+                visible={showCapInfo}
+                title={t('plan.schedule_cap_title')}
+                message={t(loadProfile !== 'low' ? 'plan.schedule_cap_body_load' : 'plan.schedule_cap_body_free', { count: maxDays })}
+                buttonLabel={t('ui.got_it')}
+                icon="information-circle-outline"
+                iconColor={GradientMid}
+                onDismiss={() => setShowCapInfo(false)}
+            />
         </ScrollView>
     );
 }
@@ -233,6 +282,8 @@ const styles = StyleSheet.create({
     title: { marginBottom: 10 },
     subtitle: { marginBottom: 28 },
     dayList: { gap: 8 },
+    dayRowBlocked: { opacity: 0.35 },
+    maxDaysHint: { marginTop: 6, lineHeight: 17 },
     dayRow: {
         flexDirection: 'row',
         alignItems: 'center',

@@ -34,8 +34,11 @@ export type SessionBuildInput = {
   /** Sport-Pflicht-Regionen — Wochen-Abdeckung wird in Phase C validiert */
   requiredRegions?: string[]
   blockPools: Array<{
-    block_type: 'primary' | 'secondary' | 'accessory'
+    // Widened for v2 pattern blocks (push/pull/lower_body/...); legacy only emits the original three.
+    block_type: string
     category_slug: string
+    variant?: string | null
+    emphasis?: 'heavy' | 'normal' | 'light'
     exercisesString: string
     slugs: string
     bodyRegions: string[]
@@ -54,6 +57,8 @@ export type SessionBuildInput = {
   cooldownExercisesString: string
   cooldownSlugs: string
   cooldownCategorySlugs: string[]
+  /** v2 payload (phase 2b) — present only on the new generation path. */
+  v2?: import('./v2/run-session-v2').V2SessionContext
 }
 
 export type PrepareResult = {
@@ -65,6 +70,9 @@ export type PrepareResult = {
   exerciseSlugToBodyRegion: Record<string, string>
   allExerciseSlugs: string[]
   environmentIds: string[]
+  /** v2 (phase 2b): which path produced this result — legacy fills neither field. */
+  pathVersion?: 'legacy' | 'v2'
+  prebuiltSessions?: PlannedSession[]
 }
 
 // ─── Mode determination ───────────────────────────────────────
@@ -86,12 +94,8 @@ function lighterMode(a: SessionModeSlug, b: SessionModeSlug): SessionModeSlug {
 
 // ─── Kraftmuster (movement patterns) ──────────────────────────
 
-export const BODY_REGION_TO_PATTERN: Record<string, string> = {
-  quad: 'squat',
-  hamstring: 'hinge', glute: 'hinge',
-  chest: 'push', shoulder: 'push', tricep: 'push',
-  upper_back: 'pull', bicep: 'pull',
-}
+import { BODY_REGION_TO_PATTERN, effectiveRegion } from './taxonomy'
+export { BODY_REGION_TO_PATTERN, effectiveRegion }
 
 export const PATTERN_TO_REGIONS: Record<string, string[]> = {
   squat: ['quad'],
@@ -104,14 +108,6 @@ export const ALL_PATTERNS = ['squat', 'hinge', 'push', 'pull']
 
 export function patternsFromRegions(regions: string[]): string[] {
   return [...new Set(regions.map((r) => BODY_REGION_TO_PATTERN[r]).filter(Boolean))]
-}
-
-// Effektive Region einer Übung für Filter und Kraftmuster: full_body-Übungen
-// mit gepflegter dominant_region (z.B. power_clean → glute) werden über diese
-// sichtbar; ohne dominant_region bleiben sie bewusst allgemein.
-export function effectiveRegion(e: { body_region?: string | null; dominant_region?: string | null }): string | null {
-  if (e.body_region === 'full_body') return e.dominant_region ?? e.body_region ?? null
-  return e.body_region ?? null
 }
 
 // Höchste verfügbare Intensität pro Kraftmuster im Pool — Grundlage für den
@@ -416,7 +412,7 @@ export async function prepareGeneration(
   // Primary/Secondary tragen nur Übungen, die dafür getaggt sind — Warmup-/
   // Accessory-Ware im selben Pool (z.B. band_pull_apart in upper_body_plyometrics)
   // zählt nicht als echte Auswahl für den Block.
-  function countBlockCapable(pool: any[], blockType: 'primary' | 'secondary' | 'accessory'): number {
+  function countBlockCapable(pool: any[], blockType: string): number {
     if (blockType === 'accessory') return pool.length
     return pool.filter((e: any) =>
       ((e.exercise_blocks as any[]) ?? []).some((b: any) => b.block_types?.slug === blockType),
@@ -426,7 +422,7 @@ export async function prepareGeneration(
   // Gemeinsamer Pool-Bau für Hauptblöcke: Category/Mode-Filter → Region-Filter
   // (mit Fallback auf ungefiltert) → Core-Beimischung für Accessory-Blöcke
   function buildMainBlockPool(
-    blockType: 'primary' | 'secondary' | 'accessory',
+    blockType: string,
     categorySlug: string,
     bodyRegions: string[],
     modeSlug: SessionModeSlug,
@@ -828,7 +824,8 @@ export async function prepareGeneration(
   // ── 5. Phase B: Code builds all exercise pools per session ───
 
   type BlockPool = {
-    block_type: 'primary' | 'secondary' | 'accessory'
+    // Widened for v2 pattern blocks (typing only — legacy emits the original three)
+    block_type: string
     category_slug: string
     exercisesString: string
     slugs: string

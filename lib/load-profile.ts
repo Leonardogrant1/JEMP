@@ -1,4 +1,16 @@
-import { WeeklyScheduleSession } from '@/types/user-data';
+import { LoadProfile, WeeklyScheduleSession } from '@/types/user-data';
+
+// Eigene Trainingstage sind supplementär zum Vereinssport: mehr Wochenbelastung
+// durch Team-Training/Spiele → weniger zusätzliche Einheiten sinnvoll
+export const MIN_WORKOUT_DAYS = 2;
+
+export function maxWorkoutDays(profile: LoadProfile): number {
+    switch (profile) {
+        case 'low': return 5; // ohne Verein/Spiel sind 5 eigene Tage trainierbar
+        case 'medium': return 3;
+        case 'high': return 2;
+    }
+}
 
 function intensityToPoints(intensity: number): number {
     if (intensity <= 2) return 1;

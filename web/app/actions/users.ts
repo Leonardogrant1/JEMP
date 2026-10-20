@@ -617,7 +617,7 @@ export async function fetchSessionDetail(sessionId: string): Promise<SessionDeta
         workout_session_block_exercises(
           id, order_index,
           target_sets, target_load_type,
-          exercise:exercises(name),
+          exercise:exercises!workout_session_block_exercises_exercise_id_fkey(name),
           workout_session_performed_sets(
             set_number, side,
             performed_reps, performed_load_value, performed_rpe,

@@ -1,6 +1,8 @@
 import { CATEGORY_SVG_ICONS } from "@/constants/category-icons";
 import { getCategoryLabelShort } from "@/constants/category-labels";
 import { ALL_STAT_SLUGS } from "@/constants/progress-constants";
+import { pillarSourceStatus } from '@/lib/pillar-score';
+import type { CategoryLevelMeta } from '@/queries/use-user-category-levels-query';
 import { Colors, Cyan } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { CategoryHistoryPoint } from "@/queries/use-user-category-history-query";
@@ -18,9 +20,12 @@ interface CategoryStatGridProps {
     history: Record<string, CategoryHistoryPoint[]>;
     selected: string;
     onSelect: (key: string) => void;
+    /** Sport-sichtbare Säulen (Spec §5.4) — ohne Angabe: alle. */
+    visibleSlugs?: string[];
+    meta?: Record<string, CategoryLevelMeta>;
 }
 
-export function CategoryStatGrid({ levels, trends, history, selected, onSelect }: CategoryStatGridProps) {
+export function CategoryStatGrid({ levels, trends, history, selected, onSelect, visibleSlugs, meta }: CategoryStatGridProps) {
     const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const isDark = (colorScheme ?? 'dark') === 'dark';
@@ -31,10 +36,11 @@ export function CategoryStatGrid({ levels, trends, history, selected, onSelect }
 
     return (
         <View style={styles.grid}>
-            {ALL_STAT_SLUGS.map((slug, index) => {
+            {ALL_STAT_SLUGS.filter((s) => !visibleSlugs || visibleSlugs.includes(s)).map((slug, index) => {
                 const active = slug === selected;
                 const value = levels[slug];
                 const trend = trends[slug] ?? null;
+                const status = meta?.[slug] ? pillarSourceStatus(meta[slug].source, meta[slug].measuredAt, new Date()) : null;
                 const Icon = CATEGORY_SVG_ICONS[slug];
                 return (
                     <Pressable
@@ -53,6 +59,11 @@ export function CategoryStatGrid({ levels, trends, history, selected, onSelect }
                                 <JempText type="caption" color={theme.textMuted} style={styles.label} numberOfLines={1}>
                                     {getCategoryLabelShort(slug, t)}
                                 </JempText>
+                                {status && status !== 'measured' && (
+                                    <JempText type="caption" color={status === 'stale' ? '#f59e0b' : theme.textSubtle}>
+                                        {t(`score_source.${status}`)}
+                                    </JempText>
+                                )}
                             </View>
                             <View style={styles.valueRow}>
                                 <JempText type="h1" style={styles.value}>

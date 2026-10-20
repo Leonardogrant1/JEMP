@@ -1,25 +1,31 @@
 import { JempText } from '@/components/jemp-text';
+import { blockTypeLabelKey } from '@/helpers/block-label';
 import { SectionHeader } from '@/components/plan/SectionHeader';
 import { CATEGORY_SVG_ICONS } from '@/constants/category-icons';
 import { CategoryChip, ModeChip, SessionChip } from '@/components/plan/SessionChip';
 import { StatsStrip } from '@/components/profile/stats-strip';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ExerciseActionsMenu } from '@/components/ui/exercise-actions-menu';
+import { HERO_BLOCK_ORDER, isContentBlock, isFocusChipBlock } from '@/constants/blocks';
+import { distancePrescription, intervalPrescription } from '@/lib/prescription';
 import { getSessionImage } from '@/constants/session-images';
 import { Colors, GradientMid, Neutral } from '@/constants/theme';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
 import { formatLoad, formatReps, formatRest } from '@/helpers/format';
+import { isSwappableBlock, swapExerciseUrl } from '@/helpers/swap-support';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { usePlan } from '@/providers/plan-provider';
+import { useActiveSessionStore } from '@/stores/active-session-store';
 import { useSessionDetailQuery, type SessionDetail } from '@/queries/use-session-detail-query';
 import { useSessionThumbnailsQuery } from '@/queries/use-session-thumbnails-query';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, {
     Extrapolation,
     interpolate,
@@ -71,6 +77,9 @@ export default function SessionDetailScreen() {
     const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
+    const [menuSwapUrl, setMenuSwapUrl] = useState<string | null>(null);
+    // Geloggte Sätze der (ggf. laufenden) Session — Quelle wie in der ExerciseCard.
+    const pendingSets = useActiveSessionStore(s => s.pendingSets);
 
     const { data: session, isLoading } = useSessionDetailQuery(id);
     const stats = useMemo(() => session ? computeStats(session) : null, [session]);
@@ -82,7 +91,7 @@ export default function SessionDetailScreen() {
     // Gleiche Bild-Logik wie die Session-Cards im Plan: erste Übung des
     // wichtigsten Trainingsblocks bestimmt das Hero-Foto
     const heroImage = useMemo(() => {
-        for (const type of ['primary', 'secondary', 'accessory']) {
+        for (const type of HERO_BLOCK_ORDER) {
             const block = session?.blocks.find(b => b.block_type?.slug === type);
             const first = block?.exercises[0]?.exercise;
             if (first) return getSessionImage(first.slug, first.image_group, remoteThumbnails);
@@ -98,7 +107,7 @@ export default function SessionDetailScreen() {
     const focusCategories = useMemo(() => {
         const slugs: string[] = [];
         for (const b of session?.blocks ?? []) {
-            if (!['primary', 'secondary'].includes(b.block_type?.slug ?? '')) continue;
+            if (!isFocusChipBlock(b.block_type?.slug)) continue;
             const slug = b.focused_category?.slug;
             if (slug && !slugs.includes(slug)) slugs.push(slug);
         }
@@ -225,14 +234,16 @@ export default function SessionDetailScreen() {
                     <View key={block.id} style={styles.blockSection}>
                         {/* Block header — Kategorie (mit Icon) nur bei den Trainingsblöcken */}
                         {(() => {
-                            const isMainBlock = ['primary', 'secondary', 'accessory'].includes(block.block_type?.slug ?? '');
+                            const isMainBlock = isContentBlock(block.block_type?.slug);
                             const categorySlug = isMainBlock ? block.focused_category?.slug : undefined;
                             const CategoryIcon = categorySlug ? CATEGORY_SVG_ICONS[categorySlug] : undefined;
+                            const labelKey = blockTypeLabelKey(
+                                block.block_type?.slug,
+                                block.exercises.map(ex => ex.exercise?.category?.slug),
+                            );
                             return (
                                 <SectionHeader
-                                    label={block.block_type
-                                        ? t(`block_type.${block.block_type.slug}`)
-                                        : `Block ${blockIdx + 1}`}
+                                    label={labelKey ? t(labelKey as never) : `Block ${blockIdx + 1}`}
                                     caption={categorySlug ? t(`category.${categorySlug}`) : undefined}
                                     captionIcon={CategoryIcon
                                         ? <CategoryIcon width={14} height={14} color={theme.textMuted} />
@@ -282,12 +293,30 @@ export default function SessionDetailScreen() {
                                             </JempText>
                                         )}
                                         <View style={styles.exerciseMeta}>
-                                            {ex.target_sets && (
+                                            {(() => {
+                                                // Intervall (Conditioning) > Distanz (Sprint, Spec §5.2) > Sätze×Wdh
+                                                const interval = intervalPrescription(ex);
+                                                if (interval) {
+                                                    return (
+                                                        <JempText type="caption" color={theme.textSubtle}>
+                                                            {t('prescription.rounds', { rounds: interval.rounds, work: interval.workSeconds, rest: interval.restSeconds })}
+                                                        </JempText>
+                                                    );
+                                                }
+                                                const distance = distancePrescription(ex);
+                                                if (!distance) return null;
+                                                return (
+                                                    <JempText type="caption" color={theme.textSubtle}>
+                                                        {t('prescription.distance', { attempts: distance.attempts, meters: distance.meters })}
+                                                    </JempText>
+                                                );
+                                            })()}
+                                            {!intervalPrescription(ex) && !distancePrescription(ex) && ex.target_sets && (
                                                 <JempText type="caption" color={theme.textSubtle}>
                                                     {ex.target_sets} {t('ui.sets')}
                                                 </JempText>
                                             )}
-                                            {reps !== '' && (
+                                            {!intervalPrescription(ex) && !distancePrescription(ex) && reps !== '' && (
                                                 <>
                                                     <JempText type="caption" color={Neutral[7]}>{'  ·  '}</JempText>
                                                     <JempText type="caption" color={theme.textSubtle}>
@@ -295,7 +324,7 @@ export default function SessionDetailScreen() {
                                                     </JempText>
                                                 </>
                                             )}
-                                            {rest && (
+                                            {!intervalPrescription(ex) && rest && (
                                                 <>
                                                     <JempText type="caption" color={Neutral[7]}>{'  ·  '}</JempText>
                                                     <Ionicons name="timer-outline" size={10} color={theme.textSubtle} />
@@ -306,6 +335,30 @@ export default function SessionDetailScreen() {
                                             )}
                                         </View>
                                     </View>
+
+                                    {/* ⋯-Menü (QA 19.10.) — nur solange die Session noch
+                                        bevorsteht/läuft; abgeschlossene Sessions sind Historie.
+                                        Separater Touchable (kein Bubbling in RN), daher kein
+                                        stopPropagation nötig. Nur bei Blocktypen, die der
+                                        Swap-Pool-Builder unterstützt (Finding 2b) — sonst wäre
+                                        das Menü ohne sinnvolle Aktion. */}
+                                    {(session.status === 'scheduled' || session.status === 'in_progress') && session.scheduled_at && isSwappableBlock(block.block_type?.slug) && (
+                                        <TouchableOpacity
+                                            hitSlop={8}
+                                            onPress={() => setMenuSwapUrl(swapExerciseUrl({
+                                                sessionId: session.id,
+                                                blockExerciseId: ex.id,
+                                                planBlockExerciseId: ex.workout_plan_session_block_exercise_id,
+                                                scheduledAt: session.scheduled_at,
+                                                exerciseId: ex.exercise.id,
+                                                // Review 20.10. (C1): war hartkodiert '0' — bei in_progress-
+                                                // Sessions mit geloggten Sätzen griff die Sofort-Sperre nie.
+                                                hasLoggedSets: pendingSets.some((ps) => ps.workout_session_block_exercise_id === ex.id),
+                                            }))}
+                                        >
+                                            <Ionicons name="ellipsis-vertical" size={18} color={theme.textMuted} />
+                                        </TouchableOpacity>
+                                    )}
                                 </Pressable>
                             );
                         })}
@@ -318,6 +371,12 @@ export default function SessionDetailScreen() {
             <Pressable onPress={() => router.back()} hitSlop={12} style={[styles.backBtn, { top: insets.top + 8 }]}>
                 <Ionicons name="chevron-back" size={22} color="#fff" />
             </Pressable>
+
+            <ExerciseActionsMenu
+                visible={menuSwapUrl !== null}
+                onClose={() => setMenuSwapUrl(null)}
+                onSwap={() => { if (menuSwapUrl) router.push(menuSwapUrl as never); }}
+            />
         </View>
     );
 }

@@ -57,7 +57,7 @@ export function CategoryLevelStep() {
     const [scrollLocked, setScrollLocked] = useState(false);
 
     useEffect(() => {
-        supabase.from('categories').select('id, slug, name_i18n, description_i18n').then(({ data }) => {
+        supabase.from('categories').select('id, slug, name_i18n, description_i18n').eq('is_active', true).then(({ data }) => {
             if (!data) return;
             const cats = data as CategoryItem[];
             setCategories(cats);

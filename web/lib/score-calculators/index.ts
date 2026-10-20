@@ -11,3 +11,8 @@ export { bodyweightStrengthLevel, oneRmLevel } from './strength';
 export type { BodyweightExercise, OneRmExercise } from './strength';
 
 export { mobilityEaseLevel } from './mobility';
+export { sprintLevel } from './sprints';
+export type { SprintExercise } from './sprints';
+export { codLevel, codTestLevel } from './cod';
+export type { CodTest } from './cod';
+export { rstConditioningLevel, cooperLevel } from './conditioning';

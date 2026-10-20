@@ -1,2042 +1,1148 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
+  
+  "graphql_public": {
+          Tables: {
+            [_ in never]: never
+          }
+          Views: {
+            [_ in never]: never
+          }
+          Functions: {
+            "graphql":
+{ Args: { "extensions"?: Json,"operationName"?: string,"query"?: string,"variables"?: Json }; Returns: Json
+                           }
+          }
+          Enums: {
+            [_ in never]: never
+          }
+          CompositeTypes: {
+            [_ in never]: never
+          }
+        },"public": {
+          Tables: {
+            "affiliate_leads": {
+                  Row: {
+                    "code": string,"country": string | null,"created_at": string,"id": string,"platform": string | null,"referer": string | null,"session_id": string,"status": Database["public"]['Enums']["affiliate_lead_status"],"updated_at": string,"view_count": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "code": string,"country"?: string | null,"created_at"?: string,"id"?: string,"platform"?: string | null,"referer"?: string | null,"session_id": string,"status"?: Database["public"]['Enums']["affiliate_lead_status"],"updated_at"?: string,"view_count"?: number
+                  }
+                  Update: {
+                    "code"?: string,"country"?: string | null,"created_at"?: string,"id"?: string,"platform"?: string | null,"referer"?: string | null,"session_id"?: string,"status"?: Database["public"]['Enums']["affiliate_lead_status"],"updated_at"?: string,"view_count"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"assessment_equipments": {
+                  Row: {
+                    "assessment_id": string | null,"created_at": string | null,"equipment_id": string | null,"id": string,"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "assessment_id"?: string | null,"created_at"?: string | null,"equipment_id"?: string | null,"id"?: string,"updated_at"?: string | null
+                  }
+                  Update: {
+                    "assessment_id"?: string | null,"created_at"?: string | null,"equipment_id"?: string | null,"id"?: string,"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "assessment_equipments_assessment_id_fkey"
+      columns: ["assessment_id"]
+isOneToOne: false
+      referencedRelation: "assessments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "assessment_equipments_equipment_id_fkey"
+      columns: ["equipment_id"]
+isOneToOne: false
+      referencedRelation: "equipments"
+      referencedColumns: ["id"]
     }
-    Views: {
-      [_ in never]: never
+                  ]
+                },"assessments": {
+                  Row: {
+                    "category_id": string | null,"created_at": string | null,"description": string | null,"description_i18n": Json | null,"id": string,"max_level": number,"measured_metric_id": string | null,"min_level": number,"name": string,"name_i18n": Json | null,"slug": string,"updated_at": string | null,"video_storage_path": string | null,"youtube_url": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "category_id"?: string | null,"created_at"?: string | null,"description"?: string | null,"description_i18n"?: Json | null,"id"?: string,"max_level": number,"measured_metric_id"?: string | null,"min_level": number,"name": string,"name_i18n"?: Json | null,"slug": string,"updated_at"?: string | null,"video_storage_path"?: string | null,"youtube_url"?: string | null
+                  }
+                  Update: {
+                    "category_id"?: string | null,"created_at"?: string | null,"description"?: string | null,"description_i18n"?: Json | null,"id"?: string,"max_level"?: number,"measured_metric_id"?: string | null,"min_level"?: number,"name"?: string,"name_i18n"?: Json | null,"slug"?: string,"updated_at"?: string | null,"video_storage_path"?: string | null,"youtube_url"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "assessments_category_id_fkey"
+      columns: ["category_id"]
+isOneToOne: false
+      referencedRelation: "categories"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "assessments_measured_metric_id_fkey"
+      columns: ["measured_metric_id"]
+isOneToOne: false
+      referencedRelation: "metrics"
+      referencedColumns: ["id"]
     }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
+                  ]
+                },"block_types": {
+                  Row: {
+                    "created_at": string | null,"id": string,"slug": string,"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string | null,"id"?: string,"slug": string,"updated_at"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string | null,"id"?: string,"slug"?: string,"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"categories": {
+                  Row: {
+                    "created_at": string | null,"description_i18n": Json | null,"id": string,"is_active": boolean,"name_i18n": Json | null,"slug": string,"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string | null,"description_i18n"?: Json | null,"id"?: string,"is_active"?: boolean,"name_i18n"?: Json | null,"slug": string,"updated_at"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string | null,"description_i18n"?: Json | null,"id"?: string,"is_active"?: boolean,"name_i18n"?: Json | null,"slug"?: string,"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"category_metrics": {
+                  Row: {
+                    "category_id": string | null,"created_at": string | null,"id": string,"metric_id": string | null,"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "category_id"?: string | null,"created_at"?: string | null,"id"?: string,"metric_id"?: string | null,"updated_at"?: string | null
+                  }
+                  Update: {
+                    "category_id"?: string | null,"created_at"?: string | null,"id"?: string,"metric_id"?: string | null,"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "category_metrics_category_id_fkey"
+      columns: ["category_id"]
+isOneToOne: false
+      referencedRelation: "categories"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "category_metrics_metric_id_fkey"
+      columns: ["metric_id"]
+isOneToOne: false
+      referencedRelation: "metrics"
+      referencedColumns: ["id"]
     }
-    Enums: {
-      [_ in never]: never
+                  ]
+                },"environment_equipments": {
+                  Row: {
+                    "created_at": string | null,"environment_id": string,"equipment_id": string,"id": string,"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string | null,"environment_id": string,"equipment_id": string,"id"?: string,"updated_at"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string | null,"environment_id"?: string,"equipment_id"?: string,"id"?: string,"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "environment_equipments_environment_id_fkey"
+      columns: ["environment_id"]
+isOneToOne: false
+      referencedRelation: "environments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "environment_equipments_equipment_id_fkey"
+      columns: ["equipment_id"]
+isOneToOne: false
+      referencedRelation: "equipments"
+      referencedColumns: ["id"]
     }
-    CompositeTypes: {
-      [_ in never]: never
+                  ]
+                },"environments": {
+                  Row: {
+                    "created_at": string | null,"description_i18n": Json | null,"id": string,"name_i18n": Json | null,"slug": string,"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string | null,"description_i18n"?: Json | null,"id"?: string,"name_i18n"?: Json | null,"slug": string,"updated_at"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string | null,"description_i18n"?: Json | null,"id"?: string,"name_i18n"?: Json | null,"slug"?: string,"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"equipments": {
+                  Row: {
+                    "created_at": string | null,"id": string,"is_location_specific": boolean,"name_i18n": Json | null,"slug": string,"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string | null,"id"?: string,"is_location_specific"?: boolean,"name_i18n"?: Json | null,"slug": string,"updated_at"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string | null,"id"?: string,"is_location_specific"?: boolean,"name_i18n"?: Json | null,"slug"?: string,"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"exercise_blocks": {
+                  Row: {
+                    "block_type_id": string | null,"created_at": string | null,"exercise_id": string | null,"id": string,"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "block_type_id"?: string | null,"created_at"?: string | null,"exercise_id"?: string | null,"id"?: string,"updated_at"?: string | null
+                  }
+                  Update: {
+                    "block_type_id"?: string | null,"created_at"?: string | null,"exercise_id"?: string | null,"id"?: string,"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "exercise_blocks_block_type_id_fkey"
+      columns: ["block_type_id"]
+isOneToOne: false
+      referencedRelation: "block_types"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "exercise_blocks_exercise_id_fkey"
+      columns: ["exercise_id"]
+isOneToOne: false
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
     }
-  }
-  public: {
-    Tables: {
-      affiliate_leads: {
-        Row: {
-          code: string
-          country: string | null
-          created_at: string
-          id: string
-          platform: string | null
-          referer: string | null
-          session_id: string
-          status: Database["public"]["Enums"]["affiliate_lead_status"]
-          updated_at: string
-          view_count: number
-        }
-        Insert: {
-          code: string
-          country?: string | null
-          created_at?: string
-          id?: string
-          platform?: string | null
-          referer?: string | null
-          session_id: string
-          status?: Database["public"]["Enums"]["affiliate_lead_status"]
-          updated_at?: string
-          view_count?: number
-        }
-        Update: {
-          code?: string
-          country?: string | null
-          created_at?: string
-          id?: string
-          platform?: string | null
-          referer?: string | null
-          session_id?: string
-          status?: Database["public"]["Enums"]["affiliate_lead_status"]
-          updated_at?: string
-          view_count?: number
-        }
-        Relationships: []
-      }
-      assessment_equipments: {
-        Row: {
-          assessment_id: string | null
-          created_at: string | null
-          equipment_id: string | null
-          id: string
-          updated_at: string | null
-        }
-        Insert: {
-          assessment_id?: string | null
-          created_at?: string | null
-          equipment_id?: string | null
-          id?: string
-          updated_at?: string | null
-        }
-        Update: {
-          assessment_id?: string | null
-          created_at?: string | null
-          equipment_id?: string | null
-          id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "assessment_equipments_assessment_id_fkey"
-            columns: ["assessment_id"]
-            isOneToOne: false
-            referencedRelation: "assessments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "assessment_equipments_equipment_id_fkey"
-            columns: ["equipment_id"]
-            isOneToOne: false
-            referencedRelation: "equipments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      assessments: {
-        Row: {
-          category_id: string | null
-          created_at: string | null
-          description: string | null
-          description_i18n: Json | null
-          id: string
-          max_level: number
-          measured_metric_id: string | null
-          min_level: number
-          name: string
-          name_i18n: Json | null
-          slug: string
-          updated_at: string | null
-          video_storage_path: string | null
-          youtube_url: string | null
-        }
-        Insert: {
-          category_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          description_i18n?: Json | null
-          id?: string
-          max_level: number
-          measured_metric_id?: string | null
-          min_level: number
-          name: string
-          name_i18n?: Json | null
-          slug: string
-          updated_at?: string | null
-          video_storage_path?: string | null
-          youtube_url?: string | null
-        }
-        Update: {
-          category_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          description_i18n?: Json | null
-          id?: string
-          max_level?: number
-          measured_metric_id?: string | null
-          min_level?: number
-          name?: string
-          name_i18n?: Json | null
-          slug?: string
-          updated_at?: string | null
-          video_storage_path?: string | null
-          youtube_url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "assessments_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "assessments_measured_metric_id_fkey"
-            columns: ["measured_metric_id"]
-            isOneToOne: false
-            referencedRelation: "metrics"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      block_types: {
-        Row: {
-          created_at: string | null
-          id: string
-          slug: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          slug: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          slug?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      categories: {
-        Row: {
-          created_at: string | null
-          description_i18n: Json | null
-          id: string
-          name_i18n: Json | null
-          slug: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          description_i18n?: Json | null
-          id?: string
-          name_i18n?: Json | null
-          slug: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          description_i18n?: Json | null
-          id?: string
-          name_i18n?: Json | null
-          slug?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      category_metrics: {
-        Row: {
-          category_id: string | null
-          created_at: string | null
-          id: string
-          metric_id: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          category_id?: string | null
-          created_at?: string | null
-          id?: string
-          metric_id?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          category_id?: string | null
-          created_at?: string | null
-          id?: string
-          metric_id?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "category_metrics_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "category_metrics_metric_id_fkey"
-            columns: ["metric_id"]
-            isOneToOne: false
-            referencedRelation: "metrics"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      environment_equipments: {
-        Row: {
-          created_at: string | null
-          environment_id: string
-          equipment_id: string
-          id: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          environment_id: string
-          equipment_id: string
-          id?: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          environment_id?: string
-          equipment_id?: string
-          id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "environment_equipments_environment_id_fkey"
-            columns: ["environment_id"]
-            isOneToOne: false
-            referencedRelation: "environments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "environment_equipments_equipment_id_fkey"
-            columns: ["equipment_id"]
-            isOneToOne: false
-            referencedRelation: "equipments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      environments: {
-        Row: {
-          created_at: string | null
-          description_i18n: Json | null
-          id: string
-          name_i18n: Json | null
-          slug: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          description_i18n?: Json | null
-          id?: string
-          name_i18n?: Json | null
-          slug: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          description_i18n?: Json | null
-          id?: string
-          name_i18n?: Json | null
-          slug?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      equipments: {
-        Row: {
-          created_at: string | null
-          id: string
-          is_location_specific: boolean
-          name_i18n: Json | null
-          slug: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          is_location_specific?: boolean
-          name_i18n?: Json | null
-          slug: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          is_location_specific?: boolean
-          name_i18n?: Json | null
-          slug?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      exercise_blocks: {
-        Row: {
-          block_type_id: string | null
-          created_at: string | null
-          exercise_id: string | null
-          id: string
-          updated_at: string | null
-        }
-        Insert: {
-          block_type_id?: string | null
-          created_at?: string | null
-          exercise_id?: string | null
-          id?: string
-          updated_at?: string | null
-        }
-        Update: {
-          block_type_id?: string | null
-          created_at?: string | null
-          exercise_id?: string | null
-          id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "exercise_blocks_block_type_id_fkey"
-            columns: ["block_type_id"]
-            isOneToOne: false
-            referencedRelation: "block_types"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "exercise_blocks_exercise_id_fkey"
-            columns: ["exercise_id"]
-            isOneToOne: false
-            referencedRelation: "exercises"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      exercise_environments: {
-        Row: {
-          environment_id: string
-          exercise_id: string
-        }
-        Insert: {
-          environment_id: string
-          exercise_id: string
-        }
-        Update: {
-          environment_id?: string
-          exercise_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "exercise_environments_environment_id_fkey"
-            columns: ["environment_id"]
-            isOneToOne: false
-            referencedRelation: "environments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "exercise_environments_exercise_id_fkey"
-            columns: ["exercise_id"]
-            isOneToOne: false
-            referencedRelation: "exercises"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      exercise_equipments: {
-        Row: {
-          created_at: string | null
-          equipment_id: string | null
-          exercise_id: string | null
-          id: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          equipment_id?: string | null
-          exercise_id?: string | null
-          id?: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          equipment_id?: string | null
-          exercise_id?: string | null
-          id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "exercise_equipments_equipment_id_fkey"
-            columns: ["equipment_id"]
-            isOneToOne: false
-            referencedRelation: "equipments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "exercise_equipments_exercise_id_fkey"
-            columns: ["exercise_id"]
-            isOneToOne: false
-            referencedRelation: "exercises"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      exercise_sport_groups: {
-        Row: {
-          exercise_id: string
-          sport_group: string
-        }
-        Insert: {
-          exercise_id: string
-          sport_group: string
-        }
-        Update: {
-          exercise_id?: string
-          sport_group?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "exercise_sport_groups_exercise_id_fkey"
-            columns: ["exercise_id"]
-            isOneToOne: false
-            referencedRelation: "exercises"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      exercises: {
-        Row: {
-          body_region: Database["public"]["Enums"]["body_region"] | null
-          category_id: string | null
-          created_at: string | null
-          description: string | null
-          description_i18n: Json | null
-          dominant_region: Database["public"]["Enums"]["body_region"] | null
-          exercise_type: string | null
-          id: string
-          image_group:
-            | Database["public"]["Enums"]["exercise_image_group"]
-            | null
-          intensity_score: number | null
-          is_sport_specific: boolean
-          laterality: Database["public"]["Enums"]["laterality"]
-          max_level: number
-          measurement_type: string
-          min_level: number
-          movement_pattern:
-            | Database["public"]["Enums"]["movement_pattern"]
-            | null
-          name: string
-          slug: string
-          thumbnail_storage_path: string | null
-          updated_at: string | null
-          video_storage_path: string | null
-          youtube_url: string | null
-        }
-        Insert: {
-          body_region?: Database["public"]["Enums"]["body_region"] | null
-          category_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          description_i18n?: Json | null
-          dominant_region?: Database["public"]["Enums"]["body_region"] | null
-          exercise_type?: string | null
-          id?: string
-          image_group?:
-            | Database["public"]["Enums"]["exercise_image_group"]
-            | null
-          intensity_score?: number | null
-          is_sport_specific?: boolean
-          laterality?: Database["public"]["Enums"]["laterality"]
-          max_level: number
-          measurement_type?: string
-          min_level: number
-          movement_pattern?:
-            | Database["public"]["Enums"]["movement_pattern"]
-            | null
-          name: string
-          slug: string
-          thumbnail_storage_path?: string | null
-          updated_at?: string | null
-          video_storage_path?: string | null
-          youtube_url?: string | null
-        }
-        Update: {
-          body_region?: Database["public"]["Enums"]["body_region"] | null
-          category_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          description_i18n?: Json | null
-          dominant_region?: Database["public"]["Enums"]["body_region"] | null
-          exercise_type?: string | null
-          id?: string
-          image_group?:
-            | Database["public"]["Enums"]["exercise_image_group"]
-            | null
-          intensity_score?: number | null
-          is_sport_specific?: boolean
-          laterality?: Database["public"]["Enums"]["laterality"]
-          max_level?: number
-          measurement_type?: string
-          min_level?: number
-          movement_pattern?:
-            | Database["public"]["Enums"]["movement_pattern"]
-            | null
-          name?: string
-          slug?: string
-          thumbnail_storage_path?: string | null
-          updated_at?: string | null
-          video_storage_path?: string | null
-          youtube_url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "exercises_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      metric_entries: {
-        Row: {
-          created_at: string | null
-          id: string
-          metric_id: string | null
-          score: number | null
-          source_type: Database["public"]["Enums"]["metric_source_type"]
-          updated_at: string | null
-          user_assessment_id: string | null
-          user_id: string | null
-          value: number
-          workout_session_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          metric_id?: string | null
-          score?: number | null
-          source_type: Database["public"]["Enums"]["metric_source_type"]
-          updated_at?: string | null
-          user_assessment_id?: string | null
-          user_id?: string | null
-          value: number
-          workout_session_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          metric_id?: string | null
-          score?: number | null
-          source_type?: Database["public"]["Enums"]["metric_source_type"]
-          updated_at?: string | null
-          user_assessment_id?: string | null
-          user_id?: string | null
-          value?: number
-          workout_session_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "metric_entries_metric_id_fkey"
-            columns: ["metric_id"]
-            isOneToOne: false
-            referencedRelation: "metrics"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "metric_entries_user_assessment_id_fkey"
-            columns: ["user_assessment_id"]
-            isOneToOne: false
-            referencedRelation: "user_assessments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "metric_entries_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "metric_entries_workout_session_id_fkey"
-            columns: ["workout_session_id"]
-            isOneToOne: false
-            referencedRelation: "workout_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      metrics: {
-        Row: {
-          created_at: string | null
-          higher_is_better: boolean
-          id: string
-          name_i18n: Json | null
-          slug: string
-          unit: Database["public"]["Enums"]["metric_unit"]
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          higher_is_better?: boolean
-          id?: string
-          name_i18n?: Json | null
-          slug: string
-          unit: Database["public"]["Enums"]["metric_unit"]
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          higher_is_better?: boolean
-          id?: string
-          name_i18n?: Json | null
-          slug?: string
-          unit?: Database["public"]["Enums"]["metric_unit"]
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      plan_generation_jobs: {
-        Row: {
-          created_at: string | null
-          error: string | null
-          id: string
-          phase_detail: string | null
-          plan_id: string | null
-          status: string
-          updated_at: string | null
-          user_id: string
-          workflow_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          error?: string | null
-          id?: string
-          phase_detail?: string | null
-          plan_id?: string | null
-          status?: string
-          updated_at?: string | null
-          user_id: string
-          workflow_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          error?: string | null
-          id?: string
-          phase_detail?: string | null
-          plan_id?: string | null
-          status?: string
-          updated_at?: string | null
-          user_id?: string
-          workflow_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "plan_generation_jobs_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "workout_plans"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      session_modes: {
-        Row: {
-          description_i18n: Json
-          display_name_i18n: Json
-          overrides_user_duration: boolean
-          slug: string
-          typical_duration_max: number | null
-          typical_duration_min: number | null
-        }
-        Insert: {
-          description_i18n?: Json
-          display_name_i18n?: Json
-          overrides_user_duration?: boolean
-          slug: string
-          typical_duration_max?: number | null
-          typical_duration_min?: number | null
-        }
-        Update: {
-          description_i18n?: Json
-          display_name_i18n?: Json
-          overrides_user_duration?: boolean
-          slug?: string
-          typical_duration_max?: number | null
-          typical_duration_min?: number | null
-        }
-        Relationships: []
-      }
-      session_thumbnails: {
-        Row: {
-          image_group: string
-          storage_path: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          image_group: string
-          storage_path?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          image_group?: string
-          storage_path?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      sport_category_relevance: {
-        Row: {
-          category_id: string
-          created_at: string | null
-          id: string
-          relevance: number
-          sport_id: string
-          updated_at: string | null
-        }
-        Insert: {
-          category_id: string
-          created_at?: string | null
-          id?: string
-          relevance: number
-          sport_id: string
-          updated_at?: string | null
-        }
-        Update: {
-          category_id?: string
-          created_at?: string | null
-          id?: string
-          relevance?: number
-          sport_id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sport_category_relevance_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sport_category_relevance_sport_id_fkey"
-            columns: ["sport_id"]
-            isOneToOne: false
-            referencedRelation: "sports"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      sport_group_animations: {
-        Row: {
-          animation_storage_path: string | null
-          group_name: string
-          updated_at: string | null
-        }
-        Insert: {
-          animation_storage_path?: string | null
-          group_name: string
-          updated_at?: string | null
-        }
-        Update: {
-          animation_storage_path?: string | null
-          group_name?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      sport_group_banners: {
-        Row: {
-          banner_storage_path: string | null
-          group_name: string
-          updated_at: string | null
-        }
-        Insert: {
-          banner_storage_path?: string | null
-          group_name: string
-          updated_at?: string | null
-        }
-        Update: {
-          banner_storage_path?: string | null
-          group_name?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      sports: {
-        Row: {
-          animation_storage_path: string | null
-          banner_storage_path: string | null
-          created_at: string | null
-          group_name: string
-          id: string
-          name_i18n: Json | null
-          slug: string
-          updated_at: string | null
-        }
-        Insert: {
-          animation_storage_path?: string | null
-          banner_storage_path?: string | null
-          created_at?: string | null
-          group_name: string
-          id?: string
-          name_i18n?: Json | null
-          slug: string
-          updated_at?: string | null
-        }
-        Update: {
-          animation_storage_path?: string | null
-          banner_storage_path?: string | null
-          created_at?: string | null
-          group_name?: string
-          id?: string
-          name_i18n?: Json | null
-          slug?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      user_achievements: {
-        Row: {
-          achievement_slug: string
-          id: string
-          unlocked_at: string
-          user_id: string
-          value: number | null
-        }
-        Insert: {
-          achievement_slug: string
-          id?: string
-          unlocked_at?: string
-          user_id: string
-          value?: number | null
-        }
-        Update: {
-          achievement_slug?: string
-          id?: string
-          unlocked_at?: string
-          user_id?: string
-          value?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_achievements_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_assessments: {
-        Row: {
-          assessment_id: string
-          completed_at: string | null
-          created_at: string | null
-          id: string
-          started_at: string | null
-          status: Database["public"]["Enums"]["assessment_status"]
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          assessment_id: string
-          completed_at?: string | null
-          created_at?: string | null
-          id?: string
-          started_at?: string | null
-          status: Database["public"]["Enums"]["assessment_status"]
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          assessment_id?: string
-          completed_at?: string | null
-          created_at?: string | null
-          id?: string
-          started_at?: string | null
-          status?: Database["public"]["Enums"]["assessment_status"]
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_assessments_assessment_id_fkey"
-            columns: ["assessment_id"]
-            isOneToOne: false
-            referencedRelation: "assessments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_assessments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_category_level_history: {
-        Row: {
-          category_id: string | null
-          id: string
-          level_score: number
-          recorded_at: string
-          user_id: string
-        }
-        Insert: {
-          category_id?: string | null
-          id?: string
-          level_score: number
-          recorded_at?: string
-          user_id: string
-        }
-        Update: {
-          category_id?: string | null
-          id?: string
-          level_score?: number
-          recorded_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_category_level_history_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_category_level_history_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_category_levels: {
-        Row: {
-          category_id: string
-          created_at: string | null
-          id: string
-          level_score: number
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          category_id: string
-          created_at?: string | null
-          id?: string
-          level_score: number
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          category_id?: string
-          created_at?: string | null
-          id?: string
-          level_score?: number
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_category_levels_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_category_levels_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_environments: {
-        Row: {
-          environment_id: string
-          user_id: string
-        }
-        Insert: {
-          environment_id: string
-          user_id: string
-        }
-        Update: {
-          environment_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_environments_environment_id_fkey"
-            columns: ["environment_id"]
-            isOneToOne: false
-            referencedRelation: "environments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_environments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_equipment_environments: {
-        Row: {
-          environment_id: string
-          equipment_id: string
-          user_id: string
-        }
-        Insert: {
-          environment_id: string
-          equipment_id: string
-          user_id: string
-        }
-        Update: {
-          environment_id?: string
-          equipment_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_equipment_environments_environment_id_fkey"
-            columns: ["environment_id"]
-            isOneToOne: false
-            referencedRelation: "environments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_equipment_environments_equipment_id_fkey"
-            columns: ["equipment_id"]
-            isOneToOne: false
-            referencedRelation: "equipments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_equipment_environments_user_id_equipment_id_fkey"
-            columns: ["user_id", "equipment_id"]
-            isOneToOne: false
-            referencedRelation: "user_equipments"
-            referencedColumns: ["user_id", "equipment_id"]
-          },
-          {
-            foreignKeyName: "user_equipment_environments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_equipments: {
-        Row: {
-          created_at: string | null
-          equipment_id: string
-          id: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          equipment_id: string
-          id?: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          equipment_id?: string
-          id?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_equipments_equipment_id_fkey"
-            columns: ["equipment_id"]
-            isOneToOne: false
-            referencedRelation: "equipments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_equipments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_profiles: {
-        Row: {
-          birth_date: string | null
-          created_at: string | null
-          day_environments: Json | null
-          email: string
-          first_name: string | null
-          gender: Database["public"]["Enums"]["gender"] | null
-          has_onboarded: boolean | null
-          height_in_cm: number | null
-          id: string
-          last_active_at: string | null
-          last_name: string | null
-          load_profile: string
-          load_score: number
-          preferred_language: string | null
-          preferred_session_duration:
-            | Database["public"]["Enums"]["session_duration"]
-            | null
-          preferred_workout_days: number[] | null
-          push_token: string | null
-          referral_code: string | null
-          role: Database["public"]["Enums"]["user_role"]
-          schedule_notes: string | null
-          sport_id: string | null
-          timezone: string | null
-          unit_system: string
-          updated_at: string | null
-          weekly_schedule: Json
-          weekly_schedule_updated_at: string | null
-          weight_in_kg: number | null
-        }
-        Insert: {
-          birth_date?: string | null
-          created_at?: string | null
-          day_environments?: Json | null
-          email: string
-          first_name?: string | null
-          gender?: Database["public"]["Enums"]["gender"] | null
-          has_onboarded?: boolean | null
-          height_in_cm?: number | null
-          id?: string
-          last_active_at?: string | null
-          last_name?: string | null
-          load_profile?: string
-          load_score?: number
-          preferred_language?: string | null
-          preferred_session_duration?:
-            | Database["public"]["Enums"]["session_duration"]
-            | null
-          preferred_workout_days?: number[] | null
-          push_token?: string | null
-          referral_code?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
-          schedule_notes?: string | null
-          sport_id?: string | null
-          timezone?: string | null
-          unit_system?: string
-          updated_at?: string | null
-          weekly_schedule?: Json
-          weekly_schedule_updated_at?: string | null
-          weight_in_kg?: number | null
-        }
-        Update: {
-          birth_date?: string | null
-          created_at?: string | null
-          day_environments?: Json | null
-          email?: string
-          first_name?: string | null
-          gender?: Database["public"]["Enums"]["gender"] | null
-          has_onboarded?: boolean | null
-          height_in_cm?: number | null
-          id?: string
-          last_active_at?: string | null
-          last_name?: string | null
-          load_profile?: string
-          load_score?: number
-          preferred_language?: string | null
-          preferred_session_duration?:
-            | Database["public"]["Enums"]["session_duration"]
-            | null
-          preferred_workout_days?: number[] | null
-          push_token?: string | null
-          referral_code?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
-          schedule_notes?: string | null
-          sport_id?: string | null
-          timezone?: string | null
-          unit_system?: string
-          updated_at?: string | null
-          weekly_schedule?: Json
-          weekly_schedule_updated_at?: string | null
-          weight_in_kg?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_profiles_sport_id_fkey"
-            columns: ["sport_id"]
-            isOneToOne: false
-            referencedRelation: "sports"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_targeted_categories: {
-        Row: {
-          category_id: string
-          created_at: string | null
-          id: string
-          priority: number
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          category_id: string
-          created_at?: string | null
-          id?: string
-          priority?: number
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          category_id?: string
-          created_at?: string | null
-          id?: string
-          priority?: number
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_targeted_categories_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_targeted_categories_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workout_plan_session_block_exercises: {
-        Row: {
-          created_at: string
-          exercise_id: string
-          id: string
-          is_amrap: boolean
-          notes: string | null
-          order_index: number
-          target_distance_meters: number | null
-          target_duration_seconds: number | null
-          target_load_type: Database["public"]["Enums"]["load_type"] | null
-          target_load_value: number | null
-          target_reps_max: number | null
-          target_reps_min: number | null
-          target_rest_seconds: number | null
-          target_sets: number | null
-          updated_at: string
-          workout_plan_session_block_id: string
-        }
-        Insert: {
-          created_at?: string
-          exercise_id: string
-          id?: string
-          is_amrap?: boolean
-          notes?: string | null
-          order_index: number
-          target_distance_meters?: number | null
-          target_duration_seconds?: number | null
-          target_load_type?: Database["public"]["Enums"]["load_type"] | null
-          target_load_value?: number | null
-          target_reps_max?: number | null
-          target_reps_min?: number | null
-          target_rest_seconds?: number | null
-          target_sets?: number | null
-          updated_at?: string
-          workout_plan_session_block_id: string
-        }
-        Update: {
-          created_at?: string
-          exercise_id?: string
-          id?: string
-          is_amrap?: boolean
-          notes?: string | null
-          order_index?: number
-          target_distance_meters?: number | null
-          target_duration_seconds?: number | null
-          target_load_type?: Database["public"]["Enums"]["load_type"] | null
-          target_load_value?: number | null
-          target_reps_max?: number | null
-          target_reps_min?: number | null
-          target_rest_seconds?: number | null
-          target_sets?: number | null
-          updated_at?: string
-          workout_plan_session_block_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workout_plan_session_block_ex_workout_plan_session_block_i_fkey"
-            columns: ["workout_plan_session_block_id"]
-            isOneToOne: false
-            referencedRelation: "workout_plan_session_blocks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_plan_session_block_exercises_exercise_id_fkey"
-            columns: ["exercise_id"]
-            isOneToOne: false
-            referencedRelation: "exercises"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workout_plan_session_blocks: {
-        Row: {
-          block_type_id: string | null
-          created_at: string | null
-          focused_category_id: string | null
-          id: string
-          order_index: number
-          updated_at: string | null
-          workout_plan_session_id: string | null
-        }
-        Insert: {
-          block_type_id?: string | null
-          created_at?: string | null
-          focused_category_id?: string | null
-          id?: string
-          order_index: number
-          updated_at?: string | null
-          workout_plan_session_id?: string | null
-        }
-        Update: {
-          block_type_id?: string | null
-          created_at?: string | null
-          focused_category_id?: string | null
-          id?: string
-          order_index?: number
-          updated_at?: string | null
-          workout_plan_session_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workout_plan_session_blocks_block_type_id_fkey"
-            columns: ["block_type_id"]
-            isOneToOne: false
-            referencedRelation: "block_types"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_plan_session_blocks_focused_category_id_fkey"
-            columns: ["focused_category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_plan_session_blocks_workout_plan_session_id_fkey"
-            columns: ["workout_plan_session_id"]
-            isOneToOne: false
-            referencedRelation: "workout_plan_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workout_plan_sessions: {
-        Row: {
-          created_at: string | null
-          day_of_week: number
-          description: string | null
-          environment_id: string
-          estimated_duration_minutes: number | null
-          id: string
-          mode_slug: string | null
-          name: string
-          order_index: number
-          pause_between_sets: number
-          plan_id: string | null
-          session_type: Database["public"]["Enums"]["session_type"]
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          day_of_week: number
-          description?: string | null
-          environment_id: string
-          estimated_duration_minutes?: number | null
-          id?: string
-          mode_slug?: string | null
-          name: string
-          order_index: number
-          pause_between_sets?: number
-          plan_id?: string | null
-          session_type: Database["public"]["Enums"]["session_type"]
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          day_of_week?: number
-          description?: string | null
-          environment_id?: string
-          estimated_duration_minutes?: number | null
-          id?: string
-          mode_slug?: string | null
-          name?: string
-          order_index?: number
-          pause_between_sets?: number
-          plan_id?: string | null
-          session_type?: Database["public"]["Enums"]["session_type"]
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workout_plan_sessions_environment_id_fkey"
-            columns: ["environment_id"]
-            isOneToOne: false
-            referencedRelation: "environments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_plan_sessions_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "workout_plans"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workout_plan_targeted_categories: {
-        Row: {
-          category_id: string | null
-          created_at: string | null
-          id: string
-          priority: number
-          updated_at: string | null
-          workout_plan_id: string | null
-        }
-        Insert: {
-          category_id?: string | null
-          created_at?: string | null
-          id?: string
-          priority: number
-          updated_at?: string | null
-          workout_plan_id?: string | null
-        }
-        Update: {
-          category_id?: string | null
-          created_at?: string | null
-          id?: string
-          priority?: number
-          updated_at?: string | null
-          workout_plan_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workout_plan_targeted_categories_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_plan_targeted_categories_workout_plan_id_fkey"
-            columns: ["workout_plan_id"]
-            isOneToOne: false
-            referencedRelation: "workout_plans"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workout_plans: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          duration_weeks: number
-          end_date: string
-          id: string
-          name: string
-          start_date: string
-          status: Database["public"]["Enums"]["plan_status"]
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          duration_weeks: number
-          end_date: string
-          id?: string
-          name: string
-          start_date: string
-          status: Database["public"]["Enums"]["plan_status"]
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          duration_weeks?: number
-          end_date?: string
-          id?: string
-          name?: string
-          start_date?: string
-          status?: Database["public"]["Enums"]["plan_status"]
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workout_plans_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workout_session_block_exercises: {
-        Row: {
-          created_at: string
-          exercise_id: string
-          id: string
-          is_amrap: boolean
-          order_index: number
-          recommended_load_value: number | null
-          target_distance_meters: number | null
-          target_duration_seconds: number | null
-          target_load_type: Database["public"]["Enums"]["load_type"] | null
-          target_load_value: number | null
-          target_reps_max: number | null
-          target_reps_min: number | null
-          target_rest_seconds: number | null
-          target_sets: number | null
-          updated_at: string
-          workout_plan_session_block_exercise_id: string | null
-          workout_plan_session_block_id: string | null
-          workout_session_block_id: string
-        }
-        Insert: {
-          created_at?: string
-          exercise_id: string
-          id?: string
-          is_amrap?: boolean
-          order_index: number
-          recommended_load_value?: number | null
-          target_distance_meters?: number | null
-          target_duration_seconds?: number | null
-          target_load_type?: Database["public"]["Enums"]["load_type"] | null
-          target_load_value?: number | null
-          target_reps_max?: number | null
-          target_reps_min?: number | null
-          target_rest_seconds?: number | null
-          target_sets?: number | null
-          updated_at?: string
-          workout_plan_session_block_exercise_id?: string | null
-          workout_plan_session_block_id?: string | null
-          workout_session_block_id: string
-        }
-        Update: {
-          created_at?: string
-          exercise_id?: string
-          id?: string
-          is_amrap?: boolean
-          order_index?: number
-          recommended_load_value?: number | null
-          target_distance_meters?: number | null
-          target_duration_seconds?: number | null
-          target_load_type?: Database["public"]["Enums"]["load_type"] | null
-          target_load_value?: number | null
-          target_reps_max?: number | null
-          target_reps_min?: number | null
-          target_rest_seconds?: number | null
-          target_sets?: number | null
-          updated_at?: string
-          workout_plan_session_block_exercise_id?: string | null
-          workout_plan_session_block_id?: string | null
-          workout_session_block_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workout_session_block_exercis_workout_plan_session_block_e_fkey"
-            columns: ["workout_plan_session_block_exercise_id"]
-            isOneToOne: false
-            referencedRelation: "workout_plan_session_block_exercises"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_session_block_exercis_workout_plan_session_block_i_fkey"
-            columns: ["workout_plan_session_block_id"]
-            isOneToOne: false
-            referencedRelation: "workout_plan_session_blocks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_session_block_exercises_exercise_id_fkey"
-            columns: ["exercise_id"]
-            isOneToOne: false
-            referencedRelation: "exercises"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_session_block_exercises_workout_session_block_id_fkey"
-            columns: ["workout_session_block_id"]
-            isOneToOne: false
-            referencedRelation: "workout_session_blocks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workout_session_blocks: {
-        Row: {
-          block_type_id: string | null
-          created_at: string | null
-          focused_category_id: string | null
-          id: string
-          order_index: number
-          updated_at: string | null
-          workout_plan_session_block_id: string | null
-          workout_session_id: string | null
-        }
-        Insert: {
-          block_type_id?: string | null
-          created_at?: string | null
-          focused_category_id?: string | null
-          id?: string
-          order_index: number
-          updated_at?: string | null
-          workout_plan_session_block_id?: string | null
-          workout_session_id?: string | null
-        }
-        Update: {
-          block_type_id?: string | null
-          created_at?: string | null
-          focused_category_id?: string | null
-          id?: string
-          order_index?: number
-          updated_at?: string | null
-          workout_plan_session_block_id?: string | null
-          workout_session_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workout_session_blocks_block_type_id_fkey"
-            columns: ["block_type_id"]
-            isOneToOne: false
-            referencedRelation: "block_types"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_session_blocks_focused_category_id_fkey"
-            columns: ["focused_category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_session_blocks_workout_plan_session_block_id_fkey"
-            columns: ["workout_plan_session_block_id"]
-            isOneToOne: false
-            referencedRelation: "workout_plan_session_blocks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_session_blocks_workout_session_id_fkey"
-            columns: ["workout_session_id"]
-            isOneToOne: false
-            referencedRelation: "workout_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workout_session_performed_sets: {
-        Row: {
-          created_at: string
-          id: string
-          performed_distance_meters: number | null
-          performed_duration_seconds: number | null
-          performed_load_value: number | null
-          performed_reps: number | null
-          performed_rpe: number | null
-          set_number: number
-          side: string
-          updated_at: string
-          workout_session_block_exercise_id: string
-          workout_session_block_id: string
-          workout_session_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          performed_distance_meters?: number | null
-          performed_duration_seconds?: number | null
-          performed_load_value?: number | null
-          performed_reps?: number | null
-          performed_rpe?: number | null
-          set_number: number
-          side?: string
-          updated_at?: string
-          workout_session_block_exercise_id: string
-          workout_session_block_id: string
-          workout_session_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          performed_distance_meters?: number | null
-          performed_duration_seconds?: number | null
-          performed_load_value?: number | null
-          performed_reps?: number | null
-          performed_rpe?: number | null
-          set_number?: number
-          side?: string
-          updated_at?: string
-          workout_session_block_exercise_id?: string
-          workout_session_block_id?: string
-          workout_session_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workout_session_performed_set_workout_session_block_exerci_fkey"
-            columns: ["workout_session_block_exercise_id"]
-            isOneToOne: false
-            referencedRelation: "workout_session_block_exercises"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_session_performed_sets_workout_session_block_id_fkey"
-            columns: ["workout_session_block_id"]
-            isOneToOne: false
-            referencedRelation: "workout_session_blocks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_session_performed_sets_workout_session_id_fkey"
-            columns: ["workout_session_id"]
-            isOneToOne: false
-            referencedRelation: "workout_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workout_sessions: {
-        Row: {
-          completed_at: string | null
-          created_at: string | null
-          current_exercise_index: number
-          current_set_number: number
-          description: string | null
-          environment_id: string
-          estimated_duration_minutes: number | null
-          id: string
-          name: string
-          original_scheduled_at: string | null
-          pause_between_sets: number
-          rest_adjust_seconds: number | null
-          scheduled_at: string | null
-          session_type: Database["public"]["Enums"]["session_type"] | null
-          started_at: string | null
-          status: Database["public"]["Enums"]["session_status"]
-          updated_at: string | null
-          user_id: string | null
-          workout_plan_id: string | null
-          workout_plan_session_id: string | null
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string | null
-          current_exercise_index?: number
-          current_set_number?: number
-          description?: string | null
-          environment_id: string
-          estimated_duration_minutes?: number | null
-          id?: string
-          name: string
-          original_scheduled_at?: string | null
-          pause_between_sets?: number
-          rest_adjust_seconds?: number | null
-          scheduled_at?: string | null
-          session_type?: Database["public"]["Enums"]["session_type"] | null
-          started_at?: string | null
-          status?: Database["public"]["Enums"]["session_status"]
-          updated_at?: string | null
-          user_id?: string | null
-          workout_plan_id?: string | null
-          workout_plan_session_id?: string | null
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string | null
-          current_exercise_index?: number
-          current_set_number?: number
-          description?: string | null
-          environment_id?: string
-          estimated_duration_minutes?: number | null
-          id?: string
-          name?: string
-          original_scheduled_at?: string | null
-          pause_between_sets?: number
-          rest_adjust_seconds?: number | null
-          scheduled_at?: string | null
-          session_type?: Database["public"]["Enums"]["session_type"] | null
-          started_at?: string | null
-          status?: Database["public"]["Enums"]["session_status"]
-          updated_at?: string | null
-          user_id?: string | null
-          workout_plan_id?: string | null
-          workout_plan_session_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workout_sessions_environment_id_fkey"
-            columns: ["environment_id"]
-            isOneToOne: false
-            referencedRelation: "environments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_sessions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_sessions_workout_plan_id_fkey"
-            columns: ["workout_plan_id"]
-            isOneToOne: false
-            referencedRelation: "workout_plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workout_sessions_workout_plan_session_id_fkey"
-            columns: ["workout_plan_session_id"]
-            isOneToOne: false
-            referencedRelation: "workout_plan_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+                  ]
+                },"exercise_environments": {
+                  Row: {
+                    "environment_id": string,"exercise_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "environment_id": string,"exercise_id": string
+                  }
+                  Update: {
+                    "environment_id"?: string,"exercise_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "exercise_environments_environment_id_fkey"
+      columns: ["environment_id"]
+isOneToOne: false
+      referencedRelation: "environments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "exercise_environments_exercise_id_fkey"
+      columns: ["exercise_id"]
+isOneToOne: false
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
     }
-    Views: {
-      [_ in never]: never
+                  ]
+                },"exercise_equipments": {
+                  Row: {
+                    "created_at": string | null,"equipment_id": string | null,"exercise_id": string | null,"id": string,"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string | null,"equipment_id"?: string | null,"exercise_id"?: string | null,"id"?: string,"updated_at"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string | null,"equipment_id"?: string | null,"exercise_id"?: string | null,"id"?: string,"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "exercise_equipments_equipment_id_fkey"
+      columns: ["equipment_id"]
+isOneToOne: false
+      referencedRelation: "equipments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "exercise_equipments_exercise_id_fkey"
+      columns: ["exercise_id"]
+isOneToOne: false
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
     }
-    Functions: {
-      fn_assert_creator_role: { Args: never; Returns: undefined }
-      fn_auto_skip_missed_sessions: { Args: never; Returns: undefined }
-      fn_create_user_assessments: {
-        Args: { p_user_id: string }
-        Returns: undefined
-      }
-      fn_dev_complete_active_plan: { Args: never; Returns: undefined }
-      fn_dev_seed_category_history: {
-        Args: { p_days?: number }
-        Returns: undefined
-      }
-      fn_log_affiliate_lead_view: {
-        Args: {
-          p_code: string
-          p_country?: string
-          p_referer?: string
-          p_session_id: string
+                  ]
+                },"exercise_regions": {
+                  Row: {
+                    "exercise_id": string,"region": Database["public"]['Enums']["body_region"],"role": Database["public"]['Enums']["exercise_region_role"]
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "exercise_id": string,"region": Database["public"]['Enums']["body_region"],"role"?: Database["public"]['Enums']["exercise_region_role"]
+                  }
+                  Update: {
+                    "exercise_id"?: string,"region"?: Database["public"]['Enums']["body_region"],"role"?: Database["public"]['Enums']["exercise_region_role"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "exercise_regions_exercise_id_fkey"
+      columns: ["exercise_id"]
+isOneToOne: false
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"exercise_sport_groups": {
+                  Row: {
+                    "exercise_id": string,"sport_group": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "exercise_id": string,"sport_group": string
+                  }
+                  Update: {
+                    "exercise_id"?: string,"sport_group"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "exercise_sport_groups_exercise_id_fkey"
+      columns: ["exercise_id"]
+isOneToOne: false
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"exercises": {
+                  Row: {
+                    "body_region": Database["public"]['Enums']["body_region"] | null,"category_id": string | null,"core_type": Database["public"]['Enums']["core_type"] | null,"covered_patterns": (Database["public"]['Enums']["strength_pattern"])[] | null,"created_at": string | null,"description": string | null,"description_i18n": Json | null,"dominant_region": Database["public"]['Enums']["body_region"] | null,"exercise_type": string | null,"id": string,"image_group": Database["public"]['Enums']["exercise_image_group"] | null,"intensity_score": number | null,"is_explosive": boolean,"is_sport_specific": boolean,"laterality": Database["public"]['Enums']["laterality"],"max_level": number,"measurement_type": string,"min_level": number,"movement_pattern": Database["public"]['Enums']["movement_pattern"] | null,"movement_type": Database["public"]['Enums']["movement_type"],"name": string,"plyo_type": Database["public"]['Enums']["plyo_type"] | null,"slug": string,"sprint_type": Database["public"]['Enums']["sprint_type"] | null,"strength_pattern": Database["public"]['Enums']["strength_pattern"] | null,"thumbnail_storage_path": string | null,"updated_at": string | null,"video_storage_path": string | null,"youtube_url": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "body_region"?: Database["public"]['Enums']["body_region"] | null,"category_id"?: string | null,"core_type"?: Database["public"]['Enums']["core_type"] | null,"covered_patterns"?: (Database["public"]['Enums']["strength_pattern"])[] | null,"created_at"?: string | null,"description"?: string | null,"description_i18n"?: Json | null,"dominant_region"?: Database["public"]['Enums']["body_region"] | null,"exercise_type"?: string | null,"id"?: string,"image_group"?: Database["public"]['Enums']["exercise_image_group"] | null,"intensity_score"?: number | null,"is_explosive"?: boolean,"is_sport_specific"?: boolean,"laterality"?: Database["public"]['Enums']["laterality"],"max_level": number,"measurement_type"?: string,"min_level": number,"movement_pattern"?: Database["public"]['Enums']["movement_pattern"] | null,"movement_type"?: Database["public"]['Enums']["movement_type"],"name": string,"plyo_type"?: Database["public"]['Enums']["plyo_type"] | null,"slug": string,"sprint_type"?: Database["public"]['Enums']["sprint_type"] | null,"strength_pattern"?: Database["public"]['Enums']["strength_pattern"] | null,"thumbnail_storage_path"?: string | null,"updated_at"?: string | null,"video_storage_path"?: string | null,"youtube_url"?: string | null
+                  }
+                  Update: {
+                    "body_region"?: Database["public"]['Enums']["body_region"] | null,"category_id"?: string | null,"core_type"?: Database["public"]['Enums']["core_type"] | null,"covered_patterns"?: (Database["public"]['Enums']["strength_pattern"])[] | null,"created_at"?: string | null,"description"?: string | null,"description_i18n"?: Json | null,"dominant_region"?: Database["public"]['Enums']["body_region"] | null,"exercise_type"?: string | null,"id"?: string,"image_group"?: Database["public"]['Enums']["exercise_image_group"] | null,"intensity_score"?: number | null,"is_explosive"?: boolean,"is_sport_specific"?: boolean,"laterality"?: Database["public"]['Enums']["laterality"],"max_level"?: number,"measurement_type"?: string,"min_level"?: number,"movement_pattern"?: Database["public"]['Enums']["movement_pattern"] | null,"movement_type"?: Database["public"]['Enums']["movement_type"],"name"?: string,"plyo_type"?: Database["public"]['Enums']["plyo_type"] | null,"slug"?: string,"sprint_type"?: Database["public"]['Enums']["sprint_type"] | null,"strength_pattern"?: Database["public"]['Enums']["strength_pattern"] | null,"thumbnail_storage_path"?: string | null,"updated_at"?: string | null,"video_storage_path"?: string | null,"youtube_url"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "exercises_category_id_fkey"
+      columns: ["category_id"]
+isOneToOne: false
+      referencedRelation: "categories"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"metric_entries": {
+                  Row: {
+                    "created_at": string | null,"id": string,"metric_id": string | null,"score": number | null,"source_type": Database["public"]['Enums']["metric_source_type"],"updated_at": string | null,"user_assessment_id": string | null,"user_id": string | null,"value": number,"workout_session_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string | null,"id"?: string,"metric_id"?: string | null,"score"?: number | null,"source_type": Database["public"]['Enums']["metric_source_type"],"updated_at"?: string | null,"user_assessment_id"?: string | null,"user_id"?: string | null,"value": number,"workout_session_id"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string | null,"id"?: string,"metric_id"?: string | null,"score"?: number | null,"source_type"?: Database["public"]['Enums']["metric_source_type"],"updated_at"?: string | null,"user_assessment_id"?: string | null,"user_id"?: string | null,"value"?: number,"workout_session_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "metric_entries_metric_id_fkey"
+      columns: ["metric_id"]
+isOneToOne: false
+      referencedRelation: "metrics"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "metric_entries_user_assessment_id_fkey"
+      columns: ["user_assessment_id"]
+isOneToOne: false
+      referencedRelation: "user_assessments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "metric_entries_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "user_profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "metric_entries_workout_session_id_fkey"
+      columns: ["workout_session_id"]
+isOneToOne: false
+      referencedRelation: "workout_sessions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"metrics": {
+                  Row: {
+                    "created_at": string | null,"higher_is_better": boolean,"id": string,"name_i18n": Json | null,"slug": string,"unit": Database["public"]['Enums']["metric_unit"],"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string | null,"higher_is_better"?: boolean,"id"?: string,"name_i18n"?: Json | null,"slug": string,"unit": Database["public"]['Enums']["metric_unit"],"updated_at"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string | null,"higher_is_better"?: boolean,"id"?: string,"name_i18n"?: Json | null,"slug"?: string,"unit"?: Database["public"]['Enums']["metric_unit"],"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"plan_generation_jobs": {
+                  Row: {
+                    "created_at": string | null,"error": string | null,"id": string,"phase_detail": string | null,"plan_id": string | null,"status": string,"updated_at": string | null,"user_id": string,"workflow_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string | null,"error"?: string | null,"id"?: string,"phase_detail"?: string | null,"plan_id"?: string | null,"status"?: string,"updated_at"?: string | null,"user_id": string,"workflow_id"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string | null,"error"?: string | null,"id"?: string,"phase_detail"?: string | null,"plan_id"?: string | null,"status"?: string,"updated_at"?: string | null,"user_id"?: string,"workflow_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "plan_generation_jobs_plan_id_fkey"
+      columns: ["plan_id"]
+isOneToOne: false
+      referencedRelation: "workout_plans"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"session_modes": {
+                  Row: {
+                    "description_i18n": NonNullable<Json>,"display_name_i18n": NonNullable<Json>,"overrides_user_duration": boolean,"slug": string,"typical_duration_max": number | null,"typical_duration_min": number | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "description_i18n"?: NonNullable<Json>,"display_name_i18n"?: NonNullable<Json>,"overrides_user_duration"?: boolean,"slug": string,"typical_duration_max"?: number | null,"typical_duration_min"?: number | null
+                  }
+                  Update: {
+                    "description_i18n"?: NonNullable<Json>,"display_name_i18n"?: NonNullable<Json>,"overrides_user_duration"?: boolean,"slug"?: string,"typical_duration_max"?: number | null,"typical_duration_min"?: number | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"session_thumbnails": {
+                  Row: {
+                    "image_group": string,"storage_path": string | null,"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "image_group": string,"storage_path"?: string | null,"updated_at"?: string | null
+                  }
+                  Update: {
+                    "image_group"?: string,"storage_path"?: string | null,"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"sport_category_relevance": {
+                  Row: {
+                    "category_id": string,"created_at": string | null,"id": string,"relevance": number,"score_weight": number,"sport_id": string,"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "category_id": string,"created_at"?: string | null,"id"?: string,"relevance": number,"score_weight"?: number,"sport_id": string,"updated_at"?: string | null
+                  }
+                  Update: {
+                    "category_id"?: string,"created_at"?: string | null,"id"?: string,"relevance"?: number,"score_weight"?: number,"sport_id"?: string,"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sport_category_relevance_category_id_fkey"
+      columns: ["category_id"]
+isOneToOne: false
+      referencedRelation: "categories"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "sport_category_relevance_sport_id_fkey"
+      columns: ["sport_id"]
+isOneToOne: false
+      referencedRelation: "sports"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"sport_conditioning_weights": {
+                  Row: {
+                    "created_at": string,"format": Database["public"]['Enums']["conditioning_format"],"group_name": string,"weight": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"format": Database["public"]['Enums']["conditioning_format"],"group_name": string,"weight": number
+                  }
+                  Update: {
+                    "created_at"?: string,"format"?: Database["public"]['Enums']["conditioning_format"],"group_name"?: string,"weight"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"sport_group_animations": {
+                  Row: {
+                    "animation_storage_path": string | null,"group_name": string,"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "animation_storage_path"?: string | null,"group_name": string,"updated_at"?: string | null
+                  }
+                  Update: {
+                    "animation_storage_path"?: string | null,"group_name"?: string,"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"sport_group_banners": {
+                  Row: {
+                    "banner_storage_path": string | null,"group_name": string,"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "banner_storage_path"?: string | null,"group_name": string,"updated_at"?: string | null
+                  }
+                  Update: {
+                    "banner_storage_path"?: string | null,"group_name"?: string,"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"sport_plane_weights": {
+                  Row: {
+                    "created_at": string,"group_name": string,"pattern": string,"plane": Database["public"]['Enums']["movement_type"],"weight": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"group_name": string,"pattern": string,"plane": Database["public"]['Enums']["movement_type"],"weight": number
+                  }
+                  Update: {
+                    "created_at"?: string,"group_name"?: string,"pattern"?: string,"plane"?: Database["public"]['Enums']["movement_type"],"weight"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"sport_required_regions": {
+                  Row: {
+                    "body_region": Database["public"]['Enums']["body_region"],"created_at": string,"id": string,"sport_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "body_region": Database["public"]['Enums']["body_region"],"created_at"?: string,"id"?: string,"sport_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "body_region"?: Database["public"]['Enums']["body_region"],"created_at"?: string,"id"?: string,"sport_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sport_required_regions_sport_id_fkey"
+      columns: ["sport_id"]
+isOneToOne: false
+      referencedRelation: "sports"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"sports": {
+                  Row: {
+                    "animation_storage_path": string | null,"banner_storage_path": string | null,"created_at": string | null,"group_name": string,"id": string,"name_i18n": Json | null,"slug": string,"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "animation_storage_path"?: string | null,"banner_storage_path"?: string | null,"created_at"?: string | null,"group_name": string,"id"?: string,"name_i18n"?: Json | null,"slug": string,"updated_at"?: string | null
+                  }
+                  Update: {
+                    "animation_storage_path"?: string | null,"banner_storage_path"?: string | null,"created_at"?: string | null,"group_name"?: string,"id"?: string,"name_i18n"?: Json | null,"slug"?: string,"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"user_achievements": {
+                  Row: {
+                    "achievement_slug": string,"id": string,"unlocked_at": string,"user_id": string,"value": number | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "achievement_slug": string,"id"?: string,"unlocked_at"?: string,"user_id": string,"value"?: number | null
+                  }
+                  Update: {
+                    "achievement_slug"?: string,"id"?: string,"unlocked_at"?: string,"user_id"?: string,"value"?: number | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "user_achievements_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "user_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"user_assessments": {
+                  Row: {
+                    "assessment_id": string,"completed_at": string | null,"created_at": string | null,"id": string,"started_at": string | null,"status": Database["public"]['Enums']["assessment_status"],"updated_at": string | null,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "assessment_id": string,"completed_at"?: string | null,"created_at"?: string | null,"id"?: string,"started_at"?: string | null,"status": Database["public"]['Enums']["assessment_status"],"updated_at"?: string | null,"user_id": string
+                  }
+                  Update: {
+                    "assessment_id"?: string,"completed_at"?: string | null,"created_at"?: string | null,"id"?: string,"started_at"?: string | null,"status"?: Database["public"]['Enums']["assessment_status"],"updated_at"?: string | null,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "user_assessments_assessment_id_fkey"
+      columns: ["assessment_id"]
+isOneToOne: false
+      referencedRelation: "assessments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "user_assessments_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "user_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"user_category_level_history": {
+                  Row: {
+                    "category_id": string | null,"id": string,"level_score": number,"recorded_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "category_id"?: string | null,"id"?: string,"level_score": number,"recorded_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "category_id"?: string | null,"id"?: string,"level_score"?: number,"recorded_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "user_category_level_history_category_id_fkey"
+      columns: ["category_id"]
+isOneToOne: false
+      referencedRelation: "categories"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "user_category_level_history_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "user_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"user_category_levels": {
+                  Row: {
+                    "category_id": string,"created_at": string | null,"id": string,"level_score": number,"measured_at": string | null,"source": Database["public"]['Enums']["score_source"],"updated_at": string | null,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "category_id": string,"created_at"?: string | null,"id"?: string,"level_score": number,"measured_at"?: string | null,"source"?: Database["public"]['Enums']["score_source"],"updated_at"?: string | null,"user_id": string
+                  }
+                  Update: {
+                    "category_id"?: string,"created_at"?: string | null,"id"?: string,"level_score"?: number,"measured_at"?: string | null,"source"?: Database["public"]['Enums']["score_source"],"updated_at"?: string | null,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "user_category_levels_category_id_fkey"
+      columns: ["category_id"]
+isOneToOne: false
+      referencedRelation: "categories"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "user_category_levels_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "user_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"user_environments": {
+                  Row: {
+                    "environment_id": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "environment_id": string,"user_id": string
+                  }
+                  Update: {
+                    "environment_id"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "user_environments_environment_id_fkey"
+      columns: ["environment_id"]
+isOneToOne: false
+      referencedRelation: "environments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "user_environments_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "user_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"user_equipment_environments": {
+                  Row: {
+                    "environment_id": string,"equipment_id": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "environment_id": string,"equipment_id": string,"user_id": string
+                  }
+                  Update: {
+                    "environment_id"?: string,"equipment_id"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "user_equipment_environments_environment_id_fkey"
+      columns: ["environment_id"]
+isOneToOne: false
+      referencedRelation: "environments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "user_equipment_environments_equipment_id_fkey"
+      columns: ["equipment_id"]
+isOneToOne: false
+      referencedRelation: "equipments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "user_equipment_environments_user_id_equipment_id_fkey"
+      columns: ["user_id","equipment_id"]
+isOneToOne: false
+      referencedRelation: "user_equipments"
+      referencedColumns: ["user_id","equipment_id"]
+    },{
+      foreignKeyName: "user_equipment_environments_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "user_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"user_equipments": {
+                  Row: {
+                    "created_at": string | null,"equipment_id": string,"id": string,"updated_at": string | null,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string | null,"equipment_id": string,"id"?: string,"updated_at"?: string | null,"user_id": string
+                  }
+                  Update: {
+                    "created_at"?: string | null,"equipment_id"?: string,"id"?: string,"updated_at"?: string | null,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "user_equipments_equipment_id_fkey"
+      columns: ["equipment_id"]
+isOneToOne: false
+      referencedRelation: "equipments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "user_equipments_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "user_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"user_pillar_levels": {
+                  Row: {
+                    "category_id": string,"created_at": string | null,"id": string,"level": number,"set_by_wizard": boolean,"updated_at": string | null,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "category_id": string,"created_at"?: string | null,"id"?: string,"level": number,"set_by_wizard"?: boolean,"updated_at"?: string | null,"user_id": string
+                  }
+                  Update: {
+                    "category_id"?: string,"created_at"?: string | null,"id"?: string,"level"?: number,"set_by_wizard"?: boolean,"updated_at"?: string | null,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "user_pillar_levels_category_id_fkey"
+      columns: ["category_id"]
+isOneToOne: false
+      referencedRelation: "categories"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "user_pillar_levels_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "user_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"user_profiles": {
+                  Row: {
+                    "birth_date": string | null,"created_at": string | null,"day_environments": Json | null,"email": string,"first_name": string | null,"gender": Database["public"]['Enums']["gender"] | null,"has_onboarded": boolean | null,"height_in_cm": number | null,"id": string,"last_active_at": string | null,"last_name": string | null,"load_profile": string,"load_score": number,"preferred_day_durations": Json | null,"preferred_language": string | null,"preferred_session_duration": Database["public"]['Enums']["session_duration"] | null,"preferred_workout_days": (number)[] | null,"push_token": string | null,"referral_code": string | null,"role": Database["public"]['Enums']["user_role"],"schedule_notes": string | null,"sport_id": string | null,"sprint_distance": Database["public"]['Enums']["sprint_distance_answer"] | null,"sprints_covered_by_club": boolean,"timezone": string | null,"unit_system": string,"updated_at": string | null,"weekly_schedule": NonNullable<Json>,"weekly_schedule_updated_at": string | null,"weight_in_kg": number | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "birth_date"?: string | null,"created_at"?: string | null,"day_environments"?: Json | null,"email": string,"first_name"?: string | null,"gender"?: Database["public"]['Enums']["gender"] | null,"has_onboarded"?: boolean | null,"height_in_cm"?: number | null,"id"?: string,"last_active_at"?: string | null,"last_name"?: string | null,"load_profile"?: string,"load_score"?: number,"preferred_day_durations"?: Json | null,"preferred_language"?: string | null,"preferred_session_duration"?: Database["public"]['Enums']["session_duration"] | null,"preferred_workout_days"?: (number)[] | null,"push_token"?: string | null,"referral_code"?: string | null,"role"?: Database["public"]['Enums']["user_role"],"schedule_notes"?: string | null,"sport_id"?: string | null,"sprint_distance"?: Database["public"]['Enums']["sprint_distance_answer"] | null,"sprints_covered_by_club"?: boolean,"timezone"?: string | null,"unit_system"?: string,"updated_at"?: string | null,"weekly_schedule"?: NonNullable<Json>,"weekly_schedule_updated_at"?: string | null,"weight_in_kg"?: number | null
+                  }
+                  Update: {
+                    "birth_date"?: string | null,"created_at"?: string | null,"day_environments"?: Json | null,"email"?: string,"first_name"?: string | null,"gender"?: Database["public"]['Enums']["gender"] | null,"has_onboarded"?: boolean | null,"height_in_cm"?: number | null,"id"?: string,"last_active_at"?: string | null,"last_name"?: string | null,"load_profile"?: string,"load_score"?: number,"preferred_day_durations"?: Json | null,"preferred_language"?: string | null,"preferred_session_duration"?: Database["public"]['Enums']["session_duration"] | null,"preferred_workout_days"?: (number)[] | null,"push_token"?: string | null,"referral_code"?: string | null,"role"?: Database["public"]['Enums']["user_role"],"schedule_notes"?: string | null,"sport_id"?: string | null,"sprint_distance"?: Database["public"]['Enums']["sprint_distance_answer"] | null,"sprints_covered_by_club"?: boolean,"timezone"?: string | null,"unit_system"?: string,"updated_at"?: string | null,"weekly_schedule"?: NonNullable<Json>,"weekly_schedule_updated_at"?: string | null,"weight_in_kg"?: number | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "user_profiles_sport_id_fkey"
+      columns: ["sport_id"]
+isOneToOne: false
+      referencedRelation: "sports"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"user_targeted_categories": {
+                  Row: {
+                    "category_id": string,"created_at": string | null,"id": string,"priority": number,"updated_at": string | null,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "category_id": string,"created_at"?: string | null,"id"?: string,"priority"?: number,"updated_at"?: string | null,"user_id": string
+                  }
+                  Update: {
+                    "category_id"?: string,"created_at"?: string | null,"id"?: string,"priority"?: number,"updated_at"?: string | null,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "user_targeted_categories_category_id_fkey"
+      columns: ["category_id"]
+isOneToOne: false
+      referencedRelation: "categories"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "user_targeted_categories_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "user_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"workout_plan_session_block_exercises": {
+                  Row: {
+                    "assigned_pattern": string | null,"created_at": string,"exercise_id": string,"id": string,"is_amrap": boolean,"notes": string | null,"order_index": number,"pattern_emphasis": string | null,"target_distance_meters": number | null,"target_duration_seconds": number | null,"target_load_type": Database["public"]['Enums']["load_type"] | null,"target_load_value": number | null,"target_reps_max": number | null,"target_reps_min": number | null,"target_rest_seconds": number | null,"target_rounds": number | null,"target_sets": number | null,"updated_at": string,"workout_plan_session_block_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "assigned_pattern"?: string | null,"created_at"?: string,"exercise_id": string,"id"?: string,"is_amrap"?: boolean,"notes"?: string | null,"order_index": number,"pattern_emphasis"?: string | null,"target_distance_meters"?: number | null,"target_duration_seconds"?: number | null,"target_load_type"?: Database["public"]['Enums']["load_type"] | null,"target_load_value"?: number | null,"target_reps_max"?: number | null,"target_reps_min"?: number | null,"target_rest_seconds"?: number | null,"target_rounds"?: number | null,"target_sets"?: number | null,"updated_at"?: string,"workout_plan_session_block_id": string
+                  }
+                  Update: {
+                    "assigned_pattern"?: string | null,"created_at"?: string,"exercise_id"?: string,"id"?: string,"is_amrap"?: boolean,"notes"?: string | null,"order_index"?: number,"pattern_emphasis"?: string | null,"target_distance_meters"?: number | null,"target_duration_seconds"?: number | null,"target_load_type"?: Database["public"]['Enums']["load_type"] | null,"target_load_value"?: number | null,"target_reps_max"?: number | null,"target_reps_min"?: number | null,"target_rest_seconds"?: number | null,"target_rounds"?: number | null,"target_sets"?: number | null,"updated_at"?: string,"workout_plan_session_block_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "workout_plan_session_block_ex_workout_plan_session_block_i_fkey"
+      columns: ["workout_plan_session_block_id"]
+isOneToOne: false
+      referencedRelation: "workout_plan_session_blocks"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_plan_session_block_exercises_exercise_id_fkey"
+      columns: ["exercise_id"]
+isOneToOne: false
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"workout_plan_session_blocks": {
+                  Row: {
+                    "block_type_id": string | null,"created_at": string | null,"emphasis": string | null,"focused_category_id": string | null,"id": string,"order_index": number,"updated_at": string | null,"workout_plan_session_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "block_type_id"?: string | null,"created_at"?: string | null,"emphasis"?: string | null,"focused_category_id"?: string | null,"id"?: string,"order_index": number,"updated_at"?: string | null,"workout_plan_session_id"?: string | null
+                  }
+                  Update: {
+                    "block_type_id"?: string | null,"created_at"?: string | null,"emphasis"?: string | null,"focused_category_id"?: string | null,"id"?: string,"order_index"?: number,"updated_at"?: string | null,"workout_plan_session_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "workout_plan_session_blocks_block_type_id_fkey"
+      columns: ["block_type_id"]
+isOneToOne: false
+      referencedRelation: "block_types"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_plan_session_blocks_focused_category_id_fkey"
+      columns: ["focused_category_id"]
+isOneToOne: false
+      referencedRelation: "categories"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_plan_session_blocks_workout_plan_session_id_fkey"
+      columns: ["workout_plan_session_id"]
+isOneToOne: false
+      referencedRelation: "workout_plan_sessions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"workout_plan_sessions": {
+                  Row: {
+                    "created_at": string | null,"day_of_week": number,"description": string | null,"dropped_blocks": Json | null,"environment_id": string,"estimated_duration_minutes": number | null,"flexible_window": (number)[] | null,"id": string,"mode_slug": string | null,"name": string,"order_index": number,"pause_between_sets": number,"plan_id": string | null,"session_type": Database["public"]['Enums']["session_type"],"updated_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string | null,"day_of_week": number,"description"?: string | null,"dropped_blocks"?: Json | null,"environment_id": string,"estimated_duration_minutes"?: number | null,"flexible_window"?: (number)[] | null,"id"?: string,"mode_slug"?: string | null,"name": string,"order_index": number,"pause_between_sets"?: number,"plan_id"?: string | null,"session_type": Database["public"]['Enums']["session_type"],"updated_at"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string | null,"day_of_week"?: number,"description"?: string | null,"dropped_blocks"?: Json | null,"environment_id"?: string,"estimated_duration_minutes"?: number | null,"flexible_window"?: (number)[] | null,"id"?: string,"mode_slug"?: string | null,"name"?: string,"order_index"?: number,"pause_between_sets"?: number,"plan_id"?: string | null,"session_type"?: Database["public"]['Enums']["session_type"],"updated_at"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "workout_plan_sessions_environment_id_fkey"
+      columns: ["environment_id"]
+isOneToOne: false
+      referencedRelation: "environments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_plan_sessions_plan_id_fkey"
+      columns: ["plan_id"]
+isOneToOne: false
+      referencedRelation: "workout_plans"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"workout_plan_targeted_categories": {
+                  Row: {
+                    "category_id": string | null,"created_at": string | null,"id": string,"priority": number,"updated_at": string | null,"workout_plan_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "category_id"?: string | null,"created_at"?: string | null,"id"?: string,"priority": number,"updated_at"?: string | null,"workout_plan_id"?: string | null
+                  }
+                  Update: {
+                    "category_id"?: string | null,"created_at"?: string | null,"id"?: string,"priority"?: number,"updated_at"?: string | null,"workout_plan_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "workout_plan_targeted_categories_category_id_fkey"
+      columns: ["category_id"]
+isOneToOne: false
+      referencedRelation: "categories"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_plan_targeted_categories_workout_plan_id_fkey"
+      columns: ["workout_plan_id"]
+isOneToOne: false
+      referencedRelation: "workout_plans"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"workout_plans": {
+                  Row: {
+                    "created_at": string | null,"description": string | null,"duration_weeks": number,"end_date": string,"id": string,"name": string,"start_date": string,"status": Database["public"]['Enums']["plan_status"],"updated_at": string | null,"user_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string | null,"description"?: string | null,"duration_weeks": number,"end_date": string,"id"?: string,"name": string,"start_date": string,"status": Database["public"]['Enums']["plan_status"],"updated_at"?: string | null,"user_id"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string | null,"description"?: string | null,"duration_weeks"?: number,"end_date"?: string,"id"?: string,"name"?: string,"start_date"?: string,"status"?: Database["public"]['Enums']["plan_status"],"updated_at"?: string | null,"user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "workout_plans_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "user_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"workout_session_block_exercises": {
+                  Row: {
+                    "assigned_pattern": string | null,"created_at": string,"exercise_id": string,"id": string,"is_amrap": boolean,"order_index": number,"pattern_emphasis": string | null,"recommended_load_value": number | null,"swapped_from_exercise_id": string | null,"target_distance_meters": number | null,"target_duration_seconds": number | null,"target_load_type": Database["public"]['Enums']["load_type"] | null,"target_load_value": number | null,"target_reps_max": number | null,"target_reps_min": number | null,"target_rest_seconds": number | null,"target_rounds": number | null,"target_sets": number | null,"updated_at": string,"workout_plan_session_block_exercise_id": string | null,"workout_plan_session_block_id": string | null,"workout_session_block_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "assigned_pattern"?: string | null,"created_at"?: string,"exercise_id": string,"id"?: string,"is_amrap"?: boolean,"order_index": number,"pattern_emphasis"?: string | null,"recommended_load_value"?: number | null,"swapped_from_exercise_id"?: string | null,"target_distance_meters"?: number | null,"target_duration_seconds"?: number | null,"target_load_type"?: Database["public"]['Enums']["load_type"] | null,"target_load_value"?: number | null,"target_reps_max"?: number | null,"target_reps_min"?: number | null,"target_rest_seconds"?: number | null,"target_rounds"?: number | null,"target_sets"?: number | null,"updated_at"?: string,"workout_plan_session_block_exercise_id"?: string | null,"workout_plan_session_block_id"?: string | null,"workout_session_block_id": string
+                  }
+                  Update: {
+                    "assigned_pattern"?: string | null,"created_at"?: string,"exercise_id"?: string,"id"?: string,"is_amrap"?: boolean,"order_index"?: number,"pattern_emphasis"?: string | null,"recommended_load_value"?: number | null,"swapped_from_exercise_id"?: string | null,"target_distance_meters"?: number | null,"target_duration_seconds"?: number | null,"target_load_type"?: Database["public"]['Enums']["load_type"] | null,"target_load_value"?: number | null,"target_reps_max"?: number | null,"target_reps_min"?: number | null,"target_rest_seconds"?: number | null,"target_rounds"?: number | null,"target_sets"?: number | null,"updated_at"?: string,"workout_plan_session_block_exercise_id"?: string | null,"workout_plan_session_block_id"?: string | null,"workout_session_block_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "workout_session_block_exercis_workout_plan_session_block_e_fkey"
+      columns: ["workout_plan_session_block_exercise_id"]
+isOneToOne: false
+      referencedRelation: "workout_plan_session_block_exercises"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_session_block_exercis_workout_plan_session_block_i_fkey"
+      columns: ["workout_plan_session_block_id"]
+isOneToOne: false
+      referencedRelation: "workout_plan_session_blocks"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_session_block_exercises_exercise_id_fkey"
+      columns: ["exercise_id"]
+isOneToOne: false
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_session_block_exercises_swapped_from_exercise_id_fkey"
+      columns: ["swapped_from_exercise_id"]
+isOneToOne: false
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_session_block_exercises_workout_session_block_id_fkey"
+      columns: ["workout_session_block_id"]
+isOneToOne: false
+      referencedRelation: "workout_session_blocks"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"workout_session_blocks": {
+                  Row: {
+                    "block_type_id": string | null,"created_at": string | null,"focused_category_id": string | null,"id": string,"order_index": number,"updated_at": string | null,"workout_plan_session_block_id": string | null,"workout_session_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "block_type_id"?: string | null,"created_at"?: string | null,"focused_category_id"?: string | null,"id"?: string,"order_index": number,"updated_at"?: string | null,"workout_plan_session_block_id"?: string | null,"workout_session_id"?: string | null
+                  }
+                  Update: {
+                    "block_type_id"?: string | null,"created_at"?: string | null,"focused_category_id"?: string | null,"id"?: string,"order_index"?: number,"updated_at"?: string | null,"workout_plan_session_block_id"?: string | null,"workout_session_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "workout_session_blocks_block_type_id_fkey"
+      columns: ["block_type_id"]
+isOneToOne: false
+      referencedRelation: "block_types"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_session_blocks_focused_category_id_fkey"
+      columns: ["focused_category_id"]
+isOneToOne: false
+      referencedRelation: "categories"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_session_blocks_workout_plan_session_block_id_fkey"
+      columns: ["workout_plan_session_block_id"]
+isOneToOne: false
+      referencedRelation: "workout_plan_session_blocks"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_session_blocks_workout_session_id_fkey"
+      columns: ["workout_session_id"]
+isOneToOne: false
+      referencedRelation: "workout_sessions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"workout_session_performed_sets": {
+                  Row: {
+                    "created_at": string,"id": string,"performed_distance_meters": number | null,"performed_duration_seconds": number | null,"performed_load_value": number | null,"performed_reps": number | null,"performed_rpe": number | null,"set_number": number,"side": string,"updated_at": string,"workout_session_block_exercise_id": string,"workout_session_block_id": string,"workout_session_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"performed_distance_meters"?: number | null,"performed_duration_seconds"?: number | null,"performed_load_value"?: number | null,"performed_reps"?: number | null,"performed_rpe"?: number | null,"set_number": number,"side"?: string,"updated_at"?: string,"workout_session_block_exercise_id": string,"workout_session_block_id": string,"workout_session_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"performed_distance_meters"?: number | null,"performed_duration_seconds"?: number | null,"performed_load_value"?: number | null,"performed_reps"?: number | null,"performed_rpe"?: number | null,"set_number"?: number,"side"?: string,"updated_at"?: string,"workout_session_block_exercise_id"?: string,"workout_session_block_id"?: string,"workout_session_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "workout_session_performed_set_workout_session_block_exerci_fkey"
+      columns: ["workout_session_block_exercise_id"]
+isOneToOne: false
+      referencedRelation: "workout_session_block_exercises"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_session_performed_sets_workout_session_block_id_fkey"
+      columns: ["workout_session_block_id"]
+isOneToOne: false
+      referencedRelation: "workout_session_blocks"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_session_performed_sets_workout_session_id_fkey"
+      columns: ["workout_session_id"]
+isOneToOne: false
+      referencedRelation: "workout_sessions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"workout_sessions": {
+                  Row: {
+                    "completed_at": string | null,"created_at": string | null,"current_exercise_index": number,"current_set_number": number,"description": string | null,"environment_id": string,"estimated_duration_minutes": number | null,"id": string,"name": string,"original_scheduled_at": string | null,"pause_between_sets": number,"rest_adjust_seconds": number | null,"scheduled_at": string | null,"session_type": Database["public"]['Enums']["session_type"] | null,"started_at": string | null,"status": Database["public"]['Enums']["session_status"],"updated_at": string | null,"user_id": string | null,"workout_plan_id": string | null,"workout_plan_session_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "completed_at"?: string | null,"created_at"?: string | null,"current_exercise_index"?: number,"current_set_number"?: number,"description"?: string | null,"environment_id": string,"estimated_duration_minutes"?: number | null,"id"?: string,"name": string,"original_scheduled_at"?: string | null,"pause_between_sets"?: number,"rest_adjust_seconds"?: number | null,"scheduled_at"?: string | null,"session_type"?: Database["public"]['Enums']["session_type"] | null,"started_at"?: string | null,"status"?: Database["public"]['Enums']["session_status"],"updated_at"?: string | null,"user_id"?: string | null,"workout_plan_id"?: string | null,"workout_plan_session_id"?: string | null
+                  }
+                  Update: {
+                    "completed_at"?: string | null,"created_at"?: string | null,"current_exercise_index"?: number,"current_set_number"?: number,"description"?: string | null,"environment_id"?: string,"estimated_duration_minutes"?: number | null,"id"?: string,"name"?: string,"original_scheduled_at"?: string | null,"pause_between_sets"?: number,"rest_adjust_seconds"?: number | null,"scheduled_at"?: string | null,"session_type"?: Database["public"]['Enums']["session_type"] | null,"started_at"?: string | null,"status"?: Database["public"]['Enums']["session_status"],"updated_at"?: string | null,"user_id"?: string | null,"workout_plan_id"?: string | null,"workout_plan_session_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "workout_sessions_environment_id_fkey"
+      columns: ["environment_id"]
+isOneToOne: false
+      referencedRelation: "environments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_sessions_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "user_profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_sessions_workout_plan_id_fkey"
+      columns: ["workout_plan_id"]
+isOneToOne: false
+      referencedRelation: "workout_plans"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "workout_sessions_workout_plan_session_id_fkey"
+      columns: ["workout_plan_session_id"]
+isOneToOne: false
+      referencedRelation: "workout_plan_sessions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                }
+          }
+          Views: {
+            [_ in never]: never
+          }
+          Functions: {
+            "fn_assert_creator_role":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"fn_auto_skip_missed_sessions":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"fn_create_user_assessments":
+{ Args: { "p_user_id": string }; Returns: undefined
+                           },
+"fn_dev_complete_active_plan":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"fn_dev_seed_category_history":
+{ Args: { "p_days"?: number }; Returns: undefined
+                           },
+"fn_log_affiliate_lead_view":
+{ Args: { "p_code": string,"p_country"?: string,"p_referer"?: string,"p_session_id": string }; Returns: undefined
+                           },
+"fn_mark_affiliate_lead_store_click":
+{ Args: { "p_platform"?: string,"p_session_id": string }; Returns: undefined
+                           },
+"fn_refill_user_assessments":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"fn_renew_assessments_for_all_users":
+{ Args: Record<PropertyKey, never>; Returns: string[]
+                           },
+"fn_take_category_level_snapshot":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"fn_take_user_category_level_snapshot":
+{ Args: { "p_user_id": string }; Returns: undefined
+                           }
+          }
+          Enums: {
+            "affiliate_lead_status": "viewed"|"store_clicked","assessment_status": "pending"|"in_progress"|"completed","body_region": "ankle"|"calf"|"knee"|"quad"|"hamstring"|"glute"|"hip"|"groin"|"lower_back"|"core"|"obliques"|"thoracic"|"upper_back"|"chest"|"shoulder"|"bicep"|"tricep"|"forearm"|"full_body"|"neck","conditioning_format": "extensive"|"intensive"|"rounds","core_type": "stability"|"power","exercise_image_group": "squat_patterns"|"hip_hinge"|"hip_thrust"|"upper_push"|"upper_pull"|"olympic_lifts"|"dumbbell_complex"|"loaded_carry"|"vertical_jumps"|"horizontal_jumps"|"hurdle_hops"|"reactive_jumps"|"sprints"|"sled_exercises"|"agility"|"conditioning"|"medicine_ball"|"explosive_push"|"mobility"|"lunges"|"glute_hip_activation"|"posterior_chain_iso"|"calf_ankle"|"core"|"adductor"|"sprint_drills"|"mobility_development","exercise_region_role": "primary"|"secondary","gender": "male"|"female"|"other","laterality": "bilateral"|"unilateral"|"alternating","load_type": "bodyweight"|"kg"|"percent_1rm"|"rpe"|"pace","metric_source_type": "manual"|"assessment"|"session"|"derived","metric_unit": "kg"|"m"|"cm"|"s"|"min"|"hr"|"kcal"|"bpm"|"percent"|"count"|"other"|"rating","movement_pattern": "push"|"pull"|"legs"|"core"|"isometric"|"plyometric"|"mobility"|"cardio"|"other","movement_type": "sagittal"|"frontal"|"transverse","plan_status": "draft"|"active"|"paused"|"completed"|"archived","plyo_type": "maximal"|"submaximal","score_source": "self_estimate"|"measured","session_duration": "30min"|"45min"|"60min"|"90min","session_status": "scheduled"|"in_progress"|"completed"|"skipped"|"cancelled","session_type": "training"|"recovery"|"speed"|"mobility"|"conditioning","sprint_distance_answer": "under_20m"|"20_40m"|"over_40m","sprint_type": "acceleration"|"max_velocity"|"resisted","strength_pattern": "push_vertical"|"push_horizontal"|"pull_vertical"|"pull_horizontal"|"knee_dominant"|"hinge"|"rotation","user_role": "user"|"admin"|"tester"|"affiliate"
+          }
+          CompositeTypes: {
+            [_ in never]: never
+          }
         }
-        Returns: undefined
-      }
-      fn_mark_affiliate_lead_store_click: {
-        Args: { p_platform?: string; p_session_id: string }
-        Returns: undefined
-      }
-      fn_refill_user_assessments: { Args: never; Returns: undefined }
-      fn_renew_assessments_for_all_users: { Args: never; Returns: string[] }
-      fn_take_category_level_snapshot: { Args: never; Returns: undefined }
-      fn_take_user_category_level_snapshot: {
-        Args: { p_user_id: string }
-        Returns: undefined
-      }
-    }
-    Enums: {
-      affiliate_lead_status: "viewed" | "store_clicked"
-      assessment_status: "pending" | "in_progress" | "completed"
-      body_region:
-        | "ankle"
-        | "calf"
-        | "knee"
-        | "quad"
-        | "hamstring"
-        | "glute"
-        | "hip"
-        | "groin"
-        | "lower_back"
-        | "core"
-        | "obliques"
-        | "thoracic"
-        | "upper_back"
-        | "chest"
-        | "shoulder"
-        | "bicep"
-        | "tricep"
-        | "forearm"
-        | "full_body"
-        | "neck"
-      exercise_image_group:
-        | "squat_patterns"
-        | "hip_hinge"
-        | "hip_thrust"
-        | "upper_push"
-        | "upper_pull"
-        | "olympic_lifts"
-        | "dumbbell_complex"
-        | "loaded_carry"
-        | "vertical_jumps"
-        | "horizontal_jumps"
-        | "hurdle_hops"
-        | "reactive_jumps"
-        | "sprints"
-        | "sled_exercises"
-        | "agility"
-        | "conditioning"
-        | "medicine_ball"
-        | "explosive_push"
-        | "mobility"
-        | "lunges"
-        | "glute_hip_activation"
-        | "posterior_chain_iso"
-        | "calf_ankle"
-        | "core"
-        | "adductor"
-        | "sprint_drills"
-        | "mobility_development"
-      gender: "male" | "female" | "other"
-      laterality: "bilateral" | "unilateral" | "alternating"
-      load_type: "bodyweight" | "kg" | "percent_1rm" | "rpe" | "pace"
-      metric_source_type: "manual" | "assessment" | "session" | "derived"
-      metric_unit:
-        | "kg"
-        | "m"
-        | "cm"
-        | "s"
-        | "min"
-        | "hr"
-        | "kcal"
-        | "bpm"
-        | "percent"
-        | "count"
-        | "other"
-        | "rating"
-      movement_pattern:
-        | "push"
-        | "pull"
-        | "legs"
-        | "core"
-        | "isometric"
-        | "plyometric"
-        | "mobility"
-        | "cardio"
-        | "other"
-      plan_status: "draft" | "active" | "paused" | "completed" | "archived"
-      session_duration: "30min" | "45min" | "60min" | "90min"
-      session_status:
-        | "scheduled"
-        | "in_progress"
-        | "completed"
-        | "skipped"
-        | "cancelled"
-      session_type: "training" | "recovery"
-      user_role: "user" | "admin" | "tester" | "affiliate"
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
 
 type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
@@ -2049,25 +1155,21 @@ export type Tables<
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+      Row: infer R
+    }
+    ? R
     : never
+  : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
@@ -2077,22 +1179,20 @@ export type TablesInsert<
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Insert: infer I
+    }
+    ? I
     : never
+  : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
@@ -2102,22 +1202,20 @@ export type TablesUpdate<
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Update: infer U
+    }
+    ? U
     : never
+  : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
@@ -2127,14 +1225,12 @@ export type Enums<
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+    : never = never
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
@@ -2144,115 +1240,21 @@ export type CompositeTypes<
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+    : never = never
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
-  public: {
-    Enums: {
-      affiliate_lead_status: ["viewed", "store_clicked"],
-      assessment_status: ["pending", "in_progress", "completed"],
-      body_region: [
-        "ankle",
-        "calf",
-        "knee",
-        "quad",
-        "hamstring",
-        "glute",
-        "hip",
-        "groin",
-        "lower_back",
-        "core",
-        "obliques",
-        "thoracic",
-        "upper_back",
-        "chest",
-        "shoulder",
-        "bicep",
-        "tricep",
-        "forearm",
-        "full_body",
-        "neck",
-      ],
-      exercise_image_group: [
-        "squat_patterns",
-        "hip_hinge",
-        "hip_thrust",
-        "upper_push",
-        "upper_pull",
-        "olympic_lifts",
-        "dumbbell_complex",
-        "loaded_carry",
-        "vertical_jumps",
-        "horizontal_jumps",
-        "hurdle_hops",
-        "reactive_jumps",
-        "sprints",
-        "sled_exercises",
-        "agility",
-        "conditioning",
-        "medicine_ball",
-        "explosive_push",
-        "mobility",
-        "lunges",
-        "glute_hip_activation",
-        "posterior_chain_iso",
-        "calf_ankle",
-        "core",
-        "adductor",
-        "sprint_drills",
-        "mobility_development",
-      ],
-      gender: ["male", "female", "other"],
-      laterality: ["bilateral", "unilateral", "alternating"],
-      load_type: ["bodyweight", "kg", "percent_1rm", "rpe", "pace"],
-      metric_source_type: ["manual", "assessment", "session", "derived"],
-      metric_unit: [
-        "kg",
-        "m",
-        "cm",
-        "s",
-        "min",
-        "hr",
-        "kcal",
-        "bpm",
-        "percent",
-        "count",
-        "other",
-        "rating",
-      ],
-      movement_pattern: [
-        "push",
-        "pull",
-        "legs",
-        "core",
-        "isometric",
-        "plyometric",
-        "mobility",
-        "cardio",
-        "other",
-      ],
-      plan_status: ["draft", "active", "paused", "completed", "archived"],
-      session_duration: ["30min", "45min", "60min", "90min"],
-      session_status: [
-        "scheduled",
-        "in_progress",
-        "completed",
-        "skipped",
-        "cancelled",
-      ],
-      session_type: ["training", "recovery"],
-      user_role: ["user", "admin", "tester", "affiliate"],
-    },
-  },
+  "graphql_public": {
+          Enums: {
+            
+          }
+        },"public": {
+          Enums: {
+            "affiliate_lead_status": ["viewed", "store_clicked"],"assessment_status": ["pending", "in_progress", "completed"],"body_region": ["ankle", "calf", "knee", "quad", "hamstring", "glute", "hip", "groin", "lower_back", "core", "obliques", "thoracic", "upper_back", "chest", "shoulder", "bicep", "tricep", "forearm", "full_body", "neck"],"conditioning_format": ["extensive", "intensive", "rounds"],"core_type": ["stability", "power"],"exercise_image_group": ["squat_patterns", "hip_hinge", "hip_thrust", "upper_push", "upper_pull", "olympic_lifts", "dumbbell_complex", "loaded_carry", "vertical_jumps", "horizontal_jumps", "hurdle_hops", "reactive_jumps", "sprints", "sled_exercises", "agility", "conditioning", "medicine_ball", "explosive_push", "mobility", "lunges", "glute_hip_activation", "posterior_chain_iso", "calf_ankle", "core", "adductor", "sprint_drills", "mobility_development"],"exercise_region_role": ["primary", "secondary"],"gender": ["male", "female", "other"],"laterality": ["bilateral", "unilateral", "alternating"],"load_type": ["bodyweight", "kg", "percent_1rm", "rpe", "pace"],"metric_source_type": ["manual", "assessment", "session", "derived"],"metric_unit": ["kg", "m", "cm", "s", "min", "hr", "kcal", "bpm", "percent", "count", "other", "rating"],"movement_pattern": ["push", "pull", "legs", "core", "isometric", "plyometric", "mobility", "cardio", "other"],"movement_type": ["sagittal", "frontal", "transverse"],"plan_status": ["draft", "active", "paused", "completed", "archived"],"plyo_type": ["maximal", "submaximal"],"score_source": ["self_estimate", "measured"],"session_duration": ["30min", "45min", "60min", "90min"],"session_status": ["scheduled", "in_progress", "completed", "skipped", "cancelled"],"session_type": ["training", "recovery", "speed", "mobility", "conditioning"],"sprint_distance_answer": ["under_20m", "20_40m", "over_40m"],"sprint_type": ["acceleration", "max_velocity", "resisted"],"strength_pattern": ["push_vertical", "push_horizontal", "pull_vertical", "pull_horizontal", "knee_dominant", "hinge", "rotation"],"user_role": ["user", "admin", "tester", "affiliate"]
+          }
+        }
 } as const
-

@@ -1,3 +1,5 @@
+import CodIcon from "@/assets/icons/cod_white.svg";
+import ConditioningIcon from "@/assets/icons/conditioning_white.svg";
 import JumpIcon from "@/assets/icons/jump_white.svg";
 import LowerPlyoIcon from "@/assets/icons/lower_plyo_white.svg";
 import MobilityIcon from "@/assets/icons/mobility_white.svg";
@@ -12,8 +14,13 @@ import { SvgProps } from "react-native-svg";
  */
 export const CATEGORY_SVG_ICONS: Record<string, ComponentType<SvgProps>> = {
     strength: StrengthIcon,
+    // Icon-Umzug 08.10.: Jump-Icon gehört zur gemergten Sprungkraft-Säule,
+    // das alte Lower-Plyo-Icon (Schritte) passt zur neuen Sprint-Säule.
     jumps: JumpIcon,
-    lower_body_plyometrics: LowerPlyoIcon,
+    lower_body_plyometrics: JumpIcon,
+    sprints: LowerPlyoIcon,
+    cod: CodIcon,
+    conditioning: ConditioningIcon,
     upper_body_plyometrics: UpperPlyoIcon,
     mobility: MobilityIcon,
 };

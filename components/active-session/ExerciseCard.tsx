@@ -2,14 +2,18 @@ import { JempText } from '@/components/jemp-text';
 import { SessionChip } from '@/components/plan/SessionChip';
 import { Colors } from '@/constants/theme';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
+import { isSwappableBlock, swapExerciseUrl } from '@/helpers/swap-support';
+import { ExerciseActionsMenu } from '@/components/ui/exercise-actions-menu';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useActiveSessionTransition } from '@/providers/active-session-transition-provider';
+import { useActiveSessionStore } from '@/stores/active-session-store';
 import { useActiveSessionUIStore } from '@/stores/active-session-ui-store';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 
@@ -22,7 +26,17 @@ export function ExerciseCard() {
 
     const { exerciseIdx, exSlideX, exOpacity } = useActiveSessionTransition();
     const allExercises = useActiveSessionUIStore(s => s.allExercises);
+    const session = useActiveSessionUIStore(s => s.session);
     const current = allExercises[exerciseIdx] ?? null;
+
+    // Gibt es für diese Übung schon eingetragene Sätze? Harte Sperre bleibt die
+    // performed_sets-Prüfung in der Swap-Mutation (Task 8) — hier nur die UI-Dimmung
+    // + der Hinweis-Flag für das Sheet.
+    const [menuOpen, setMenuOpen] = useState(false);
+    const pendingSets = useActiveSessionStore(s => s.pendingSets);
+    const hasLoggedSets = current
+        ? pendingSets.some(s => s.workout_session_block_exercise_id === current.id)
+        : false;
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ translateX: exSlideX.value }],
@@ -40,7 +54,32 @@ export function ExerciseCard() {
                 <View style={styles.titleLeft}>
                     <JempText type="h1">{current.exercise.name}</JempText>
                 </View>
+                {/* ⋯-Menü (QA 19.10.) — nur solange scheduled_at vorliegt (defensiv:
+                    fehlen Daten, lieber Button ausblenden statt kaputte Route pushen).
+                    Bei bereits geloggten Sätzen wird die Aktion gedimmt, bleibt aber
+                    bedienbar — das Sheet zeigt dann nur den Hinweis-Toast. Zusätzlich
+                    nur bei Blocktypen, die der Swap-Pool-Builder unterstützt
+                    (Finding 2b, Spec §0.4-Abweichung). */}
+                {session?.scheduled_at && isSwappableBlock(current.blockType?.slug) && (
+                    <TouchableOpacity hitSlop={8} onPress={() => setMenuOpen(true)}>
+                        <Ionicons name="ellipsis-vertical" size={18} color={theme.textMuted} />
+                    </TouchableOpacity>
+                )}
             </View>
+
+            <ExerciseActionsMenu
+                visible={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                swapDimmed={hasLoggedSets}
+                onSwap={() => router.push(swapExerciseUrl({
+                    sessionId: session!.id,
+                    blockExerciseId: current.id,
+                    planBlockExerciseId: current.workout_plan_session_block_exercise_id,
+                    scheduledAt: session!.scheduled_at,
+                    exerciseId: current.exercise.id,
+                    hasLoggedSets,
+                }) as never)}
+            />
 
             {/* Thumbnail statt eingebettetem Video-Player — Details (inkl. Video)
                 liegen auf der Exercise-Detail-Seite */}

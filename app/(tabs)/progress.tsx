@@ -14,6 +14,8 @@ import { useOverallScore } from '@/hooks/use-overall-score';
 import { useCurrentUser } from '@/providers/current-user-provider';
 import { useCategoryAssessmentsQuery } from '@/queries/use-category-assessments-query';
 import { useUserCategoryHistoryQuery } from '@/queries/use-user-category-history-query';
+import { overallSeries, pillarSourceStatus } from '@/lib/pillar-score';
+import { usePillarWeightsQuery } from '@/queries/use-pillar-weights-query';
 import { useUserCategoryLevelsQuery } from '@/queries/use-user-category-levels-query';
 import { useDevToolsStore } from '@/stores/dev-tools-store';
 import { TimeFrame } from '@/types/progress-types';
@@ -49,6 +51,7 @@ export default function ProgressScreen() {
 
     const { data: categoryLevels, isLoading: levelsLoading } = useUserCategoryLevelsQuery(profile?.id);
     const { data: historyData, isLoading: historyLoading } = useUserCategoryHistoryQuery(profile?.id, since);
+    const { data: pillarWeights } = usePillarWeightsQuery(profile?.sport_id ?? null);
     const { data: assessmentEntries, isLoading: assessmentsLoading } = useCategoryAssessmentsQuery(
         profile?.id,
         selectedCategory !== 'all' ? selectedCategory : undefined,
@@ -60,24 +63,21 @@ export default function ProgressScreen() {
         if (!historyData) return [];
         if (selectedCategory !== 'all') return historyData[selectedCategory] ?? [];
 
-        // Prefer DB-stored overall (NULL category_id → 'all')
-        if (historyData['all']?.length) return historyData['all'];
-
-        // Fallback: compute running average client-side from per-category data
-        const all: { slug: string; score: number; recordedAt: string }[] = [];
-        for (const [slug, points] of Object.entries(historyData)) {
+        // Gesamt-Score LIVE gewichtet via LOCF (Spec §4.7) — die persistierten
+        // 'all'-Zeilen sind nur noch Fallback für Prä-Säulen-Historie.
+        const points: { slug: string; level: number; recordedAt: string }[] = [];
+        for (const [slug, slugPoints] of Object.entries(historyData)) {
             if (slug === 'all') continue;
-            for (const p of points) all.push({ slug, ...p });
+            for (const p of slugPoints) points.push({ slug, level: p.score, recordedAt: p.recordedAt });
         }
-        if (!all.length) return [];
-        all.sort((a, b) => a.recordedAt.localeCompare(b.recordedAt));
-        const current = new Map<string, number>();
-        return all.map(pt => {
-            current.set(pt.slug, pt.score);
-            const avg = Math.round([...current.values()].reduce((a, b) => a + b, 0) / current.size);
-            return { score: avg, recordedAt: pt.recordedAt };
-        });
-    }, [historyData, selectedCategory]);
+        if (points.length > 0) {
+            const effectiveWeights = pillarWeights && pillarWeights.length > 0
+                ? pillarWeights
+                : [...new Set(points.map((p) => p.slug))].map((slug) => ({ slug, weight: 1 }));
+            return overallSeries(points, effectiveWeights).map((p) => ({ score: p.level, recordedAt: p.recordedAt }));
+        }
+        return historyData['all'] ?? [];
+    }, [historyData, selectedCategory, pillarWeights]);
 
     const trend = useMemo(() => computeTrend(chartData), [chartData]);
     devLog('[progress] selectedCategory:', selectedCategory, '| chartData.length:', chartData.length, '| historyData keys:', Object.keys(historyData ?? {}));
@@ -91,6 +91,12 @@ export default function ProgressScreen() {
         }
         return result;
     }, [historyData]);
+
+    // Retest-/Mess-CTA (Spec §5.4, Review I3): Status der gewählten Säule
+    const selectedMeta = (categoryLevels as any)?.__meta?.[selectedCategory];
+    const selectedStatus = selectedCategory !== 'all' && selectedMeta
+        ? pillarSourceStatus(selectedMeta.source, selectedMeta.measuredAt, new Date())
+        : selectedCategory !== 'all' ? 'estimated' : null;
 
     const heroLabel = selectedCategory === 'all'
         ? t('category.overall')
@@ -175,10 +181,22 @@ export default function ProgressScreen() {
                             : null}
                     />
 
+                    {selectedStatus && selectedStatus !== 'measured' && (
+                        <Pressable
+                            onPress={() => router.push('/(tabs)/assessments' as never)}
+                            style={{ alignSelf: 'center', marginBottom: 12 }}
+                        >
+                            <JempText type="button" color={Cyan[500]}>
+                                {t(selectedStatus === 'stale' ? 'score_source.cta_retest' : 'score_source.cta_measure')}
+                            </JempText>
+                        </Pressable>
+                    )}
                     {selectedCategory === 'all' && (
                         <CategoryStatGrid
                             levels={categoryLevels ?? {}}
                             trends={hideHistory ? {} : categoryTrends}
+                            visibleSlugs={pillarWeights && pillarWeights.length > 0 ? pillarWeights.map((w) => w.slug) : undefined}
+                            meta={(categoryLevels as any)?.__meta}
                             history={hideHistory ? {} : historyData ?? {}}
                             selected={selectedCategory}
                             onSelect={setSelectedCategory}

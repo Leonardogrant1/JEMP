@@ -108,6 +108,11 @@ export async function savePlan(input: {
     target_load_type: string | null
     target_load_value: number | null
     is_amrap: boolean
+    target_rounds: number | null
+    // Swap-Grundlage (Spec 2026-10-19): erfülltes Pattern + dessen Emphasis,
+    // vom Generator annotiert — null bei Nicht-Kraftblöcken/Datenlöchern.
+    assigned_pattern: string | null
+    pattern_emphasis: string | null
   }
 
   const planBlocksBySessionId = new Map<string, PlanBlockRecord[]>()
@@ -121,12 +126,15 @@ export async function savePlan(input: {
         name: aiSession.name,
         description: aiSession.description,
         session_type: aiSession.session_type,
+        dropped_blocks: (aiSession as any).dropped_blocks ?? null,
         mode_slug: aiSession.mode_slug,
         day_of_week: aiSession.day_of_week,
         order_index: aiSession.order_index,
         estimated_duration_minutes: nz(aiSession.estimated_duration_minutes),
         pause_between_sets: aiSession.pause_between_sets > 0 ? aiSession.pause_between_sets : 90,
         environment_id: (aiSession as any).environment_id ?? environmentIds[0] ?? null,
+        // Flexible-Window (Spec 2026-10-09): Sprint/Mobility als Wochen-To-do
+        flexible_window: (aiSession as any).flexible_window ?? null,
       })
       .select('id')
       .single()
@@ -142,12 +150,17 @@ export async function savePlan(input: {
     const blocksToInsert = aiSession.blocks
       .map((block) => {
         const blockTypeId = blockTypeMap.get(block.block_type)
-        if (!blockTypeId) return null
+        // Silent-drop guard (phase 2b review focus): an unresolvable block type
+        // means a missing block_types row — fail loudly instead of losing the block.
+        if (!blockTypeId) throw new Error(`savePlan: unknown block_type slug "${block.block_type}" — block_types row missing`)
         return {
           workout_plan_session_id: sessionId,
           order_index: block.order_index,
           block_type_id: blockTypeId,
           focused_category_id: categoryMap.get(block.focused_category_slug) ?? null,
+          // Emphasis der Komposition (heavy/normal/light) — App-seitig für die
+          // "harter Beintag"-Warnung beim Verschieben flexibler Sprint-Sessions
+          emphasis: (block as any).emphasis ?? null,
         }
       })
       .filter(Boolean) as Array<{
@@ -198,6 +211,9 @@ export async function savePlan(input: {
             target_load_type: ex.target_load_type,
             target_load_value: ex.target_load_value >= 0 ? ex.target_load_value : null,
             is_amrap: (ex as any).is_amrap === true,
+            target_rounds: (ex as any).target_rounds ?? null,
+            assigned_pattern: (ex as any).assigned_pattern ?? null,
+            pattern_emphasis: (ex as any).pattern_emphasis ?? null,
           }
         })
         .filter((x): x is NonNullable<typeof x> => x !== null)
@@ -207,7 +223,7 @@ export async function savePlan(input: {
       const { data: insertedExercises, error: exInsertError } = await supabase
         .from('workout_plan_session_block_exercises')
         .insert(exercisesToInsert)
-        .select('id, exercise_id, order_index, target_sets, target_reps_min, target_reps_max, target_duration_seconds, target_distance_meters, target_rest_seconds, target_load_type, target_load_value, is_amrap')
+        .select('id, exercise_id, order_index, target_sets, target_reps_min, target_reps_max, target_duration_seconds, target_distance_meters, target_rest_seconds, target_load_type, target_load_value, is_amrap, target_rounds, assigned_pattern, pattern_emphasis')
 
       if (exInsertError || !insertedExercises) {
         console.error('Failed to insert exercises:', exInsertError?.message)
@@ -227,6 +243,9 @@ export async function savePlan(input: {
         target_load_type: e.target_load_type,
         target_load_value: e.target_load_value,
         is_amrap: e.is_amrap,
+        target_rounds: e.target_rounds ?? null,
+        assigned_pattern: e.assigned_pattern ?? null,
+        pattern_emphasis: e.pattern_emphasis ?? null,
       })))
     }
 
@@ -317,6 +336,9 @@ export async function savePlan(input: {
         target_load_type: planEx.target_load_type,
         target_load_value: planEx.target_load_value,
         is_amrap: planEx.is_amrap,
+        target_rounds: planEx.target_rounds ?? null,
+        assigned_pattern: planEx.assigned_pattern,
+        pattern_emphasis: planEx.pattern_emphasis,
       })
     }
   }

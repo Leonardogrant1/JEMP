@@ -1,0 +1,443 @@
+// v2 preparation: builds the deterministic week layout, prebuilds
+// speed/mobility/conditioning sessions, and packages per-training-day
+// contexts for runSessionV2. IO lives here; the logic modules stay pure.
+
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type OpenAI from 'openai'
+import { buildWeekLayout, type PillarLevels, type WeekLayout } from '../week-layout'
+import type { PrepareResult, SessionBuildInput } from '../generate-plan'
+import type { PlanGenerationInput } from '../types'
+import { buildBlockPools, isCnsMicroDoseExercise, patternSlugWindow, pickPlanePin, preDropEmptyPools, rotatedPoolWindow, rotateSlugs, strengthPatternPools, type V2Exercise } from './pool'
+import { makePlaneCounter, pickPlaneEmphasis, resolvePlaneWeights, toPatternFamily, type PatternFamily, type PlaneWeights } from './plane-emphasis'
+
+/** Füller-Fenster-Offset (QA 11.10., nachgeschärft 18.10.): planCount allein
+ *  ließ alle Sessions einer Woche dasselbe Fenster sehen. Der erste Fix
+ *  (+dayOfWeek) reichte nicht: das Regionen-Round-Robin in rotatedPoolWindow
+ *  wählt bei Offset-Deltas < Fenstergröße nur andere RING-Positionen, aber
+ *  dieselbe SCHICHT pro Region — leo2-Befund: seated_calf_raise 3×/Woche
+ *  trotz Tages-Offset. Jetzt: ORDINAL der Trainings-Session (0..n-1, lückenlos
+ *  — dayOfWeek wäre sparsam und ließe Schichten kollidieren) × Fenstergröße 4,
+ *  damit jede Session der Woche eine andere Übungs-Schicht pro Region sieht;
+ *  Plan-Stride 29 (> max. Session-Anteil 4×6) hält Folgepläne versetzt. */
+export function fillerWindowOffset(planCount: number, sessionOrdinal: number): number {
+  return planCount * 29 + sessionOrdinal * 4
+}
+
+/** COD-Mikro-Dosis (QA 18.10.): COD-Fokus (Level >= 2) ohne Speed-Tag
+ *  verschwand lautlos — COD-Arbeit lebt nur in Speed-Sessions. Jetzt wird die
+ *  CNS-Mikro-Dosis der ersten beiden Trainings-Sessions auf COD-Drills
+ *  (Carioca & Co.) verengt; der Validator erzwingt damit einen COD-Drill im
+ *  Warmup. Tage ohne qualifizierte COD-Drills behalten den vollen Pool
+ *  (Datenloch erzwingt nie Leere). */
+export function codMicroCnsPool(
+  fullCnsSlugs: string[], codCnsSlugs: string[],
+  codLevel: number, hasSpeedSession: boolean, sessionOrdinal: number,
+): string[] {
+  if (codLevel < 2 || hasSpeedSession || sessionOrdinal >= 2) return fullCnsSlugs
+  return codCnsSlugs.length > 0 ? codCnsSlugs : fullCnsSlugs
+}
+
+/** Ebenen-Entscheidung pro Pattern-Vorkommen (Spec 2026-10-11 §4) — pure,
+ *  damit die Verdrahtung testbar ist (Final-Review-Fix): heavy nimmt am
+ *  Zyklus nicht teil (konsumiert den Wochen-Zähler NICHT), sagittal oder
+ *  leerer Ebenen-Pool degradieren zum heutigen Verhalten. Der Pin rotiert
+ *  mit der Zyklusposition (QA 11.10.): zwei gleiche Muster in einer Woche
+ *  pinnen verschiedene Übungen. */
+export function planeFocusForPattern(
+  pattern: string,
+  emphasis: 'heavy' | 'normal',
+  planeWeights: Record<PatternFamily, PlaneWeights>,
+  nextPlanePosition: (family: PatternFamily) => number,
+  pool: V2Exercise[],
+): { planePin: string | null; planeFocus?: 'frontal' | 'transverse' } {
+  if (emphasis !== 'normal') return { planePin: null }
+  const family = toPatternFamily(pattern)
+  const position = nextPlanePosition(family)
+  const plane = pickPlaneEmphasis(planeWeights[family], position)
+  if (plane === 'sagittal') return { planePin: null }
+  const planePin = pickPlanePin(pool, plane, position)
+  return planePin ? { planePin, planeFocus: plane } : { planePin: null }
+}
+import { buildSpeedSession, type PlannedSessionLike } from './build-speed-session'
+import { buildMobilitySession, buildConditioningSession, conditioningPoolSlugs } from './build-simple-sessions'
+import { pickFinisherFormat, pickSessionFormat, resolveConditioningWeights } from './conditioning-format'
+import type { V2SessionContext } from './run-session-v2'
+
+export const MEASURED_SPRINT_MAX_AGE_DAYS = 120
+const SPRINT_METRIC_SLUGS = ['10m_sprint_time', '30m_sprint_time', '10m_sprint_flying_time']
+
+/** §6.5: only wizard-written levels activate the v2 path — translated legacy rankings never do. */
+export function shouldUseV2(rows: Array<{ set_by_wizard: boolean }>): boolean {
+  return rows.some((r) => r.set_by_wizard)
+}
+
+import { makeExerciseFilter, makeSportGate, type ExerciseFilterMaps } from './exercise-filter'
+export { makeExerciseFilter, makeSportGate, type ExerciseFilterMaps }
+
+export type PlanGenerationInputV2 = PlanGenerationInput & {
+  user_id: string
+  pillar_levels: PillarLevels
+  sprints_covered_by_club: boolean
+  sprint_distance: 'under_20m' | '20_40m' | 'over_40m' | null
+  day_minutes?: Array<{ day_of_week: number; minutes: number }>
+}
+
+/** Validates the preferred_day_durations JSONB from the profile — malformed
+ *  input (bad days, non-positive minutes, wrong shape) yields undefined so the
+ *  engine falls back to the global duration (phase 3b, review focus 5). */
+export function parseDayDurations(raw: unknown): Array<{ day_of_week: number; minutes: number }> | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined
+  const parsed: Array<{ day_of_week: number; minutes: number }> = []
+  for (const entry of raw) {
+    if (typeof entry !== 'object' || entry === null) return undefined
+    const { day_of_week, minutes } = entry as any
+    if (!Number.isInteger(day_of_week) || day_of_week < 1 || day_of_week > 7) return undefined
+    if (!Number.isInteger(minutes) || minutes <= 0) return undefined
+    parsed.push({ day_of_week, minutes })
+  }
+  return parsed
+}
+
+const DAY_NAMES: Record<number, string> = {
+  1: 'Montag', 2: 'Dienstag', 3: 'Mittwoch', 4: 'Donnerstag', 5: 'Freitag', 6: 'Samstag', 7: 'Sonntag',
+}
+
+export async function prepareGenerationV2(
+  input: PlanGenerationInputV2,
+  supabase: SupabaseClient,
+  _openai: OpenAI,
+): Promise<PrepareResult> {
+  const notes: string[] = []
+
+  // ── 1. Exercises incl. v2 metadata, filtered for the user ────────────────
+  const [{ data: exerciseRows }, { data: exerciseEnvRows }, { data: exerciseEquipRows }, { data: exerciseBlockRows }, { data: environmentRows }] = await Promise.all([
+    supabase.from('exercises').select('id, slug, name, body_region, dominant_region, strength_pattern, plyo_type, core_type, sprint_type, covered_patterns, laterality, min_level, max_level, intensity_score, measurement_type, exercise_type, movement_type, is_explosive, is_sport_specific, categories(id, slug)'),
+    supabase.from('exercise_environments').select('exercise_id, environment_id'),
+    supabase.from('exercise_equipments').select('exercise_id, equipment_id'),
+    supabase.from('exercise_blocks').select('exercise_id, block_types(slug)'),
+    supabase.from('environments').select('id, slug'),
+  ])
+  // exercise_regions (10.10.): betroffene Regionen inkl. primary/secondary —
+  // eigener Call, damit der destrukturierte Promise.all-Block lesbar bleibt.
+  const { data: exerciseRegionRows } = await supabase.from('exercise_regions').select('exercise_id, region, role')
+
+  // Conditioning-Formate (Spec 2026-10-10 §3): Gewichte je Sportgruppe + Plan-
+  // Zähler für die deterministische Format-Rotation. null-Count → 0 (erster Plan).
+  const [{ data: weightRows }, { count: planCountRaw }, { data: sportGroupRows }, { data: planeRows }] = await Promise.all([
+    supabase.from('sport_conditioning_weights').select('group_name, format, weight'),
+    supabase.from('workout_plans').select('id', { count: 'exact', head: true }).eq('user_id', input.user_id),
+    supabase.from('exercise_sport_groups').select('exercise_id, sport_group'),
+    supabase.from('sport_plane_weights').select('group_name, pattern, plane, weight'),
+  ])
+  // Gate + Präferenz (QA 10.10.): is_sport_specific=true → nur für zugeordnete
+  // Gruppen sichtbar; is_sport_specific=false + Zeile → für die Gruppe bevorzugt.
+  const sportGroupsByExercise = new Map<string, Set<string>>()
+  for (const r of sportGroupRows ?? []) {
+    if (!sportGroupsByExercise.has(r.exercise_id)) sportGroupsByExercise.set(r.exercise_id, new Set())
+    sportGroupsByExercise.get(r.exercise_id)!.add(r.sport_group)
+  }
+  const sportGate = makeSportGate(sportGroupsByExercise, input.sport_group_name || undefined)
+  const conditioningWeights = resolveConditioningWeights(weightRows ?? [], input.sport_group_name || undefined)
+  const priorPlans = planCountRaw ?? 0
+  const sessionFormat = pickSessionFormat(conditioningWeights, priorPlans)
+  const finisherFormat = pickFinisherFormat(conditioningWeights)
+  // Bewegungsebenen (Spec 2026-10-11): Gewichte je Muster-Familie + Zyklus-
+  // Zähler über die ganze Woche. Fehlende Tabelle/Gruppe → DEFAULT (kein Fokus).
+  const planeWeights = resolvePlaneWeights(planeRows ?? [], input.sport_group_name || undefined)
+  const nextPlanePosition = makePlaneCounter(priorPlans)
+
+  const envByExercise = new Map<string, Set<string>>()
+  for (const r of exerciseEnvRows ?? []) {
+    if (!envByExercise.has(r.exercise_id)) envByExercise.set(r.exercise_id, new Set())
+    envByExercise.get(r.exercise_id)!.add(r.environment_id)
+  }
+  const equipByExercise = new Map<string, Set<string>>()
+  for (const r of exerciseEquipRows ?? []) {
+    if (!equipByExercise.has(r.exercise_id)) equipByExercise.set(r.exercise_id, new Set())
+    equipByExercise.get(r.exercise_id)!.add(r.equipment_id)
+  }
+  const regionsByExercise = new Map<string, Array<{ region: string; role: string }>>()
+  for (const r of exerciseRegionRows ?? []) {
+    if (!regionsByExercise.has(r.exercise_id)) regionsByExercise.set(r.exercise_id, [])
+    regionsByExercise.get(r.exercise_id)!.push({ region: r.region, role: r.role })
+  }
+  // Legacy block_type-Tags (warmup/cooldown-Eignung für Mobility, QA 09.10.)
+  const blocksByExercise = new Map<string, string[]>()
+  for (const r of exerciseBlockRows ?? []) {
+    const slug = (r.block_types as { slug?: string } | null)?.slug
+    if (!slug) continue
+    if (!blocksByExercise.has(r.exercise_id)) blocksByExercise.set(r.exercise_id, [])
+    blocksByExercise.get(r.exercise_id)!.push(slug)
+  }
+  // Lean v2 re-implementation of the legacy equipment/env/level filter —
+  // deliberate duplication so the legacy closure stays untouched (plan ruling).
+  const filterMaps: ExerciseFilterMaps = {
+    envByExercise, equipByExercise,
+    userEnvs: new Set(input.environment_ids),
+    userEquip: new Set(input.equipment_ids),
+    equipmentEnvs: new Map((input.equipment_environments ?? []).map((ee) => [ee.equipment_id, new Set(ee.environment_ids)])),
+    levelByCategoryId: new Map<string, number>(input.category_levels.map((cl: { category_id: string; level_score: number }) => [cl.category_id, cl.level_score])),
+    hasLevelData: input.category_levels.length > 0,
+  }
+
+  const toV2 = (row: any): V2Exercise => ({
+    id: row.id, slug: row.slug, name: row.name,
+    category_slug: row.categories?.slug ?? '',
+    body_region: row.body_region, dominant_region: row.dominant_region,
+    strength_pattern: row.strength_pattern, plyo_type: row.plyo_type,
+    core_type: row.core_type, sprint_type: row.sprint_type,
+    covered_patterns: row.covered_patterns, laterality: row.laterality,
+    min_level: row.min_level, max_level: row.max_level,
+    intensity_score: row.intensity_score, measurement_type: row.measurement_type,
+    exercise_type: row.exercise_type ?? null,
+    legacy_block_slugs: blocksByExercise.get(row.id) ?? null,
+    movement_type: row.movement_type ?? 'sagittal', is_explosive: row.is_explosive ?? false,
+    regions: regionsByExercise.get(row.id) ?? null,
+    is_sport_specific: row.is_sport_specific ?? false,
+    preferred: !!input.sport_group_name && (sportGroupsByExercise.get(row.id)?.has(input.sport_group_name) ?? false),
+  })
+
+  const exercises: V2Exercise[] = (exerciseRows ?? []).filter(sportGate).filter(makeExerciseFilter(filterMaps, null)).map(toV2)
+
+  // Tages-Umgebungen (Lückenschluss 08.10.): hat ein Tag eine feste Umgebung,
+  // zählen nur dort erlaubte Übungen und dort verfügbares Equipment.
+  const dayEnvById = new Map((input.day_environments ?? []).map((de) => [de.day_of_week, de.environment_id]))
+  const byEnvCache = new Map<string, V2Exercise[]>()
+  const exercisesForDay = (dayOfWeek: number): V2Exercise[] => {
+    const envId = dayEnvById.get(dayOfWeek)
+    if (!envId) return exercises
+    if (!byEnvCache.has(envId)) {
+      byEnvCache.set(envId, (exerciseRows ?? []).filter(sportGate).filter(makeExerciseFilter(filterMaps, envId)).map(toV2))
+    }
+    return byEnvCache.get(envId)!
+  }
+
+  // Sprint-Env-Fix (09.10.): Sprinten braucht nur freie Fläche — die Speed-
+  // Session zieht IMMER aus dem Outdoor-Pool, unabhängig von den gewählten
+  // Umgebungen. Level-Gate und ortsgebundenes Equipment filtern weiter (Sleds
+  // bleiben im Gym), Bodyweight-Sprints sind für jeden User sichtbar.
+  const outdoorEnvId = (environmentRows ?? []).find((e) => e.slug === 'outdoor')?.id ?? null
+  const speedExercises: V2Exercise[] = outdoorEnvId
+    ? (exerciseRows ?? []).filter(sportGate).filter(makeExerciseFilter(filterMaps, outdoorEnvId)).map(toV2)
+    : exercises
+  // Extensiv-Lauf-Anker (Spec §1.1): easy_jog lebt in der sprints-Kategorie und
+  // wird wie im Speed-Builder direkt geholt, nicht über den Conditioning-Pool.
+  const easyJog = speedExercises.find((e) => e.slug === 'easy_jog') ?? null
+  const userHasOutdoor = outdoorEnvId !== null && input.environment_ids.includes(outdoorEnvId)
+
+  // ── 2. Measured sprint value within the aging window (max-velocity gate) ──
+  const since = new Date(Date.now() - MEASURED_SPRINT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString()
+  const { data: sprintEntries } = await supabase
+    .from('metric_entries')
+    .select('id, metrics!inner(slug)')
+    .eq('user_id', input.user_id)
+    .in('metrics.slug', SPRINT_METRIC_SLUGS)
+    .gte('created_at', since)
+    .limit(1)
+  const hasMeasuredSprint = (sprintEntries ?? []).length > 0
+  const allowMaxVelocity = hasMeasuredSprint && input.sprint_distance !== null && input.sprint_distance !== 'under_20m'
+
+  // ── 3. Deterministic week layout ─────────────────────────────────────────
+  // (Sprint-Env-Fix 09.10.: sprint_friendly_days entfällt — die Speed-Session
+  // ist immer outdoor, jeder Tag ist sprinttauglich.)
+  const layout: WeekLayout = buildWeekLayout({
+    available_days: input.preferred_workout_days,
+    weekly_schedule: input.weekly_schedule ?? { sessions: [], notes: null },
+    load_profile: input.load_profile ?? 'low',
+    pillar_levels: input.pillar_levels,
+    sprints_covered_by_club: input.sprints_covered_by_club,
+    session_minutes: input.max_session_duration,
+    day_minutes: input.day_minutes,
+  })
+  notes.push(...layout.notes)
+  if ((input.pillar_levels.cod ?? 0) >= 2 && !layout.placement.days.some((d) => d.session_type === 'speed')) {
+    notes.push('COD-Fokus ohne Speed-Tag: Richtungswechsel läuft als Mikro-Dosis im Warmup — ein zusätzlicher Trainingstag schafft eine echte Speed-Session')
+  }
+
+  // Umgebungs-Exklusivität (QA 19.10., gewichtete Fenster): Übungen, die von
+  // den gewählten Umgebungen aus NUR am heutigen Ort machbar sind, werden im
+  // Pattern-Fenster vorgezogen — die anderen Trainingstage können sie nicht
+  // abdecken. Nur sinnvoll bei >1 Umgebung und festem Tages-Env.
+  const envSlugSets = new Map<string, Set<string>>()
+  const slugsForEnv = (envId: string): Set<string> => {
+    if (!envSlugSets.has(envId)) {
+      envSlugSets.set(envId, new Set(
+        (exerciseRows ?? []).filter(sportGate).filter(makeExerciseFilter(filterMaps, envId)).map((r: any) => r.slug as string),
+      ))
+    }
+    return envSlugSets.get(envId)!
+  }
+  const exclusiveCache = new Map<string, Set<string>>()
+  const exclusiveForDay = (dayOfWeek: number): Set<string> | undefined => {
+    const envId = dayEnvById.get(dayOfWeek)
+    if (!envId || input.environment_ids.length < 2) return undefined
+    if (!exclusiveCache.has(envId)) {
+      const coveredElsewhere = new Set<string>()
+      for (const other of input.environment_ids) {
+        if (other === envId) continue
+        for (const s of slugsForEnv(other)) coveredElsewhere.add(s)
+      }
+      exclusiveCache.set(envId, new Set([...slugsForEnv(envId)].filter((s) => !coveredElsewhere.has(s))))
+    }
+    return exclusiveCache.get(envId)
+  }
+
+  // ── 4. Prebuilt deterministic sessions ───────────────────────────────────
+  const prebuiltSessions: PlannedSessionLike[] = []
+  let orderIndex = 0
+  const trainingDays = layout.placement.days.filter((d) => d.session_type === 'training')
+
+  for (const day of layout.placement.days) {
+    const dayExercises = exercisesForDay(day.day_of_week)
+    if (day.session_type === 'speed') {
+      const r = buildSpeedSession({
+        day, exercises: speedExercises,
+        levels: { sprints: input.pillar_levels.sprints ?? 0, cod: input.pillar_levels.cod ?? 0 },
+        allowMaxVelocity, orderIndex: orderIndex++,
+        environmentId: outdoorEnvId ?? undefined,
+        sportGroup: input.sport_group_name || undefined,
+      })
+      if (r) { prebuiltSessions.push(r.session); notes.push(...r.notes) }
+      else notes.push(`Speed-Session Tag ${day.day_of_week}: Pool leer — Session entfällt`)
+    } else if (day.session_type === 'mobility') {
+      const r = buildMobilitySession({ day, exercises: dayExercises, orderIndex: orderIndex++, planCount: priorPlans })
+      if (r) prebuiltSessions.push(r.session)
+      else notes.push(`Mobility-Session Tag ${day.day_of_week}: Pool zu klein — Session entfällt`)
+    } else if (day.session_type === 'conditioning') {
+      const dayEnvIsOutdoor = dayEnvById.get(day.day_of_week) === outdoorEnvId && outdoorEnvId !== null
+      const r = buildConditioningSession({
+        day, exercises: dayExercises, orderIndex: orderIndex++,
+        format: sessionFormat, planCount: priorPlans,
+        sportGroup: input.sport_group_name || undefined,
+        runAnchor: (dayEnvIsOutdoor || userHasOutdoor) ? easyJog : null,
+      })
+      if (r) { prebuiltSessions.push(r.session); notes.push(...r.notes.map((n) => `Tag ${day.day_of_week}: ${n}`)) }
+      else notes.push(`Conditioning-Session Tag ${day.day_of_week}: Pool zu klein — Session entfällt`)
+    }
+  }
+
+  // ── 5. Per-training-day contexts for runSessionV2 ────────────────────────
+  const sessionBuildInputs: SessionBuildInput[] = layout.workouts.map((workout, workoutIdx) => {
+    const day = trainingDays.find((d) => d.day_of_week === workout.day_of_week)!
+    const dayExercises = exercisesForDay(workout.day_of_week)
+    // Fenster-Offset pro Session (QA 11.10./18.10.): jede Session der Woche
+    // sieht eine andere Scheibe der Füller-/Pattern-Pools — Ordinal statt
+    // Wochentag, damit die Schichten lückenlos durchrotieren.
+    const winOffset = fillerWindowOffset(priorPlans, workoutIdx)
+    const sprintPoolSlugs = dayExercises
+      .filter((e) => e.sprint_type !== null && (allowMaxVelocity || e.sprint_type !== 'max_velocity'))
+      .map((e) => e.slug)
+    const finisherPoolSlugs = conditioningPoolSlugs(dayExercises)
+    // Pattern-Anforderungen der Kraftblöcke (Spec 2026-10-10 §1.2) + Pre-Degrade:
+    // ein Pattern ohne Pool-Übungen wird aus Block UND Anforderungen entfernt
+    // (Note), statt das LLM in eine unerfüllbare Validator-Schleife zu zwingen.
+    const patternReqs: NonNullable<V2SessionContext['patternReqs']> = []
+    for (const block of workout.blocks) {
+      if (!block.patterns || block.patterns.length === 0) continue
+      const perPattern = strengthPatternPools(dayExercises, block.patterns)
+      const kept = block.patterns.filter((p) => {
+        const slugs = (perPattern.get(p.pattern) ?? []).map((e) => e.slug)
+        if (slugs.length === 0) {
+          notes.push(`Tag ${workout.day_of_week}: Pattern ${p.pattern} ohne Pool-Übungen — Anforderung entfällt`)
+          return false
+        }
+        // Normale Patterns: rotierendes 4er-Fenster (Heavy behält den vollen Pool —
+        // der schwere Slot bleibt beim Klassiker, QA 10.10.). Präferenzen immer vorn.
+        // Ebenen-Betonung (Spec 2026-10-11 §4): nur normal-Muster nehmen am Zyklus
+        // teil; sagittal oder leerer Ebenen-Pool → exakt heutiges Verhalten.
+        const poolForPattern = perPattern.get(p.pattern) ?? []
+        const { planePin, planeFocus } = planeFocusForPattern(
+          p.pattern, p.emphasis, planeWeights, nextPlanePosition, poolForPattern)
+        patternReqs.push({
+          block_type: block.block_type, pattern: p.pattern, emphasis: p.emphasis,
+          slugs: patternSlugWindow(poolForPattern, p.emphasis, winOffset, planePin, exclusiveForDay(workout.day_of_week)),
+          ...(planeFocus ? { planeFocus, planeSlugs: [planePin!] } : {}),
+        })
+        return true
+      })
+      block.patterns = kept
+    }
+    const pools = buildBlockPools(dayExercises, workout.blocks)
+    const poolRecord: Record<string, string[]> = {}
+    for (const [bt, pool] of pools) {
+      // Füller-Rotation (QA 10.10.): optional/accessory bekommen nur ein kleines,
+      // mit dem Plan-Zähler rotierendes Fenster — sonst wählt das LLM aus dem
+      // vollen Pool jedes Mal dieselben Favoriten. Plyo: größeres Fenster (6),
+      // über movement_type balanciert — so ist pro Fenster garantiert eine
+      // rotationale Option prominent. Prompt UND Validator sehen dasselbe Fenster.
+      const windowed = (bt === 'optional' || bt === 'accessory') ? rotatedPoolWindow(pool, winOffset)
+        : bt === 'plyo' ? rotatedPoolWindow(pool, winOffset, 6, (e) => e.movement_type)
+        : pool
+      // Prompt-Reihenfolge rotiert pro Generierung (QA 10.10.): LLMs greifen zu
+      // früh gelisteten Übungen — ohne Rotation liefert Regenerieren denselben Plan.
+      // Sport-Präferenzen stehen unrotiert ganz vorn.
+      const pinned = windowed.filter((e) => e.preferred).map((e) => e.slug).sort()
+      const rest = rotateSlugs(windowed.filter((e) => !e.preferred).map((e) => e.slug), winOffset)
+      poolRecord[bt] = [...pinned, ...rest]
+    }
+    notes.push(...preDropEmptyPools(workout, poolRecord).map((n) => `Tag ${workout.day_of_week}: ${n}`))
+    const v2: V2SessionContext = {
+      workout, day, pools: poolRecord, sprintPool: sprintPoolSlugs,
+      conditioningFinisherPool: finisherPoolSlugs,
+      conditioningFinisherFormat: finisherFormat, conditioningFinisherOffset: priorPlans,
+      patternReqs,
+      preferredSlugs: [...new Set(dayExercises.filter((e) => e.preferred).map((e) => e.slug))].sort(),
+      // Dosierungs-Härtung (11.10.): CNS-Kandidaten, die im Warmup-Pool dieses
+      // Tages tatsächlich wählbar sind — leer = Validator-Check entfällt.
+      // COD-Mikro-Dosis (18.10.): bei COD-Fokus ohne Speed-Tag verengt auf COD-Drills.
+      warmupCnsPool: (() => {
+        const warmupSlugs = new Set(poolRecord['warmup'] ?? [])
+        const cns = dayExercises.filter((e) => warmupSlugs.has(e.slug) && isCnsMicroDoseExercise(e))
+        const full = cns.map((e) => e.slug).sort()
+        const codDrills = cns.filter((e) => e.category_slug === 'cod').map((e) => e.slug).sort()
+        return codMicroCnsPool(full, codDrills, input.pillar_levels.cod ?? 0,
+          layout.placement.days.some((d) => d.session_type === 'speed'), workoutIdx)
+      })(),
+      // Mess-Typ je wählbarem Slug (11.10.): nur die Pool-Slugs, nicht der ganze
+      // Katalog — der Context reist als Temporal-Payload.
+      measurementBySlug: (() => {
+        const chosen = new Set([...Object.values(poolRecord).flat(), ...sprintPoolSlugs])
+        return Object.fromEntries(dayExercises.filter((e) => chosen.has(e.slug) && e.measurement_type)
+          .map((e) => [e.slug, e.measurement_type as string]))
+      })(),
+    }
+    return {
+      spec: { day_of_week: workout.day_of_week, mode_slug: day.dose === 'maintenance' ? 'reduced' : 'full' },
+      duration: { min: Math.max(20, day.minutes - 10), max: day.minutes },
+      environment_id: null,
+      blockPools: [],
+      bodyRegions: [],
+      warmupExercisesString: '', warmupSlugs: '', warmupCategorySlugs: [],
+      cooldownExercisesString: '', cooldownSlugs: '', cooldownCategorySlugs: [],
+      v2,
+    } as SessionBuildInput
+  })
+
+  // ── 6. Summary + result ──────────────────────────────────────────────────
+  const weekPlanSummary = layout.placement.days.map((d) => {
+    if (d.session_type !== 'training') return `- ${DAY_NAMES[d.day_of_week]}: ${d.session_type}`
+    const workout = layout.workouts.find((w) => w.day_of_week === d.day_of_week)
+    const blocks = workout?.blocks.map((b) => b.variant ? `${b.block_type}(${b.variant})` : b.block_type).join(', ') ?? ''
+    return `- ${DAY_NAMES[d.day_of_week]}: training [${d.heavy_lower ? 'heavy lower' : 'light'}${d.carries_sprint_block ? ', sprint block' : ''}] — ${blocks}`
+  }).join('\n')
+  if (notes.length > 0) console.log(`prepareGenerationV2 notes:\n  ${notes.join('\n  ')}`)
+
+  const userContext = [
+    `sport: ${input.sport_slug}`,
+    `load_profile: ${input.load_profile}`,
+    input.schedule_notes ? `user_notes: ${input.schedule_notes}` : null,
+  ].filter(Boolean).join('\n')
+
+  return {
+    weekPlan: { name: 'Athletik-Woche', description: 'Dein Wochenplan nach dem neuen Säulen-System.', sessions: [] },
+    sessionBuildInputs,
+    weekPlanSummary,
+    userContext,
+    exerciseSlugToMeasurementType: Object.fromEntries(exercises.map((e) => [e.slug, e.measurement_type ?? 'reps'])),
+    exerciseSlugToBodyRegion: Object.fromEntries(exercises.map((e) => [e.slug, e.body_region ?? ''])),
+    allExerciseSlugs: exercises.map((e) => e.slug),
+    environmentIds: input.environment_ids,
+    pathVersion: 'v2',
+    prebuiltSessions: prebuiltSessions as any,
+  }
+}

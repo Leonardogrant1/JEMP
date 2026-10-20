@@ -5,6 +5,9 @@ import { create } from 'zustand';
 
 export type FlatExercise = {
     id: string;
+    // Referenz auf den Plan-Baustein — für den Swap-Scope (überall oder nur
+    // dieses Vorkommen); leer bei ad-hoc eingefügten/bereits ersetzten Übungen.
+    workout_plan_session_block_exercise_id: string | null;
     blockId: string;
     blockType: { slug: string } | null;
     exercise: {
@@ -17,6 +20,7 @@ export type FlatExercise = {
         video_storage_path: string | null;
         laterality: string;
         measurement_type: string;
+        category: { slug: string } | null;
         equipment: { slug: string; name_i18n: Record<string, string> | null }[];
     };
     target_sets: number | null;
@@ -24,6 +28,8 @@ export type FlatExercise = {
     target_reps_max: number | null;
     target_duration_seconds: number | null;
     target_rest_seconds: number | null;
+    target_distance_meters: number | null;
+    target_rounds: number | null;
     target_load_type: string | null;
     target_load_value: number | null;
     is_amrap: boolean;

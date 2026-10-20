@@ -11,7 +11,18 @@
     "android:device": "expo run:android --device",
     "web": "expo start --web",
     "lint": "expo lint",
-    "postinstall": "patch-package"
+    "db:push:staging": "bash ./scripts/supabase-push.sh staging",
+    "db:push:prod": "bash ./scripts/supabase-push.sh prod",
+    "functions:deploy:staging": "bash ./scripts/supabase-functions-deploy.sh staging",
+    "functions:deploy:prod": "bash ./scripts/supabase-functions-deploy.sh prod",
+    "postinstall": "patch-package",
+    "exercises:pull": "node scripts/pull-exercises-from-prod.mjs",
+    "exercises:push:staging": "node scripts/push-exercises.mjs staging",
+    "exercises:push:prod": "node scripts/push-exercises.mjs prod",
+    "worker:deploy:staging": "cd externals/jemp-temporal-worker && npm run deploy:staging",
+    "worker:deploy:prod": "cd externals/jemp-temporal-worker && npm run deploy:prod",
+    "api:deploy:staging": "cd externals/jemp-api && npm run deploy:staging",
+    "api:deploy:prod": "cd externals/jemp-api && npm run deploy:prod"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

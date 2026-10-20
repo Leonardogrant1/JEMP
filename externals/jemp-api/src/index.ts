@@ -6,12 +6,22 @@ import helmet from 'helmet';
 import { checkPlanGenerationAccess, fetchRevenueCatSubscriber } from './plan-generation-route/check-access';
 import { versionCheckHandler } from './routes/version-check-route';
 import storeInfoRouter from './store-info-route';
+import { swapAlternativesHandler } from './swap-route';
 
 dotenv.config();
 
 const app = express();
 app.use(helmet());
 app.use(express.json());
+
+// Dev-Request-Log (nicht in Prod): macht lokale On-Device-Fehlersuche möglich —
+// ohne das war nicht unterscheidbar, ob Requests die API überhaupt erreichen.
+if (process.env.NODE_ENV !== 'production') {
+    app.use((req, res, next) => {
+        res.on('finish', () => console.log(new Date().toISOString(), req.method, req.url, '->', res.statusCode));
+        next();
+    });
+}
 
 const PORT = process.env.PORT || 3001;
 const TEMPORAL_ADDRESS = process.env.TEMPORAL_ADDRESS ?? 'localhost:7233';
@@ -102,6 +112,9 @@ app.post('/api/plan-generation/start', async (req, res) => {
 
     res.json({ job_id: job.id });
 });
+
+// GET /api/swap-alternatives/:blockExerciseId (Spec 2026-10-19 §2).
+app.get('/api/swap-alternatives/:blockExerciseId', swapAlternativesHandler);
 
 app.listen(PORT, () => {
     console.log(`jemp-api listening on port ${PORT}`);

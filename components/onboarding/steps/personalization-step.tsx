@@ -118,6 +118,8 @@ export function PersonalizationStep() {
                 set, reset,
                 sport_slug,
                 targetedCategories,
+                pillarLevels,
+                sprintClubAnswered,
                 categoryLevels,
                 equipmentIds,
                 deselectedEquipmentIds,
@@ -153,9 +155,16 @@ export function PersonalizationStep() {
                 (supabase as any).from('user_equipment_environments').delete().eq('user_id', session.user.id),
             ]);
 
-            if (targetedCategories.length > 0) {
-                const { error: e } = await supabase.from('user_targeted_categories').insert(
-                    targetedCategories.map(({ categoryId, priority }) => ({ user_id: session.user.id, category_id: categoryId, priority }))
+            // §6.5-Aktivierung: Wizard-geschriebene Säulen-Stufen schalten den
+            // User auf den v2-Generator. targeted_categories wird vom neuen
+            // Flow nicht mehr geschrieben (Legacy-Konzept).
+            if (pillarLevels.length > 0) {
+                // Delete nur bei vorhandenem Payload (Review I1): ein leerer
+                // Store darf übersetzte Levels nie löschen.
+                const { error: delErr } = await supabase.from('user_pillar_levels').delete().eq('user_id', session.user.id);
+                if (delErr) throw delErr;
+                const { error: e } = await supabase.from('user_pillar_levels').insert(
+                    pillarLevels.map(({ categoryId, level }) => ({ user_id: session.user.id, category_id: categoryId, level, set_by_wizard: true }))
                 );
                 if (e) throw e;
             }

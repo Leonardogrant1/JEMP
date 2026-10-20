@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Gender, SessionDuration, UserProfile } from '@/types/database';
+import type { PillarLevel } from '@/lib/pillar-budget';
 import { WeeklySchedule } from '@/types/user-data';
 
 type ProfileData = Pick<
@@ -16,6 +17,9 @@ type ProfileData = Pick<
     | 'schedule_notes'
     | 'timezone'
     | 'unit_system'
+    | 'sprints_covered_by_club'
+    | 'sprint_distance'
+    | 'preferred_day_durations'
 >;
 
 export type TargetedCategory = {
@@ -44,6 +48,8 @@ export type EquipmentEnvironment = {
 type OnboardingStore = ProfileData & {
     sport_slug: string | null;
     targetedCategories: TargetedCategory[];
+    pillarLevels: PillarLevel[];
+    sprintClubAnswered: boolean;
     categoryLevels: CategoryLevel[];
     equipmentIds: string[];
     // Explizit ABGEWÄHLTES Equipment — Quelle der Wahrheit beim Re-Mount des
@@ -65,6 +71,8 @@ type OnboardingStore = ProfileData & {
     set: (data: Partial<ProfileData & {
         sport_slug: string | null;
         targetedCategories: TargetedCategory[];
+        pillarLevels: PillarLevel[];
+        sprintClubAnswered: boolean;
         categoryLevels: CategoryLevel[];
         equipmentIds: string[];
         deselectedEquipmentIds: string[];
@@ -86,6 +94,9 @@ const initialState: Omit<OnboardingStore, 'set' | 'reset'> = {
     birth_date: null,
     gender: null,
     sport_id: null,
+    sprints_covered_by_club: false,
+    sprint_distance: null,
+    preferred_day_durations: null,
     sport_slug: null,
     height_in_cm: null,
     weight_in_kg: null,
@@ -95,6 +106,8 @@ const initialState: Omit<OnboardingStore, 'set' | 'reset'> = {
     timezone: null,
     unit_system: 'metric',
     targetedCategories: [],
+    pillarLevels: [],
+    sprintClubAnswered: false,
     categoryLevels: [],
     equipmentIds: [],
     deselectedEquipmentIds: [],
