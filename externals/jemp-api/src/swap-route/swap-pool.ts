@@ -2,7 +2,7 @@
 // wird importiert und gebundelt, nie kopiert. Deploy-Kopplung beachten:
 // Änderungen an v2/pool.ts oder v2/exercise-filter.ts brauchen API-Redeploy.
 import { makeExerciseFilter, type ExerciseFilterMaps } from '../../../jemp-temporal-worker/src/plan-generation/v2/exercise-filter'
-import { exerciseMatchesBlock, isCnsMicroDoseExercise, matchesStrengthPattern, type V2Exercise } from '../../../jemp-temporal-worker/src/plan-generation/v2/pool'
+import { exerciseMatchesBlock, isCnsMicroDoseExercise, matchesStrengthPattern, STRENGTH_BLOCK_TYPES, STRENGTH_PATTERNS, type V2Exercise } from '../../../jemp-temporal-worker/src/plan-generation/v2/pool'
 import { effectiveRegion } from '../../../jemp-temporal-worker/src/plan-generation/taxonomy'
 
 export type SwapPoolInput = {
@@ -25,12 +25,6 @@ export type SwapPoolResult = {
 }
 
 const LOCKED_LIMIT = 5
-
-/** Kraftblöcke: lower_strength/upper_strength sind die aktuelle Benennung,
- *  push/pull/lower_body die Legacy-Slugs aus Alt-Plänen (Finding 2a) — beide
- *  Varianten brauchen Pattern-Bindung + Heavy-Fallback, sonst bleibt der
- *  Swap-Pool für Alt-Pläne leer. */
-const STRENGTH_BLOCK_SLUGS = new Set(['lower_strength', 'upper_strength', 'push', 'pull', 'lower_body'])
 
 /** Region-Bindung (QA 19.10.): In den Nicht-Kraftblöcken ist der Block-Pool
  *  regionsübergreifend (Accessory = groin/hip/calf/ankle gemischt) — für den
@@ -60,7 +54,7 @@ function blockDefFor(blockTypeSlug: string, current: V2Exercise): any {
   if (blockTypeSlug === 'plyo') {
     return { block_type: 'plyo', variant: current.category_slug === 'upper_body_plyometrics' ? 'upper' : 'lower' }
   }
-  if (STRENGTH_BLOCK_SLUGS.has(blockTypeSlug)) {
+  if (STRENGTH_BLOCK_TYPES.has(blockTypeSlug)) {
     // Legacy 'push'/'pull' auf upper_strength, 'lower_body' auf lower_strength
     // ummünzen (Finding 2a) — exerciseMatchesBlock kennt diese Legacy-Slugs
     // nur über blockDef.variant als Pattern, nicht als Pattern-Liste. Die
@@ -71,33 +65,39 @@ function blockDefFor(blockTypeSlug: string, current: V2Exercise): any {
       : blockTypeSlug
     // Pattern-Bindung läuft separat über matchesStrengthPattern — hier alle
     // Patterns erlauben, damit exerciseMatchesBlock nicht doppelt gated.
-    return { block_type: mappedBlockType, variant: null, patterns: ALL_PATTERNS.map((p) => ({ pattern: p })) }
+    return { block_type: mappedBlockType, variant: null, patterns: STRENGTH_PATTERNS.map((p) => ({ pattern: p })) }
   }
   return { block_type: blockTypeSlug, variant: null }
 }
-const ALL_PATTERNS = ['push_vertical', 'push_horizontal', 'pull_vertical', 'pull_horizontal', 'knee_dominant', 'hinge', 'rotation']
 
 /** Pattern-Menge der Zeile: Spalte exakt, sonst alle Patterns, die die
  *  aktuelle Übung selbst erfüllt (Coarse-Fallback inklusive) — der bare
  *  BODY_REGION_TO_PATTERN-String ('push') matcht getaggte Kandidaten nie. */
 function resolvePatterns(current: V2Exercise, assignedPattern: string | null): string[] {
   if (assignedPattern) return [assignedPattern]
-  return ALL_PATTERNS.filter((p) => matchesStrengthPattern(current, p))
+  return STRENGTH_PATTERNS.filter((p) => matchesStrengthPattern(current, p))
 }
 
 /** Heavy like-for-like-Fallback für Alt-Pläne ohne pattern_emphasis-Spalte. */
 function isHeavy(current: V2Exercise, patternEmphasis: string | null, blockTypeSlug: string): boolean {
   if (patternEmphasis) return patternEmphasis === 'heavy'
-  const isStrengthBlock = STRENGTH_BLOCK_SLUGS.has(blockTypeSlug)
+  const isStrengthBlock = STRENGTH_BLOCK_TYPES.has(blockTypeSlug)
   return isStrengthBlock && current.movement_type === 'sagittal' && (current.intensity_score ?? 5) >= 5
 }
 
 export function buildSwapPool(input: SwapPoolInput): SwapPoolResult {
   const { exercises, maps, sportGate, dayEnvId, blockTypeSlug, currentExercise } = input
   const blockDef = blockDefFor(blockTypeSlug, currentExercise)
-  const patterns = STRENGTH_BLOCK_SLUGS.has(blockTypeSlug)
+  const isStrengthBlock = STRENGTH_BLOCK_TYPES.has(blockTypeSlug)
+  const patterns = isStrengthBlock
     ? resolvePatterns(currentExercise, input.assignedPattern)
     : []
+  // Fail-closed (Review 20.10., C3): Eine Kraftblock-Zeile OHNE auflösbares
+  // Pattern (assigned_pattern null UND Übung matcht kein Pattern, z. B. nach
+  // Katalog-Umkategorisierung) darf nicht "ohne Einschränkung" tauschen —
+  // das wäre genau der Coverage-Bruch, den die Bindung verhindert. Lieber
+  // keine Alternativen als falsche.
+  if (isStrengthBlock && patterns.length === 0) return { alternatives: [], locked: [] }
   const heavy = patterns.length > 0 && isHeavy(currentExercise, input.patternEmphasis, blockTypeSlug)
   const currentRegion = REGION_BOUND_BLOCKS.has(blockTypeSlug) ? effectiveRegion(currentExercise) : undefined
 

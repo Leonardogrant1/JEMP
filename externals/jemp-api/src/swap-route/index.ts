@@ -54,16 +54,21 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
   if (!row || session?.user_id !== user.id) { res.status(404).json({ error: 'Not found' }); return }
   const blockTypeSlug = (row as any).workout_session_blocks?.block_types?.slug as string
 
-  // Session-Dedupe (QA 19.10.): Übungen, die in DIESER Session schon verplant
-  // sind, sind keine Alternativen — ein zweites Vorkommen derselben Übung in
-  // der Session (erst recht im selben Block) ist nie gewollt.
-  const sessionRowsRes = await supabase
-    .from('workout_session_block_exercises')
-    .select('exercise_id, workout_session_blocks!inner(workout_session_id)')
-    .eq('workout_session_blocks.workout_session_id', session.id)
-  const sessionExerciseIds = new Set((must(sessionRowsRes, 'session exercises') ?? []).map((r: any) => r.exercise_id as string))
-
-  // 2. User-Presets + Übungskatalog (Selects wie prepareGenerationV2/prepare-plan-generation)
+  // 2. User-Presets + Übungskatalog (Selects wie prepareGenerationV2/prepare-
+  // plan-generation) — alles in EINEM Fan-out (Review 20.10., K3): Session-
+  // Dedupe, Occurrence-Count und Sport-Gruppe hingen vorher als 2-3 serielle
+  // Roundtrips vor/hinter dem Promise.all, obwohl sie nur row/session-Daten
+  // brauchen (Sport fährt als Relation im Profil-Select mit).
+  const blueprintExerciseId = (row as any).workout_plan_session_block_exercise_id as string | null
+  const futureCountQuery = blueprintExerciseId && session.scheduled_at
+    ? supabase
+        .from('workout_session_block_exercises')
+        .select('id, workout_session_blocks!inner(workout_sessions!inner(scheduled_at, status))', { count: 'exact', head: true })
+        .eq('workout_plan_session_block_exercise_id', blueprintExerciseId)
+        .neq('id', (row as any).id)
+        .gte('workout_session_blocks.workout_sessions.scheduled_at', session.scheduled_at)
+        .in('workout_session_blocks.workout_sessions.status', ['scheduled', 'in_progress'])
+    : Promise.resolve({ count: 0, error: null } as { count: number | null; error: { message: string } | null })
   const [
     userProfileRes,
     userEquipRes,
@@ -76,8 +81,10 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
     exerciseRegionRes,
     sportGroupRes,
     equipmentRes,
+    sessionRowsRes,
+    futureCountRes,
   ] = await Promise.all([
-    supabase.from('user_profiles').select('sport_id, user_category_levels(category_id, level_score)').eq('id', user.id).single(),
+    supabase.from('user_profiles').select('sport_id, user_category_levels(category_id, level_score), sports(group_name)').eq('id', user.id).single(),
     supabase.from('user_equipments').select('equipment_id').eq('user_id', user.id),
     supabase.from('user_environments').select('environment_id').eq('user_id', user.id),
     supabase.from('user_equipment_environments').select('equipment_id, environment_id').eq('user_id', user.id),
@@ -88,6 +95,13 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
     supabase.from('exercise_regions').select('exercise_id, region, role'),
     supabase.from('exercise_sport_groups').select('exercise_id, sport_group'),
     supabase.from('equipments').select('id, name_i18n'),
+    // Session-Dedupe (QA 19.10.): bereits in dieser Session verplante Übungen
+    // sind keine Alternativen.
+    supabase
+      .from('workout_session_block_exercises')
+      .select('exercise_id, workout_session_blocks!inner(workout_session_id)')
+      .eq('workout_session_blocks.workout_session_id', session.id),
+    futureCountQuery,
   ])
   const userProfile = must(userProfileRes, 'user_profiles')
   const userEquipRows = must(userEquipRes, 'user_equipments')
@@ -100,12 +114,12 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
   const exerciseRegionRows = must(exerciseRegionRes, 'exercise_regions')
   const sportGroupRows = must(sportGroupRes, 'exercise_sport_groups')
   const equipmentRows = must(equipmentRes, 'equipments')
+  const sessionExerciseIds = new Set((must(sessionRowsRes, 'session exercises') ?? []).map((r: any) => r.exercise_id as string))
+  if (futureCountRes.error) throw new Error(`future_occurrence_count: ${futureCountRes.error.message}`)
+  const futureOccurrenceCount = futureCountRes.count ?? 0
 
-  const sportDataRes = userProfile?.sport_id
-    ? await supabase.from('sports').select('group_name').eq('id', userProfile.sport_id).single()
-    : { data: null as { group_name: string } | null, error: null }
-  const sportData = must(sportDataRes, 'sports')
-  const sportGroupName = sportData?.group_name ?? undefined
+  // Sport-Gruppe fährt als Relation im Profil-Select mit (sport_id → sports).
+  const sportGroupName = ((userProfile as any)?.sports as { group_name?: string } | null)?.group_name ?? undefined
 
   const categoryLevels = (userProfile?.user_category_levels ?? []) as Array<{ category_id: string; level_score: number }>
   const equipmentIds = (userEquipRows ?? []).map((r: any) => r.equipment_id as string)
@@ -209,23 +223,8 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
     is_amrap: (row as any).is_amrap, target_rounds: (row as any).target_rounds,
   }
 
-  // 4. future_occurrence_count: Geschwister-Zeilen gleicher Blueprint-Übung
-  //    in scheduled/in_progress-Sessions mit scheduled_at >= dieser Session (ohne diese Zeile).
-  let futureOccurrenceCount = 0
-  const blueprintExerciseId = (row as any).workout_plan_session_block_exercise_id as string | null
-  if (blueprintExerciseId && session.scheduled_at) {
-    const { count, error: countError } = await supabase
-      .from('workout_session_block_exercises')
-      .select('id, workout_session_blocks!inner(workout_sessions!inner(scheduled_at, status))', { count: 'exact', head: true })
-      .eq('workout_plan_session_block_exercise_id', blueprintExerciseId)
-      .neq('id', (row as any).id)
-      .gte('workout_session_blocks.workout_sessions.scheduled_at', session.scheduled_at)
-      .in('workout_session_blocks.workout_sessions.status', ['scheduled', 'in_progress'])
-    if (countError) throw new Error(`future_occurrence_count: ${countError.message}`)
-    futureOccurrenceCount = count ?? 0
-  }
-
-  // 5. Response-Assembly
+  // 4. Response-Assembly (future_occurrence_count läuft seit Review 20.10.
+  //    parallel im Promise.all oben mit)
   const toExerciseDto = (e: CatalogExercise) => ({
     id: e.id, slug: e.slug, name: e.name,
     thumbnail_storage_path: e.thumbnail_storage_path ?? null,

@@ -2,7 +2,7 @@
 // vom Slot, Last + Mess-Typ werden übungsgerecht gesetzt — Parität zu
 // fixInvalidLoads im Worker (Kraft RPE 7, Rest RPE 6; bodyweight = null,
 // weil der Swap-Patch direkt in die DB schreibt — CHECK >= 0).
-const STRENGTH_BLOCK_TYPES = new Set(['lower_strength', 'upper_strength', 'push', 'pull', 'lower_body'])
+import { STRENGTH_BLOCK_TYPES } from '../../../jemp-temporal-worker/src/plan-generation/v2/pool'
 
 export type CurrentPrescription = {
   target_sets: number | null; target_reps_min: number | null; target_reps_max: number | null

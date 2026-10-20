@@ -77,6 +77,19 @@ test('Accessory ohne Pattern: Region-Bindung statt voller Block-Pool (QA 19.10.)
   // der getauschten Übung — Waden tauschen nur gegen Waden.
   assert.deepEqual(r.alternatives.map(a => a.slug), ['seated_calf_raise'])
 })
+test('Fail-closed: Kraftblock-Zeile ohne auflösbares Pattern liefert KEINE Alternativen statt alle (Review 20.10.)', () => {
+  // strength_pattern null + Kategorie != strength → matcht kein Pattern:
+  // ohne Fail-closed wäre die Pattern-Bindung komplett deaktiviert.
+  const cur = withCat(mkEx({ slug: 'mystery_move', strength_pattern: null, category_slug: 'mobility', body_region: 'quad' }))
+  const alt = withCat(mkEx({ slug: 'bench_press', strength_pattern: 'push_horizontal' }))
+  const r = buildSwapPool({
+    exercises: [cur, alt], maps: mkMaps(), sportGate: gate, dayEnvId: null,
+    blockTypeSlug: 'upper_strength', currentExercise: cur,
+    assignedPattern: null, patternEmphasis: null,
+  })
+  assert.equal(r.alternatives.length, 0)
+  assert.equal(r.locked.length, 0)
+})
 test('Region-Joker: full_body-Drills passen zu jeder Region, Fremd-Region bleibt draußen', () => {
   const cur = withCat(mkEx({ slug: 'cossack_squat', strength_pattern: null, category_slug: 'mobility', body_region: 'groin', legacy_block_slugs: ['warmup'] }))
   // dominant_region gesetzt: effectiveRegion wäre 'hip' — der Joker muss
