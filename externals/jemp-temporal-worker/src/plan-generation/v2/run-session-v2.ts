@@ -2,6 +2,7 @@
 // pools; a pure validator + retry loop guarantees the structure survives.
 
 import { z } from 'zod'
+import { STRENGTH_BLOCK_TYPES } from './pool'
 import { zodResponseFormat } from 'openai/helpers/zod'
 import type OpenAI from 'openai'
 import type { FinalWorkout, PlacedDay } from '../week-layout'
@@ -264,7 +265,6 @@ export function zeroWarmupCooldownRest(
  *   kg/percent_1rm <= 0 -> Kraftblöcke RPE 7, Warmup/Cooldown bodyweight,
  *   Rest RPE 6; pace <= 0 -> bodyweight (Null-Pace ist überall sinnlos);
  *   rpe <= 0 -> Block-Default (7 Kraft, 6 sonst). */
-const STRENGTH_BLOCK_TYPES = new Set(['lower_strength', 'upper_strength', 'push', 'pull', 'lower_body'])
 export function fixInvalidLoads(
   blocks: Array<{ block_type: string; exercises: Array<{ target_load_type: string; target_load_value: number }> }>,
 ): void {
@@ -298,7 +298,13 @@ export function fixInvalidLoads(
 /** Swap-Grundlage (Spec 2026-10-19): schreibt pro Kraft-Übung das erfüllte
  *  Pattern + dessen Emphasis aus den patternReqs an die Übung — save-plan
  *  persistiert beides, der Swap-Endpoint filtert damit ohne zu raten.
- *  Übungen ohne Req-Treffer (z. B. Datenloch) bleiben unannotiert → null. */
+ *  Übungen ohne Req-Treffer (z. B. Datenloch) bleiben unannotiert → null.
+ *  Zwei-Pass-Zuordnung (Review 20.10.): ungetaggte Übungen stehen via
+ *  Coarse-Fallback in den Fenstern BEIDER Geschwister-Patterns (push_vertical
+ *  UND push_horizontal) — first-match vergab dann z. T. das falsche Label und
+ *  der Swap bot Vertikal-Alternativen für einen Horizontal-Slot an. Jetzt:
+ *  erst eindeutige Übungen, dann Mehrdeutige bevorzugt auf noch unbedeckte
+ *  Patterns. */
 export function attachPatternAssignment(
   blocks: Array<{ block_type: string; exercises: Array<{ exercise_slug: string }> }>,
   patternReqs: PatternRequirement[],
@@ -306,11 +312,20 @@ export function attachPatternAssignment(
   for (const b of blocks) {
     const reqs = patternReqs.filter((r) => r.block_type === b.block_type)
     if (reqs.length === 0) continue
-    for (const e of b.exercises ?? []) {
-      const req = reqs.find((r) => r.slugs.has(e.exercise_slug))
-      if (!req) continue
+    const covered = new Set<string>()
+    const assign = (e: { exercise_slug: string }, req: PatternRequirement) => {
       ;(e as any).assigned_pattern = req.pattern
       ;(e as any).pattern_emphasis = req.emphasis
+      covered.add(req.pattern)
+    }
+    const ambiguous: Array<{ e: { exercise_slug: string }; matches: PatternRequirement[] }> = []
+    for (const e of b.exercises ?? []) {
+      const matches = reqs.filter((r) => r.slugs.has(e.exercise_slug))
+      if (matches.length === 1) assign(e, matches[0])
+      else if (matches.length > 1) ambiguous.push({ e, matches })
+    }
+    for (const { e, matches } of ambiguous) {
+      assign(e, matches.find((r) => !covered.has(r.pattern)) ?? matches[0])
     }
   }
 }

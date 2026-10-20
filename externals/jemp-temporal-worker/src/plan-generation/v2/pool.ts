@@ -49,6 +49,22 @@ export type V2Exercise = {
  *  Gym-Warmup). */
 export const SPEED_FRAMING_SLUGS = new Set(['easy_jog', 'build_up_run'])
 
+/** Kraftblock-Slugs inkl. Legacy (Review 20.10., geteilte Quelle): genutzt von
+ *  fixInvalidLoads (Worker) UND derivePrescription/buildSwapPool (jemp-api,
+ *  gebundelt) — vorher zwei wörtliche Kopien in zwei Deployables. */
+export const STRENGTH_BLOCK_TYPES = new Set(['lower_strength', 'upper_strength', 'push', 'pull', 'lower_body'])
+
+/** Alle strength_pattern-Enum-Werte (Review 20.10.): einmalige Quelle statt
+ *  handgepflegter Listen — Achtung, NICHT verwechseln mit dem Coarse-
+ *  ALL_PATTERNS (squat/hinge/push/pull) in generate-plan.ts. */
+export const STRENGTH_PATTERNS = ['push_vertical', 'push_horizontal', 'pull_vertical', 'pull_horizontal', 'knee_dominant', 'hinge', 'rotation'] as const
+
+/** Block-Typen, für die exerciseMatchesBlock echte Pool-Semantik hat (alles
+ *  andere fällt auf default:false). Review 20.10.: Quelle neben dem Switch,
+ *  App-Whitelist (helpers/swap-support.ts) wird per Worker-Test dagegen
+ *  gepinnt — Cross-Repo-Drift bricht dann einen Test statt still die UI. */
+export const SWAPPABLE_BLOCK_TYPES = ['warmup', 'cooldown', 'core', 'plyo', 'accessory', 'optional', 'lower_strength', 'upper_strength', 'push', 'pull', 'lower_body'] as const
+
 const ACCESSORY_REGIONS = new Set(['groin', 'hip', 'calf', 'ankle'])
 // Optional-Block (Kür): isolierte Small-Muscle-Arbeit — bewusst getrennt vom
 // funktionellen Accessory, damit Show-Muskeln nie Prophylaxe verdrängen.
