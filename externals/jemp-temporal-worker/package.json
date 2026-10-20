@@ -6,7 +6,7 @@
     "scripts": {
         "start": "NODE_ENV=production node dist/index.js",
         "build": "ts-node esbuild.config.ts",
-        "dev": "NODE_ENV=development pnpm dlx nodemon --watch src --exec ts-node --project ./tsconfig.json -r tsconfig-paths/register src/worker.ts",
+        "dev": "NODE_ENV=development pnpm dlx nodemon --watch src -e ts,json --exec ts-node --project ./tsconfig.json -r tsconfig-paths/register src/worker.ts",
         "test": "vitest run",
         "deploy:dev": "cd ../../ && bash ./deploy-fly.sh dev jemp-temporal-worker",
     "deploy:staging": "cd ../../ && bash ./deploy-fly.sh staging jemp-temporal-worker",
