@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Colors, GradientMid } from '@/constants/theme';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
 import { formatTargetReps } from '@/helpers/format';
+import { useBottomSheetAnimation } from '@/hooks/use-bottom-sheet-animation';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { fetchSwapAlternatives, SwapAlternative, SwapAlternativesResponse } from '@/lib/fetch-swap-alternatives';
 import { plannedSetCount } from '@/lib/prescription';
@@ -14,12 +15,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TouchableOpacity, useWindowDimensions, View } from 'react-native';
-import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Reanimated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { scheduleOnRN } from 'react-native-worklets';
 
 type SwapParams = {
     sessionId: string;
@@ -64,31 +64,21 @@ export default function SwapExerciseScreen() {
         enabled: !alreadyLogged,
     });
 
-    const slideValue = useSharedValue(600);
-    const overlayValue = useSharedValue(0);
-
-    // Eintritts-Animation über onLayout statt useEffect — die Lint-Regel
-    // react-hooks/immutability verbietet Shared-Value-Mutation im useEffect
-    const entered = useRef(false);
-    function handleSheetLayout() {
-        if (entered.current) return;
-        entered.current = true;
-        overlayValue.value = withTiming(1, { duration: 250 });
-        slideValue.value = withTiming(0, { duration: 300 });
-    }
+    const { enter, close, sheetStyle, backdropStyle } = useBottomSheetAnimation();
 
     function goBack() {
         router.back();
+    }
+
+    function handleSheetLayout() {
+        enter();
     }
 
     function handleClose() {
         // Während ein Swap läuft: Backdrop-Tap und X ignorieren, statt das
         // Sheet unter einer laufenden Mutation wegzuanimieren.
         if (isPending) return;
-        overlayValue.value = withTiming(0, { duration: 200 });
-        slideValue.value = withTiming(600, { duration: 200 }, (finished) => {
-            if (finished) scheduleOnRN(goBack);
-        });
+        close(goBack);
     }
 
     // Bereits geloggte Sätze (Spec §4): der Sheet darf nicht mal aufblitzen —
@@ -106,7 +96,7 @@ export default function SwapExerciseScreen() {
 
     async function performSwap(alternative: SwapAlternative, scope: SwapScope) {
         try {
-            await swapExercise({
+            const { skipped } = await swapExercise({
                 sessionId,
                 blockExerciseId,
                 planBlockExerciseId: planBlockExerciseId || null,
@@ -115,7 +105,12 @@ export default function SwapExerciseScreen() {
                 alternative,
                 scope,
             });
-            useToastStore.getState().show(t('swap.success'));
+            // Teilerfolg benennen (Review 20.10., C2): Occurrences mit bereits
+            // geloggten Sätzen behalten die alte Übung — das darf der Toast
+            // nicht verschweigen.
+            useToastStore.getState().show(skipped > 0
+                ? t('swap.success_partial', { skipped })
+                : t('swap.success'));
             handleClose();
         } catch (err) {
             // Fehler-Transparenz (QA 20.10.): der Toast verschwindet hinter dem
@@ -131,20 +126,12 @@ export default function SwapExerciseScreen() {
         // Doppel-Tap-Schutz: deckt die Race vor dem nächsten Re-Render ab —
         // disabled={isPending} auf der Row allein kommt erst nach dem State-Update.
         if (isPending) return;
-        if ((data?.future_occurrence_count ?? 0) > 0) {
-            setPendingAlternative(alternative);
-            return;
-        }
-        void performSwap(alternative, 'this_session');
+        // Scope-Wahl IMMER zeigen (Review 20.10., C4): bei count 0 (keine
+        // weiteren Vorkommen ODER stale Cache) wurde vorher kommentarlos nur
+        // diese Session getauscht — jetzt ist die Future-Option sichtbar,
+        // aber deaktiviert mit Begründung.
+        setPendingAlternative(alternative);
     }
-
-    const sheetStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: slideValue.value }],
-    }));
-
-    const backdropStyle = useAnimatedStyle(() => ({
-        opacity: overlayValue.value,
-    }));
 
     if (alreadyLogged) return null;
 
@@ -185,9 +172,9 @@ export default function SwapExerciseScreen() {
                                 </Pressable>
 
                                 <TouchableOpacity
-                                    style={[styles.scopeBtnPrimary, isPending && styles.scopeBtnDisabled]}
+                                    style={[styles.scopeBtnPrimary, (isPending || (data?.future_occurrence_count ?? 0) === 0) && styles.scopeBtnDisabled]}
                                     onPress={() => void performSwap(pendingAlternative, 'this_and_future')}
-                                    disabled={isPending}
+                                    disabled={isPending || (data?.future_occurrence_count ?? 0) === 0}
                                     activeOpacity={0.8}
                                 >
                                     {isPending ? (
@@ -196,6 +183,11 @@ export default function SwapExerciseScreen() {
                                         <JempText type="body-l" color="#fff">{t('swap.scope_future')}</JempText>
                                     )}
                                 </TouchableOpacity>
+                                {(data?.future_occurrence_count ?? 0) === 0 && (
+                                    <JempText type="caption" color={theme.textMuted} style={styles.scopeCancel}>
+                                        {t('swap.scope_future_none')}
+                                    </JempText>
+                                )}
 
                                 <Pressable onPress={() => setPendingAlternative(null)} disabled={isPending} hitSlop={8}>
                                     <JempText type="caption" color={theme.textMuted} style={styles.scopeCancel}>
@@ -342,9 +334,6 @@ const styles = StyleSheet.create({
     headerText: {
         flex: 1,
         gap: 2,
-    },
-    spinner: {
-        marginVertical: 24,
     },
     hint: {
         textAlign: 'center',

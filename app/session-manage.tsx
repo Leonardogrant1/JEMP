@@ -1,23 +1,20 @@
 import { JempText } from '@/components/jemp-text';
 import { Colors } from '@/constants/theme';
+import { useBottomSheetAnimation } from '@/hooks/use-bottom-sheet-animation';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUpdateSessionStatus } from '@/mutations/use-update-session-status';
 import { useToastStore } from '@/stores/toast-store';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Reanimated, {
     Easing,
     FadeInDown,
     LinearTransition,
-    useAnimatedStyle,
-    useSharedValue,
-    withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { scheduleOnRN } from 'react-native-worklets';
 
 const DESTRUCTIVE = '#ef4444';
 
@@ -53,28 +50,14 @@ export default function SessionManageScreen() {
 
     const [confirmMode, setConfirmMode] = useState(false);
 
-    const slideValue = useSharedValue(600);
-    const overlayValue = useSharedValue(0);
+    const { enter, close: closeThen, sheetStyle, backdropStyle } = useBottomSheetAnimation();
 
-    // Eintritts-Animation über onLayout statt useEffect — die Lint-Regel
-    // react-hooks/immutability verbietet Shared-Value-Mutation im useEffect
-    const entered = useRef(false);
     function handleSheetLayout() {
-        if (entered.current) return;
-        entered.current = true;
-        overlayValue.value = withTiming(1, { duration: 250 });
-        slideValue.value = withTiming(0, { duration: 300 });
+        enter();
     }
 
     function goBack() {
         router.back();
-    }
-
-    function closeThen(action: () => void) {
-        overlayValue.value = withTiming(0, { duration: 200 });
-        slideValue.value = withTiming(600, { duration: 200 }, (finished) => {
-            if (finished) scheduleOnRN(action);
-        });
     }
 
     function handleClose() {
@@ -96,14 +79,6 @@ export default function SessionManageScreen() {
     function navigateToRestAdjust() {
         router.replace({ pathname: '/session-rest-adjust', params: { sessionId } });
     }
-
-    const sheetStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: slideValue.value }],
-    }));
-
-    const backdropStyle = useAnimatedStyle(() => ({
-        opacity: overlayValue.value,
-    }));
 
     return (
         <Reanimated.View style={[styles.backdrop, backdropStyle]}>

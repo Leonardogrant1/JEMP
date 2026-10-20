@@ -12,10 +12,11 @@ import { getSessionImage } from '@/constants/session-images';
 import { Colors, GradientMid, Neutral } from '@/constants/theme';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
 import { formatLoad, formatReps, formatRest } from '@/helpers/format';
-import { isSwappableBlock } from '@/helpers/swap-support';
+import { isSwappableBlock, swapExerciseUrl } from '@/helpers/swap-support';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
 import { usePlan } from '@/providers/plan-provider';
+import { useActiveSessionStore } from '@/stores/active-session-store';
 import { useSessionDetailQuery, type SessionDetail } from '@/queries/use-session-detail-query';
 import { useSessionThumbnailsQuery } from '@/queries/use-session-thumbnails-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -77,6 +78,8 @@ export default function SessionDetailScreen() {
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const [menuSwapUrl, setMenuSwapUrl] = useState<string | null>(null);
+    // Geloggte Sätze der (ggf. laufenden) Session — Quelle wie in der ExerciseCard.
+    const pendingSets = useActiveSessionStore(s => s.pendingSets);
 
     const { data: session, isLoading } = useSessionDetailQuery(id);
     const stats = useMemo(() => session ? computeStats(session) : null, [session]);
@@ -342,7 +345,16 @@ export default function SessionDetailScreen() {
                                     {(session.status === 'scheduled' || session.status === 'in_progress') && session.scheduled_at && isSwappableBlock(block.block_type?.slug) && (
                                         <TouchableOpacity
                                             hitSlop={8}
-                                            onPress={() => setMenuSwapUrl(`/swap-exercise?sessionId=${session.id}&blockExerciseId=${ex.id}&planBlockExerciseId=${ex.workout_plan_session_block_exercise_id ?? ''}&scheduledAt=${encodeURIComponent(session.scheduled_at ?? '')}&exerciseId=${ex.exercise.id}&hasLoggedSets=0`)}
+                                            onPress={() => setMenuSwapUrl(swapExerciseUrl({
+                                                sessionId: session.id,
+                                                blockExerciseId: ex.id,
+                                                planBlockExerciseId: ex.workout_plan_session_block_exercise_id,
+                                                scheduledAt: session.scheduled_at,
+                                                exerciseId: ex.exercise.id,
+                                                // Review 20.10. (C1): war hartkodiert '0' — bei in_progress-
+                                                // Sessions mit geloggten Sätzen griff die Sofort-Sperre nie.
+                                                hasLoggedSets: pendingSets.some((ps) => ps.workout_session_block_exercise_id === ex.id),
+                                            }))}
                                         >
                                             <Ionicons name="ellipsis-vertical" size={18} color={theme.textMuted} />
                                         </TouchableOpacity>

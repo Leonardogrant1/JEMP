@@ -971,6 +971,8 @@ const en = {
     'swap.scope_this': 'Only this session',
     'swap.scope_future': 'This and all upcoming',
     'swap.success': 'Exercise swapped',
+    'swap.success_partial': 'Exercise swapped — skipped {{skipped}} session(s) with logged sets',
+    'swap.scope_future_none': 'No further occurrences in this plan',
     'swap.blocked_logged': 'Sets already logged — swapping is no longer possible.',
 } as const;
 

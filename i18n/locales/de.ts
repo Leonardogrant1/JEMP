@@ -973,6 +973,8 @@ const de: Record<TranslationKeys, string> = {
     'swap.scope_this': 'Nur diese Session',
     'swap.scope_future': 'Diese und alle folgenden',
     'swap.success': 'Übung getauscht',
+    'swap.success_partial': 'Übung getauscht — {{skipped}} Einheit(en) mit geloggten Sätzen übersprungen',
+    'swap.scope_future_none': 'Keine weiteren Vorkommen in diesem Plan',
     'swap.blocked_logged': 'Bereits Sätze geloggt — Tausch nicht mehr möglich.',
 };
 

@@ -2,7 +2,7 @@ import { JempText } from '@/components/jemp-text';
 import { SessionChip } from '@/components/plan/SessionChip';
 import { Colors } from '@/constants/theme';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
-import { isSwappableBlock } from '@/helpers/swap-support';
+import { isSwappableBlock, swapExerciseUrl } from '@/helpers/swap-support';
 import { ExerciseActionsMenu } from '@/components/ui/exercise-actions-menu';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useActiveSessionTransition } from '@/providers/active-session-transition-provider';
@@ -71,7 +71,14 @@ export function ExerciseCard() {
                 visible={menuOpen}
                 onClose={() => setMenuOpen(false)}
                 swapDimmed={hasLoggedSets}
-                onSwap={() => router.push(`/swap-exercise?sessionId=${session!.id}&blockExerciseId=${current.id}&planBlockExerciseId=${current.workout_plan_session_block_exercise_id ?? ''}&scheduledAt=${encodeURIComponent(session!.scheduled_at ?? '')}&exerciseId=${current.exercise.id}&hasLoggedSets=${hasLoggedSets ? '1' : '0'}` as never)}
+                onSwap={() => router.push(swapExerciseUrl({
+                    sessionId: session!.id,
+                    blockExerciseId: current.id,
+                    planBlockExerciseId: current.workout_plan_session_block_exercise_id,
+                    scheduledAt: session!.scheduled_at,
+                    exerciseId: current.exercise.id,
+                    hasLoggedSets,
+                }) as never)}
             />
 
             {/* Thumbnail statt eingebettetem Video-Player — Details (inkl. Video)

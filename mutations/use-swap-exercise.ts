@@ -40,7 +40,7 @@ async function swapExercise(input: {
         const { error } = await supabase
             .from('workout_session_block_exercises').update(patch).eq('id', input.blockExerciseId);
         if (error) throw error;
-        return;
+        return { skipped: 0 };
     }
     // Alle zukünftigen Occurrences derselben Blueprint-Übung (scheduled/in_progress).
     const { data: siblings, error: selError } = await supabase
@@ -72,6 +72,10 @@ async function swapExercise(input: {
     const { error } = await supabase
         .from('workout_session_block_exercises').update(patch).in('id', ids);
     if (error) throw error;
+    // Teilerfolg sichtbar machen (Review 20.10., C2): übersprungene Geschwister
+    // (bereits geloggte Sätze) gehen an die UI — der Erfolgs-Toast darf keinen
+    // Voll-Tausch suggerieren, wenn eine Occurrence die alte Übung behielt.
+    return { skipped: lockedSiblingIds.size };
 }
 
 export function useSwapExercise() {
@@ -79,11 +83,13 @@ export function useSwapExercise() {
     return useMutation({
         mutationFn: swapExercise,
         onSuccess: async (_, input) => {
-            await invalidateSessionDetail(input.sessionId);
             // `this_and_future` ändert auch andere Sessions + die Plan-Übersicht
-            // (Finding 5) — der Cache dieser Session alleine reicht nicht.
+            // (Finding 5); der breite session-detail-Key deckt den spezifischen
+            // per Prefix-Match mit ab.
             if (input.scope === 'this_and_future') {
                 await Promise.all([invalidatePlan(), invalidateSessionDetail()]);
+            } else {
+                await invalidateSessionDetail(input.sessionId);
             }
         },
     });

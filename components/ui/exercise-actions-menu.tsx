@@ -1,12 +1,12 @@
 import { JempText } from '@/components/jemp-text';
 import { Colors } from '@/constants/theme';
+import { useBottomSheetAnimation } from '@/hooks/use-bottom-sheet-animation';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
-import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Reanimated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { scheduleOnRN } from 'react-native-worklets';
 
 /**
  * Aktions-Menü einer Übungszeile (⋮-Button): aktuell nur "Übung austauschen",
@@ -29,38 +29,26 @@ export function ExerciseActionsMenu({ visible, onClose, onSwap, swapDimmed }: {
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
-    const slideValue = useSharedValue(600);
-    const overlayValue = useSharedValue(0);
+    const { enter, close, sheetStyle, backdropStyle } = useBottomSheetAnimation();
 
     function handleShow() {
-        slideValue.value = 600;
-        overlayValue.value = 0;
-        overlayValue.value = withTiming(1, { duration: 250 });
-        slideValue.value = withTiming(0, { duration: 300 });
+        enter({ reset: true });
     }
 
-    function closeThen(action: () => void) {
-        overlayValue.value = withTiming(0, { duration: 200 });
-        slideValue.value = withTiming(600, { duration: 200 }, (finished) => {
-            if (finished) scheduleOnRN(action);
-        });
+    // Symmetrie (Review 20.10., K7): onClose läuft IMMER nach der Raus-
+    // Animation — zusätzliche Aktionen hängen nur hintendran. Ein Aufrufer
+    // kann so nicht vergessen, das Modal zu schließen.
+    function closeThen(action?: () => void) {
+        close(() => { onClose(); action?.(); });
     }
 
     function handleClose() {
-        closeThen(onClose);
+        closeThen();
     }
 
     function handleSwap() {
-        closeThen(() => { onClose(); onSwap(); });
+        closeThen(onSwap);
     }
-
-    const sheetStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: slideValue.value }],
-    }));
-
-    const backdropStyle = useAnimatedStyle(() => ({
-        opacity: overlayValue.value,
-    }));
 
     return (
         <Modal transparent visible={visible} statusBarTranslucent animationType="none" onShow={handleShow} onRequestClose={handleClose}>
