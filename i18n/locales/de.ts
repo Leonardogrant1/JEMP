@@ -490,7 +490,6 @@ const de: Record<TranslationKeys, string> = {
     'ui.session_reschedule_title': 'Verschieben auf...',
     'ui.session_reschedule_no_free_days': 'Keine anderen Tage diese Woche verfügbar.',
     'ui.session_rescheduled': 'Session verschoben',
-    'ui.session_reschedule_start_today': 'Heute starten',
     'ui.rest_adjusted': 'Pausen angepasst',
     'ui.session_cancelled_toast': 'Session abgesagt',
     'ui.sessions_rescheduled_all': 'Alle {{day}}-Sessions verschoben',

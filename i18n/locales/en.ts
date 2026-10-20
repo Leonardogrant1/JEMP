@@ -488,7 +488,6 @@ const en = {
     'ui.session_reschedule_title': 'Reschedule to...',
     'ui.session_reschedule_no_free_days': 'No other days available this week.',
     'ui.session_rescheduled': 'Session rescheduled',
-    'ui.session_reschedule_start_today': 'Start today',
     'ui.rest_adjusted': 'Rest times adjusted',
     'ui.session_cancelled_toast': 'Session cancelled',
     'ui.sessions_rescheduled_all': 'All {{day}} sessions rescheduled',
