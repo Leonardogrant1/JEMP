@@ -23,11 +23,16 @@ async function swapExercise(input: {
 
     // Kein `notes`-Feld hier: das existiert nur auf workout_plan_session_block_exercises,
     // nicht auf dieser Session-Instanz-Tabelle — würde als Update-Patch einen Postgres-Fehler werfen.
+    // Generator-Sentinel-Netz (QA 20.10.): -1 ist die In-Memory-Konvention des
+    // Workers für bodyweight — savePlan nullt sie vor dem Insert, der Swap
+    // schreibt aber direkt (CHECK target_load_value >= 0 schlug fehl).
+    const loadValue = input.alternative.prescription.target_load_value;
     const patch: TablesUpdate<'workout_session_block_exercises'> = {
         exercise_id: input.alternative.exercise.id,
         swapped_from_exercise_id: input.currentExerciseId,
         ...input.alternative.prescription,
         target_load_type: input.alternative.prescription.target_load_type as TablesUpdate<'workout_session_block_exercises'>['target_load_type'],
+        target_load_value: loadValue != null && loadValue < 0 ? null : loadValue,
         recommended_load_value: null,
     };
 

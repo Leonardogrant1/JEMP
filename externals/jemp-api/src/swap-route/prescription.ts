@@ -1,6 +1,7 @@
 // Vorgaben-Ableitung beim Swap (Spec 2026-10-19 §3): Satzschema/Pause bleiben
 // vom Slot, Last + Mess-Typ werden übungsgerecht gesetzt — Parität zu
-// fixInvalidLoads im Worker (Kraft RPE 7, Rest RPE 6, bodyweight = -1).
+// fixInvalidLoads im Worker (Kraft RPE 7, Rest RPE 6; bodyweight = null,
+// weil der Swap-Patch direkt in die DB schreibt — CHECK >= 0).
 const STRENGTH_BLOCK_TYPES = new Set(['lower_strength', 'upper_strength', 'push', 'pull', 'lower_body'])
 
 export type CurrentPrescription = {
@@ -30,7 +31,10 @@ export function derivePrescription(
     p.target_reps_max = current.target_reps_max ?? 12
   }
   if (!candidate.requiresEquipment) {
-    p.target_load_type = 'bodyweight'; p.target_load_value = -1
+    // DB-fertig: null statt des Generator-Sentinels -1 — savePlan nullt -1
+    // vor dem Insert, der Swap-Patch schreibt aber direkt (QA 20.10.: CHECK
+    // target_load_value >= 0 schlug fehl, Swap wirkungslos).
+    p.target_load_type = 'bodyweight'; p.target_load_value = null
   } else if (current.target_load_type !== 'rpe') {
     // Finding 3: jeder Nicht-RPE-Ausgangswert (bodyweight/kg/percent_1rm/pace/null)
     // ist für einen Geräte-Kandidaten bedeutungslos (z.B. Plank → Kurzhantel-

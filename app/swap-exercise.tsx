@@ -118,6 +118,9 @@ export default function SwapExerciseScreen() {
             useToastStore.getState().show(t('swap.success'));
             handleClose();
         } catch (err) {
+            // Fehler-Transparenz (QA 20.10.): der Toast verschwindet hinter dem
+            // Sheet — ohne Log war "springt zur Liste zurück" nicht debugbar.
+            console.error('swap failed:', err);
             const blocked = err instanceof Error && err.message === 'swap_blocked_logged_sets';
             useToastStore.getState().show(blocked ? t('swap.blocked_logged') : t('swap.error'));
             setPendingAlternative(null);
