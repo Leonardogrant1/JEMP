@@ -86,25 +86,21 @@ export default function SessionRescheduleScreen() {
         if (!pendingDate || isBusy) return;
         const session = sessions.find((s) => s.id === sessionId);
         if (!session) return;
-        // "Heute starten"-Shortcut: liegt der Ziel-Tag auf heute, bleibt das
-        // Sheet bis zum Mutations-Erfolg offen und ersetzt sich dann durch die
-        // Session — sonst würde der onSuccess-Callback nach dem Unmount verpuffen.
-        const startToday = pendingDate === todayStr;
-        const onSuccess = startToday
-            ? () => router.replace(`/session/${sessionId}`)
-            : undefined;
+        // Kein "Heute starten"-Shortcut mehr (QA 20.10.): Reschedule auf heute
+        // sprang nach Erfolg in die Session-Detail — erwartet wird, auf dem
+        // Plan zu bleiben. Verhalten jetzt für alle Zieltage identisch.
         if (scope === 'all') {
             rescheduleAll(
                 { originalScheduledAt: session.scheduled_at!, newDate: pendingDate },
-                { onSuccess: onSuccess ?? (() => useToastStore.getState().show(t('ui.sessions_rescheduled_all', { day: originalDayName }))) },
+                { onSuccess: () => useToastStore.getState().show(t('ui.sessions_rescheduled_all', { day: originalDayName })) },
             );
         } else {
             rescheduleSession(
                 { sessionId, newDate: pendingDate, originalScheduledAt: session.scheduled_at! },
-                { onSuccess: onSuccess ?? (() => useToastStore.getState().show(t('ui.session_rescheduled'))) },
+                { onSuccess: () => useToastStore.getState().show(t('ui.session_rescheduled')) },
             );
         }
-        if (!startToday) handleClose();
+        handleClose();
     }
 
     const sheetStyle = useAnimatedStyle(() => ({
@@ -387,7 +383,7 @@ export default function SessionRescheduleScreen() {
                                                 onPress={handleConfirm}
                                             >
                                                 <JempText type="button" color="#fff">
-                                                    {pendingDate === todayStr ? t('ui.session_reschedule_start_today') : t('ui.confirm')}
+                                                    {t('ui.confirm')}
                                                 </JempText>
                                             </Pressable>
                                         </>
