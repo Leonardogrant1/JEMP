@@ -14,6 +14,7 @@ import {
 } from '../../actions/exercises'
 import { generateThumbnail } from '../../actions/thumbnail-ai'
 import { asI18n } from '@/lib/i18n'
+import { prepareVideoForUpload } from '@/lib/transcode-video'
 import { DropZone } from '../_components/DropZone'
 import { VideoFramePicker } from '../_components/VideoFramePicker'
 import type { Json } from '../../../../database.types'
@@ -276,13 +277,17 @@ export function ExerciseEditForm({ exercise: initial, relations, thumbnailSource
 
   const saveVideo = async () => {
     if (!pendingVideo) return
-    setStatus('video', 'Uploading...')
+    setStatus('video', 'Compressing…')
     try {
+      const upload = await prepareVideoForUpload(pendingVideo, (pct) =>
+        setStatus('video', `Compressing… ${pct}%`)
+      )
+      setStatus('video', 'Uploading...')
       const { signedUrl, path } = await getSignedUploadUrl(exercise.id, 'video')
       const res = await fetch(signedUrl, {
         method: 'PUT',
-        body: pendingVideo,
-        headers: { 'Content-Type': pendingVideo.type },
+        body: upload,
+        headers: { 'Content-Type': upload.type },
       })
       if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
       await updateExercise(exercise.id, { video_storage_path: path })

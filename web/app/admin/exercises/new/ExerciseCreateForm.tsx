@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { createExercise, getSignedUploadUrl, updateExercise, type MovementPattern, type BodyRegion, type ExerciseImageGroup, type Laterality } from '../../../actions/exercises'
 import { prefillExercise } from '../../../actions/exercise-ai'
 import { asI18n } from '@/lib/i18n'
+import { prepareVideoForUpload } from '@/lib/transcode-video'
 import { DropZone } from '../../_components/DropZone'
 import type { Json } from '../../../../../database.types'
 
@@ -142,11 +143,15 @@ export function ExerciseCreateForm({ categories, equipments, environments, block
         // Video erst nach dem Anlegen hochladen — der Storage-Pfad braucht die ID
         if (pendingVideo) {
           try {
+            const upload = await prepareVideoForUpload(pendingVideo, (pct) =>
+              setStatus(`Video komprimieren… ${pct}%`)
+            )
+            setStatus('Video hochladen…')
             const { signedUrl, path } = await getSignedUploadUrl(id, 'video')
             const res = await fetch(signedUrl, {
               method: 'PUT',
-              body: pendingVideo,
-              headers: { 'Content-Type': pendingVideo.type },
+              body: upload,
+              headers: { 'Content-Type': upload.type },
             })
             if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
             await updateExercise(id, { video_storage_path: path })
