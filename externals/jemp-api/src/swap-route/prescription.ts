@@ -2,7 +2,7 @@
 // vom Slot, Last + Mess-Typ werden übungsgerecht gesetzt — Parität zu
 // fixInvalidLoads im Worker (Kraft RPE 7, Rest RPE 6; bodyweight = null,
 // weil der Swap-Patch direkt in die DB schreibt — CHECK >= 0).
-import { STRENGTH_BLOCK_TYPES } from '../../../jemp-temporal-worker/src/plan-generation/v2/pool'
+import { AMRAP_BLOCK_TYPES, STRENGTH_BLOCK_TYPES } from '../../../jemp-temporal-worker/src/plan-generation/v2/pool'
 
 export type CurrentPrescription = {
   target_sets: number | null; target_reps_min: number | null; target_reps_max: number | null
@@ -43,5 +43,11 @@ export function derivePrescription(
     p.target_load_type = 'rpe'
     p.target_load_value = STRENGTH_BLOCK_TYPES.has(blockType) ? 7 : 6
   }
+  // AMRAP-Parität zu flagAmrapExercises (Worker): Bodyweight-Reps in Kraft-/
+  // Core-Blöcken geht bis kurz vors Versagen. Nicht vom Ausgangswert erben —
+  // ein Tausch auf Gerät oder Duration muss das Flag auch löschen.
+  p.is_amrap = AMRAP_BLOCK_TYPES.has(blockType)
+    && p.target_load_type === 'bodyweight'
+    && ((p.target_reps_min ?? 0) > 0 || (p.target_reps_max ?? 0) > 0)
   return p
 }

@@ -2,7 +2,7 @@
 // pools; a pure validator + retry loop guarantees the structure survives.
 
 import { z } from 'zod'
-import { STRENGTH_BLOCK_TYPES } from './pool'
+import { AMRAP_BLOCK_TYPES, STRENGTH_BLOCK_TYPES } from './pool'
 import { zodResponseFormat } from 'openai/helpers/zod'
 import type OpenAI from 'openai'
 import type { FinalWorkout, PlacedDay } from '../week-layout'
@@ -295,6 +295,26 @@ export function fixInvalidLoads(
   }
 }
 
+/** AMRAP (QA 20.10.): Bodyweight-Reps-Arbeit in Kraft- und Core-Blöcken hat
+ *  keinen Intensitätsregler — jede feste Range (ab_wheel_rollout „6–8") ist
+ *  willkürlich, also gehen alle Sätze bis kurz vors Versagen und die App
+ *  zeigt „Max". Die Regel existierte im alten Phase-C-Pfad (generate-plan.ts,
+ *  nur primary/secondary) und ging beim v2-Umbau verloren. Läuft NACH
+ *  fixInvalidLoads (setzt bodyweight) und enforceMeasurementTypes (nullt
+ *  Reps bei Duration-Typen). */
+export function flagAmrapExercises(
+  blocks: Array<{ block_type: string; exercises: Array<{ target_load_type: string; target_reps_min: number; target_reps_max: number }> }>,
+): void {
+  for (const b of blocks) {
+    if (!AMRAP_BLOCK_TYPES.has(b.block_type)) continue
+    for (const e of b.exercises ?? []) {
+      if (e.target_load_type !== 'bodyweight') continue
+      if (!(e.target_reps_min > 0 || e.target_reps_max > 0)) continue
+      ;(e as any).is_amrap = true
+    }
+  }
+}
+
 /** Swap-Grundlage (Spec 2026-10-19): schreibt pro Kraft-Übung das erfüllte
  *  Pattern + dessen Emphasis aus den patternReqs an die Übung — save-plan
  *  persistiert beides, der Swap-Endpoint filtert damit ohne zu raten.
@@ -447,6 +467,7 @@ export async function runSessionV2(
   fixInvalidLoads(blocks)
   attachPatternAssignment(blocks, patternReqs)
   enforceMeasurementTypes(blocks, input.measurementBySlug)
+  flagAmrapExercises(blocks)
   if (day.carries_conditioning_finisher) {
     const cooldownIdx = blocks.findIndex((b: any) => b.block_type === 'cooldown')
     const insertAt = cooldownIdx === -1 ? blocks.length : cooldownIdx

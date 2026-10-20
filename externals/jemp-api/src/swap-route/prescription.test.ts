@@ -42,3 +42,23 @@ test('Bodyweight-Zeile → Geräte-Kandidat bekommt RPE 7 im Kraftblock (Finding
   const p = derivePrescription(cur, { measurement_type: 'reps', requiresEquipment: true }, 'lower_strength')
   assert.equal(p.target_load_type, 'rpe'); assert.equal(p.target_load_value, 7)
 })
+test('AMRAP: Bodyweight-Reps-Kandidat im Kraftblock bekommt is_amrap (flagAmrapExercises-Parität)', () => {
+  const p = derivePrescription(base, { measurement_type: 'reps', requiresEquipment: false }, 'upper_strength')
+  assert.equal(p.is_amrap, true)
+})
+test('AMRAP: Core-Block ist abgedeckt (ab_wheel_rollout-Befund)', () => {
+  const cur = { ...base, target_load_type: 'bodyweight', target_load_value: null }
+  const p = derivePrescription(cur, { measurement_type: 'reps', requiresEquipment: false }, 'core')
+  assert.equal(p.is_amrap, true)
+})
+test('AMRAP erlischt: Tausch auf Geräte-Kandidat oder Duration-Kandidat', () => {
+  const cur = { ...base, target_load_type: 'bodyweight', target_load_value: null, is_amrap: true }
+  const loaded = derivePrescription(cur, { measurement_type: 'reps', requiresEquipment: true }, 'upper_strength')
+  assert.equal(loaded.is_amrap, false)
+  const timed = derivePrescription(cur, { measurement_type: 'duration', requiresEquipment: false }, 'core')
+  assert.equal(timed.is_amrap, false)
+})
+test('AMRAP: kein Flag außerhalb von Kraft/Core (accessory bleibt Aktivierungsarbeit)', () => {
+  const p = derivePrescription(base, { measurement_type: 'reps', requiresEquipment: false }, 'accessory')
+  assert.equal(p.is_amrap, false)
+})

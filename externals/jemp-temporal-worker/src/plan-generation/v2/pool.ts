@@ -54,6 +54,13 @@ export const SPEED_FRAMING_SLUGS = new Set(['easy_jog', 'build_up_run'])
  *  gebundelt) — vorher zwei wörtliche Kopien in zwei Deployables. */
 export const STRENGTH_BLOCK_TYPES = new Set(['lower_strength', 'upper_strength', 'push', 'pull', 'lower_body'])
 
+/** Blöcke, in denen Bodyweight-Reps-Arbeit AMRAP geht (Kraft + Core): ohne
+ *  Zusatzlast gibt es keinen Intensitätsregler, eine feste Range ist dort
+ *  willkürlich. Plyo/Warmup/Accessory bewusst NICHT — Explosiv- und
+ *  Aktivierungsarbeit lebt fern des Versagens. Genutzt von
+ *  flagAmrapExercises (Worker) UND derivePrescription (jemp-api, gebundelt). */
+export const AMRAP_BLOCK_TYPES = new Set([...STRENGTH_BLOCK_TYPES, 'core'])
+
 /** Alle strength_pattern-Enum-Werte (Review 20.10.): einmalige Quelle statt
  *  handgepflegter Listen — Achtung, NICHT verwechseln mit dem Coarse-
  *  ALL_PATTERNS (squat/hinge/push/pull) in generate-plan.ts. */
