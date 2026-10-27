@@ -41,7 +41,7 @@ export async function EarlyAccess() {
         <p className="text-white/50 text-sm mb-10">{t("pricingNote")}</p>
 
         <div className="flex flex-col items-center gap-3">
-          <DownloadLink className="inline-flex items-center gap-3 px-10 py-4 rounded-full bg-brand-gradient font-bold text-white text-base sm:text-lg hover:opacity-90 transition-opacity shadow-lg shadow-brand-cyan/20 whitespace-nowrap">
+          <DownloadLink source="early-access" className="inline-flex items-center gap-3 px-10 py-4 rounded-full bg-brand-gradient font-bold text-white text-base sm:text-lg hover:opacity-90 transition-opacity shadow-lg shadow-brand-cyan/20 whitespace-nowrap">
             {t("cta")}
           </DownloadLink>
           <p className="text-white/40 text-xs">{t("ctaHint")}</p>

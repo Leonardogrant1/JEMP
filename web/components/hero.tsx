@@ -36,7 +36,7 @@ export async function Hero() {
         </Reveal>
 
         <Reveal delay={300}>
-          <DownloadLink className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-brand-gradient font-bold text-white text-base sm:text-lg hover:opacity-90 transition-opacity shadow-lg shadow-brand-cyan/20">
+          <DownloadLink source="hero" className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-brand-gradient font-bold text-white text-base sm:text-lg hover:opacity-90 transition-opacity shadow-lg shadow-brand-cyan/20">
             {t("cta")}
           </DownloadLink>
         </Reveal>

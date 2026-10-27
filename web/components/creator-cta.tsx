@@ -16,6 +16,8 @@ export async function CreatorCta() {
           </div>
           <a
             href={href}
+            data-umami-event="creator-apply"
+            data-umami-event-source="cta"
             className="inline-flex items-center gap-2 shrink-0 px-5 py-2.5 rounded-full bg-brand-gradient font-bold text-white text-sm hover:opacity-90 transition-opacity shadow-lg shadow-brand-cyan/20"
           >
             {t("cta")}

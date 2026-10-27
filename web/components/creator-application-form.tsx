@@ -391,6 +391,10 @@ export function CreatorApplicationForm() {
 
       setStep(5); // Success step
       setStatus("idle");
+      window.umami?.track("creator-application-submitted", {
+        country: payload.country,
+        socials: payload.social_accounts.length,
+      });
     } catch (err: any) {
       console.error(err);
       setStatus("error");

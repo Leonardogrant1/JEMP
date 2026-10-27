@@ -20,17 +20,22 @@ export async function Navbar() {
           <a href="#features" className="text-sm font-medium text-white/60 hover:text-white transition-colors">
             {t("features")}
           </a>
-          <DownloadLink className="text-sm font-medium text-white/60 hover:text-white transition-colors">
+          <DownloadLink source="nav" className="text-sm font-medium text-white/60 hover:text-white transition-colors">
             {t("earlyAccess")}
           </DownloadLink>
-          <a href={creatorHref} className="text-sm font-medium text-white/60 hover:text-white transition-colors">
+          <a
+            href={creatorHref}
+            data-umami-event="creator-apply"
+            data-umami-event-source="nav"
+            className="text-sm font-medium text-white/60 hover:text-white transition-colors"
+          >
             {t("creator")}
           </a>
         </nav>
 
         <div className="flex items-center gap-2">
           <LanguagePicker />
-          <DownloadLink className="px-4 py-2 rounded-xl bg-brand-gradient font-bold text-sm text-white hover:opacity-90 transition-opacity">
+          <DownloadLink source="nav-cta" className="px-4 py-2 rounded-xl bg-brand-gradient font-bold text-sm text-white hover:opacity-90 transition-opacity">
             {t("cta")}
           </DownloadLink>
         </div>
