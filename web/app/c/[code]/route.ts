@@ -13,7 +13,11 @@ const LEAD_VIEW_URL = "https://www.northbyte.studio/api/affiliate/lead/view";
 export async function GET(req: NextRequest, ctx: { params: Promise<{ code: string }> }) {
   const { code: rawCode } = await ctx.params;
   const code = rawCode.toLowerCase();
-  const response = NextResponse.redirect(new URL("/", req.url), 302);
+  // Query-Parameter (utm_source etc.) durch den Redirect mitnehmen,
+  // damit Umami die Kampagnen-Quelle auf / sieht
+  const target = new URL("/", req.url);
+  req.nextUrl.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+  const response = NextResponse.redirect(target, 302);
 
   const userAgent = req.headers.get("user-agent") ?? "";
   if (!CODE_PATTERN.test(code) || BOT_PATTERN.test(userAgent)) {
