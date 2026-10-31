@@ -1,0 +1,1136 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`composeWeek Characterization (ohne Spieltage) > 1 Tag 1`] = `
+[
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "heavy",
+            "pattern": "hinge",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_vertical",
+          },
+          {
+            "emphasis": "normal",
+            "pattern": "pull_horizontal",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": "transverse",
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "optional",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 3,
+  },
+]
+`;
+
+exports[`composeWeek Characterization (ohne Spieltage) > 2 Tage kompakt (40min), strength 2 1`] = `
+[
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "heavy",
+            "pattern": "hinge",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_vertical",
+          },
+          {
+            "emphasis": "normal",
+            "pattern": "pull_horizontal",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": "transverse",
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 1,
+  },
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_horizontal",
+          },
+          {
+            "emphasis": "heavy",
+            "pattern": "pull_vertical",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "knee_dominant",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": "sagittal",
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 3,
+  },
+]
+`;
+
+exports[`composeWeek Characterization (ohne Spieltage) > 3 Tage, heavy_lower Tag 3, strength 3 medium 1`] = `
+[
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_vertical",
+          },
+          {
+            "emphasis": "heavy",
+            "pattern": "pull_horizontal",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "knee_dominant",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": "transverse",
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "optional",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 1,
+  },
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "heavy",
+            "pattern": "hinge",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_horizontal",
+          },
+          {
+            "emphasis": "heavy",
+            "pattern": "pull_vertical",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": "sagittal",
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "optional",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 3,
+  },
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "heavy",
+            "pattern": "knee_dominant",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_vertical",
+          },
+          {
+            "emphasis": "normal",
+            "pattern": "pull_horizontal",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "optional",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 5,
+  },
+]
+`;
+
+exports[`composeWeek Characterization (ohne Spieltage) > 3 Tage, kein heavy_lower, keine Säulen 1`] = `
+[
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "heavy",
+            "pattern": "hinge",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_vertical",
+          },
+          {
+            "emphasis": "normal",
+            "pattern": "pull_horizontal",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": "transverse",
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "optional",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 1,
+  },
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_horizontal",
+          },
+          {
+            "emphasis": "heavy",
+            "pattern": "pull_vertical",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "knee_dominant",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": "sagittal",
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "optional",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 3,
+  },
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "heavy",
+            "pattern": "knee_dominant",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_vertical",
+          },
+          {
+            "emphasis": "normal",
+            "pattern": "pull_horizontal",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "optional",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 5,
+  },
+]
+`;
+
+exports[`composeWeek Characterization (ohne Spieltage) > 5 Tage, heavy_lower Tag 3, Plyo-Säulen 1`] = `
+[
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "plyo",
+        "emphasis": "heavy",
+        "variant": "lower",
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "hinge",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_vertical",
+          },
+          {
+            "emphasis": "normal",
+            "pattern": "pull_horizontal",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": "transverse",
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 1,
+  },
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "plyo",
+        "emphasis": "light",
+        "variant": "upper",
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_horizontal",
+          },
+          {
+            "emphasis": "heavy",
+            "pattern": "pull_vertical",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "knee_dominant",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": "sagittal",
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 2,
+  },
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "plyo",
+        "emphasis": "light",
+        "variant": "lower",
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "heavy",
+            "pattern": "knee_dominant",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_vertical",
+          },
+          {
+            "emphasis": "normal",
+            "pattern": "pull_horizontal",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 3,
+  },
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "heavy",
+            "pattern": "push_horizontal",
+          },
+          {
+            "emphasis": "normal",
+            "pattern": "pull_vertical",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "hinge",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "optional",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 4,
+  },
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "heavy",
+            "pattern": "hinge",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_vertical",
+          },
+          {
+            "emphasis": "normal",
+            "pattern": "pull_horizontal",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "optional",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 5,
+  },
+]
+`;
+
+exports[`composeWeek Characterization (ohne Spieltage) > Do/Sa/So, heavy_lower Sa (48h-Szenario) 1`] = `
+[
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "heavy",
+            "pattern": "hinge",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_vertical",
+          },
+          {
+            "emphasis": "normal",
+            "pattern": "pull_horizontal",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": "transverse",
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "optional",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 4,
+  },
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "heavy",
+            "pattern": "knee_dominant",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_horizontal",
+          },
+          {
+            "emphasis": "normal",
+            "pattern": "pull_vertical",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": "sagittal",
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "optional",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 6,
+  },
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_vertical",
+          },
+          {
+            "emphasis": "heavy",
+            "pattern": "pull_horizontal",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "knee_dominant",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "optional",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 7,
+  },
+]
+`;
+
+exports[`composeWeek Characterization (ohne Spieltage) > Mo/Di/So — Wochenrand-Nachbarschaft 1`] = `
+[
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "heavy",
+            "pattern": "hinge",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_vertical",
+          },
+          {
+            "emphasis": "normal",
+            "pattern": "pull_horizontal",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": "transverse",
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "optional",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 1,
+  },
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "push_horizontal",
+          },
+          {
+            "emphasis": "heavy",
+            "pattern": "pull_vertical",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "knee_dominant",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": "sagittal",
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "optional",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 2,
+  },
+  {
+    "blocks": [
+      {
+        "block_type": "warmup",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "upper_strength",
+        "emphasis": "heavy",
+        "patterns": [
+          {
+            "emphasis": "heavy",
+            "pattern": "push_vertical",
+          },
+          {
+            "emphasis": "normal",
+            "pattern": "pull_horizontal",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "lower_strength",
+        "emphasis": "normal",
+        "patterns": [
+          {
+            "emphasis": "normal",
+            "pattern": "hinge",
+          },
+        ],
+        "variant": null,
+      },
+      {
+        "block_type": "core",
+        "emphasis": "normal",
+        "variant": null,
+      },
+      {
+        "block_type": "accessory",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "optional",
+        "emphasis": "light",
+        "variant": null,
+      },
+      {
+        "block_type": "cooldown",
+        "emphasis": "normal",
+        "variant": null,
+      },
+    ],
+    "dow": 7,
+  },
+]
+`;

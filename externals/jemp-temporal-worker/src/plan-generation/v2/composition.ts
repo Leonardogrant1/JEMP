@@ -63,24 +63,32 @@ const STRENGTH_LEAD_ROTATION = ['lower_strength', 'upper_strength'] as const
 const upperAxes = (i: number): { push: string; pull: string } =>
   i % 2 === 0 ? { push: 'push_vertical', pull: 'pull_horizontal' } : { push: 'push_horizontal', pull: 'pull_vertical' }
 
-/** §1.1–1.7: komponiert pro Trainingstag die Blockliste (inkl. warmup/cooldown). */
-export function composeWeek(input: {
-  trainingDays: PlacedDay[]
-  pillarLevels: PillarLevels
-  hasSpeedSession: boolean
-  /** Für den Erholungs-Guard des Doppel-heavy-Tags (§3.3) — high dämpft ihn weg. */
-  loadProfile?: 'low' | 'medium' | 'high'
-}): Map<number, PlannedWorkoutBlock[]> {
-  const days = [...input.trainingDays].sort((a, b) => a.day_of_week - b.day_of_week)
-  const n = days.length
-  if (n === 0) return new Map()
+// ── Spielfenster-Schutz (Spec 31.10., Survey-Befund: Back Squat 5×3–5 am
+// Vorspieltag). Pro Sportgruppe konfigurierbar, welche Regionen im Fenster vor
+// einem Spiel nicht heavy sein dürfen; Default für unbekannte Gruppen: Lower.
+export type GameProtection = {
+  taboo_regions: Array<'lower_strength' | 'upper_strength'>
+  /** Fenster in Tagen VOR dem Spiel (forward): heavy verboten bei gameFwd < window_days. */
+  window_days: number
+}
+export const DEFAULT_GAME_PROTECTION: GameProtection = { taboo_regions: ['lower_strength'], window_days: 3 }
+export const GAME_PROTECTION_BY_SPORT_GROUP: Record<string, Partial<GameProtection>> = {
+  // Kampfsport: Schlag-/Wurfbelastung — auch Upper darf im Kampf-Fenster nicht heavy sein.
+  combat_sports: { taboo_regions: ['lower_strength', 'upper_strength'] },
+}
+export function gameProtectionFor(sportGroup?: string | null): GameProtection {
+  return { ...DEFAULT_GAME_PROTECTION, ...(sportGroup ? GAME_PROTECTION_BY_SPORT_GROUP[sportGroup] : undefined) }
+}
 
-  // ── 1. Lead-Rotation (Spec 2026-10-10 §2.1): lower ↔ upper, der heavy_lower-
-  // Tag des Placements bekommt den Lower-Lead per Slot-Tausch (eine Wahrheit
-  // für den schweren Beintag, E2E-Befund Task 12 bleibt gültig).
+const circFwd = (from: number, to: number) => ((to - from) % 7 + 7) % 7
+const calDist = (a: number, b: number) => { const f = circFwd(a, b); return Math.min(f, 7 - f) }
+
+type LeadAssignment = { leads: string[]; demoted: Set<number> }
+
+/** Bisherige Lead-Zuweisung (Rotation + heavy_lower-Swap + 48h-Flip/Demote) —
+ *  unverändert der Pfad für Wochen OHNE Spieltage (Regressions-Garantie). */
+function legacyLeadAssignment(days: PlacedDay[], heavyIdx: number): LeadAssignment {
   const leads: string[] = days.map((_, i) => STRENGTH_LEAD_ROTATION[i % 2])
-  const heavyIdx = days.findIndex((d) => d.heavy_lower)
-  const calDist = (a: number, b: number) => { const f = ((b - a) % 7 + 7) % 7; return Math.min(f, 7 - f) }
   if (heavyIdx !== -1 && leads[heavyIdx] !== 'lower_strength') {
     // Review 10.10.: der KALENDARISCH NÄCHSTE Lower-Slot tauscht — der erste
     // in Index-Reihenfolge ließ zwei schwere Beintage auf Nachbartagen zurück
@@ -93,16 +101,14 @@ export function composeWeek(input: {
 
   // Expliziter 48h-Check (Review 10.10.): nie dieselbe Region an kalendarisch
   // benachbarten Tagen heavy — zirkulär, weil das Wochen-Template sich
-  // wiederholt (So→Mo zählt). Die Garantie war vorher nur konstruktiv über die
-  // Alternierung gesichert und wurde vom Heavy-Alignment still gebrochen.
-  // Auflösung: benachbarten Nicht-Beintag-Lead zur anderen Region flippen;
-  // erzeugt jeder Flip eine neue Verletzung, wird der Lead stattdessen auf
-  // 'normal' demotiert (Erhaltungsdosis schlägt 48h-Bruch).
-  const demotedLeads = new Set<number>()
+  // wiederholt (So→Mo zählt). Auflösung: benachbarten Nicht-Beintag-Lead zur
+  // anderen Region flippen; erzeugt jeder Flip eine neue Verletzung, wird der
+  // Lead stattdessen auf 'normal' demotiert (Erhaltungsdosis schlägt 48h-Bruch).
+  const demoted = new Set<number>()
   const findAdjacentSame = (ls: string[]): [number, number] | null => {
     for (let i = 0; i < days.length; i++) {
       for (let j = i + 1; j < days.length; j++) {
-        if (demotedLeads.has(i) || demotedLeads.has(j)) continue
+        if (demoted.has(i) || demoted.has(j)) continue
         if (ls[i] === ls[j] && calDist(days[i].day_of_week, days[j].day_of_week) <= 1) return [i, j]
       }
     }
@@ -115,8 +121,116 @@ export function composeWeek(input: {
     const flipped = [...leads]
     flipped[offender] = leads[offender] === 'lower_strength' ? 'upper_strength' : 'lower_strength'
     if (findAdjacentSame(flipped) === null) leads[offender] = flipped[offender]
-    else demotedLeads.add(offender)
+    else demoted.add(offender)
   }
+  return { leads, demoted }
+}
+
+/** Game-aware Lead-Zuweisung (Spec 31.10.): probiert alle 2^n Zuweisungen durch.
+ *  Harte Regeln: 48h (gleiche Region nie heavy an Nachbartagen) und Tabu-Region
+ *  nie heavy im Spielfenster. Keine legale Variante → beste nehmen, betroffene
+ *  Leads auf Erhaltungsdosis demoten. Bewertung: (a) schwere Reize maximieren,
+ *  dann Regional-Balance wie Baseline, heavy_lower-Alignment, (b) Abstand des
+ *  spielnächsten schweren Tabu-Tags maximieren, (c) nah am bisherigen Wechsel. */
+function gameAwareLeadAssignment(
+  days: PlacedDay[], heavyIdx: number, gameDays: number[],
+  protection: GameProtection, baseline: string[], notes: string[],
+): LeadAssignment {
+  const n = days.length
+  const fwd = (d: number) => Math.min(...gameDays.map((g) => circFwd(d, g)))
+  const isTaboo = (lead: string) => (protection.taboo_regions as string[]).includes(lead)
+  const inWindow = (d: number) => fwd(d) < protection.window_days
+  const baselineLower = baseline.filter((l) => l === 'lower_strength').length
+
+  const less = (a: number[], b: number[]) => {
+    for (let i = 0; i < a.length; i++) { if (a[i] !== b[i]) return a[i] < b[i] }
+    return false
+  }
+  let best: { leads: string[]; demoted: Set<number>; score: number[] } | null = null
+  for (let mask = 0; mask < (1 << n); mask++) {
+    const leads = days.map((_, i) => (((mask >> i) & 1) ? 'upper_strength' : 'lower_strength'))
+    // Zwingende Demotes: schwere Tabu-Leads im Spielfenster.
+    const demoted = new Set<number>()
+    leads.forEach((l, i) => { if (isTaboo(l) && inWindow(days[i].day_of_week)) demoted.add(i) })
+    // 48h-Verstöße unter den verbleibenden heavies: den spielnäheren Tag
+    // demoten (nie den heavy_lower-Tag, wenn vermeidbar).
+    for (let guard = 0; guard < n; guard++) {
+      let pair: [number, number] | null = null
+      outer: for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+        if (demoted.has(i) || demoted.has(j)) continue
+        if (leads[i] === leads[j] && calDist(days[i].day_of_week, days[j].day_of_week) <= 1) { pair = [i, j]; break outer }
+      }
+      if (!pair) break
+      const [i, j] = pair
+      const pick = i === heavyIdx ? j : j === heavyIdx ? i
+        : fwd(days[i].day_of_week) < fwd(days[j].day_of_week) ? i : j
+      demoted.add(pick)
+    }
+
+    const heavyTotal = n - demoted.size
+    const heavyLower = leads.filter((l, i) => l === 'lower_strength' && !demoted.has(i)).length
+    const tabooDists = leads.flatMap((l, i) => (isTaboo(l) && !demoted.has(i)) ? [fwd(days[i].day_of_week)] : [])
+    const minTabooDist = tabooDists.length ? Math.min(...tabooDists) : 7
+    const score = [
+      -heavyTotal,                            // (a) schwere Reize max (= Demotes min)
+      Math.abs(heavyLower - baselineLower),   // Regional-Balance: zwei Beintage bleiben zwei
+      heavyIdx !== -1 && leads[heavyIdx] !== 'lower_strength' ? 1 : 0, // heavy_lower-Alignment
+      -minTabooDist,                          // (b) spielnächster schwerer Tabu-Tag so fern wie möglich
+      leads.reduce((s, l, i) => s + (l === baseline[i] ? 0 : 1), 0),   // (c) Stabilität zur Baseline
+      mask,                                   // Determinismus
+    ]
+    if (!best || less(score, best.score)) best = { leads, demoted, score }
+  }
+
+  const { leads, demoted } = best!
+  for (const i of [...demoted].sort((a, b) => a - b)) {
+    const region = leads[i] === 'lower_strength' ? 'Lower' : 'Upper'
+    notes.push(`Spielfenster: ${region}-Lead Tag ${days[i].day_of_week} auf Erhaltungsdosis — keine legale Lead-Anordnung (Spielfenster/48h)`)
+  }
+  // Punkt 4 (trainerseitige Entscheidung, kein Eingriff): zwei schwere Tabu-
+  // Tage im 48h-Abstand vor einem Spiel nur flaggen.
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    if (demoted.has(i) || demoted.has(j) || leads[i] !== leads[j] || !isTaboo(leads[i])) continue
+    if (calDist(days[i].day_of_week, days[j].day_of_week) === 2) {
+      const region = leads[i] === 'lower_strength' ? 'Lower' : 'Upper'
+      notes.push(`Hinweis: schwere ${region}-Tage ${days[i].day_of_week} + ${days[j].day_of_week} liegen im 48h-Abstand vor dem Spiel — Inhalt unverändert (trainerseitige Entscheidung)`)
+    }
+  }
+  return { leads, demoted }
+}
+
+/** §1.1–1.7: komponiert pro Trainingstag die Blockliste (inkl. warmup/cooldown). */
+export function composeWeek(input: {
+  trainingDays: PlacedDay[]
+  pillarLevels: PillarLevels
+  hasSpeedSession: boolean
+  /** Für den Erholungs-Guard des Doppel-heavy-Tags (§3.3) — high dämpft ihn weg. */
+  loadProfile?: 'low' | 'medium' | 'high'
+  /** Spiel-/Turniertage (day_of_week) für den Spielfenster-Schutz; leer/fehlt = alter Pfad. */
+  gameDays?: number[]
+  /** Tabu-Regionen + Fenster; Default: Lower, 3 Tage. Auflösung pro Sportgruppe via gameProtectionFor. */
+  gameProtection?: GameProtection
+  /** Collector für Hinweise (Demotes, 48h-Flag) — landet in den Layout-Notes. */
+  notes?: string[]
+}): Map<number, PlannedWorkoutBlock[]> {
+  const days = [...input.trainingDays].sort((a, b) => a.day_of_week - b.day_of_week)
+  const n = days.length
+  if (n === 0) return new Map()
+  const gameDays = input.gameDays ?? []
+  const protection = input.gameProtection ?? DEFAULT_GAME_PROTECTION
+  const notes = input.notes ?? []
+  const gameFwd = (d: number) => gameDays.length === 0 ? Infinity : Math.min(...gameDays.map((g) => circFwd(d, g)))
+  const tabooInWindow = (region: string, dow: number) =>
+    gameDays.length > 0 && (protection.taboo_regions as string[]).includes(region) && gameFwd(dow) < protection.window_days
+
+  // ── 1. Lead-Zuweisung (Spec 2026-10-10 §2.1 + Spielfenster 31.10.): ohne
+  // Spieltage die bisherige Rotation (eine Wahrheit für den schweren Beintag,
+  // E2E-Befund Task 12 bleibt gültig); mit Spieltagen Durchprobieren aller
+  // Zuweisungen — Platzierung vor Abschwächung, Demote nur als Fallback.
+  const heavyIdx = days.findIndex((d) => d.heavy_lower)
+  const { leads, demoted: demotedLeads } = gameDays.length === 0
+    ? legacyLeadAssignment(days, heavyIdx)
+    : gameAwareLeadAssignment(days, heavyIdx, gameDays, protection, legacyLeadAssignment(days, heavyIdx).leads, notes)
 
   // Alternierungs-Zähler PRO ROLLE (Review 10.10.): Lead und Begleit zählen
   // getrennt — sonst frisst der Begleitblock den Lead-Slot und ein Muster ist
@@ -250,6 +364,9 @@ export function composeWeek(input: {
       const candidates = days
         .map((d, i) => ({ d, i }))
         .filter(({ i }) => leads[i] === ownLead)
+        // Spielfenster (31.10.): heavy Plyo einer Tabu-Region nie spielnah —
+        // ohne legalen Tag entfällt der Säulen-Lead diese Woche (Blöcke bleiben light).
+        .filter(({ d }) => !tabooInWindow(ownLead, d.day_of_week))
         // Tage, die den Plyo-Block der Säule ohnehin tragen, zuerst
         .sort((a, b) => (assigned.has(a.d.day_of_week) ? 0 : 1) - (assigned.has(b.d.day_of_week) ? 0 : 1) || a.d.day_of_week - b.d.day_of_week)
       const chosen = candidates[0]
@@ -280,6 +397,8 @@ export function composeWeek(input: {
     const candidates = days.map((_, i) => i).filter((i) => {
       if (days[i].day_of_week === plyoLeadDow || demotedLeads.has(i)) return false
       const companionRegion = companionBlocks[i].block_type
+      // Spielfenster (31.10.): auch der heavy Begleitblock darf keine Tabu-Region spielnah laden.
+      if (tabooInWindow(companionRegion, days[i].day_of_week)) return false
       return !days.some((d2, j) => j !== i && !demotedLeads.has(j)
         && leads[j] === companionRegion && calDist(d2.day_of_week, days[i].day_of_week) <= 1)
     })

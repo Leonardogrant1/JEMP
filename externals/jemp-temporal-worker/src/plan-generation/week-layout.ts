@@ -10,7 +10,7 @@ export function circularDayDistance(from: number, to: number): number {
 
 import type { WeeklySchedule } from './types'
 import { WORKOUT_DAY_CAP, MIN_WORKOUT_DAYS, WORKOUT_BLOCK_SEQUENCE, BLOCK_MINUTES, blockMinutes, MAINTENANCE_DOSE_FACTOR, COMPACT_SESSION_THRESHOLD_MINUTES, INTEGRATED_SPRINT_BLOCK_MINUTES, CONDITIONING_FINISHER_MINUTES, DROP_PRIORITY, BLOCK_TO_PILLAR, estimateMinutes } from './week-layout-constants'
-import { composeWeek } from './v2/composition'
+import { composeWeek, gameProtectionFor } from './v2/composition'
 
 export type NewSessionType = 'training' | 'speed' | 'mobility' | 'conditioning'
 export type PillarSlug =
@@ -27,6 +27,9 @@ export type WeekLayoutInput = {
   /** Global preferred session duration (minutes); per-day overrides win. */
   session_minutes: number
   day_minutes?: Array<{ day_of_week: number; minutes: number }>
+  /** Sportgruppe (z. B. 'team_sports', 'combat_sports') für den Spielfenster-
+   *  Schutz der Lead-Zuweisung (composeWeek); fehlt = Default (Lower, 3 Tage). */
+  sport_group_name?: string | null
   /** Tage, deren Umgebung echte Sprints erlaubt (Outdoor oder keine Tages-
    *  Umgebung gesetzt). Fehlt das Feld, gelten alle Tage als sprinttauglich.
    *  Weiche Präferenz: 72h-Regel und Legalität gewinnen immer. */
@@ -404,12 +407,21 @@ export function buildWeekLayout(input: WeekLayoutInput): WeekLayout {
   const allocation = allocateDays(input)
   const placement = placeWeek(input, allocation)
   // Composition-Rework (§1): Woche als Ganzes komponieren statt feste Pflichtsequenz.
+  // Spielfenster-Schutz (31.10.): Spieltage + Sport-Tabu-Konfiguration gehen an
+  // die Lead-Zuweisung durch — vorher schützte nur das heavy_lower-Flag EINEN
+  // Beintag, die Rotation legte weitere heavy Lower-Leads ungeprüft spielnah.
+  const compositionNotes: string[] = []
   const blockPlan = composeWeek({
     trainingDays: placement.days.filter((d) => d.session_type === 'training'),
     pillarLevels: input.pillar_levels,
     hasSpeedSession: placement.days.some((d) => d.session_type === 'speed'),
     loadProfile: input.load_profile,
+    gameDays: input.weekly_schedule.sessions
+      .filter((s) => s.type === 'game' || s.type === 'tournament')
+      .map((s) => s.day_of_week),
+    gameProtection: gameProtectionFor(input.sport_group_name),
+    notes: compositionNotes,
   })
   const { workouts, notes } = applyScalingLevers(placement, blockPlan, input.pillar_levels)
-  return { placement, workouts, carrier: placement.carrier, notes: [...placement.notes, ...notes] }
+  return { placement, workouts, carrier: placement.carrier, notes: [...placement.notes, ...compositionNotes, ...notes] }
 }

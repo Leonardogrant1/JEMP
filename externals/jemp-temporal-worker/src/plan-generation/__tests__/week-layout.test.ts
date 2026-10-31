@@ -662,3 +662,45 @@ describe('composeWeek: Fokus-Platzierung bevorzugt Tage mit Zeit-Spielraum (QA 1
     expect(allBlocks).toContain('plyo')
   })
 })
+
+describe('buildWeekLayout → Spielfenster-Schutz (Verdrahtung, Spec 31.10.)', () => {
+  // Dario-Konstellation (Survey-Befund): Tage 1/3/5, Spiel Tag 6 — vorher
+  // landete Back Squat 5×3–5 heavy auf Tag 5, 24h vor dem Spiel.
+  const darioInput = (): any => ({
+    available_days: [1, 3, 5],
+    weekly_schedule: schedule([
+      { day_of_week: 2, type: 'team_training', intensity: 6 },
+      { day_of_week: 4, type: 'team_training', intensity: 6 },
+      { day_of_week: 6, type: 'game', intensity: 6 },
+    ]),
+    // medium: Workout-Cap 3 — alle drei Tage überleben die Allokation (bei
+    // 'high' kappt allocateDays auf 2 und der Vorspieltag fällt schon dort).
+    load_profile: 'medium', pillar_levels: {}, sprints_covered_by_club: false, session_minutes: 60,
+  })
+
+  it('kein heavy Lower-Block am Vorspieltag; beide schweren Lower-Reize bleiben', () => {
+    const layout = buildWeekLayout(darioInput())
+    const heavyLowerDays = layout.workouts
+      .filter((w) => w.blocks.some((b) => b.block_type === 'lower_strength' && b.emphasis === 'heavy'))
+      .map((w) => w.day_of_week)
+    expect(heavyLowerDays).not.toContain(5)
+    expect(heavyLowerDays.sort()).toEqual([1, 3])
+  })
+
+  it('Notes aus composeWeek landen in den Layout-Notes (48h-Flag)', () => {
+    const layout = buildWeekLayout(darioInput())
+    expect(layout.notes.some((n) => n.includes('48h'))).toBe(true)
+  })
+
+  it('sport_group_name steuert die Tabu-Regionen (combat_sports: Upper demotiert spielnah)', () => {
+    const layout = buildWeekLayout({
+      ...darioInput(), available_days: [1, 5], load_profile: 'medium',
+      sport_group_name: 'combat_sports',
+    })
+    for (const w of layout.workouts) {
+      if (w.day_of_week === 5) {
+        expect(w.blocks.some((b) => (b.block_type === 'lower_strength' || b.block_type === 'upper_strength') && b.emphasis === 'heavy')).toBe(false)
+      }
+    }
+  })
+})

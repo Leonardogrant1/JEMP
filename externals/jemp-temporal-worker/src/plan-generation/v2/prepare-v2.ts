@@ -248,6 +248,7 @@ export async function prepareGenerationV2(
     sprints_covered_by_club: input.sprints_covered_by_club,
     session_minutes: input.max_session_duration,
     day_minutes: input.day_minutes,
+    sport_group_name: input.sport_group_name,
   })
   notes.push(...layout.notes)
   if ((input.pillar_levels.cod ?? 0) >= 2 && !layout.placement.days.some((d) => d.session_type === 'speed')) {
