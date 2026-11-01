@@ -10,6 +10,7 @@ import {
 } from '@/services/version-check'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Application from 'expo-application'
+import * as SplashScreen from 'expo-splash-screen'
 import { useEffect, useRef, useState } from 'react'
 import { AppState, AppStateStatus } from 'react-native'
 
@@ -23,6 +24,10 @@ type State = {
 }
 
 const BACKGROUND_THRESHOLD_MS = 60 * 1000
+
+// QA im Dev-Client: auf 'force_update' | 'maintenance' setzen, um die Blocking-Screens
+// anzusehen (echte Checks laufen im Dev nie, s. runChecks). Nicht mit Wert committen.
+const DEV_PREVIEW_STATUS: UpdateStatus | null = null
 
 async function isCooldownActive(): Promise<boolean> {
   const raw = await AsyncStorage.getItem(COOLDOWN_STORAGE_KEY)
@@ -46,6 +51,14 @@ export function VersionCheckProvider({ children }: Props) {
   const backgroundedAt = useRef<number | null>(null)
 
   async function runChecks() {
+    // Dev-Client nie vom Version-Gate blocken (alte Dev-Builds melden veraltete Versionen)
+    if (__DEV__) {
+      if (DEV_PREVIEW_STATUS) {
+        setState({ status: DEV_PREVIEW_STATUS, storeVersion: '9.9.9', releaseNotes: null, showDialog: false })
+      }
+      return
+    }
+
     const localVersion = Application.nativeApplicationVersion
     if (!localVersion) return
 
@@ -104,6 +117,14 @@ export function VersionCheckProvider({ children }: Props) {
 
     return () => sub.remove()
   }, [])
+
+  useEffect(() => {
+    // Blocking-Screens ersetzen MainStack (dort passiert das reguläre hideAsync) —
+    // ohne diesen Aufruf bleibt der native Splash für immer davor stehen
+    if (state.status === 'force_update' || state.status === 'maintenance') {
+      SplashScreen.hideAsync()
+    }
+  }, [state.status])
 
   async function handleDismiss() {
     await setCooldown()
