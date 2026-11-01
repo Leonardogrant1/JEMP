@@ -47,6 +47,7 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
       target_distance_meters, target_rest_seconds, target_load_type, target_load_value,
       is_amrap, target_rounds, workout_plan_session_block_exercise_id,
       workout_session_blocks!inner ( block_types ( slug ),
+        workout_plan_session_blocks ( emphasis ),
         workout_sessions!inner ( id, user_id, scheduled_at, environment_id ) )`)
     .eq('id', req.params.blockExerciseId)
     .maybeSingle()
@@ -57,6 +58,10 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
   const session = (row as any)?.workout_session_blocks?.workout_sessions
   if (!row || session?.user_id !== user.id) { res.status(404).json({ error: 'Not found' }); return }
   const blockTypeSlug = (row as any).workout_session_blocks?.block_types?.slug as string
+  // Finding 2 (Review 01.11.): Block-Emphasis für den light_only-Heavy-Gate
+  // in buildSwapPool — ein heavy Plyo-Lead-Block hat kein Pattern und wird
+  // vom bestehenden `heavy`-Flag (Pattern-Kontext) nicht erfasst.
+  const blockEmphasis = (row as any).workout_session_blocks?.workout_plan_session_blocks?.emphasis as 'heavy' | 'normal' | 'light' | null ?? null
 
   // 2. User-Presets + Übungskatalog (Selects wie prepareGenerationV2/prepare-
   // plan-generation) — alles in EINEM Fan-out (Review 20.10., K3): Session-
@@ -246,6 +251,7 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
     blockTypeSlug, currentExercise,
     assignedPattern: (row as any).assigned_pattern ?? null,
     patternEmphasis: (row as any).pattern_emphasis ?? null,
+    blockEmphasis,
     excludeExerciseIds: sessionExerciseIds,
     injuryExclusions,
   })

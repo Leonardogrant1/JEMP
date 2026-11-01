@@ -15,6 +15,14 @@ export type SwapPoolInput = {
   currentExercise: V2Exercise
   assignedPattern: string | null
   patternEmphasis: 'heavy' | 'normal' | null
+  /** Block-Emphasis (Finding 2, Review 01.11.): `heavy` wird oben nur aus
+   *  Kraftmuster-Kontext abgeleitet (patterns.length > 0) — bei einem Plyo-
+   *  Block (kein Pattern) bleibt `heavy` immer false, obwohl der Generator
+   *  denselben "heavy lead"-Block über workout_plan_session_blocks.emphasis
+   *  erkennt (siehe filterHeavyBlockPools im Worker). Ohne diese Spalte
+   *  würde light_only unten nie am heavy-Plyo-Slot ausscheiden. Optional für
+   *  Tests/Alt-Pläne ohne Emphasis-Spalte (NULL = kein zusätzliches Gate). */
+  blockEmphasis?: 'heavy' | 'normal' | 'light' | null
   /** Session-Dedupe (QA 19.10.): Übungen, die in der Session schon verplant
    *  sind — nie als Alternative anbieten (die aktuelle Übung ist ohnehin
    *  drin und bleibt über den id-Check draußen). Optional für Tests. */
@@ -133,9 +141,13 @@ export function buildSwapPool(input: SwapPoolInput): SwapPoolResult {
     }
     if (patterns.length > 0 && !patterns.some((p) => matchesStrengthPattern(e, p))) return false
     if (heavy && (e.movement_type !== 'sagittal' || (e.intensity_score ?? 5) < 5)) return false
-    // Verletzungs-Constraint (Task 7): light_only raus, wenn der Slot heavy
-    // ist — dieselbe Regel wie patternSlugWindow im Worker (Task 5).
-    if (heavy && input.injuryExclusions?.lightOnlyIds.has(e.id)) return false
+    // Verletzungs-Constraint (Task 7, erweitert Finding 2): light_only raus,
+    // wenn der Slot heavy ist — dieselbe Regel wie patternSlugWindow im
+    // Worker (Task 5). `heavy` allein deckt nur Kraftblöcke ab (Pattern-
+    // Kontext); ein heavy-Plyo-Lead-Block hat kein Pattern und würde sonst
+    // durchrutschen — blockEmphasis greift genau da zusätzlich (gleiche
+    // Semantik wie filterHeavyBlockPools im Worker).
+    if ((heavy || input.blockEmphasis === 'heavy') && input.injuryExclusions?.lightOnlyIds.has(e.id)) return false
     return true
   }
 

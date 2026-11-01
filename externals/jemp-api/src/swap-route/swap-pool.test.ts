@@ -277,3 +277,26 @@ test('Verletzungs-Constraint: light_only scheidet am Heavy-Slot aus, bleibt bei 
   })
   assert.deepEqual(normalResult.alternatives.map(a => a.slug), ['front_squat'])
 })
+test('Finding 2: light_only scheidet auch am heavy Plyo-Lead-Block aus (kein Pattern-Kontext)', () => {
+  // Plyo hat kein strength_pattern → patterns.length ist immer 0 → das
+  // bestehende `heavy`-Flag (Pattern-Kontext) bleibt false, egal was
+  // patternEmphasis ist. Ohne blockEmphasis würde light_only hier nie am
+  // heavy-Slot ausscheiden (genau die Lücke aus dem Review).
+  const cur = withCat(mkEx({ slug: 'box_jump', strength_pattern: null, category_slug: 'jumps', intensity_score: 8 }))
+  const lightOnly = withCat(mkEx({ slug: 'depth_jump', strength_pattern: null, category_slug: 'jumps', intensity_score: 8 }))
+  const exclusions = { blockedIds: new Set<string>(), lightOnlyIds: new Set([lightOnly.id]), acute: false }
+  const heavyResult = buildSwapPool({
+    exercises: [cur, lightOnly], maps: mkMaps(), sportGate: gate, dayEnvId: null,
+    blockTypeSlug: 'plyo', currentExercise: cur,
+    assignedPattern: null, patternEmphasis: null, blockEmphasis: 'heavy',
+    injuryExclusions: exclusions,
+  })
+  assert.equal(heavyResult.alternatives.length, 0)
+  const lightResult = buildSwapPool({
+    exercises: [cur, lightOnly], maps: mkMaps(), sportGate: gate, dayEnvId: null,
+    blockTypeSlug: 'plyo', currentExercise: cur,
+    assignedPattern: null, patternEmphasis: null, blockEmphasis: 'light',
+    injuryExclusions: exclusions,
+  })
+  assert.deepEqual(lightResult.alternatives.map(a => a.slug), ['depth_jump'])
+})
