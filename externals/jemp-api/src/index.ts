@@ -4,6 +4,7 @@ import * as dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
 import { checkPlanGenerationAccess, fetchRevenueCatSubscriber } from './plan-generation-route/check-access';
+import { injuryExtractionHandler } from './injury-extraction';
 import { versionCheckHandler } from './routes/version-check-route';
 import storeInfoRouter from './store-info-route';
 import { swapAlternativesHandler } from './swap-route';
@@ -115,6 +116,9 @@ app.post('/api/plan-generation/start', async (req, res) => {
 
 // GET /api/swap-alternatives/:blockExerciseId (Spec 2026-10-19 §2).
 app.get('/api/swap-alternatives/:blockExerciseId', swapAlternativesHandler);
+
+// POST /api/injury-extraction (Task 1, Plan B Intake 2026-11-01).
+app.post('/api/injury-extraction', injuryExtractionHandler);
 
 app.listen(PORT, () => {
     console.log(`jemp-api listening on port ${PORT}`);
