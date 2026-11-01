@@ -77,7 +77,8 @@ export async function prefillExercise(name: string, roughDescription: string): P
       name, slug, body_region, movement_pattern, min_level, max_level, intensity_score,
       laterality, measurement_type, exercise_type, image_group,
       category:categories(slug), exercise_equipments(equipments(slug)),
-      exercise_environments(environments(slug)), exercise_blocks(block_types(slug))
+      exercise_environments(environments(slug)), exercise_blocks(block_types(slug)),
+      exercise_contraindications(contraindication_tags(slug))
     `).in('slug', EXAMPLE_SLUGS),
   ])
   for (const r of [cats, eqs, envs, bts, cts, examplesRes]) {
@@ -90,6 +91,7 @@ export async function prefillExercise(name: string, roughDescription: string): P
     exercise_equipments: e.exercise_equipments.map((x: any) => x.equipments.slug),
     exercise_environments: e.exercise_environments.map((x: any) => x.environments.slug),
     exercise_blocks: e.exercise_blocks.map((x: any) => x.block_types.slug),
+    exercise_contraindications: e.exercise_contraindications.map((x: any) => x.contraindication_tags.slug),
   }))
 
   const slugList = (rows: { slug: string }[] | null) => (rows ?? []).map(r => r.slug)
