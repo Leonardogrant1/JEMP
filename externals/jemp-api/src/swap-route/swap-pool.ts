@@ -4,6 +4,7 @@
 import { makeExerciseFilter, type ExerciseFilterMaps } from '../../../jemp-temporal-worker/src/plan-generation/v2/exercise-filter'
 import { exerciseMatchesBlock, isCnsMicroDoseExercise, matchesStrengthPattern, STRENGTH_BLOCK_TYPES, STRENGTH_PATTERNS, type V2Exercise } from '../../../jemp-temporal-worker/src/plan-generation/v2/pool'
 import { effectiveRegion } from '../../../jemp-temporal-worker/src/plan-generation/taxonomy'
+import type { InjuryExclusions } from '../../../jemp-temporal-worker/src/plan-generation/v2/injury-constraints'
 
 export type SwapPoolInput = {
   exercises: V2Exercise[]
@@ -18,6 +19,13 @@ export type SwapPoolInput = {
    *  sind — nie als Alternative anbieten (die aktuelle Übung ist ohnehin
    *  drin und bleibt über den id-Check draußen). Optional für Tests. */
   excludeExerciseIds?: Set<string>
+  /** Verletzungs-Constraints (Task 7): blockierte Übungen verschwinden aus
+   *  dem Kandidatenpool — weder als Alternative noch als `locked` (derselbe
+   *  `inGroup`-Gate speist beide Listen, siehe Review Focus 5). light_only
+   *  bleibt sichtbar, scheidet aber an einem heavy-Slot aus (gleiche
+   *  Semantik wie patternSlugWindow im Worker). Optional für Tests/Alt-Pläne
+   *  ohne geladene Constraints. */
+  injuryExclusions?: InjuryExclusions
 }
 export type SwapPoolResult = {
   alternatives: V2Exercise[]
@@ -108,6 +116,7 @@ export function buildSwapPool(input: SwapPoolInput): SwapPoolResult {
   const inGroup = (e: V2Exercise): boolean => {
     if (e.id === currentExercise.id) return false
     if (input.excludeExerciseIds?.has(e.id)) return false
+    if (input.injuryExclusions?.blockedIds.has(e.id)) return false
     if (!sportGate(e as any)) return false
     if (!exerciseMatchesBlock(e, blockDef)) return false
     if (blockTypeSlug === 'warmup' && warmupFamily(e) !== warmupFamily(currentExercise)) return false
@@ -124,6 +133,9 @@ export function buildSwapPool(input: SwapPoolInput): SwapPoolResult {
     }
     if (patterns.length > 0 && !patterns.some((p) => matchesStrengthPattern(e, p))) return false
     if (heavy && (e.movement_type !== 'sagittal' || (e.intensity_score ?? 5) < 5)) return false
+    // Verletzungs-Constraint (Task 7): light_only raus, wenn der Slot heavy
+    // ist — dieselbe Regel wie patternSlugWindow im Worker (Task 5).
+    if (heavy && input.injuryExclusions?.lightOnlyIds.has(e.id)) return false
     return true
   }
 

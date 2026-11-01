@@ -240,3 +240,40 @@ test('Legacy-Blocktyp "lower_body": knee_dominant-Zeile liefert keine Hinge-Kand
   })
   assert.deepEqual(r.alternatives.map(a => a.slug), ['front_squat'])
 })
+test('Verletzungs-Constraint: blockierte Übung verschwindet, taucht NICHT als locked auf (Task 7, Review Focus 5)', () => {
+  const cur = withCat(mkEx({ slug: 'squat', strength_pattern: 'knee_dominant' }))
+  // Gleiche Fixtur wie der 'Level-Lock'-Test: min_level 70 würde ohne
+  // injuryExclusions in locked landen (siehe oben) — hier blockiert, also raus.
+  const blockedHard = withCat(mkEx({ slug: 'pistol_squat', strength_pattern: 'knee_dominant', min_level: 70 }))
+  const easy = withCat(mkEx({ slug: 'goblet_squat', strength_pattern: 'knee_dominant' }))
+  const r = buildSwapPool({
+    exercises: [cur, blockedHard, easy], maps: mkMaps(), sportGate: gate, dayEnvId: null,
+    blockTypeSlug: 'lower_strength', currentExercise: cur,
+    assignedPattern: 'knee_dominant', patternEmphasis: 'normal',
+    injuryExclusions: { blockedIds: new Set([blockedHard.id]), lightOnlyIds: new Set(), acute: false },
+  })
+  assert.deepEqual(r.alternatives.map(a => a.slug), ['goblet_squat'])
+  assert.equal(r.locked.length, 0)
+})
+test('Verletzungs-Constraint: light_only scheidet am Heavy-Slot aus, bleibt bei normal sichtbar (Task 7)', () => {
+  const cur = withCat(mkEx({ slug: 'back_squat', strength_pattern: 'knee_dominant', intensity_score: 8 }))
+  // sagittal + intensity_score 7 würde den bestehenden Heavy-Filter (Zeile 126)
+  // ohne den Constraint-Check locker bestehen — der light_only-Gate muss ihn
+  // zusätzlich am Heavy-Slot ausschließen.
+  const lightOnly = withCat(mkEx({ slug: 'front_squat', strength_pattern: 'knee_dominant', intensity_score: 7 }))
+  const exclusions = { blockedIds: new Set<string>(), lightOnlyIds: new Set([lightOnly.id]), acute: false }
+  const heavyResult = buildSwapPool({
+    exercises: [cur, lightOnly], maps: mkMaps(), sportGate: gate, dayEnvId: null,
+    blockTypeSlug: 'lower_strength', currentExercise: cur,
+    assignedPattern: 'knee_dominant', patternEmphasis: 'heavy',
+    injuryExclusions: exclusions,
+  })
+  assert.equal(heavyResult.alternatives.length, 0)
+  const normalResult = buildSwapPool({
+    exercises: [cur, lightOnly], maps: mkMaps(), sportGate: gate, dayEnvId: null,
+    blockTypeSlug: 'lower_strength', currentExercise: cur,
+    assignedPattern: 'knee_dominant', patternEmphasis: 'normal',
+    injuryExclusions: exclusions,
+  })
+  assert.deepEqual(normalResult.alternatives.map(a => a.slug), ['front_squat'])
+})

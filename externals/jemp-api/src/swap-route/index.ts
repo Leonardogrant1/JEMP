@@ -7,6 +7,10 @@ import { buildSwapPool } from './swap-pool'
 import { derivePrescription, type CurrentPrescription } from './prescription'
 import { makeSportGate, type ExerciseFilterMaps } from '../../../jemp-temporal-worker/src/plan-generation/v2/exercise-filter'
 import type { V2Exercise } from '../../../jemp-temporal-worker/src/plan-generation/v2/pool'
+import {
+  buildInjuryExclusions, activeInjuryConstraints, applyInjuryExclusions,
+  type InjuryConstraintRow,
+} from '../../../jemp-temporal-worker/src/plan-generation/v2/injury-constraints'
 
 // Katalog-Übung inkl. der Zusatzfelder, die der Handler für die Antwort und
 // den Level-Check braucht (Spec §2: categories bleibt am Objekt, siehe
@@ -83,6 +87,8 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
     equipmentRes,
     sessionRowsRes,
     futureCountRes,
+    exerciseContraindicationRes,
+    injuryConstraintRes,
   ] = await Promise.all([
     supabase.from('user_profiles').select('sport_id, user_category_levels(category_id, level_score), sports(group_name)').eq('id', user.id).single(),
     supabase.from('user_equipments').select('equipment_id').eq('user_id', user.id),
@@ -102,6 +108,11 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
       .select('exercise_id, workout_session_blocks!inner(workout_session_id)')
       .eq('workout_session_blocks.workout_session_id', session.id),
     futureCountQuery,
+    // Verletzungs-Constraints (Task 7, analog prepare-v2.ts/prepare-plan-
+    // generation.ts): Tags je Übung + aktive User-Constraints — Fehler hier
+    // dürfen nie wie "keine Constraints" aussehen (Fail-closed, `must` wirft).
+    supabase.from('exercise_contraindications').select('exercise_id, contraindication_tags(slug)'),
+    supabase.from('user_injury_constraints').select('mode, acute, revoked_at, confirmed_at, contraindication_tags(slug)').eq('user_id', user.id),
   ])
   const userProfile = must(userProfileRes, 'user_profiles')
   const userEquipRows = must(userEquipRes, 'user_equipments')
@@ -115,6 +126,23 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
   const sportGroupRows = must(sportGroupRes, 'exercise_sport_groups')
   const equipmentRows = must(equipmentRes, 'equipments')
   const sessionExerciseIds = new Set((must(sessionRowsRes, 'session exercises') ?? []).map((r: any) => r.exercise_id as string))
+  const exerciseContraindicationRows = must(exerciseContraindicationRes, 'exercise_contraindications')
+  const injuryConstraintRows = must(injuryConstraintRes, 'user_injury_constraints')
+
+  // Verletzungs-Constraints (Task 7): Tags je Übung aus exercise_contraindications
+  // (gleiches Mapping wie prepare-v2.ts) + aktive Constraints des Users →
+  // Ausschluss-Sets für buildSwapPool.
+  const tagsByExercise = new Map<string, Set<string>>()
+  for (const r of exerciseContraindicationRows ?? []) {
+    const slug = (r.contraindication_tags as { slug?: string } | null)?.slug
+    if (!slug) continue
+    if (!tagsByExercise.has(r.exercise_id)) tagsByExercise.set(r.exercise_id, new Set())
+    tagsByExercise.get(r.exercise_id)!.add(slug)
+  }
+  const injuryExclusions = buildInjuryExclusions(
+    activeInjuryConstraints((injuryConstraintRows ?? []) as unknown as InjuryConstraintRow[]),
+    tagsByExercise,
+  )
   if (futureCountRes.error) throw new Error(`future_occurrence_count: ${futureCountRes.error.message}`)
   const futureOccurrenceCount = futureCountRes.count ?? 0
 
@@ -206,13 +234,20 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
   if (!currentExercise) { res.status(404).json({ error: 'Not found' }); return }
 
   // 3. Pool + Vorgaben
+  // Verletzungs-Constraint (Task 7, Review Focus 5): blockierte Übungen raus,
+  // BEVOR buildSwapPool alternatives/locked berechnet — currentExercise bleibt
+  // unangetastet (sie ist ohnehin über den id-Check in inGroup draußen, auch
+  // wenn der User gerade SIE als Grund für den Swap blockiert hat).
+  // injuryExclusions wandert zusätzlich mit in buildSwapPool (Defense-in-Depth
+  // für blocked + light_only-Heavy-Gate, siehe swap-pool.ts inGroup).
   const { alternatives, locked } = buildSwapPool({
-    exercises, maps: filterMaps, sportGate,
+    exercises: applyInjuryExclusions(exercises, injuryExclusions), maps: filterMaps, sportGate,
     dayEnvId: session.environment_id ?? null,
     blockTypeSlug, currentExercise,
     assignedPattern: (row as any).assigned_pattern ?? null,
     patternEmphasis: (row as any).pattern_emphasis ?? null,
     excludeExerciseIds: sessionExerciseIds,
+    injuryExclusions,
   })
 
   const currentPrescription: CurrentPrescription = {
