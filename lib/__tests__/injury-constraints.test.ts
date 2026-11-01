@@ -5,7 +5,7 @@
 // reine Funktionstest den Client nicht tatsächlich instanziiert.
 jest.mock('@/services/supabase/client', () => ({ supabase: {} }));
 
-import { needsInjuryGate, resolveSourceNote } from '@/lib/injury-constraints';
+import { needsInjuryGate, resolveSourceNote, selectStrippable } from '@/lib/injury-constraints';
 
 describe('needsInjuryGate (Plan B Intake, Spec §5 Fälle a/b/c)', () => {
     test('notes + pending → extract', () => {
@@ -76,5 +76,104 @@ describe('resolveSourceNote (Task 5 Fix Round 1, Finding 2 — Recheck darf Prov
 
     test('incoming null + Vorgänger-Row mit source_note null → bleibt null', () => {
         expect(resolveSourceNote(null, null)).toBeNull();
+    });
+});
+
+describe('selectStrippable (Task 6, Review Focus 4 — Strip darf geloggte/abgeschlossene Sessions nie anfassen)', () => {
+    test('blockierte Exercise in scheduled Session ohne performed sets wird entfernt', () => {
+        const sessions = [
+            {
+                id: 's1',
+                status: 'scheduled' as const,
+                blocks: [
+                    { id: 'b1', exercises: [{ id: 'be1', exercise_id: 'ex-blocked' }, { id: 'be2', exercise_id: 'ex-ok' }] },
+                ],
+            },
+        ];
+        const result = selectStrippable(sessions, new Set(['ex-blocked']), {});
+        expect(result.exerciseIdsToDelete).toEqual(['be1']);
+        expect(result.blockIdsToDelete).toEqual([]);
+        expect(result.removedExercises).toBe(1);
+        expect(result.removedBlocks).toBe(0);
+    });
+
+    test('geloggte Exercise (performed sets > 0) bleibt trotz blockiertem Tag', () => {
+        const sessions = [
+            {
+                id: 's1',
+                status: 'scheduled' as const,
+                blocks: [
+                    { id: 'b1', exercises: [{ id: 'be1', exercise_id: 'ex-blocked' }] },
+                ],
+            },
+        ];
+        const result = selectStrippable(sessions, new Set(['ex-blocked']), { be1: 2 });
+        expect(result.exerciseIdsToDelete).toEqual([]);
+        expect(result.removedExercises).toBe(0);
+        expect(result.removedBlocks).toBe(0);
+    });
+
+    test('completed Session bleibt komplett unberührt, auch mit blockierter Exercise', () => {
+        const sessions = [
+            {
+                id: 's1',
+                status: 'completed' as const,
+                blocks: [
+                    { id: 'b1', exercises: [{ id: 'be1', exercise_id: 'ex-blocked' }] },
+                ],
+            },
+        ];
+        const result = selectStrippable(sessions, new Set(['ex-blocked']), {});
+        expect(result.exerciseIdsToDelete).toEqual([]);
+        expect(result.blockIdsToDelete).toEqual([]);
+        expect(result.removedExercises).toBe(0);
+        expect(result.removedBlocks).toBe(0);
+    });
+
+    test('geleerter Block (alle Exercises entfernt) wird gemeldet', () => {
+        const sessions = [
+            {
+                id: 's1',
+                status: 'scheduled' as const,
+                blocks: [
+                    { id: 'b1', exercises: [{ id: 'be1', exercise_id: 'ex-blocked' }, { id: 'be2', exercise_id: 'ex-blocked' }] },
+                ],
+            },
+        ];
+        const result = selectStrippable(sessions, new Set(['ex-blocked']), {});
+        expect(result.exerciseIdsToDelete.sort()).toEqual(['be1', 'be2']);
+        expect(result.blockIdsToDelete).toEqual(['b1']);
+        expect(result.removedExercises).toBe(2);
+        expect(result.removedBlocks).toBe(1);
+    });
+
+    test('Block mit teils blockierten, teils übrigen Exercises bleibt bestehen (nicht leer)', () => {
+        const sessions = [
+            {
+                id: 's1',
+                status: 'scheduled' as const,
+                blocks: [
+                    { id: 'b1', exercises: [{ id: 'be1', exercise_id: 'ex-blocked' }, { id: 'be2', exercise_id: 'ex-ok' }] },
+                ],
+            },
+        ];
+        const result = selectStrippable(sessions, new Set(['ex-blocked']), {});
+        expect(result.blockIdsToDelete).toEqual([]);
+        expect(result.removedBlocks).toBe(0);
+    });
+
+    test('keine blockierten Tags → nichts wird entfernt', () => {
+        const sessions = [
+            {
+                id: 's1',
+                status: 'scheduled' as const,
+                blocks: [
+                    { id: 'b1', exercises: [{ id: 'be1', exercise_id: 'ex-ok' }] },
+                ],
+            },
+        ];
+        const result = selectStrippable(sessions, new Set<string>(), {});
+        expect(result.exerciseIdsToDelete).toEqual([]);
+        expect(result.blockIdsToDelete).toEqual([]);
     });
 });

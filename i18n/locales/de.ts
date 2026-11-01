@@ -811,6 +811,20 @@ const de: Record<TranslationKeys, string> = {
     'injuries.tag_spinal_rotation_loaded': 'Rotation der Wirbelsäule unter Last',
     'injuries.tag_grip_pulling_loaded': 'Griff-/Zugbelastung',
 
+    // ── Injury constraints (Profil-Sektion + Strip-on-Change, Task 6) ──────
+    'injuries.profile_row_label': 'Verletzungen & Einschränkungen',
+    'injuries.profile_title': 'Einschränkungen',
+    'injuries.profile_subtitle': 'Diese passen die Übungen an, die JEMP für deinen Plan auswählt.',
+    'injuries.profile_empty': 'Keine aktiven Einschränkungen',
+    'injuries.profile_add_title': 'Einschränkung hinzufügen',
+    'injuries.profile_save_error': 'Änderung konnte nicht gespeichert werden. Bitte erneut versuchen.',
+    'injuries.strip_removed_title': 'Übungen entfernt',
+    'injuries.strip_removed_body': '{{count}} Übung(en) in deinen kommenden Einheiten wurden entfernt, weil sie mit dieser Einschränkung kollidieren.',
+    'injuries.strip_regenerate_question': 'Plan jetzt neu generieren?',
+    'injuries.strip_regenerate_confirm': 'Plan neu generieren',
+    'injuries.strip_regenerate_later': 'Später',
+    'injuries.strip_softened_hint': 'Das wirkt ab der nächsten Plan-Generierung.',
+
     'plan.create': 'Erstellen',
     'plan.error_generate': 'Plan konnte nicht erstellt werden.',
     'plan.error_title': 'Fehler beim Erstellen',

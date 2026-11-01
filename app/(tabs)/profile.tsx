@@ -308,6 +308,11 @@ export default function ProfileScreen() {
                                 label={t('achievements.screen_title')}
                                 onPress={() => router.push('/achievements')}
                             />
+                            <SettingsRow
+                                icon={<Ionicons name="bandage-outline" size={20} color={theme.textMuted} />}
+                                label={t('injuries.profile_row_label')}
+                                onPress={() => router.push('/injury-settings')}
+                            />
                         </SettingsGroup>
                     </View>
 

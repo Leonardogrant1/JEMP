@@ -809,6 +809,20 @@ const en = {
     'injuries.tag_spinal_rotation_loaded': 'Loaded spinal rotation',
     'injuries.tag_grip_pulling_loaded': 'Loaded grip & pulling',
 
+    // ── Injury constraints (profile section + strip-on-change, Task 6) ─────
+    'injuries.profile_row_label': 'Injuries & limitations',
+    'injuries.profile_title': 'Limitations',
+    'injuries.profile_subtitle': 'These adjust the exercises JEMP picks for your plan.',
+    'injuries.profile_empty': 'No active limitations',
+    'injuries.profile_add_title': 'Add a limitation',
+    'injuries.profile_save_error': 'Could not save this change. Please try again.',
+    'injuries.strip_removed_title': 'Exercises removed',
+    'injuries.strip_removed_body': '{{count}} exercise(s) in your upcoming sessions were removed because they conflict with this limitation.',
+    'injuries.strip_regenerate_question': 'Regenerate your plan now?',
+    'injuries.strip_regenerate_confirm': 'Regenerate plan',
+    'injuries.strip_regenerate_later': 'Later',
+    'injuries.strip_softened_hint': 'This will apply from your next plan generation.',
+
     'plan.create': 'Create',
     'plan.error_generate': 'Plan could not be created.',
     'plan.error_title': 'Error creating plan',

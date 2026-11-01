@@ -165,6 +165,62 @@ export async function confirmInjuryConstraints(
     if (profileError) throw profileError;
 }
 
+export type StrippableExercise = { id: string; exercise_id: string };
+export type StrippableBlock = { id: string; exercises: StrippableExercise[] };
+export type StrippableSession = {
+    id: string;
+    status: 'scheduled' | 'in_progress' | 'completed' | 'skipped' | 'cancelled';
+    blocks: StrippableBlock[];
+};
+
+// Reiner Selektions-Kern für Task 6 (Strip-on-Change): welche
+// workout_session_block_exercises/-_blocks dürfen gelöscht werden, wenn ein
+// neuer/verschärfter `block`-Constraint eine Exercise ausschließt.
+// Review Focus 4: geloggte/abgeschlossene Sessions oder Exercises mit
+// performed sets werden NIE angefasst — die Session-Historie darf
+// nachträglich nicht anders aussehen, als tatsächlich geloggt wurde (gleiche
+// Disziplin wie die Swap-Sperre in mutations/use-swap-exercise.ts:17-22).
+// performedSetCounts ist auf block_exercise.id keyed (>0 = gesperrt).
+export function selectStrippable(
+    sessions: StrippableSession[],
+    blockedExerciseIds: Set<string>,
+    performedSetCounts: Record<string, number>,
+): { exerciseIdsToDelete: string[]; blockIdsToDelete: string[]; removedExercises: number; removedBlocks: number } {
+    const exerciseIdsToDelete: string[] = [];
+    const blockIdsToDelete: string[] = [];
+
+    for (const session of sessions) {
+        // Nur zukünftige, noch nicht begonnene Sessions sind fair game —
+        // in_progress/completed/skipped/cancelled bleiben unberührt.
+        if (session.status !== 'scheduled') continue;
+
+        for (const block of session.blocks) {
+            if (block.exercises.length === 0) continue;
+
+            const remaining = block.exercises.filter((ex) => {
+                const blocked = blockedExerciseIds.has(ex.exercise_id);
+                const locked = (performedSetCounts[ex.id] ?? 0) > 0;
+                if (blocked && !locked) {
+                    exerciseIdsToDelete.push(ex.id);
+                    return false;
+                }
+                return true;
+            });
+
+            if (remaining.length === 0) {
+                blockIdsToDelete.push(block.id);
+            }
+        }
+    }
+
+    return {
+        exerciseIdsToDelete,
+        blockIdsToDelete,
+        removedExercises: exerciseIdsToDelete.length,
+        removedBlocks: blockIdsToDelete.length,
+    };
+}
+
 export async function markExtractionFailed(): Promise<void> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('No auth session');
