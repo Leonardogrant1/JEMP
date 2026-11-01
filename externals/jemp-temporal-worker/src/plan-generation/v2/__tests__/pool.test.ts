@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { exerciseMatchesBlock, buildBlockPools, strengthPatternPools, rotatedPoolWindow, rotateSlugs, patternSlugWindow, pickPlanePin, isCnsMicroDoseExercise, type V2Exercise } from '../pool'
+import { exerciseMatchesBlock, buildBlockPools, filterHeavyBlockPools, strengthPatternPools, rotatedPoolWindow, rotateSlugs, patternSlugWindow, pickPlanePin, isCnsMicroDoseExercise, type V2Exercise } from '../pool'
 import { ex, block } from './fixtures'
 
 describe('exerciseMatchesBlock', () => {
@@ -592,6 +592,60 @@ describe('Verletzungs-Constraints (Task 5): light_only im Heavy-Fenster', () => 
     ]
     const slugs = patternSlugWindow(pool, 'normal', 0)
     expect(slugs).toContain('injured_hinge')
+  })
+})
+
+// Review-Fix (Fund 1, Runde 1): der Block-Level-Heavy-Filter war inline in
+// prepareGenerationV2 (IO-lastig) und hatte keine Testabdeckung. Extrahiert
+// als pure filterHeavyBlockPools — hier direkt getestet. Fund 2 bestätigt:
+// composition.ts:437 setzt plyoEmphasis='heavy' GENAU am plyoLeadDow, 'light'
+// an jedem anderen Plyo-Tag — das ist der reale Pfad, den diese Tests abdecken.
+describe('filterHeavyBlockPools (Task 5 Review-Fix: Block-Level Heavy-Filter)', () => {
+  const plyoEx = (slug: string, light_only = false): V2Exercise =>
+    ex({ slug, category_slug: 'lower_body_plyometrics', intensity_score: 6, light_only })
+
+  it('Plyo-Lead-Tag (emphasis heavy): light_only-Übung fliegt aus dem Block-Pool', () => {
+    const exercises = [plyoEx('box_jump'), plyoEx('depth_jump', true)]
+    const blocks = [{ ...block('plyo', 'lower'), emphasis: 'heavy' as const }]
+    const pools = filterHeavyBlockPools(buildBlockPools(exercises, blocks), blocks)
+    expect(pools.get('plyo')?.map((e) => e.slug)).toEqual(['box_jump'])
+  })
+
+  it('Nicht-Lead-Plyo-Tag (emphasis light): light_only bleibt im Block-Pool', () => {
+    const exercises = [plyoEx('box_jump'), plyoEx('depth_jump', true)]
+    const blocks = [{ ...block('plyo', 'lower'), emphasis: 'light' as const }]
+    const pools = filterHeavyBlockPools(buildBlockPools(exercises, blocks), blocks)
+    expect(pools.get('plyo')?.map((e) => e.slug)).toEqual(expect.arrayContaining(['box_jump', 'depth_jump']))
+  })
+
+  it('emphasis normal bleibt unberührt (falsches Scoping würde hier mitfiltern)', () => {
+    const exercises = [plyoEx('box_jump'), plyoEx('depth_jump', true)]
+    const blocks = [{ ...block('plyo', 'lower'), emphasis: 'normal' as const }]
+    const pools = filterHeavyBlockPools(buildBlockPools(exercises, blocks), blocks)
+    expect(pools.get('plyo')?.map((e) => e.slug)).toContain('depth_jump')
+  })
+
+  it('filtert nur den Pool des betroffenen Block-Typs (Schutz gegen falschen Map-Key)', () => {
+    const coreEx = ex({ slug: 'pallof', core_type: 'stability', light_only: true })
+    const exercises = [plyoEx('box_jump'), plyoEx('depth_jump', true), coreEx]
+    const blocks = [
+      { ...block('plyo', 'lower'), emphasis: 'heavy' as const },
+      { ...block('core'), emphasis: 'normal' as const },
+    ]
+    const pools = filterHeavyBlockPools(buildBlockPools(exercises, blocks), blocks)
+    expect(pools.get('plyo')?.map((e) => e.slug)).not.toContain('depth_jump')
+    // core-Pool bleibt unberührt, obwohl er ebenfalls eine light_only-Übung
+    // enthält — der Filter darf nicht in jeden Map-Eintrag durchschlagen,
+    // nur in den des tatsächlich heavy-emphasis-Blocks.
+    expect(pools.get('core')?.map((e) => e.slug)).toContain('pallof')
+  })
+
+  it('keine Mutation, wenn kein Block heavy ist', () => {
+    const exercises = [plyoEx('box_jump', true)]
+    const blocks = [{ ...block('plyo', 'lower'), emphasis: 'normal' as const }]
+    const original = buildBlockPools(exercises, blocks)
+    const filtered = filterHeavyBlockPools(original, blocks)
+    expect(filtered.get('plyo')).toEqual(original.get('plyo'))
   })
 })
 

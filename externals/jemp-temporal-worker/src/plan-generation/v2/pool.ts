@@ -386,6 +386,27 @@ export function buildBlockPools(
   return pools
 }
 
+/** Verletzungs-Constraint (Task 5, Review-Fix Finding 1): Block-Analogon zum
+ *  Heavy-Zweig in patternSlugWindow — Lead-/Heavy-Blöcke (block.emphasis ===
+ *  'heavy', z.B. der Plyo-Lead-Tag in composition.ts, plyoLeadDow) verlieren
+ *  light_only-Übungen aus ihrem Pool. Extrahiert als eigene, pure Funktion
+ *  (statt inline im IO-lastigen prepareGenerationV2), damit die Regel
+ *  unabhängig testbar ist — Review-Fund: die Inline-Variante hatte keine
+ *  Testabdeckung. Filtert NUR die Map-Einträge der tatsächlich betroffenen
+ *  Block-Typen (Schutz gegen falschen Map-Key / versehentliches Leak in
+ *  andere Pools desselben Tages); mutiert die Eingabe-Map nicht. */
+export function filterHeavyBlockPools(
+  pools: Map<WorkoutBlockType, V2Exercise[]>,
+  blocks: PlannedWorkoutBlock[],
+): Map<WorkoutBlockType, V2Exercise[]> {
+  const result = new Map(pools)
+  for (const b of blocks) {
+    if (b.emphasis !== 'heavy') continue
+    result.set(b.block_type, (result.get(b.block_type) ?? []).filter((e) => !e.light_only))
+  }
+  return result
+}
+
 /** Review fix I2: blocks whose pool is empty are pre-dropped deterministically
  *  (reason 'coverage' feeds the §2.9 dropped_blocks audit) instead of sending
  *  the LLM an unsatisfiable structure. Warmup/cooldown are never dropped. */

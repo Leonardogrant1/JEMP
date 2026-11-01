@@ -7,7 +7,7 @@ import type OpenAI from 'openai'
 import { buildWeekLayout, type PillarLevels, type WeekLayout } from '../week-layout'
 import type { PrepareResult, SessionBuildInput } from '../generate-plan'
 import type { PlanGenerationInput } from '../types'
-import { buildBlockPools, isCnsMicroDoseExercise, patternSlugWindow, pickPlanePin, preDropEmptyPools, rotatedPoolWindow, rotateSlugs, strengthPatternPools, type V2Exercise } from './pool'
+import { buildBlockPools, filterHeavyBlockPools, isCnsMicroDoseExercise, patternSlugWindow, pickPlanePin, preDropEmptyPools, rotatedPoolWindow, rotateSlugs, strengthPatternPools, type V2Exercise } from './pool'
 import { makePlaneCounter, pickPlaneEmphasis, resolvePlaneWeights, toPatternFamily, type PatternFamily, type PlaneWeights } from './plane-emphasis'
 import { buildInjuryExclusions, filterRowsByInjury, type InjuryConstraintInput } from './injury-constraints'
 
@@ -394,16 +394,13 @@ export async function prepareGenerationV2(
       })
       block.patterns = kept
     }
-    const pools = buildBlockPools(dayExercises, workout.blocks)
-    // Verletzungs-Constraint (Task 5): Lead-/Heavy-Blöcke (block.emphasis ===
-    // 'heavy', z.B. die Kraft-Lead-Säule bei heavy_lower) verlieren light_only-
-    // Übungen aus ihrem Pool — analog zum Heavy-Zweig in patternSlugWindow,
-    // nur auf Block- statt Pattern-Ebene.
-    for (const b of workout.blocks) {
-      if (b.emphasis === 'heavy') {
-        pools.set(b.block_type, (pools.get(b.block_type) ?? []).filter((e) => !e.light_only))
-      }
-    }
+    // Verletzungs-Constraint (Task 5, Review-Fix Finding 1): Lead-/Heavy-
+    // Blöcke (block.emphasis === 'heavy', z.B. der Plyo-Lead-Tag oder die
+    // Kraft-Lead-Säule bei heavy_lower) verlieren light_only-Übungen aus
+    // ihrem Pool — analog zum Heavy-Zweig in patternSlugWindow, nur auf
+    // Block- statt Pattern-Ebene. Extrahiert nach pool.ts (filterHeavyBlockPools),
+    // damit die Regel unabhängig vom IO-lastigen Orchestrator getestet ist.
+    const pools = filterHeavyBlockPools(buildBlockPools(dayExercises, workout.blocks), workout.blocks)
     const poolRecord: Record<string, string[]> = {}
     for (const [bt, pool] of pools) {
       // Füller-Rotation (QA 10.10.): optional/accessory bekommen nur ein kleines,
