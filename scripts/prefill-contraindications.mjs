@@ -190,6 +190,15 @@ for (let i = 0; i < batches.length; i++) {
         join contraindication_tags t on t.slug = r.tag_slug
         on conflict do nothing;
       `)
+      // Die Insert-Row landet nicht via UPDATE auf exercises — der
+      // updated_at-Trigger (Grundlage für push-exercises.mjs' affectedSlugs-
+      // Diff) feuert sonst nie. Ohne diesen Bump würden die neu vergebenen
+      // Tags beim nächsten Push als "unverändert" übersprungen.
+      const taggedSlugs = [...new Set(rowsToInsert.map((r) => r.exercise_slug))]
+      psql(`
+        update exercises set updated_at = now()
+        where slug in (select jsonb_array_elements_text(${jsonLit(taggedSlugs)}));
+      `)
     }
   } catch (e) {
     console.error(`  Batch ${i + 1} fehlgeschlagen: ${e.message}`)

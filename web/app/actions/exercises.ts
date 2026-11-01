@@ -188,7 +188,15 @@ export async function updateExercise(
     oldPaths = data
   }
 
-  if (Object.keys(dbFields).length > 0) {
+  // Reine Relations-Saves (z.B. nur contraindicationTagIds) müssen
+  // exercises.updated_at genauso bumpen wie Feld-Edits — sonst sieht
+  // push-exercises.mjs (Diff über exercises.updated_at) die Änderung nie.
+  const hasRelationChange =
+    equipmentIds !== undefined
+    || environmentIds !== undefined
+    || blockTypeIds !== undefined
+    || contraindicationTagIds !== undefined
+  if (Object.keys(dbFields).length > 0 || hasRelationChange) {
     const { error } = await supabase
       .from('exercises')
       .update({ ...dbFields, updated_at: new Date().toISOString() })
