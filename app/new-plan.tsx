@@ -3,6 +3,7 @@ import { Colors, GradientMid } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { startPlanGeneration } from '@/lib/start-plan-generation';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
+import { ensureInjuryGate } from '@/stores/injury-gate-store';
 import { useToastStore } from '@/stores/toast-store';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -83,24 +84,48 @@ export default function NewPlanSheet() {
         closeThen(() => router.back());
     }
 
-    // Erst das Sheet schließen, dann Paywall-Gate — bleibt das Sheet offen,
-    // würde ein abgebrochener Paywall-Flow eine unsichtbare Route hinterlassen
+    // Erst das Sheet schließen, dann Rest-Gate, dann Paywall-Gate — bleibt
+    // das Sheet offen, würde ein abgebrochener Flow eine unsichtbare Route
+    // hinterlassen. ensureInjuryGate pusht ggf. '/injury-gate' und ruft den
+    // übergebenen Trigger erst nach erfolgreichem Abschluss.
     function handleKeepSettings() {
         const errorMessage = t('ui.plan_generate_start_error');
-        closeThen(() => {
+        closeThen(async () => {
             router.back();
-            openWithPlacement('generate_plan', () => {
+            const trigger = () => openWithPlacement('generate_plan', () => {
                 startPlanGeneration().catch(() => {
                     useToastStore.getState().show(errorMessage);
                 });
             });
+            let gatePassed: boolean;
+            try {
+                gatePassed = await ensureInjuryGate(router, trigger);
+            } catch {
+                // Fail-closed: ensureInjuryGate wirft statt stillschweigend
+                // "kein Gate nötig" anzunehmen — ohne diesen Catch wäre das
+                // eine unhandled rejection ohne jede Rückmeldung an den User.
+                useToastStore.getState().show(errorMessage);
+                return;
+            }
+            if (!gatePassed) return;
+            trigger();
         });
     }
 
     function handleEditSettings() {
-        closeThen(() => {
+        const errorMessage = t('ui.plan_generate_start_error');
+        closeThen(async () => {
             router.back();
-            openWithPlacement('generate_plan', () => router.push('/generate-plan'));
+            const trigger = () => openWithPlacement('generate_plan', () => router.push('/generate-plan'));
+            let gatePassed: boolean;
+            try {
+                gatePassed = await ensureInjuryGate(router, trigger);
+            } catch {
+                useToastStore.getState().show(errorMessage);
+                return;
+            }
+            if (!gatePassed) return;
+            trigger();
         });
     }
 

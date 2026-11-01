@@ -1,6 +1,8 @@
 // Pure Kern-Modul für Verletzungs-Constraints: baut aus aktiven Constraints eines Users
 // (tag_slug + Modus) die Ausschluss-Sets für den Generator/Pool/Swap. Keine IO.
 
+import type { PillarLevels, PillarSlug } from '../week-layout'
+
 export type InjuryConstraintInput = {
   tag_slug: string
   mode: 'block' | 'light_only'
@@ -95,4 +97,68 @@ export function filterRowsByInjury<T extends { id: string }>(
   exclusions: InjuryExclusions,
 ): T[] {
   return applyInjuryExclusions(rows, exclusions)
+}
+
+// ── Task 7: Sichtbarkeit (Spec §5) ──────────────────────────────────────────
+// injury_adjusted + injury_conflicts werden auf workout_plans persistiert,
+// damit die App "an deine Einschränkungen angepasst" + Prio-Konflikt-
+// Hinweise zeigen kann (Task 8), ohne die Exclusions erneut zu berechnen.
+
+// true, wenn mind. eine blockierte oder light_only-Übung tatsächlich im
+// aktuellen Exercise-Universum (exerciseRows) vorkommt — leere Exclusions
+// (keine aktiven Constraints) bleiben der bisherige No-Op (false).
+export function computeInjuryAdjusted<T extends { id: string }>(
+  exclusions: InjuryExclusions,
+  exerciseRows: T[],
+): boolean {
+  if (exclusions.blockedIds.size === 0 && exclusions.lightOnlyIds.size === 0) return false
+  return exerciseRows.some((row) => exclusions.blockedIds.has(row.id) || exclusions.lightOnlyIds.has(row.id))
+}
+
+// Minimale Row-Form für die Pool-Prädikate (dieselben Felder, die prepare-v2
+// schon im exercises-Select lädt — kein zusätzlicher Query-Bedarf).
+export type V2ExerciseRow = {
+  sprint_type: string | null
+  plyo_type: string | null
+  strength_pattern: string | null
+}
+
+type PillarPoolPredicate = (row: V2ExerciseRow) => boolean
+
+// Nur die vier Säulen mit einem direkten, feldbasierten Pool-Prädikat
+// (Spec §5) — cod/conditioning/mobility haben keine 1:1-Felder und bleiben
+// hier unberücksichtigt, selbst auf Level 3.
+const PILLAR_POOL_PREDICATES: Partial<Record<PillarSlug, PillarPoolPredicate>> = {
+  sprints: (row) => row.sprint_type !== null,
+  lower_body_plyometrics: (row) => row.plyo_type === 'lower',
+  upper_body_plyometrics: (row) => row.plyo_type === 'upper',
+  strength: (row) => row.strength_pattern !== null,
+}
+
+const PRIORITY_LEVEL = 3
+
+/** Prio-Konflikt-Erkennung (Spec §5): nur Säulen mit Level 3 (Prio-1), deren
+ *  Pool durch die Exclusions leer ('pool_emptied') oder stark reduziert
+ *  ('pool_reduced': unter 3 Übungen ODER höchstens die Hälfte des
+ *  Vorher-Pools) wird. `before`/`after` sind dieselben rohen exerciseRows
+ *  vor/nach filterRowsByInjury — ein von vornherein leerer Pool (Datenloch,
+ *  nicht constraint-bedingt) löst keinen Konflikt aus. */
+export function detectPriorityConflicts(
+  before: V2ExerciseRow[],
+  after: V2ExerciseRow[],
+  pillarLevels: PillarLevels,
+): { pillar: string; reason: 'pool_emptied' | 'pool_reduced' }[] {
+  const conflicts: { pillar: string; reason: 'pool_emptied' | 'pool_reduced' }[] = []
+  for (const [pillar, predicate] of Object.entries(PILLAR_POOL_PREDICATES) as Array<[PillarSlug, PillarPoolPredicate]>) {
+    if (pillarLevels[pillar] !== PRIORITY_LEVEL) continue
+    const beforeCount = before.filter(predicate).length
+    if (beforeCount === 0) continue
+    const afterCount = after.filter(predicate).length
+    if (afterCount === 0) {
+      conflicts.push({ pillar, reason: 'pool_emptied' })
+    } else if (afterCount < 3 || afterCount <= beforeCount * 0.5) {
+      conflicts.push({ pillar, reason: 'pool_reduced' })
+    }
+  }
+  return conflicts
 }

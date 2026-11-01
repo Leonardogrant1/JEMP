@@ -16,6 +16,8 @@ import { EquipmentStep } from '@/components/onboarding/steps/equipment-step';
 import { EquipmentEnvironmentStep } from '@/components/onboarding/steps/equipment-environment-step';
 import { GenderStep } from '@/components/onboarding/steps/gender-step';
 import { InjuriesStep } from '@/components/onboarding/steps/injuries-step';
+import { InjuriesConfirmStep, getInjuryConfirmState } from '@/components/onboarding/steps/injuries-confirm-step';
+import { confirmInjuryConstraints } from '@/lib/injury-constraints';
 import { NameStep } from '@/components/onboarding/steps/name-step';
 import { NotificationSetupStep } from '@/components/onboarding/steps/notification-setup-step';
 import { PersonalizationStep } from '@/components/onboarding/steps/personalization-step';
@@ -131,6 +133,28 @@ export default function OnboardingScreen() {
         { component: WeeklyScheduleStep, theme: 'dark', initialCanContinue: true },
         { component: WorkoutPrefsStep, theme: 'dark', initialCanContinue: false },
         { component: InjuriesStep, theme: 'dark', initialCanContinue: true },
+        {
+            component: InjuriesConfirmStep, theme: 'dark', initialCanContinue: false,
+            // Nichts zu extrahieren, wenn das Freitext-Feld leer ist
+            shouldSkip: () => !useOnboardingStore.getState().schedule_notes?.trim(),
+            preContinue: async () => {
+                const { choices, note, extractionFailed } = getInjuryConfirmState();
+                // Extraktion fehlgeschlagen → nichts zu bestätigen, markExtractionFailed
+                // lief bereits im Step selbst — Onboarding blockiert trotzdem nicht
+                if (extractionFailed) return;
+                try {
+                    await confirmInjuryConstraints(choices, note, 'onboarding');
+                } catch (error) {
+                    console.error('InjuriesConfirmStep preContinue: confirmInjuryConstraints failed', error);
+                    return;
+                }
+                trackerManager.track('injury_confirm_completed', {
+                    blocked: choices.filter((c) => c.mode === 'block').length,
+                    light_only: choices.filter((c) => c.mode === 'light_only').length,
+                    dismissed: choices.filter((c) => c.mode === 'ok').length,
+                });
+            },
+        },
         // Notifications + Review erst NACH den Eingaben — der User ist
         // investiert und sagt eher Ja. Kein Continue beim Mock-Dialog:
         // der triggert den echten Prompt und navigiert selbst weiter

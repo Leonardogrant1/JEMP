@@ -7,7 +7,7 @@ import { queryKeys } from './query-keys';
 async function fetchActivePlan(userId: string) {
     const { data: plan } = await supabase
         .from('workout_plans')
-        .select('id, name, start_date, end_date')
+        .select('id, name, start_date, end_date, description, injury_adjusted, injury_conflicts')
         .eq('user_id', userId)
         .eq('status', 'active')
         .order('created_at', { ascending: false })

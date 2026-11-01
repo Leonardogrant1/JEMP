@@ -989,14 +989,14 @@ isOneToOne: false
                   ]
                 },"workout_plans": {
                   Row: {
-                    "created_at": string | null,"description": string | null,"duration_weeks": number,"end_date": string,"id": string,"name": string,"start_date": string,"status": Database["public"]['Enums']["plan_status"],"updated_at": string | null,"user_id": string | null
+                    "created_at": string | null,"description": string | null,"duration_weeks": number,"end_date": string,"id": string,"injury_adjusted": boolean,"injury_conflicts": Json | null,"name": string,"start_date": string,"status": Database["public"]['Enums']["plan_status"],"updated_at": string | null,"user_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string | null,"description"?: string | null,"duration_weeks": number,"end_date": string,"id"?: string,"name": string,"start_date": string,"status": Database["public"]['Enums']["plan_status"],"updated_at"?: string | null,"user_id"?: string | null
+                    "created_at"?: string | null,"description"?: string | null,"duration_weeks": number,"end_date": string,"id"?: string,"injury_adjusted"?: boolean,"injury_conflicts"?: Json | null,"name": string,"start_date": string,"status": Database["public"]['Enums']["plan_status"],"updated_at"?: string | null,"user_id"?: string | null
                   }
                   Update: {
-                    "created_at"?: string | null,"description"?: string | null,"duration_weeks"?: number,"end_date"?: string,"id"?: string,"name"?: string,"start_date"?: string,"status"?: Database["public"]['Enums']["plan_status"],"updated_at"?: string | null,"user_id"?: string | null
+                    "created_at"?: string | null,"description"?: string | null,"duration_weeks"?: number,"end_date"?: string,"id"?: string,"injury_adjusted"?: boolean,"injury_conflicts"?: Json | null,"name"?: string,"start_date"?: string,"status"?: Database["public"]['Enums']["plan_status"],"updated_at"?: string | null,"user_id"?: string | null
                   }
                   Relationships: [
                     {

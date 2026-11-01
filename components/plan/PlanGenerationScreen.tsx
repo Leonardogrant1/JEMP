@@ -2,12 +2,13 @@ import { Colors, GRADIENT, GradientMid } from "@/constants/theme";
 import { getStageLabel } from "@/helpers/plan-generation-helpers";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { startPlanGeneration } from "@/lib/start-plan-generation";
+import { ensureInjuryGate } from "@/stores/injury-gate-store";
 import { usePlanGenerationStore } from "@/stores/plan-generation-store";
 import { useToastStore } from "@/stores/toast-store";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import LottieView from "lottie-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -30,6 +31,7 @@ const PREVIEW_STATUSES = ['fetching_data', 'planning_week', 'generating_session'
 export function PlanGenerationScreen({ preview = false }: { preview?: boolean } = {}) {
     const { t } = useTranslation();
     const { job, isGenerating, isError } = usePlanGenerationStore();
+    const router = useRouter();
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
 
@@ -171,11 +173,25 @@ export function PlanGenerationScreen({ preview = false }: { preview?: boolean } 
                             App-Neustart im Fehler-Screen fest. Kein Paywall-Gate —
                             die fehlgeschlagene Generierung war bereits freigegeben. */}
                         <Pressable
-                            onPress={() => {
-                                usePlanGenerationStore.getState().clear();
-                                startPlanGeneration().catch(() => {
+                            onPress={async () => {
+                                const trigger = () => {
+                                    usePlanGenerationStore.getState().clear();
+                                    startPlanGeneration().catch(() => {
+                                        useToastStore.getState().show(t('ui.plan_generate_start_error'));
+                                    });
+                                };
+                                let gatePassed: boolean;
+                                try {
+                                    gatePassed = await ensureInjuryGate(router, trigger);
+                                } catch {
+                                    // Fail-closed: ensureInjuryGate wirft statt stillschweigend
+                                    // "kein Gate nötig" anzunehmen — ohne diesen Catch wäre das
+                                    // eine unhandled rejection ohne jede Rückmeldung an den User.
                                     useToastStore.getState().show(t('ui.plan_generate_start_error'));
-                                });
+                                    return;
+                                }
+                                if (!gatePassed) return;
+                                trigger();
                             }}
                             style={styles.pgRetryBtn}
                         >

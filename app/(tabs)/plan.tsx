@@ -1,6 +1,7 @@
 import { JempText } from '@/components/jemp-text';
 import { EmptyPlanCard } from '@/components/plan/EmptyPlanCard';
 import { FlexibleWeekList } from '@/components/plan/FlexibleWeekList';
+import { InjuryAdjustedBadge } from '@/components/plan/InjuryAdjustedBadge';
 import { PlanCompletedCard } from '@/components/plan/PlanCompletedCard';
 import { PlanGenerationScreen } from '@/components/plan/PlanGenerationScreen';
 import { PlanSessionCard } from '@/components/plan/PlanSessionCard';
@@ -25,6 +26,7 @@ import { useCurrentUser } from '@/providers/current-user-provider';
 import { type PlanSession, type WorkoutSession, usePlan } from '@/providers/plan-provider';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { useDevToolsStore } from '@/stores/dev-tools-store';
+import { ensureInjuryGate } from '@/stores/injury-gate-store';
 import { usePlanGenerationStore } from '@/stores/plan-generation-store';
 import { useToastStore } from '@/stores/toast-store';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -194,9 +196,23 @@ export default function PlanScreen() {
     }
 
     // Statt direkt zu generieren führt der Weg durch den Plan-Wizard
-    // (/generate-plan) — der speichert Einstellungen und triggert das Backend
-    function openPlanWizard() {
-        openWithPlacement('generate_plan', () => router.push('/generate-plan'));
+    // (/generate-plan) — der speichert Einstellungen und triggert das Backend.
+    // Rest-Gate VOR der Paywall: ensureInjuryGate pusht ggf. '/injury-gate'
+    // und ruft den hier übergebenen Trigger erst nach erfolgreichem Abschluss.
+    async function openPlanWizard() {
+        const trigger = () => openWithPlacement('generate_plan', () => router.push('/generate-plan'));
+        let gatePassed: boolean;
+        try {
+            gatePassed = await ensureInjuryGate(router, trigger);
+        } catch {
+            // Fail-closed: ensureInjuryGate wirft statt stillschweigend
+            // "kein Gate nötig" anzunehmen — ohne diesen Catch wäre das eine
+            // unhandled rejection ohne jede Rückmeldung an den User.
+            useToastStore.getState().show(t('ui.plan_generate_start_error'));
+            return;
+        }
+        if (!gatePassed) return;
+        trigger();
     }
 
     // Routing je nach Datenlage:
@@ -212,11 +228,20 @@ export default function PlanScreen() {
             const complete = await hasCompletePlanSettings(profile);
             if (!complete) { openPlanWizard(); return; }
             if (plan) { router.push('/new-plan'); return; }
-            openWithPlacement('generate_plan', () => {
+            const trigger = () => openWithPlacement('generate_plan', () => {
                 startPlanGeneration().catch(() => {
                     useToastStore.getState().show(t('ui.plan_generate_start_error'));
                 });
             });
+            let gatePassed: boolean;
+            try {
+                gatePassed = await ensureInjuryGate(router, trigger);
+            } catch {
+                useToastStore.getState().show(t('ui.plan_generate_start_error'));
+                return;
+            }
+            if (!gatePassed) return;
+            trigger();
         } finally {
             decidingRef.current = false;
         }
@@ -291,6 +316,10 @@ export default function PlanScreen() {
                                     weekSessionDays={weekSessionDays}
                                 />
                             </View>
+
+                            {/* Prio-1-Verletzungskonflikte + Arzt-Note leben nur im Detail-Sheet
+                                (Task 8) — das Badge ist der einzige sichtbare Hinweis in der Liste. */}
+                            {plan.injury_adjusted && <InjuryAdjustedBadge />}
 
                             {/* Sessions for selected day — remounts per day so the switch fades in */}
                             <Reanimated.View

@@ -12,6 +12,7 @@ import { type ImperativeRouter } from 'expo-router';
 import i18next from 'i18next';
 import { create } from 'zustand';
 import { supabase } from '@/services/supabase/client';
+import { ensureInjuryGate } from '@/stores/injury-gate-store';
 
 export type PlanWizardState = {
     // Navigation
@@ -473,13 +474,34 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
 
             // 6. Update schedule
             const { load_score, load_profile } = computeLoadProfile(sportSessions);
+
+            // Fetch current profile to check if schedule_notes changed
+            const currentProfileRes = await supabase
+                .from('user_profiles')
+                .select('schedule_notes')
+                .eq('id', profileId)
+                .single();
+
+            const previousScheduleNotes = currentProfileRes.data?.schedule_notes ?? null;
+            const newScheduleNotes = scheduleNotes.trim() || null;
+
+            // Normalize for comparison: treat null/undefined/empty as same
+            const previousNormalized = (previousScheduleNotes ?? '').trim();
+            const newNormalized = (newScheduleNotes ?? '').trim();
+            // If fetch failed, treat as changed (fail-safe); otherwise compare normalized values
+            const notesChanged = currentProfileRes.error ? true : previousNormalized !== newNormalized;
+
+            if (currentProfileRes.error) {
+                console.warn('[plan-wizard] Failed to fetch previous schedule_notes:', currentProfileRes.error);
+            }
+
             await supabase.from('user_profiles')
                 .update({
                     preferred_workout_days: [...preferredDays].sort((a, b) => a - b),
                     // Dauer wird seit 09.10. pro Tag im Tag-Editor gewählt; die
                     // globale Dauer bleibt als Fallback für Tage ohne Override.
                     preferred_session_duration: preferredDuration ?? '60min',
-                    schedule_notes: scheduleNotes.trim() || null,
+                    schedule_notes: newScheduleNotes,
                     sprints_covered_by_club: sprintClub,
                     sprint_distance: sprintDistance,
                     preferred_day_durations: dayDurations.length > 0 ? (dayDurations as any) : null,
@@ -490,15 +512,48 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
                     })) as any,
                     load_score,
                     load_profile,
+                    ...(notesChanged && { injury_extraction_status: 'pending' }),
                 })
                 .eq('id', profileId);
 
-            // 7. Trigger plan generation
-            await startPlanGeneration();
-
-            set({ isSaving: false });
-            router.back();
-            router.navigate('/(tabs)/plan');
+            // 7. Trigger plan generation — Rest-Gate zusätzlich hier als
+            // Absicherung des Wizard-Pfads (die UI-Callsites gaten bereits
+            // vor dem Wizard-Einstieg, aber schedule_notes können SICH WÄHREND
+            // des Wizards geändert haben). Doppel-Gate ist idempotent: nach
+            // frischem confirm ist needsInjuryGate sofort wieder null.
+            const finishGeneration = async () => {
+                // Re-entered: wird sowohl direkt unten (gatePassed sofort
+                // true) als auch später über den onPassed-Callback erreicht,
+                // NACHDEM isSaving unten (Gate blockiert) auf false
+                // zurückgesetzt wurde. Ohne dieses Re-Set bliebe der
+                // Generate-Button nach Gate-Confirm ungespinnt (kein
+                // Spinner), obwohl startPlanGeneration noch läuft.
+                set({ isSaving: true });
+                await startPlanGeneration();
+                set({ isSaving: false });
+                router.back();
+                router.navigate('/(tabs)/plan');
+            };
+            const gatePassed = await ensureInjuryGate(router, () => {
+                finishGeneration().catch((err: any) => {
+                    set({ isSaving: false, saveError: err?.message ?? 'Unknown error' });
+                    console.error('generate error:', err?.message);
+                });
+            });
+            if (!gatePassed) {
+                // Review Fix (Finding 1, Plan B whole-branch review): Gate
+                // blockiert (Sheet gepusht) — Profil-Save oben ist bereits
+                // durch. Ohne dieses Reset bleibt der Button spinner-locked,
+                // wenn der User das Gate-Sheet wegwischt (handleDismiss
+                // räumt nur den Gate-Store, nicht isSaving hier). Der
+                // onPassed-Callback oben setzt isSaving beim Fortsetzen
+                // via finishGeneration erneut auf true — die Profil-Save-
+                // Schritte oben werden dabei NICHT wiederholt, nur
+                // startPlanGeneration.
+                set({ isSaving: false });
+                return;
+            }
+            await finishGeneration();
         } catch (err: any) {
             set({ isSaving: false, saveError: err?.message ?? 'Unknown error' });
             console.error('generate error:', err?.message);

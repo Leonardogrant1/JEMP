@@ -86,6 +86,8 @@ export async function generatePlanWorkflow(input: {
       planDescription: prepareResult.weekPlan.description,
       sessions: plannedSessions,
       environmentIds: prepareResult.environmentIds,
+      injuryAdjusted: prepareResult.injuryAdjusted,
+      injuryConflicts: prepareResult.injuryConflicts,
     })
 
     await updateJobStatus({ jobId, status: 'completed', planId })
