@@ -522,6 +522,13 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
             // des Wizards geändert haben). Doppel-Gate ist idempotent: nach
             // frischem confirm ist needsInjuryGate sofort wieder null.
             const finishGeneration = async () => {
+                // Re-entered: wird sowohl direkt unten (gatePassed sofort
+                // true) als auch später über den onPassed-Callback erreicht,
+                // NACHDEM isSaving unten (Gate blockiert) auf false
+                // zurückgesetzt wurde. Ohne dieses Re-Set bliebe der
+                // Generate-Button nach Gate-Confirm ungespinnt (kein
+                // Spinner), obwohl startPlanGeneration noch läuft.
+                set({ isSaving: true });
                 await startPlanGeneration();
                 set({ isSaving: false });
                 router.back();
@@ -533,7 +540,19 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
                     console.error('generate error:', err?.message);
                 });
             });
-            if (!gatePassed) return;
+            if (!gatePassed) {
+                // Review Fix (Finding 1, Plan B whole-branch review): Gate
+                // blockiert (Sheet gepusht) — Profil-Save oben ist bereits
+                // durch. Ohne dieses Reset bleibt der Button spinner-locked,
+                // wenn der User das Gate-Sheet wegwischt (handleDismiss
+                // räumt nur den Gate-Store, nicht isSaving hier). Der
+                // onPassed-Callback oben setzt isSaving beim Fortsetzen
+                // via finishGeneration erneut auf true — die Profil-Save-
+                // Schritte oben werden dabei NICHT wiederholt, nur
+                // startPlanGeneration.
+                set({ isSaving: false });
+                return;
+            }
             await finishGeneration();
         } catch (err: any) {
             set({ isSaving: false, saveError: err?.message ?? 'Unknown error' });

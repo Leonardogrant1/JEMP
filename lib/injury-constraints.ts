@@ -165,7 +165,22 @@ export async function confirmInjuryConstraints(
             };
         });
         const { error: insertError } = await supabase.from('user_injury_constraints').insert(rows);
-        if (insertError) throw insertError;
+        if (insertError) {
+            // Review Fix (Finding 2, Plan B whole-branch review): der Revoke
+            // oben ist zu diesem Zeitpunkt bereits committed — ohne
+            // Kompensation blieben ALLE aktiven Constraints revoked, während
+            // injury_extraction_status weiter/neu 'confirmed' würde (s.u.,
+            // aber wir erreichen das nicht mehr, siehe throw). Gezielt per
+            // exaktem revoked_at-Zeitstempel zurücksetzen statt blanket
+            // `revoked_at IS NULL` — sonst würden fremde, zwischenzeitlich
+            // (durch einen parallelen Lauf) revoked Rows mit-reaktiviert.
+            await supabase
+                .from('user_injury_constraints')
+                .update({ revoked_at: null })
+                .eq('user_id', userId)
+                .eq('revoked_at', now);
+            throw insertError;
+        }
     }
 
     const { error: profileError } = await supabase

@@ -11,6 +11,7 @@ import {
     requestExtraction,
 } from '@/lib/injury-constraints';
 import { trackerManager } from '@/lib/tracking/tracker-manager';
+import { useStripInjuryViolations } from '@/mutations/use-strip-injury-violations';
 import { useInjuryGateStore } from '@/stores/injury-gate-store';
 import { useToastStore } from '@/stores/toast-store';
 import { devError } from '@/utils/dev-log';
@@ -52,6 +53,7 @@ export default function InjuryGateScreen() {
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const router = useRouter();
+    const stripMutation = useStripInjuryViolations();
 
     const gateCase = useInjuryGateStore((s) => s.gateCase);
     const sourceNote = useInjuryGateStore((s) => s.sourceNote);
@@ -101,11 +103,39 @@ export default function InjuryGateScreen() {
 
     const [submitting, setSubmitting] = useState(false);
 
+    // Spec §5: jeder block-Add/-Sharpen mit laufendem Plan muss künftige
+    // Sessions sofort um die betroffenen Übungen bereinigen — sonst zeigt
+    // ein laufender Plan weiterhin eine gerade erst ausgeschlossene Übung,
+    // bis die nächste Generierung läuft (injury-settings.tsx macht das
+    // bereits für den Settings-Pfad, das Gate hier noch nicht). Konservative
+    // Obermenge: ALLE aktuell bestätigten 'block'-Choices gelten als
+    // "neu/verschärft" statt echtes Vorher/Nachher-Tracking — idempotent,
+    // ein bereits gestrippter Plan liefert einfach 0 zurück. Ein
+    // Strip-Fehler darf das Gate NIE blockieren (catch + warn + weiter) —
+    // die üblicherweise folgende Plan-Regenerierung deckt es ohnehin erneut ab.
+    async function stripNewlyBlocked(choices: ConfirmedChoice[]) {
+        try {
+            const blockedSlugs = choices.filter((c) => c.mode === 'block').map((c) => c.tag_slug);
+            if (blockedSlugs.length === 0) return;
+            const tags = await fetchContraindicationTags();
+            const slugToId = new Map(tags.map((tag) => [tag.slug, tag.id]));
+            const blockedTagIds = blockedSlugs
+                .map((slug) => slugToId.get(slug))
+                .filter((id): id is string => !!id);
+            if (blockedTagIds.length > 0) {
+                await stripMutation.mutateAsync(blockedTagIds);
+            }
+        } catch (err) {
+            console.warn('injury-gate: stripInjuryViolations failed', err);
+        }
+    }
+
     async function submit(choices: ConfirmedChoice[], origin: 'manual' | 'recheck') {
         if (submitting) return;
         setSubmitting(true);
         try {
             await confirmInjuryConstraints(choices, origin === 'recheck' ? null : sourceNote, origin);
+            await stripNewlyBlocked(choices);
             finish(choices.filter((c) => c.mode !== 'ok').length);
         } catch (err) {
             devError('injury-gate: confirm failed', err);

@@ -69,8 +69,23 @@ export function ConstraintChoiceList({ proposals, unmapped, scheduling, allTags,
     }
 
     function assignTag(index: number, tagSlug: string) {
+        const prevSlug = unmappedAssignments[index];
         setUnmappedAssignments((prev) => ({ ...prev, [index]: tagSlug }));
-        emit({ ...choices, [tagSlug]: { tag_slug: tagSlug, mode: 'block', acute: false } });
+
+        const next = { ...choices, [tagSlug]: { tag_slug: tagSlug, mode: 'block' as Mode, acute: false } };
+        // Reassigning an unmapped item away from its previous slug must not
+        // leave that slug's choice dangling in the map — unless a proposal
+        // or another still-unmapped index references it, the confirmed
+        // list would otherwise contain a choice no card renders for.
+        if (prevSlug && prevSlug !== tagSlug) {
+            const stillReferenced =
+                proposals.some((p) => p.tag_slug === prevSlug) ||
+                Object.entries(unmappedAssignments).some(([i, slug]) => Number(i) !== index && slug === prevSlug);
+            if (!stillReferenced) {
+                delete next[prevSlug];
+            }
+        }
+        emit(next);
     }
 
     function tagLabel(slug: string): string {
