@@ -25,6 +25,7 @@ const LINK_DEFS = [
   ['exercise_equipments', 'equipments', 'equipment_id'],
   ['exercise_environments', 'environments', 'environment_id'],
   ['exercise_blocks', 'block_types', 'block_type_id'],
+  ['exercise_contraindications', 'contraindication_tags', 'contraindication_tag_id'],
 ]
 
 const envArg = process.argv[2]
@@ -102,6 +103,7 @@ const neededLookups = {
   equipments: [...new Set(linkRows.exercise_equipments.map((r) => r.ref_slug))],
   environments: [...new Set(linkRows.exercise_environments.map((r) => r.ref_slug))],
   block_types: [...new Set(linkRows.exercise_blocks.map((r) => r.ref_slug))],
+  contraindication_tags: [...new Set(linkRows.exercise_contraindications.map((r) => r.ref_slug))],
 }
 const missingLookups = []
 for (const [table, slugs] of Object.entries(neededLookups)) {

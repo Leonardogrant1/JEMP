@@ -26,6 +26,7 @@ const LINK_DEFS = [
   ['exercise_equipments', 'equipments', 'equipment_id', 'exercise:exercises(slug),equipment:equipments(slug)', (r) => r.equipment.slug],
   ['exercise_environments', 'environments', 'environment_id', 'exercise:exercises(slug),environment:environments(slug)', (r) => r.environment.slug],
   ['exercise_blocks', 'block_types', 'block_type_id', 'exercise:exercises(slug),block_type:block_types(slug)', (r) => r.block_type.slug],
+  ['exercise_contraindications', 'contraindication_tags', 'contraindication_tag_id', 'exercise:exercises(slug),contraindication_tag:contraindication_tags(slug)', (r) => r.contraindication_tag.slug],
 ]
 
 const psql = (sql) =>
