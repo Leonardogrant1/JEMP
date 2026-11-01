@@ -15,13 +15,14 @@ type Props = {
   equipments: { id: string; slug: string; name_i18n: Json | null }[]
   environments: { id: string; slug: string; name_i18n: Json | null }[]
   blockTypes: { id: string; slug: string }[]
+  contraindicationTags: { id: string; slug: string }[]
 }
 
 function isValidSlug(s: string): boolean {
   return /^[a-z0-9]+(_[a-z0-9]+)*$/.test(s)
 }
 
-export function ExerciseCreateForm({ categories, equipments, environments, blockTypes }: Props) {
+export function ExerciseCreateForm({ categories, equipments, environments, blockTypes, contraindicationTags }: Props) {
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [slugError, setSlugError] = useState('')
@@ -43,6 +44,7 @@ export function ExerciseCreateForm({ categories, equipments, environments, block
   const [equipmentIds, setEquipmentIds] = useState<string[]>([])
   const [environmentIds, setEnvironmentIds] = useState<string[]>([])
   const [blockTypeIds, setBlockTypeIds] = useState<string[]>([])
+  const [contraindicationTagIds, setContraindicationTagIds] = useState<string[]>([])
 
   const [youtubeUrl, setYoutubeUrl] = useState('')
 
@@ -80,6 +82,7 @@ export function ExerciseCreateForm({ categories, equipments, environments, block
       setEquipmentIds(p.equipmentIds)
       setEnvironmentIds(p.environmentIds)
       setBlockTypeIds(p.blockTypeIds)
+      setContraindicationTagIds(p.contraindicationTagIds)
       toast.success('Felder vorbefüllt — bitte reviewen')
     } catch (err) {
       setStatus(err instanceof Error ? err.message : 'Prefill fehlgeschlagen')
@@ -138,6 +141,7 @@ export function ExerciseCreateForm({ categories, equipments, environments, block
           equipmentIds,
           environmentIds,
           blockTypeIds,
+          contraindicationTagIds,
           youtube_url: youtubeUrl || null,
         })
         // Video erst nach dem Anlegen hochladen — der Storage-Pfad braucht die ID
@@ -436,6 +440,28 @@ export function ExerciseCreateForm({ categories, equipments, environments, block
                 className="rounded border-gray-600 bg-gray-800"
               />
               <span className="text-gray-300">{bt.slug}</span>
+            </label>
+          ))}
+        </div>
+      </section>
+
+      {/* Contraindication Tags */}
+      <section className="bg-gray-900 rounded-lg p-5">
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Contraindication Tags</h3>
+        <div className="flex flex-wrap gap-4">
+          {contraindicationTags.map(ct => (
+            <label key={ct.id} className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={contraindicationTagIds.includes(ct.id)}
+                onChange={e => {
+                  setContraindicationTagIds(prev =>
+                    e.target.checked ? [...prev, ct.id] : prev.filter(id => id !== ct.id)
+                  )
+                }}
+                className="rounded border-gray-600 bg-gray-800"
+              />
+              <span className="text-gray-300">{ct.slug}</span>
             </label>
           ))}
         </div>

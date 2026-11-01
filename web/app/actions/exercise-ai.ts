@@ -51,6 +51,7 @@ export type ExercisePrefill = {
   equipmentIds: string[]
   environmentIds: string[]
   blockTypeIds: string[]
+  contraindicationTagIds: string[]
 }
 
 // Kalibrierungs-Beispiele: bewusst über Kategorien/Intensitäten gestreut,
@@ -66,11 +67,12 @@ export async function prefillExercise(name: string, roughDescription: string): P
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) throw new Error('OPENAI_API_KEY is not configured')
 
-  const [cats, eqs, envs, bts, examplesRes] = await Promise.all([
+  const [cats, eqs, envs, bts, cts, examplesRes] = await Promise.all([
     supabase.from('categories').select('id, slug'),
     supabase.from('equipments').select('id, slug'),
     supabase.from('environments').select('id, slug'),
     supabase.from('block_types').select('id, slug'),
+    supabase.from('contraindication_tags').select('id, slug'),
     supabase.from('exercises').select(`
       name, slug, body_region, movement_pattern, min_level, max_level, intensity_score,
       laterality, measurement_type, exercise_type, image_group,
@@ -78,7 +80,7 @@ export async function prefillExercise(name: string, roughDescription: string): P
       exercise_environments(environments(slug)), exercise_blocks(block_types(slug))
     `).in('slug', EXAMPLE_SLUGS),
   ])
-  for (const r of [cats, eqs, envs, bts, examplesRes]) {
+  for (const r of [cats, eqs, envs, bts, cts, examplesRes]) {
     if (r.error) throw new Error(r.error.message)
   }
 
@@ -96,7 +98,7 @@ export async function prefillExercise(name: string, roughDescription: string): P
     additionalProperties: false,
     required: ['slug', 'description_de', 'description_en', 'category', 'movement_pattern', 'body_region',
       'min_level', 'max_level', 'intensity_score', 'exercise_type', 'measurement_type', 'laterality',
-      'image_group', 'equipments', 'environments', 'block_types'],
+      'image_group', 'equipments', 'environments', 'block_types', 'contraindication_tags'],
     properties: {
       slug: { type: 'string', pattern: '^[a-z0-9]+(_[a-z0-9]+)*$' },
       description_de: { type: 'string' },
@@ -114,6 +116,7 @@ export async function prefillExercise(name: string, roughDescription: string): P
       equipments: { type: 'array', items: { type: 'string', enum: slugList(eqs.data) } },
       environments: { type: 'array', items: { type: 'string', enum: slugList(envs.data) } },
       block_types: { type: 'array', items: { type: 'string', enum: slugList(bts.data) } },
+      contraindication_tags: { type: 'array', items: { type: 'string', enum: slugList(cts.data) } },
     },
   }
 
@@ -134,6 +137,7 @@ export async function prefillExercise(name: string, roughDescription: string): P
             'equipments: only the load-bearing equipment (convention: landmine_press lists only barbell). Empty array = bodyweight. ' +
             'environments: where it is realistically performable (gym/home/outdoor). ' +
             'block_types: primary/secondary for main stimuli, accessory for isolation/support work, warmup only for genuine warm-up drills. ' +
+            'contraindication_tags: movement-pattern injury risk flags this exercise loads (e.g. deep_knee_flexion_loaded for deep loaded squats, overhead_pressing for strict/push presses, jumping_landing for plyometrics). Only tag genuine, exercise-defining risk — empty array if none apply. ' +
             `Existing examples for calibration:\n${JSON.stringify(examples)}`,
         },
         { role: 'user', content: `Name: ${name}\nBeschreibung: ${roughDescription}` },
@@ -153,6 +157,7 @@ export async function prefillExercise(name: string, roughDescription: string): P
   const eqMap = idBySlug(eqs.data)
   const envMap = idBySlug(envs.data)
   const btMap = idBySlug(bts.data)
+  const ctMap = idBySlug(cts.data)
 
   return {
     slug: p.slug,
@@ -171,5 +176,6 @@ export async function prefillExercise(name: string, roughDescription: string): P
     equipmentIds: p.equipments.map((s: string) => eqMap.get(s)).filter(Boolean),
     environmentIds: p.environments.map((s: string) => envMap.get(s)).filter(Boolean),
     blockTypeIds: p.block_types.map((s: string) => btMap.get(s)).filter(Boolean),
+    contraindicationTagIds: p.contraindication_tags.map((s: string) => ctMap.get(s)).filter(Boolean),
   }
 }

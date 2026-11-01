@@ -34,6 +34,7 @@ export type Exercise = ExerciseListItem & {
   exercise_type: string | null
   image_group: ExerciseImageGroup | null
   blockTypeIds: string[]
+  contraindicationTagIds: string[]
 }
 
 async function requireUser() {
@@ -106,21 +107,24 @@ export async function getExercise(id: string): Promise<Exercise & { equipmentIds
       youtube_url, thumbnail_storage_path, video_storage_path,
       exercise_equipments(equipment_id),
       exercise_environments(environment_id),
-      exercise_blocks(block_type_id)
+      exercise_blocks(block_type_id),
+      exercise_contraindications(contraindication_tag_id)
     `)
     .eq('id', id)
     .single()
   if (error) throw new Error(error.message)
-  const { exercise_equipments, exercise_environments, exercise_blocks, ...exercise } = data as Exercise & {
+  const { exercise_equipments, exercise_environments, exercise_blocks, exercise_contraindications, ...exercise } = data as Exercise & {
     exercise_equipments: { equipment_id: string }[]
     exercise_environments: { environment_id: string }[]
     exercise_blocks: { block_type_id: string }[]
+    exercise_contraindications: { contraindication_tag_id: string }[]
   }
   return {
     ...exercise,
     equipmentIds: exercise_equipments.map(e => e.equipment_id),
     environmentIds: exercise_environments.map(e => e.environment_id),
     blockTypeIds: exercise_blocks.map(b => b.block_type_id),
+    contraindicationTagIds: exercise_contraindications.map(c => c.contraindication_tag_id),
   }
 }
 
@@ -165,10 +169,11 @@ export async function updateExercise(
     equipmentIds?: string[]
     environmentIds?: string[]
     blockTypeIds?: string[]
+    contraindicationTagIds?: string[]
   }
 ): Promise<void> {
   await requireAdmin()
-  const { equipmentIds, environmentIds, blockTypeIds, ...dbFields } = fields
+  const { equipmentIds, environmentIds, blockTypeIds, contraindicationTagIds, ...dbFields } = fields
 
   // Alte Storage-Dateien aufräumen, wenn ein neuer Pfad gesetzt wird —
   // die timestamped Pfade würden sonst als Leichen liegen bleiben
@@ -227,6 +232,13 @@ export async function updateExercise(
       if (error) throw new Error(error.message)
     }
   }
+  if (contraindicationTagIds !== undefined) {
+    await supabase.from('exercise_contraindications').delete().eq('exercise_id', id)
+    if (contraindicationTagIds.length > 0) {
+      const { error } = await supabase.from('exercise_contraindications').insert(contraindicationTagIds.map(tid => ({ exercise_id: id, contraindication_tag_id: tid })))
+      if (error) throw new Error(error.message)
+    }
+  }
 }
 
 export async function createExercise(fields: {
@@ -246,10 +258,11 @@ export async function createExercise(fields: {
   equipmentIds?: string[]
   environmentIds?: string[]
   blockTypeIds?: string[]
+  contraindicationTagIds?: string[]
   youtube_url?: string | null
 }): Promise<string> {
   await requireAdmin()
-  const { equipmentIds, environmentIds, blockTypeIds, min_level, max_level, ...dbFields } = fields
+  const { equipmentIds, environmentIds, blockTypeIds, contraindicationTagIds, min_level, max_level, ...dbFields } = fields
   const insertRow = {
     ...dbFields,
     category_id: dbFields.category_id ?? null,
@@ -275,6 +288,10 @@ export async function createExercise(fields: {
     const { error: btErr } = await supabase.from('exercise_blocks').insert(blockTypeIds.map(bid => ({ exercise_id: id, block_type_id: bid })))
     if (btErr) throw new Error(btErr.message)
   }
+  if (contraindicationTagIds && contraindicationTagIds.length > 0) {
+    const { error: ctErr } = await supabase.from('exercise_contraindications').insert(contraindicationTagIds.map(tid => ({ exercise_id: id, contraindication_tag_id: tid })))
+    if (ctErr) throw new Error(ctErr.message)
+  }
   return id
 }
 
@@ -292,22 +309,26 @@ export async function getExerciseRelations(): Promise<{
   equipments: { id: string; slug: string; name_i18n: Json | null }[]
   environments: { id: string; slug: string; name_i18n: Json | null }[]
   blockTypes: { id: string; slug: string }[]
+  contraindicationTags: { id: string; slug: string }[]
 }> {
   await requireUser()
-  const [catResult, eqResult, envResult, btResult] = await Promise.all([
+  const [catResult, eqResult, envResult, btResult, ctResult] = await Promise.all([
     supabase.from('categories').select('id, slug, name_i18n').order('slug'),
     supabase.from('equipments').select('id, slug, name_i18n').order('slug'),
     supabase.from('environments').select('id, slug, name_i18n').order('slug'),
     supabase.from('block_types').select('id, slug').order('slug'),
+    supabase.from('contraindication_tags').select('id, slug').order('slug'),
   ])
   if (catResult.error) throw new Error(catResult.error.message)
   if (eqResult.error) throw new Error(eqResult.error.message)
   if (envResult.error) throw new Error(envResult.error.message)
   if (btResult.error) throw new Error(btResult.error.message)
+  if (ctResult.error) throw new Error(ctResult.error.message)
   return {
     categories: catResult.data,
     equipments: eqResult.data,
     environments: envResult.data,
     blockTypes: btResult.data,
+    contraindicationTags: ctResult.data,
   }
 }

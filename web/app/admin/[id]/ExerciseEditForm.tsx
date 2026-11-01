@@ -28,6 +28,7 @@ type Props = {
     equipments: { id: string; slug: string; name_i18n: Json | null }[]
     environments: { id: string; slug: string; name_i18n: Json | null }[]
     blockTypes: { id: string; slug: string }[]
+    contraindicationTags: { id: string; slug: string }[]
   }
   thumbnailSources: ThumbnailSource[]
 }
@@ -39,6 +40,7 @@ type Statuses = {
   equipment?: string
   environments?: string
   blockTypes?: string
+  contraindicationTags?: string
   youtube?: string
   thumbnail?: string
   video?: string
@@ -84,6 +86,7 @@ export function ExerciseEditForm({ exercise: initial, relations, thumbnailSource
   const [equipmentIds, setEquipmentIds] = useState<string[]>(initial.equipmentIds)
   const [environmentIds, setEnvironmentIds] = useState<string[]>(initial.environmentIds)
   const [blockTypeIds, setBlockTypeIds] = useState<string[]>(initial.blockTypeIds)
+  const [contraindicationTagIds, setContraindicationTagIds] = useState<string[]>(initial.contraindicationTagIds)
 
   // YouTube / media
   const [youtubeUrl, setYoutubeUrl] = useState(initial.youtube_url ?? '')
@@ -194,6 +197,17 @@ export function ExerciseEditForm({ exercise: initial, relations, thumbnailSource
         setStatus('blockTypes', 'Saved ✓')
       } catch {
         setStatus('blockTypes', 'Error saving')
+      }
+    })
+  }
+
+  const saveContraindicationTags = () => {
+    startTransition(async () => {
+      try {
+        await updateExercise(exercise.id, { contraindicationTagIds })
+        setStatus('contraindicationTags', 'Saved ✓')
+      } catch {
+        setStatus('contraindicationTags', 'Error saving')
       }
     })
   }
@@ -591,6 +605,34 @@ export function ExerciseEditForm({ exercise: initial, relations, thumbnailSource
             Save
           </button>
           {statuses.blockTypes && <p className="text-xs text-gray-400">{statuses.blockTypes}</p>}
+        </div>
+      </section>
+
+      {/* Contraindication Tags */}
+      <section className="bg-gray-900 rounded-lg p-5">
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Contraindication Tags</h3>
+        <div className="flex flex-wrap gap-4">
+          {relations.contraindicationTags.map(ct => (
+            <label key={ct.id} className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={contraindicationTagIds.includes(ct.id)}
+                onChange={e => {
+                  setContraindicationTagIds(prev =>
+                    e.target.checked ? [...prev, ct.id] : prev.filter(id => id !== ct.id)
+                  )
+                }}
+                className="rounded border-gray-600 bg-gray-800"
+              />
+              <span className="text-gray-300">{ct.slug}</span>
+            </label>
+          ))}
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <button onClick={saveContraindicationTags} disabled={isPending} className="px-4 py-2 bg-white text-black rounded text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
+            Save
+          </button>
+          {statuses.contraindicationTags && <p className="text-xs text-gray-400">{statuses.contraindicationTags}</p>}
         </div>
       </section>
 
