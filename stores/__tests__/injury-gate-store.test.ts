@@ -94,4 +94,12 @@ describe('ensureInjuryGate', () => {
 
         await expect(ensureInjuryGate(mockRouter(), jest.fn())).rejects.toThrow('boom');
     });
+
+    test('kein Error-Schlucken: getSession-Fehler wirft statt fail-open als "kein Gate" zu lesen (Fix Round 1, Finding 4)', async () => {
+        mockedSupabase.auth.getSession.mockResolvedValue({ data: { session: null }, error: new Error('session boom') });
+
+        await expect(ensureInjuryGate(mockRouter(), jest.fn())).rejects.toThrow('session boom');
+        // Darf trotz fehlender Session keinen "kein Gate nötig"-Pfad einschlagen
+        expect(mockedSupabase.from).not.toHaveBeenCalled();
+    });
 });

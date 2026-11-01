@@ -95,6 +95,22 @@ export async function requestExtraction(note: string): Promise<ExtractionResult>
     return res.json();
 }
 
+// Review Fix 1 (Task 5, Finding 2): confirmInjuryConstraints überschreibt
+// source_note batch-weit mit dem EINEN übergebenen sourceNote-Argument — der
+// Recheck-Ein-Tap-Pfad hat aber gar keinen neuen Freitext (übergibt null),
+// würde also die Provenienz jeder unveränderten Row für immer auf null
+// setzen. Pure Merge-Funktion: ein non-null incoming gewinnt immer (neuer
+// Freitext überschreibt bewusst); ein null incoming übernimmt die
+// source_note der Vorgänger-Row (per tag_slug), oder bleibt null, wenn es
+// gar keine Vorgänger-Row gab (neuer Tag ohne Vorgeschichte).
+export function resolveSourceNote(
+    incoming: string | null,
+    predecessorSourceNote: string | null | undefined,
+): string | null {
+    if (incoming !== null) return incoming;
+    return predecessorSourceNote ?? null;
+}
+
 // 1) bestehende aktive Rows des Users schließen (revoked_at=now), damit der
 //    Unique-Index (user_id, contraindication_tag_id) WHERE revoked_at IS NULL
 //    nicht mit den neuen Rows kollidiert, 2) pro choice.mode!=='ok' eine Row
@@ -108,6 +124,11 @@ export async function confirmInjuryConstraints(
     if (!session) throw new Error('No auth session');
     const userId = session.user.id;
     const now = new Date().toISOString();
+
+    // Vorgänger-Rows VOR dem Revoke lesen — danach sind sie per revoked_at
+    // nicht mehr "aktiv" und über fetchActiveConstraints nicht mehr auffindbar.
+    const predecessors = await fetchActiveConstraints();
+    const predecessorSourceNoteByTag = new Map(predecessors.map((c) => [c.tag_slug, c.source_note]));
 
     const { error: revokeError } = await supabase
         .from('user_injury_constraints')
@@ -128,7 +149,7 @@ export async function confirmInjuryConstraints(
                 contraindication_tag_id: tagId,
                 mode: c.mode as 'block' | 'light_only',
                 acute: c.acute,
-                source_note: sourceNote,
+                source_note: resolveSourceNote(sourceNote, predecessorSourceNoteByTag.get(c.tag_slug)),
                 origin,
                 confirmed_at: now,
             };

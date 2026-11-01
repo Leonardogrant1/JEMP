@@ -97,16 +97,34 @@ export default function NewPlanSheet() {
                     useToastStore.getState().show(errorMessage);
                 });
             });
-            if (!(await ensureInjuryGate(router, trigger))) return;
+            let gatePassed: boolean;
+            try {
+                gatePassed = await ensureInjuryGate(router, trigger);
+            } catch {
+                // Fail-closed: ensureInjuryGate wirft statt stillschweigend
+                // "kein Gate nötig" anzunehmen — ohne diesen Catch wäre das
+                // eine unhandled rejection ohne jede Rückmeldung an den User.
+                useToastStore.getState().show(errorMessage);
+                return;
+            }
+            if (!gatePassed) return;
             trigger();
         });
     }
 
     function handleEditSettings() {
+        const errorMessage = t('ui.plan_generate_start_error');
         closeThen(async () => {
             router.back();
             const trigger = () => openWithPlacement('generate_plan', () => router.push('/generate-plan'));
-            if (!(await ensureInjuryGate(router, trigger))) return;
+            let gatePassed: boolean;
+            try {
+                gatePassed = await ensureInjuryGate(router, trigger);
+            } catch {
+                useToastStore.getState().show(errorMessage);
+                return;
+            }
+            if (!gatePassed) return;
             trigger();
         });
     }

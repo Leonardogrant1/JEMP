@@ -180,7 +180,17 @@ export function PlanGenerationScreen({ preview = false }: { preview?: boolean } 
                                         useToastStore.getState().show(t('ui.plan_generate_start_error'));
                                     });
                                 };
-                                if (!(await ensureInjuryGate(router, trigger))) return;
+                                let gatePassed: boolean;
+                                try {
+                                    gatePassed = await ensureInjuryGate(router, trigger);
+                                } catch {
+                                    // Fail-closed: ensureInjuryGate wirft statt stillschweigend
+                                    // "kein Gate nötig" anzunehmen — ohne diesen Catch wäre das
+                                    // eine unhandled rejection ohne jede Rückmeldung an den User.
+                                    useToastStore.getState().show(t('ui.plan_generate_start_error'));
+                                    return;
+                                }
+                                if (!gatePassed) return;
                                 trigger();
                             }}
                             style={styles.pgRetryBtn}

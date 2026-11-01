@@ -80,7 +80,10 @@ export default function InjuryGateScreen() {
     // unausgeführt, der User landet dort, wo er war, und kann es jederzeit
     // erneut versuchen. Kein Sackgassen-Risiko, nur ein verschobener Versuch.
     function handleDismiss() {
-        closeThen(() => router.back());
+        closeThen(() => {
+            router.back();
+            useInjuryGateStore.getState().clear();
+        });
     }
 
     function finish(constraintCount: number) {

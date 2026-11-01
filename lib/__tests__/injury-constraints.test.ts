@@ -5,7 +5,7 @@
 // reine Funktionstest den Client nicht tatsächlich instanziiert.
 jest.mock('@/services/supabase/client', () => ({ supabase: {} }));
 
-import { needsInjuryGate } from '@/lib/injury-constraints';
+import { needsInjuryGate, resolveSourceNote } from '@/lib/injury-constraints';
 
 describe('needsInjuryGate (Plan B Intake, Spec §5 Fälle a/b/c)', () => {
     test('notes + pending → extract', () => {
@@ -57,5 +57,24 @@ describe('needsInjuryGate (Plan B Intake, Spec §5 Fälle a/b/c)', () => {
             false,
             now,
         )).toBeNull();
+    });
+});
+
+describe('resolveSourceNote (Task 5 Fix Round 1, Finding 2 — Recheck darf Provenienz nicht löschen)', () => {
+    test('incoming null + Vorgänger-Row vorhanden → übernimmt Vorgänger-source_note', () => {
+        expect(resolveSourceNote(null, 'Knie seit letzter Saison nicht ganz dicht')).toBe('Knie seit letzter Saison nicht ganz dicht');
+    });
+
+    test('incoming non-null → überschreibt, Vorgänger wird ignoriert', () => {
+        expect(resolveSourceNote('Neue Notiz', 'Alte Notiz')).toBe('Neue Notiz');
+    });
+
+    test('neuer Tag ohne Vorgänger-Row (undefined) → incoming-Wert', () => {
+        expect(resolveSourceNote(null, undefined)).toBeNull();
+        expect(resolveSourceNote('Neue Notiz', undefined)).toBe('Neue Notiz');
+    });
+
+    test('incoming null + Vorgänger-Row mit source_note null → bleibt null', () => {
+        expect(resolveSourceNote(null, null)).toBeNull();
     });
 });

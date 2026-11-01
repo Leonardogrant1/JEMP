@@ -200,7 +200,17 @@ export default function PlanScreen() {
     // und ruft den hier übergebenen Trigger erst nach erfolgreichem Abschluss.
     async function openPlanWizard() {
         const trigger = () => openWithPlacement('generate_plan', () => router.push('/generate-plan'));
-        if (!(await ensureInjuryGate(router, trigger))) return;
+        let gatePassed: boolean;
+        try {
+            gatePassed = await ensureInjuryGate(router, trigger);
+        } catch {
+            // Fail-closed: ensureInjuryGate wirft statt stillschweigend
+            // "kein Gate nötig" anzunehmen — ohne diesen Catch wäre das eine
+            // unhandled rejection ohne jede Rückmeldung an den User.
+            useToastStore.getState().show(t('ui.plan_generate_start_error'));
+            return;
+        }
+        if (!gatePassed) return;
         trigger();
     }
 
@@ -222,7 +232,14 @@ export default function PlanScreen() {
                     useToastStore.getState().show(t('ui.plan_generate_start_error'));
                 });
             });
-            if (!(await ensureInjuryGate(router, trigger))) return;
+            let gatePassed: boolean;
+            try {
+                gatePassed = await ensureInjuryGate(router, trigger);
+            } catch {
+                useToastStore.getState().show(t('ui.plan_generate_start_error'));
+                return;
+            }
+            if (!gatePassed) return;
             trigger();
         } finally {
             decidingRef.current = false;

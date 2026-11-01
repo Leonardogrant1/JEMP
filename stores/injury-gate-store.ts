@@ -49,7 +49,8 @@ export async function ensureInjuryGate(
     router: ImperativeRouter,
     onPassed: () => void,
 ): Promise<boolean> {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError; // fail-closed — wie der Profil-Fetch unten nie stillschweigend als "kein Gate" lesen
     if (!session) return true; // kein User (sollte vom Auth-Guard schon abgefangen sein)
 
     const { data: profile, error: profileError } = await supabase
