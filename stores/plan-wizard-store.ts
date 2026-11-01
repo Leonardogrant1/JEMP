@@ -487,7 +487,12 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
             // Normalize for comparison: treat null/undefined/empty as same
             const previousNormalized = (previousScheduleNotes ?? '').trim();
             const newNormalized = (newScheduleNotes ?? '').trim();
-            const notesChanged = previousNormalized !== newNormalized;
+            // If fetch failed, treat as changed (fail-safe); otherwise compare normalized values
+            const notesChanged = currentProfileRes.error ? true : previousNormalized !== newNormalized;
+
+            if (currentProfileRes.error) {
+                console.warn('[plan-wizard] Failed to fetch previous schedule_notes:', currentProfileRes.error);
+            }
 
             await supabase.from('user_profiles')
                 .update({
