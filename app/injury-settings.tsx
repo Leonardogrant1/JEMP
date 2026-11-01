@@ -59,6 +59,12 @@ export default function InjurySettingsScreen() {
     const [activeConstraints, setActiveConstraints] = useState<InjuryConstraint[]>([]);
     const [allTags, setAllTags] = useState<Tag[]>([]);
     const [savingSlug, setSavingSlug] = useState<string | null>(null);
+    // Review Fix 1: ein neuer Tag darf NIE direkt mit einem Default-Modus
+    // geschrieben werden — ein versehentlicher Tap im Picker würde sonst
+    // sofort einen (teils irreversiblen) Strip auf 'block' auslösen, bevor
+    // der User überhaupt einen Modus gewählt hat. Tap wählt den Tag nur lokal
+    // aus; erst der explizite Modus-Chip-Tap unten schreibt.
+    const [pendingNewTag, setPendingNewTag] = useState<string | null>(null);
 
     useEffect(() => {
         Promise.all([fetchActiveConstraints(), fetchContraindicationTags()])
@@ -170,6 +176,13 @@ export default function InjurySettingsScreen() {
         }
     }
 
+    // Committed erst, wenn der User im ausgeklappten Modus-Chip-Row explizit
+    // 'block' oder 'light_only' gewählt hat (Review Fix 1).
+    async function commitNewTag(tagSlug: string, mode: 'block' | 'light_only') {
+        setPendingNewTag(null);
+        await applyChange(tagSlug, mode);
+    }
+
     function tagLabel(slug: string): string {
         return t(`injuries.tag_${slug}` as any) as unknown as string;
     }
@@ -259,13 +272,42 @@ export default function InjurySettingsScreen() {
                                                         <SelectableChip
                                                             key={tag.id}
                                                             label={tagLabel(tag.slug)}
-                                                            selected={false}
+                                                            selected={pendingNewTag === tag.slug}
                                                             color={GradientMid}
                                                             size="sm"
-                                                            onPress={() => applyChange(tag.slug, 'block')}
+                                                            onPress={() => setPendingNewTag((prev) => (prev === tag.slug ? null : tag.slug))}
                                                         />
                                                     ))}
                                                 </ScrollView>
+
+                                                {pendingNewTag && (
+                                                    <View style={[styles.card, { backgroundColor: theme.background }]}>
+                                                        <View style={styles.cardHeader}>
+                                                            <JempText type="body-l" style={styles.tagLabel}>
+                                                                {tagLabel(pendingNewTag)}
+                                                            </JempText>
+                                                            <TouchableOpacity onPress={() => setPendingNewTag(null)} hitSlop={8}>
+                                                                <Ionicons name="close" size={18} color={theme.textMuted} />
+                                                            </TouchableOpacity>
+                                                        </View>
+                                                        <View style={styles.chipRow}>
+                                                            <SelectableChip
+                                                                label={t('injuries.choice_block')}
+                                                                selected={false}
+                                                                color="#ef4444"
+                                                                size="sm"
+                                                                onPress={() => commitNewTag(pendingNewTag, 'block')}
+                                                            />
+                                                            <SelectableChip
+                                                                label={t('injuries.choice_light')}
+                                                                selected={false}
+                                                                color="#f59e0b"
+                                                                size="sm"
+                                                                onPress={() => commitNewTag(pendingNewTag, 'light_only')}
+                                                            />
+                                                        </View>
+                                                    </View>
+                                                )}
                                             </View>
                                         )}
                                     </View>
