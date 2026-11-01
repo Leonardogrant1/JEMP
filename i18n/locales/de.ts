@@ -827,6 +827,7 @@ const de: Record<TranslationKeys, string> = {
     'injuries.badge_label': 'An deine Einschränkungen angepasst',
     'injuries.detail_title': 'Anpassungen in deinem Plan',
     'injuries.detail_constraints_title': 'Aktive Einschränkungen',
+    'injuries.detail_acute_note': 'Hinweis: Du hast eine akute Verletzung angegeben — kläre die Belastung mit Arzt oder Physio.',
     'injuries.conflict_sprints': 'Deine Sprint-Priorität kollidiert aktuell mit deiner Verletzungsangabe — die Einheit enthält vorerst Technik/CoD.',
     'injuries.conflict_generic': 'Deine {{pillar}}-Priorität kollidiert aktuell mit deiner Verletzungsangabe — die Auswahl ist vorerst eingeschränkt.',
     'injuries.conflict_adjust_button': 'Prioritäten anpassen',

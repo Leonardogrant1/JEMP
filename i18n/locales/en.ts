@@ -825,6 +825,7 @@ const en = {
     'injuries.badge_label': 'Adjusted to your constraints',
     'injuries.detail_title': 'Adjustments in your plan',
     'injuries.detail_constraints_title': 'Active constraints',
+    'injuries.detail_acute_note': 'Note: You\'ve reported an acute injury — please clear your training load with a doctor or physio.',
     'injuries.conflict_sprints': 'Your sprint priority currently conflicts with your injury constraints — for now the session focuses on technique/change-of-direction work instead.',
     'injuries.conflict_generic': 'Your {{pillar}} priority currently conflicts with your injury constraints — the selection is limited for now.',
     'injuries.conflict_adjust_button': 'Adjust priorities',

@@ -9,6 +9,7 @@
 // ist die reine, testbare Logik: Prompt/Schema-Bau + Nachvalidierung.
 import type OpenAI from 'openai'
 
+export type ExtractionLanguage = 'de' | 'en'
 export type ExtractionProposal = { tag_slug: string; mode: 'block' | 'light_only'; acute: boolean; reason: string }
 export type ExtractionResult = {
   constraints: ExtractionProposal[]
@@ -29,8 +30,10 @@ function emptyResult(): ExtractionResult {
 // Tag-Erweiterung (grip_pulling_loaded, Migration 20261101130000) fließt nur
 // über die live gefetchte validSlugs-Liste ein, ohne eigenes Few-Shot, um die
 // "nur diese Section lesen"-Vorgabe nicht zu verletzen.
-function buildSystemPrompt(validSlugs: string[]): string {
+function buildSystemPrompt(validSlugs: string[], language: ExtractionLanguage): string {
   return `Du bist ein medizinisch vorsichtiger Assistent für eine Trainings-App. Nutzer:innen beschreiben in Freitext (Deutsch ODER Englisch) Verletzungen, Einschränkungen, manchmal auch Termine/Scheduling. Übersetze das in strukturierte Kontraindikations-Tags.
+
+Ausgabesprache für ALLE Freitext-Felder (reason, unmapped, scheduling, noise): ${language === 'de' ? 'Deutsch' : 'Englisch'} — unabhängig davon, in welcher Sprache die Notiz geschrieben ist. Die Felder werden dem User in der App angezeigt.
 
 Gültige Tags (verwende AUSSCHLIESSLICH diese Slugs, erfinde keine neuen):
 ${validSlugs.join(', ')}
@@ -56,7 +59,7 @@ Regeln:
 1. Ordne jedem erkannten Verletzungsinhalt so viele passende Tags zu wie nötig (ein Befund kann mehrere Tags auslösen, z. B. ein Handgelenksbruch kann wrist_extension_loaded UND bei Unterarmbeteiligung auch den Griff-/Zug-Tag auslösen, falls er in der gültigen Liste steht).
 2. mode: 'block', wenn die Bewegung komplett ausgeschlossen werden muss; 'light_only', wenn nur schwere/explosive Ausführungen riskant sind, leichte Varianten aber vertretbar bleiben.
 3. acute: true bei akuter Verletzung, laufender Reha oder sehr kürzlichem Vorfall; false bei chronisch/stabil/lange zurückliegend. Im Zweifel konservativ: akute/Reha-Formulierungen ("akut", "gerade operiert", "Reha läuft", "frisch") → acute:true UND mode:'block'.
-4. reason: kurze eigene Zusammenfassung auf Deutsch, kein Zitat der ganzen Notiz.
+4. reason: kurze eigene Zusammenfassung in der Ausgabesprache, kein Zitat der ganzen Notiz.
 5. unmapped: Verletzungs-/Einschränkungsinhalte, die klar erkannt wurden, aber zu KEINEM gültigen Tag passen — als kurze Stichworte.
 6. scheduling: Inhalte, die sich auf Termine/Verfügbarkeit/Wochentage/andere Sporttermine beziehen statt auf eine Verletzung — NICHT in Tags übersetzen, nur als Stichwort spiegeln.
 7. noise: alles andere (Smalltalk, unklare Aussagen ohne Verletzungs- oder Terminbezug).
@@ -107,6 +110,9 @@ export async function extractInjuryConstraints(
   validSlugs: string[],
   openai: OpenAI,
   signal?: AbortSignal,
+  // Sprache der App-UI — bestimmt die Sprache der angezeigten Freitext-Felder
+  // (reason/unmapped/scheduling), NICHT die akzeptierte Notiz-Sprache.
+  language: ExtractionLanguage = 'en',
 ): Promise<ExtractionResult> {
   const trimmed = note.trim()
   if (!trimmed) return emptyResult()
@@ -115,7 +121,7 @@ export async function extractInjuryConstraints(
     {
       model: MODEL,
       messages: [
-        { role: 'system', content: buildSystemPrompt(validSlugs) },
+        { role: 'system', content: buildSystemPrompt(validSlugs, language) },
         { role: 'user', content: trimmed },
       ],
       response_format: buildResponseFormat(validSlugs),

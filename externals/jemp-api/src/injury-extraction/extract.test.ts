@@ -20,21 +20,28 @@ const VALID_SLUGS = [
 // Check bei leerer Notiz) und zeichnet die options (2. Argument) auf — damit
 // lässt sich prüfen, dass ein übergebenes AbortSignal auch tatsächlich an den
 // OpenAI-Call durchgereicht wird (Review Fix 2).
-function mockOpenAI(content: string): { client: OpenAI; calls: number[]; optionsSeen: unknown[] } {
+function mockOpenAI(content: string): { client: OpenAI; calls: number[]; optionsSeen: unknown[]; paramsSeen: unknown[] } {
   const calls: number[] = []
   const optionsSeen: unknown[] = []
+  const paramsSeen: unknown[] = []
   const client = {
     chat: {
       completions: {
-        create: async (_params: unknown, options?: unknown) => {
+        create: async (params: unknown, options?: unknown) => {
           calls.push(1)
           optionsSeen.push(options)
+          paramsSeen.push(params)
           return { choices: [{ message: { content } }] }
         },
       },
     },
   } as unknown as OpenAI
-  return { client, calls, optionsSeen }
+  return { client, calls, optionsSeen, paramsSeen }
+}
+
+function systemPromptOf(params: unknown): string {
+  const messages = (params as { messages: { role: string; content: string }[] }).messages
+  return messages.find((m) => m.role === 'system')?.content ?? ''
 }
 
 test('maps forearm strain note to grip/wrist tags', async () => {
@@ -112,4 +119,16 @@ test('passes the given AbortSignal through to the OpenAI call (Review Fix 2)', a
 
   assert.equal(optionsSeen.length, 1)
   assert.equal((optionsSeen[0] as { signal?: AbortSignal }).signal, controller.signal)
+})
+
+test('system prompt demands English output by default and German when language=de', async () => {
+  const modelResponse = JSON.stringify({ constraints: [], unmapped: [], scheduling: [], noise: [] })
+
+  const defaultCase = mockOpenAI(modelResponse)
+  await extractInjuryConstraints('wrist pain', VALID_SLUGS, defaultCase.client)
+  assert.match(systemPromptOf(defaultCase.paramsSeen[0]), /Ausgabesprache für ALLE Freitext-Felder.*Englisch/)
+
+  const germanCase = mockOpenAI(modelResponse)
+  await extractInjuryConstraints('Handgelenk schmerzt', VALID_SLUGS, germanCase.client, undefined, 'de')
+  assert.match(systemPromptOf(germanCase.paramsSeen[0]), /Ausgabesprache für ALLE Freitext-Felder.*Deutsch/)
 })

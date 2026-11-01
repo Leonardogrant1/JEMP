@@ -27,6 +27,9 @@ export async function injuryExtractionHandler(req: Request, res: Response): Prom
 
   const note = (req.body as { note?: unknown } | undefined)?.note
   if (typeof note !== 'string') { res.status(400).json({ error: 'note must be a string' }); return }
+  // UI-Sprache der App für die angezeigten Freitext-Felder; alles außer 'de'
+  // (auch fehlend — ältere App-Versionen senden das Feld nicht) → 'en'.
+  const language = (req.body as { language?: unknown }).language === 'de' ? 'de' : 'en'
 
   try {
     const tagsRes = await supabase.from('contraindication_tags').select('slug')
@@ -40,7 +43,7 @@ export async function injuryExtractionHandler(req: Request, res: Response): Prom
     // lassen (Cost-Leak). Kein separater Race-Wrapper mehr nötig: der
     // abgebrochene Call lehnt die Promise selbst ab.
     const signal = AbortSignal.timeout(EXTRACTION_TIMEOUT_MS)
-    const result = await extractInjuryConstraints(note, validSlugs, openai, signal)
+    const result = await extractInjuryConstraints(note, validSlugs, openai, signal, language)
 
     res.json(result)
   } catch (err: unknown) {

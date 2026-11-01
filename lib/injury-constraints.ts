@@ -9,6 +9,7 @@
 // stillschweigend geschluckt (kein `?? []`-Fallback bei error), sondern
 // geworfen — ein verschluckter Fehler sähe hier wie "keine Constraints" aus,
 // was die Übungsauswahl unbemerkt falsch füttern würde.
+import i18n from '@/i18n';
 import { supabase } from '@/services/supabase/client';
 
 export type ExtractionProposal = {
@@ -82,9 +83,22 @@ export async function fetchActiveConstraints(): Promise<InjuryConstraint[]> {
     });
 }
 
+// Memo des letzten ERFOLGREICHEN Extraktion-Ergebnisses: Zurück/Vor-Navigation
+// remountet Confirm-Step bzw. Gate und würde sonst für dieselbe Notiz erneut
+// den LLM-Call bezahlen. Key = Sprache + getrimmte Notiz — ändert der User den
+// Text (oder die UI-Sprache), greift der Cache nicht mehr. Fehler werden nie
+// gecacht (Retry muss echt erneut anfragen).
+let extractionMemo: { key: string; result: ExtractionResult } | null = null;
+
 // POST /api/injury-extraction — Muster aus lib/fetch-swap-alternatives.ts:15-31
 // (Session-Token, EXPO_PUBLIC_BACKEND_URL, Bearer-Header), + 15s-Client-Timeout.
 export async function requestExtraction(note: string): Promise<ExtractionResult> {
+    // language: UI-Sprache für die angezeigten Freitext-Felder der
+    // Extraktion (reason/unmapped/scheduling) — Server-Fallback ist 'en'.
+    const language = i18n.language === 'de' ? 'de' : 'en';
+    const memoKey = `${language}:${note.trim()}`;
+    if (extractionMemo?.key === memoKey) return extractionMemo.result;
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('No auth session');
 
@@ -95,14 +109,16 @@ export async function requestExtraction(note: string): Promise<ExtractionResult>
             Authorization: `Bearer ${session.access_token}`,
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ note }),
+        body: JSON.stringify({ note, language }),
         signal: AbortSignal.timeout(EXTRACTION_TIMEOUT_MS),
     });
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.error ?? `HTTP ${res.status}`);
     }
-    return res.json();
+    const result: ExtractionResult = await res.json();
+    extractionMemo = { key: memoKey, result };
+    return result;
 }
 
 // Review Fix 1 (Task 5, Finding 2): confirmInjuryConstraints überschreibt

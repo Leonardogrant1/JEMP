@@ -18,6 +18,7 @@ import {
     ScrollView,
     StyleSheet,
     TouchableOpacity,
+    useWindowDimensions,
     View,
 } from 'react-native';
 import Reanimated, {
@@ -44,9 +45,10 @@ const PILLAR_SPECIFIC_CONFLICT_KEYS: Record<string, string> = {
 
 /**
  * Detail-Sheet hinter dem InjuryAdjustedBadge (Task 8): zeigt (1) die
- * aktuell aktiven Constraints read-only, (2) `workout_plans.description`
- * (rendert damit endlich die Arzt/Akut-Note aus Task 6), (3) pro
- * `injury_conflicts`-Eintrag einen Prio-Konflikt-Hinweis.
+ * aktuell aktiven Constraints read-only, (2) die Arzt/Akut-Note (Task 6),
+ * abgeleitet aus den aktiven Constraints — NICHT aus
+ * `workout_plans.description`, das der Worker nur auf Deutsch schreibt,
+ * (3) pro `injury_conflicts`-Eintrag einen Prio-Konflikt-Hinweis.
  *
  * `injury_conflicts` ist NULL, wenn der Plan keine Konflikte hat (Task 7
  * speichert bewusst kein leeres Array) — Review-blockierender Fehler wäre
@@ -58,6 +60,7 @@ export default function InjuryPlanInfoScreen() {
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const router = useRouter();
+    const { height: windowHeight } = useWindowDimensions();
     const { plan } = usePlan();
     const { openWithPlacement } = useSuperwallFunctions();
 
@@ -139,7 +142,7 @@ export default function InjuryPlanInfoScreen() {
                 <Pressable onPress={(e) => e.stopPropagation()}>
                     <Reanimated.View
                         onLayout={handleSheetLayout}
-                        style={[styles.sheet, { backgroundColor: theme.surface }, sheetStyle]}
+                        style={[styles.sheet, { backgroundColor: theme.surface, maxHeight: windowHeight * 0.85 }, sheetStyle]}
                     >
                         <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
                             <View style={[styles.content, { paddingBottom: insets.bottom + 12 }]}>
@@ -187,14 +190,16 @@ export default function InjuryPlanInfoScreen() {
                                             )}
                                         </View>
 
-                                        {/* 2) workout_plans.description — rendert die Arzt/Akut-Note (Task 6) */}
-                                        {plan?.description ? (
+                                        {/* 2) Arzt/Akut-Note (Task 6) — lokalisiert aus i18n statt aus
+                                            workout_plans.description: das DB-Feld schreibt der Worker
+                                            hartkodiert auf Deutsch (prepare-v2 ACUTE_INJURY_NOTE) */}
+                                        {activeConstraints.some((c) => c.acute) && (
                                             <View style={styles.section}>
                                                 <JempText type="body-sm" color={theme.textMuted}>
-                                                    {plan.description}
+                                                    {t('injuries.detail_acute_note')}
                                                 </JempText>
                                             </View>
-                                        ) : null}
+                                        )}
 
                                         {/* 3) Prio-Konflikte — pro Säule ein Hinweis + gemeinsamer CTA */}
                                         {conflicts.length > 0 && (
@@ -242,7 +247,8 @@ const styles = StyleSheet.create({
     sheet: {
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        maxHeight: '90%',
+        // maxHeight kommt inline als Zahl (windowHeight * 0.85) — Muster wie
+        // swap-exercise/session-reschedule, Prozent-Werte löst Yoga hier nicht auf
     },
     content: {
         paddingTop: 12,
