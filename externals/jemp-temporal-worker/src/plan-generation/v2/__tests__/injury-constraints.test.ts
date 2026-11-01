@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   buildInjuryExclusions,
   applyInjuryExclusions,
+  activeInjuryConstraints,
   type InjuryConstraintInput,
 } from '../injury-constraints'
 
@@ -80,6 +81,47 @@ describe('buildInjuryExclusions', () => {
       tagsByExercise,
     )
     expect(result.acute).toBe(false)
+  })
+})
+
+describe('activeInjuryConstraints', () => {
+  const row = (over: Partial<{
+    mode: 'block' | 'light_only'
+    acute: boolean
+    revoked_at: string | null
+    confirmed_at: string | null
+    contraindication_tags: { slug: string } | null
+  }> = {}) => ({
+    mode: 'block' as const,
+    acute: false,
+    revoked_at: null,
+    confirmed_at: '2026-10-01T00:00:00Z',
+    contraindication_tags: { slug: 'shoulder_impingement' },
+    ...over,
+  })
+
+  it('revoked_at gesetzt → Constraint wirkt nicht', () => {
+    const result = activeInjuryConstraints([
+      row({ revoked_at: '2026-10-15T00:00:00Z' }),
+    ])
+    expect(result).toEqual([])
+  })
+
+  it('confirmed_at null → wirkt nicht', () => {
+    const result = activeInjuryConstraints([row({ confirmed_at: null })])
+    expect(result).toEqual([])
+  })
+
+  it('contraindication_tags null → Row fällt raus', () => {
+    const result = activeInjuryConstraints([row({ contraindication_tags: null })])
+    expect(result).toEqual([])
+  })
+
+  it('aktive Rows werden auf tag_slug/mode/acute gemappt', () => {
+    const result = activeInjuryConstraints([
+      row({ mode: 'light_only', acute: true, contraindication_tags: { slug: 'knee_pain' } }),
+    ])
+    expect(result).toEqual([{ tag_slug: 'knee_pain', mode: 'light_only', acute: true }])
   })
 })
 

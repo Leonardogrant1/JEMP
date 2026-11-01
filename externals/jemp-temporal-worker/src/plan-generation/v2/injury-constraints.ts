@@ -13,6 +13,31 @@ export type InjuryExclusions = {
   acute: boolean // mind. ein aktiver acute-Constraint
 }
 
+// DB-Row-Form (Supabase-Embedded-Select, Task 4): mappt auf InjuryConstraintInput,
+// nur aktive Constraints (nicht revoked, bereits confirmed, Tag vorhanden).
+export type InjuryConstraintRow = {
+  mode: 'block' | 'light_only'
+  acute: boolean
+  revoked_at: string | null
+  confirmed_at: string | null
+  contraindication_tags: { slug: string } | null
+}
+
+export function activeInjuryConstraints(rows: InjuryConstraintRow[]): InjuryConstraintInput[] {
+  const result: InjuryConstraintInput[] = []
+  for (const row of rows) {
+    if (row.revoked_at !== null) continue
+    if (row.confirmed_at === null) continue
+    if (row.contraindication_tags === null) continue
+    result.push({
+      tag_slug: row.contraindication_tags.slug,
+      mode: row.mode,
+      acute: row.acute,
+    })
+  }
+  return result
+}
+
 export function buildInjuryExclusions(
   constraints: InjuryConstraintInput[],
   tagsByExercise: Map<string, Set<string>>,

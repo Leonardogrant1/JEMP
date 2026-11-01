@@ -9,6 +9,7 @@ import type { PrepareResult, SessionBuildInput } from '../generate-plan'
 import type { PlanGenerationInput } from '../types'
 import { buildBlockPools, isCnsMicroDoseExercise, patternSlugWindow, pickPlanePin, preDropEmptyPools, rotatedPoolWindow, rotateSlugs, strengthPatternPools, type V2Exercise } from './pool'
 import { makePlaneCounter, pickPlaneEmphasis, resolvePlaneWeights, toPatternFamily, type PatternFamily, type PlaneWeights } from './plane-emphasis'
+import type { InjuryConstraintInput } from './injury-constraints'
 
 /** Füller-Fenster-Offset (QA 11.10., nachgeschärft 18.10.): planCount allein
  *  ließ alle Sessions einer Woche dasselbe Fenster sehen. Der erste Fix
@@ -80,6 +81,8 @@ export type PlanGenerationInputV2 = PlanGenerationInput & {
   sprints_covered_by_club: boolean
   sprint_distance: 'under_20m' | '20_40m' | 'over_40m' | null
   day_minutes?: Array<{ day_of_week: number; minutes: number }>
+  injury_constraints?: InjuryConstraintInput[]
+  injury_extraction_status?: 'pending' | 'confirmed' | 'failed'
 }
 
 /** Validates the preferred_day_durations JSONB from the profile — malformed
@@ -110,13 +113,23 @@ export async function prepareGenerationV2(
   const notes: string[] = []
 
   // ── 1. Exercises incl. v2 metadata, filtered for the user ────────────────
-  const [{ data: exerciseRows }, { data: exerciseEnvRows }, { data: exerciseEquipRows }, { data: exerciseBlockRows }, { data: environmentRows }] = await Promise.all([
+  const [{ data: exerciseRows }, { data: exerciseEnvRows }, { data: exerciseEquipRows }, { data: exerciseBlockRows }, { data: environmentRows }, { data: exerciseContraindicationRows }] = await Promise.all([
     supabase.from('exercises').select('id, slug, name, body_region, dominant_region, strength_pattern, plyo_type, core_type, sprint_type, covered_patterns, laterality, min_level, max_level, intensity_score, measurement_type, exercise_type, movement_type, is_explosive, is_sport_specific, categories(id, slug)'),
     supabase.from('exercise_environments').select('exercise_id, environment_id'),
     supabase.from('exercise_equipments').select('exercise_id, equipment_id'),
     supabase.from('exercise_blocks').select('exercise_id, block_types(slug)'),
     supabase.from('environments').select('id, slug'),
+    supabase.from('exercise_contraindications').select('exercise_id, contraindication_tags(slug)'),
   ])
+  // Verletzungs-Constraints (Task 4): Tags je Übung, für buildInjuryExclusions
+  // im Aufrufer (Task 5+). null-Tag (Join-Lücke) fällt defensiv raus.
+  const tagsByExercise = new Map<string, Set<string>>()
+  for (const r of exerciseContraindicationRows ?? []) {
+    const slug = (r.contraindication_tags as { slug?: string } | null)?.slug
+    if (!slug) continue
+    if (!tagsByExercise.has(r.exercise_id)) tagsByExercise.set(r.exercise_id, new Set())
+    tagsByExercise.get(r.exercise_id)!.add(slug)
+  }
   // exercise_regions (10.10.): betroffene Regionen inkl. primary/secondary —
   // eigener Call, damit der destrukturierte Promise.all-Block lesbar bleibt.
   const { data: exerciseRegionRows } = await supabase.from('exercise_regions').select('exercise_id, region, role')
