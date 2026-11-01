@@ -113,7 +113,7 @@ export async function prepareGenerationV2(
   const notes: string[] = []
 
   // ── 1. Exercises incl. v2 metadata, filtered for the user ────────────────
-  const [{ data: exerciseRows }, { data: exerciseEnvRows }, { data: exerciseEquipRows }, { data: exerciseBlockRows }, { data: environmentRows }, { data: exerciseContraindicationRows }] = await Promise.all([
+  const [{ data: exerciseRows }, { data: exerciseEnvRows }, { data: exerciseEquipRows }, { data: exerciseBlockRows }, { data: environmentRows }, { data: exerciseContraindicationRows, error: exerciseContraindicationsError }] = await Promise.all([
     supabase.from('exercises').select('id, slug, name, body_region, dominant_region, strength_pattern, plyo_type, core_type, sprint_type, covered_patterns, laterality, min_level, max_level, intensity_score, measurement_type, exercise_type, movement_type, is_explosive, is_sport_specific, categories(id, slug)'),
     supabase.from('exercise_environments').select('exercise_id, environment_id'),
     supabase.from('exercise_equipments').select('exercise_id, equipment_id'),
@@ -121,6 +121,11 @@ export async function prepareGenerationV2(
     supabase.from('environments').select('id, slug'),
     supabase.from('exercise_contraindications').select('exercise_id, contraindication_tags(slug)'),
   ])
+  // Safety-critical: a DB error on exercise_contraindications must not
+  // be indistinguishable from "no contraindications" (fail-open risk).
+  if (exerciseContraindicationsError) {
+    throw new Error(`Failed to load exercise contraindications: ${exerciseContraindicationsError.message}`)
+  }
   // Verletzungs-Constraints (Task 4): Tags je Übung, für buildInjuryExclusions
   // im Aufrufer (Task 5+). null-Tag (Join-Lücke) fällt defensiv raus.
   const tagsByExercise = new Map<string, Set<string>>()

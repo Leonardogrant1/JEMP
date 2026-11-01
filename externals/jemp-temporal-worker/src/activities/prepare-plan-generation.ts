@@ -3,7 +3,7 @@ import { getSupabaseClient } from 'src/utils/supabase'
 import { getOpenAIClient } from 'src/utils/openai'
 import { prepareGeneration, PrepareResult } from 'src/plan-generation/generate-plan'
 import { prepareGenerationV2, shouldUseV2, parseDayDurations } from 'src/plan-generation/v2/prepare-v2'
-import { activeInjuryConstraints } from 'src/plan-generation/v2/injury-constraints'
+import { activeInjuryConstraints, type InjuryConstraintRow } from 'src/plan-generation/v2/injury-constraints'
 import { freezeLegacyCategories, freezeLegacySportCategories } from 'src/plan-generation/legacy-categories'
 import { intensityToPoints, pointsToLoadProfile } from 'src/plan-generation/helpers'
 
@@ -31,10 +31,15 @@ export async function preparePlanGeneration(input: { userId: string }): Promise<
   const equipmentIds = (userEquipRows ?? []).map((e: any) => e.equipment_id) as string[]
 
   // ── Fetch injury constraints ─────────────────────────────────────────────
-  const { data: injuryConstraintRows } = await supabase
+  // Sicherheits-Feature: bei Fetch-Fehler NICHT auf leer defaulten (Fail-Open-
+  // Risiko — ein DB-Fehler darf nie wie "User hat keine Constraints" aussehen).
+  const { data: injuryConstraintRows, error: injuryConstraintsError } = await supabase
     .from('user_injury_constraints')
     .select('mode, acute, revoked_at, confirmed_at, contraindication_tags(slug)')
     .eq('user_id', userId)
+  if (injuryConstraintsError) {
+    throw new Error(`Failed to load injury constraints: ${injuryConstraintsError.message}`)
+  }
 
   // ── Fetch environments ───────────────────────────────────────────────────
   const { data: userEnvRows } = await supabase
@@ -142,7 +147,7 @@ export async function preparePlanGeneration(input: { userId: string }): Promise<
         sprints_covered_by_club: (userProfile as any).sprints_covered_by_club ?? false,
         sprint_distance: (userProfile as any).sprint_distance ?? null,
         day_minutes: parseDayDurations((userProfile as any).preferred_day_durations),
-        injury_constraints: activeInjuryConstraints((injuryConstraintRows ?? []) as any),
+        injury_constraints: activeInjuryConstraints((injuryConstraintRows ?? []) as unknown as InjuryConstraintRow[]),
         injury_extraction_status: (userProfile as any).injury_extraction_status ?? 'pending',
       },
       supabase,
