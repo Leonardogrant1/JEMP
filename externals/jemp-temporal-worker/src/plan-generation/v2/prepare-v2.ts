@@ -105,6 +105,41 @@ const DAY_NAMES: Record<number, string> = {
   1: 'Montag', 2: 'Dienstag', 3: 'Mittwoch', 4: 'Donnerstag', 5: 'Freitag', 6: 'Samstag', 7: 'Sonntag',
 }
 
+/** Verletzungs-Hinweis (Task 6): exakter Wortlaut aus dem Plan — an den
+ *  Wochenplan angehängt, wenn mind. ein aktiver Constraint "acute" ist. */
+export const ACUTE_INJURY_NOTE = 'Hinweis: Du hast eine akute Verletzung angegeben — kläre die Belastung mit Arzt oder Physio.'
+
+export type UserContextInput = Pick<PlanGenerationInputV2, 'sport_slug' | 'load_profile' | 'schedule_notes' | 'injury_extraction_status'>
+
+/** Pure Extraktion aus dem bisherigen Inline-Array (Task 6): bei bestätigter
+ *  Verletzungs-Extraktion (injury_extraction_status === 'confirmed') ersetzt
+ *  eine strukturierte constraints-Zeile die freie user_notes-Zeile — eine
+ *  LLM-lesbare Freitext-Zeile zu akuten Verletzungen wäre genau die Lücke,
+ *  die der Enum-Constrained-Decoding-Schutz (Task 6 Strip-Pass) schließen
+ *  soll. Leere Tag-Listen (beide Modi) lassen die ganze Zeile entfallen.
+ *  Status pending/failed: Status quo (user_notes wie bisher, keine Zeile). */
+export function buildUserContext(
+  input: UserContextInput,
+  constraints: InjuryConstraintInput[],
+): string {
+  const confirmed = input.injury_extraction_status === 'confirmed'
+  const blockTags = confirmed
+    ? [...new Set(constraints.filter((c) => c.mode === 'block').map((c) => c.tag_slug))].sort()
+    : []
+  const lightTags = confirmed
+    ? [...new Set(constraints.filter((c) => c.mode === 'light_only').map((c) => c.tag_slug))].sort()
+    : []
+  const constraintsLine = confirmed && (blockTags.length > 0 || lightTags.length > 0)
+    ? `injury_constraints: block=[${blockTags.join(',')}] light_only=[${lightTags.join(',')}]`
+    : null
+  return [
+    `sport: ${input.sport_slug}`,
+    `load_profile: ${input.load_profile}`,
+    !confirmed && input.schedule_notes ? `user_notes: ${input.schedule_notes}` : null,
+    constraintsLine,
+  ].filter(Boolean).join('\n')
+}
+
 export async function prepareGenerationV2(
   input: PlanGenerationInputV2,
   supabase: SupabaseClient,
@@ -205,6 +240,14 @@ export async function prepareGenerationV2(
   // Rows (Heavy-Ausschluss macht patternSlugWindow/buildBlockPools weiter unten).
   const injuryExclusions = buildInjuryExclusions(input.injury_constraints ?? [], tagsByExercise)
   const allowedRows = filterRowsByInjury(exerciseRows ?? [], injuryExclusions)
+  // T5↔T6-Ruling (Pre-Flight): die Exclusion-Sets tragen IDs, der Worker-
+  // Strip-Pass (Task 6, stripForbiddenExercises) braucht SLUGS — einmalig aus
+  // den rohen Rows abgeleitet, solange sie noch in Scope sind (vor jeder der
+  // vier Pool-Ableitungen), damit auch Rows, die anderswo schon rausfallen,
+  // ihren Slug für die Session-Note liefern.
+  const forbiddenSlugs = [...new Set(
+    (exerciseRows ?? []).filter((r: any) => injuryExclusions.blockedIds.has(r.id)).map((r: any) => r.slug as string),
+  )]
   // Sichtbarkeit (Spec „Risiken"): ein stark reduzierter Pool (>30% der
   // Basis-Rows durch Constraints raus) bekommt dieselbe Note-Behandlung wie
   // die Layout-Notes — der Generator kann trotzdem weiterlaufen (Blocks
@@ -424,6 +467,9 @@ export async function prepareGenerationV2(
       conditioningFinisherPool: finisherPoolSlugs,
       conditioningFinisherFormat: finisherFormat, conditioningFinisherOffset: priorPlans,
       patternReqs,
+      // Verletzungs-Constraints (Task 6): gleiches Threading wie poolMap —
+      // letzte deterministische Instanz im Worker (stripForbiddenExercises).
+      forbiddenSlugs,
       preferredSlugs: [...new Set(dayExercises.filter((e) => e.preferred).map((e) => e.slug))].sort(),
       // Dosierungs-Härtung (11.10.): CNS-Kandidaten, die im Warmup-Pool dieses
       // Tages tatsächlich wählbar sind — leer = Validator-Check entfällt.
@@ -465,14 +511,16 @@ export async function prepareGenerationV2(
   }).join('\n')
   if (notes.length > 0) console.log(`prepareGenerationV2 notes:\n  ${notes.join('\n  ')}`)
 
-  const userContext = [
-    `sport: ${input.sport_slug}`,
-    `load_profile: ${input.load_profile}`,
-    input.schedule_notes ? `user_notes: ${input.schedule_notes}` : null,
-  ].filter(Boolean).join('\n')
+  const userContext = buildUserContext(input, input.injury_constraints ?? [])
+
+  // Akut-Hinweis (Task 6): mind. ein aktiver Constraint ist "acute" — der
+  // User soll das im Plan selbst sehen, nicht nur in der internen Note.
+  const weekPlanDescription = injuryExclusions.acute
+    ? `Dein Wochenplan nach dem neuen Säulen-System. ${ACUTE_INJURY_NOTE}`
+    : 'Dein Wochenplan nach dem neuen Säulen-System.'
 
   return {
-    weekPlan: { name: 'Athletik-Woche', description: 'Dein Wochenplan nach dem neuen Säulen-System.', sessions: [] },
+    weekPlan: { name: 'Athletik-Woche', description: weekPlanDescription, sessions: [] },
     sessionBuildInputs,
     weekPlanSummary,
     userContext,

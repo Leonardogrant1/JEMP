@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findV2Violations, buildV2SessionSchema, attachBlockEmphasis, withMeasurementMarkers, zeroWarmupCooldownRest, fixInvalidLoads } from '../run-session-v2'
+import { findV2Violations, buildV2SessionSchema, attachBlockEmphasis, withMeasurementMarkers, zeroWarmupCooldownRest, fixInvalidLoads, stripForbiddenExercises } from '../run-session-v2'
 
 const session = (blocks: Array<{ block_type: string; slugs: string[] }>): any => ({
   name: 'W', mode_slug: 'full', estimated_duration_minutes: 60, day_of_week: 1,
@@ -391,5 +391,55 @@ describe('fixInvalidLoads: pace/percent/rpe ohne Wert', () => {
     const before = JSON.parse(JSON.stringify(blocks))
     fixInvalidLoads(blocks as any)
     expect(blocks).toEqual(before)
+  })
+})
+
+describe('stripForbiddenExercises (Task 6: deterministischer Strip-Pass — Review Focus 4: das LLM nennt trotz Enum-Constraint einen verbotenen Slug, übersteht alle 3 Retries)', () => {
+  const block = (block_type: string, slugs: string[]) => ({
+    block_type,
+    exercises: slugs.map((exercise_slug) => ({ exercise_slug })),
+  })
+
+  it('entfernt verbotenen Slug und meldet ihn', () => {
+    const blocks = [block('upper_strength', ['bench_press', 'overhead_press'])]
+    const removed = stripForbiddenExercises(blocks as any, new Set(['overhead_press']))
+    expect(removed).toEqual(['overhead_press'])
+    expect(blocks[0].exercises.map((e) => e.exercise_slug)).toEqual(['bench_press'])
+  })
+
+  it('Block wird durch Strip leer → Block wird entfernt, übrige Blöcke unangetastet', () => {
+    const untouched = block('cooldown', ['hip_flexor_stretch'])
+    const blocks = [block('upper_strength', ['overhead_press']), untouched]
+    const removed = stripForbiddenExercises(blocks as any, new Set(['overhead_press']))
+    expect(removed).toEqual(['overhead_press'])
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0]).toBe(untouched)
+  })
+
+  it('ohne Verstöße: blocks identisch (keine Mutation nötig)', () => {
+    const blocks = [block('upper_strength', ['bench_press'])]
+    const exercisesRef = blocks[0].exercises
+    const removed = stripForbiddenExercises(blocks as any, new Set(['overhead_press']))
+    expect(removed).toEqual([])
+    expect(blocks[0].exercises).toBe(exercisesRef)
+  })
+
+  it('leeres forbiddenSlugs-Set: keine Mutation, keine Meldungen', () => {
+    const blocks = [block('upper_strength', ['bench_press', 'overhead_press'])]
+    const exercisesRef = blocks[0].exercises
+    const removed = stripForbiddenExercises(blocks as any, new Set())
+    expect(removed).toEqual([])
+    expect(blocks[0].exercises).toBe(exercisesRef)
+  })
+
+  it('mehrere verbotene Slugs über mehrere Blöcke werden alle gemeldet und entfernt', () => {
+    const blocks = [
+      block('upper_strength', ['bench_press', 'overhead_press']),
+      block('lower_strength', ['back_squat', 'leg_extension']),
+    ]
+    const removed = stripForbiddenExercises(blocks as any, new Set(['overhead_press', 'leg_extension']))
+    expect(removed).toEqual(['overhead_press', 'leg_extension'])
+    expect(blocks[0].exercises.map((e) => e.exercise_slug)).toEqual(['bench_press'])
+    expect(blocks[1].exercises.map((e) => e.exercise_slug)).toEqual(['back_squat'])
   })
 })

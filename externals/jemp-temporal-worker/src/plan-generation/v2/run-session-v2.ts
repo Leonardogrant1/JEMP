@@ -215,6 +215,10 @@ export type V2SessionContext = {
   /** Mess-Typ je wählbarem Slug (QA 11.10.): reps|duration|distance|
    *  reps_or_duration — treibt Prompt-Marker und Validator-Check. */
   measurementBySlug?: Record<string, string>
+  /** Verletzungs-Constraints (Task 6, T5↔T6-Ruling): Slugs mit Modus "block",
+   *  deterministisch aus exerciseRows ∩ blockedIds in prepare-v2 abgeleitet —
+   *  letzte Instanz gegen einen Enum-Bruch im LLM (stripForbiddenExercises). */
+  forbiddenSlugs?: string[]
 }
 
 /**
@@ -376,6 +380,41 @@ export function enforceMeasurementTypes(
   }
 }
 
+/** Strip-Pass gegen Enum-Bruch (Task 6, Review Focus 4): zodResponseFormat
+ *  erzwingt die Pool-Slugs als Enum, aber ein Trunkierungs-/Korrektur-Pfad im
+ *  Provider kann trotzdem einen verbotenen Slug liefern — und der Validator-
+ *  Retry (MAX_ATTEMPTS = 3) nimmt am Ende die letzte Session auch mit offenen
+ *  Violations. Letzte, deterministische Instanz VOR der Finisher-Insertion:
+ *  entfernt jede Übung mit verbotenem Slug; wird ein Block dadurch leer,
+ *  verschwindet der ganze Block (Blöcke verschwinden sonst nie durch
+ *  Constraints — nur hier, weil der Block de facto schon leer "ist").
+ *  Mutiert `blocks` in place (gleiche Konvention wie attachBlockEmphasis &
+ *  Co.) und mutiert NICHTS, wenn forbiddenSlugs leer ist oder nichts trifft —
+ *  kein Review-Grund, downstream-Referenzen zu invalidieren. */
+export function stripForbiddenExercises(
+  blocks: Array<{ block_type: string; exercises: Array<{ exercise_slug: string }> }>,
+  forbiddenSlugs: Set<string>,
+): string[] {
+  const removed: string[] = []
+  if (forbiddenSlugs.size === 0) return removed
+  for (const b of blocks) {
+    for (const e of b.exercises) {
+      if (forbiddenSlugs.has(e.exercise_slug)) removed.push(e.exercise_slug)
+    }
+  }
+  if (removed.length === 0) return removed
+
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    const b = blocks[i]
+    const filtered = b.exercises.filter((e) => !forbiddenSlugs.has(e.exercise_slug))
+    if (filtered.length !== b.exercises.length) {
+      b.exercises.splice(0, b.exercises.length, ...filtered)
+    }
+    if (b.exercises.length === 0) blocks.splice(i, 1)
+  }
+  return removed
+}
+
 export async function runSessionV2(
   input: V2SessionContext & {
     userContext: string
@@ -468,6 +507,15 @@ export async function runSessionV2(
   attachPatternAssignment(blocks, patternReqs)
   enforceMeasurementTypes(blocks, input.measurementBySlug)
   flagAmrapExercises(blocks)
+  // Verletzungs-Constraints (Task 6): letzte deterministische Instanz, VOR
+  // der Finisher-Insertion — ein per Enum-Bruch durchgerutschter verbotener
+  // Slug darf die Session nie erreichen (Review Focus 4).
+  const strippedSlugs = stripForbiddenExercises(blocks, new Set(input.forbiddenSlugs ?? []))
+  if (strippedSlugs.length > 0) {
+    console.warn(`runSessionV2 day ${day.day_of_week}: stripped forbidden slug(s) despite enum constraint + retries: ${strippedSlugs.join(', ')}`)
+    const note = `Hinweis: ${strippedSlugs.join(', ')} wegen deiner Verletzungs-Angabe aus dieser Session entfernt.`
+    ;(lastSession as any).description = [(lastSession as any).description, note].filter(Boolean).join(' ')
+  }
   if (day.carries_conditioning_finisher) {
     const cooldownIdx = blocks.findIndex((b: any) => b.block_type === 'cooldown')
     const insertAt = cooldownIdx === -1 ? blocks.length : cooldownIdx
