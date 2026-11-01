@@ -3,7 +3,7 @@ import { SelectableChip } from '@/components/ui/selectable-chip';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { ConfirmedChoice, ExtractionProposal } from '@/lib/injury-constraints';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
@@ -42,6 +42,22 @@ export function ConstraintChoiceList({ proposals, unmapped, scheduling, allTags,
     });
     // unmapped-Index -> manuell zugeordneter tag_slug
     const [unmappedAssignments, setUnmappedAssignments] = useState<Record<number, string>>({});
+
+    // Der seed-State oben ist, was der User BEREITS sieht (vorausgewählte
+    // Chips, inkl. Akut-"Vermeiden"). Ohne diesen Mount-Effekt kennt der
+    // Parent nur Choices, die aus einem onPress stammen — tippt der User
+    // direkt auf Continue, kommt bei confirmInjuryConstraints eine leere
+    // Liste an und der sichtbare Default (insbesondere der Akut-Schutz)
+    // geht stillschweigend verloren. hasEmittedInitialRef schützt davor,
+    // dass ein doppelter Effect-Run (React-18-Dev-StrictMode/Fast-Refresh)
+    // den Parent zweimal mit demselben Snapshot aufruft.
+    const hasEmittedInitialRef = useRef(false);
+    useEffect(() => {
+        if (hasEmittedInitialRef.current) return;
+        hasEmittedInitialRef.current = true;
+        onChange(Object.values(choices));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     function emit(next: Record<string, ConfirmedChoice>) {
         setChoices(next);

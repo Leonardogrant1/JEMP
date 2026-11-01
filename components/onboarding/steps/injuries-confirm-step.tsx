@@ -30,12 +30,25 @@ type InjuryConfirmState = {
 
 let confirmState: InjuryConfirmState = { choices: [], note: null, extractionFailed: false };
 
+// Epoch-Zähler gegen Stale-Promise-Races: ein Remount (zurück + wieder vor im
+// Onboarding) resettet confirmState, aber eine noch laufende
+// requestExtraction/fetchContraindicationTags-Promise vom VORHERIGEN Mount
+// lebt weiter und würde sonst — nach dem Reset — mit veraltetem Ergebnis in
+// den State des NEUEN Mounts schreiben (insbesondere ein stales .catch, das
+// extractionFailed=true setzt und preContinue dadurch das Bestätigen
+// komplett überspringen lässt). Jeder Mount merkt sich seinen eigenen Epoch
+// und vergleicht ihn vor jedem Schreibzugriff gegen den aktuellen —
+// stimmt er nicht mehr, ist die Promise stale und wird ignoriert.
+let epoch = 0;
+
 export function getInjuryConfirmState(): InjuryConfirmState {
     return confirmState;
 }
 
-function resetInjuryConfirmState(note: string | null) {
+function resetInjuryConfirmState(note: string | null): number {
+    epoch += 1;
     confirmState = { choices: [], note, extractionFailed: false };
+    return epoch;
 }
 
 /** Confirm-Screen nach InjuriesStep: Extraktion anstoßen, Vorschläge bestätigen lassen. */
@@ -52,7 +65,7 @@ export function InjuriesConfirmStep() {
 
     useEffect(() => {
         const notes = useOnboardingStore.getState().schedule_notes;
-        resetInjuryConfirmState(notes ?? null);
+        const myEpoch = resetInjuryConfirmState(notes ?? null);
 
         if (!notes || !notes.trim()) {
             // Defensiv — app/onboarding.tsx überspringt den Step bereits bei
@@ -65,6 +78,7 @@ export function InjuriesConfirmStep() {
         trackerManager.track('injury_extraction_started', {});
         Promise.all([requestExtraction(notes), fetchContraindicationTags()])
             .then(([extraction, allTags]) => {
+                if (myEpoch !== epoch) return; // stale: ein neuerer Mount hat confirmState bereits resettet
                 setResult(extraction);
                 setTags(allTags);
                 trackerManager.track('injury_extraction_completed', {
@@ -74,6 +88,7 @@ export function InjuriesConfirmStep() {
                 setCanContinue(true);
             })
             .catch((err) => {
+                if (myEpoch !== epoch) return; // stale — siehe oben
                 devError('InjuriesConfirmStep: extraction failed', err);
                 confirmState.extractionFailed = true;
                 setExtractionFailed(true);
@@ -87,7 +102,10 @@ export function InjuriesConfirmStep() {
                 // gescheiterter Extraktion nutzbar
                 setCanContinue(true);
             })
-            .finally(() => setLoading(false));
+            .finally(() => {
+                if (myEpoch !== epoch) return; // stale — siehe oben
+                setLoading(false);
+            });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
