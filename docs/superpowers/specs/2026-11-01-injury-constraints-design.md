@@ -207,6 +207,21 @@ fire-and-forget POST an jemp-api).
   entfernt; leert sich ein Block, greift die bestehende Drop-Maschinerie) und
   bietet zusätzlich an, den Plan neu zu generieren. Vergangene/abgeschlossene
   Sessions bleiben unverändert. Der Swap-Pool filtert ab sofort.
+- **Sichtbarkeit im Plan (User-Entscheidung, 01.11., aus den Testfällen):**
+  Constraints dürfen nie stillschweigend wirken — sonst fragt sich der User,
+  warum Übungen fehlen. Zwei Anforderungen:
+  - **Anpassungs-Hinweis:** Sobald aktive Constraints die Übungsauswahl
+    beeinflusst haben, zeigt der Plan das sichtbar an (z. B. Badge/Hinweis am
+    Plan „An deine Einschränkungen angepasst" + pro betroffener Session ein
+    kurzer Hinweis). Datengrundlage existiert bereits (Exclusion-Sets im
+    Worker); die konkrete Platzierung ist UI-Detail.
+  - **Prio-Konflikt-Messaging:** Läuft die Säule einer User-Priorität durch
+    Constraints praktisch leer (Referenzfall: `sprints=3` + Hamstring-Zerrung
+    → Sprint-Block entfällt, Session enthält nur Technik-Drills), muss die
+    App das aktiv erklären („Deine Sprint-Priorität kollidiert aktuell mit
+    deiner Verletzungsangabe — die Einheit enthält vorerst Technik/CoD") und
+    idealerweise eine temporäre Prio-Anpassung anbieten. Still degradierte
+    Prio-Sessions sind nicht akzeptabel.
 
 ### 6. Akute Reha-Fälle
 
