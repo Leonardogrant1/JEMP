@@ -248,6 +248,12 @@ export async function prepareGenerationV2(
   const forbiddenSlugs = [...new Set(
     (exerciseRows ?? []).filter((r: any) => injuryExclusions.blockedIds.has(r.id)).map((r: any) => r.slug as string),
   )]
+  // Finding 3 (Review 01.11.): dasselbe Threading wie forbiddenSlugs, aber für
+  // Modus light_only — treibt capLightOnlyIntensity (deterministische
+  // Intensitäts-Kappung in runSessionV2, Spec §3).
+  const lightOnlySlugs = [...new Set(
+    (exerciseRows ?? []).filter((r: any) => injuryExclusions.lightOnlyIds.has(r.id)).map((r: any) => r.slug as string),
+  )]
   // Sichtbarkeit (Spec „Risiken"): ein stark reduzierter Pool (>30% der
   // Basis-Rows durch Constraints raus) bekommt dieselbe Note-Behandlung wie
   // die Layout-Notes — der Generator kann trotzdem weiterlaufen (Blocks
@@ -470,6 +476,7 @@ export async function prepareGenerationV2(
       // Verletzungs-Constraints (Task 6): gleiches Threading wie poolMap —
       // letzte deterministische Instanz im Worker (stripForbiddenExercises).
       forbiddenSlugs,
+      lightOnlySlugs,
       preferredSlugs: [...new Set(dayExercises.filter((e) => e.preferred).map((e) => e.slug))].sort(),
       // Dosierungs-Härtung (11.10.): CNS-Kandidaten, die im Warmup-Pool dieses
       // Tages tatsächlich wählbar sind — leer = Validator-Check entfällt.

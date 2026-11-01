@@ -219,6 +219,11 @@ export type V2SessionContext = {
    *  deterministisch aus exerciseRows ∩ blockedIds in prepare-v2 abgeleitet —
    *  letzte Instanz gegen einen Enum-Bruch im LLM (stripForbiddenExercises). */
   forbiddenSlugs?: string[]
+  /** Verletzungs-Constraints (Finding 3, Review 01.11.): Slugs mit Modus
+   *  "light_only", analog forbiddenSlugs aus exerciseRows ∩ lightOnlyIds in
+   *  prepare-v2 abgeleitet — treibt capLightOnlyIntensity (deterministische
+   *  Intensitäts-Kappung, Spec §3). */
+  lightOnlySlugs?: string[]
 }
 
 /**
@@ -415,6 +420,62 @@ export function stripForbiddenExercises(
   return removed
 }
 
+/** Lowest existing RPE band in diesem Modul (fixInvalidLoads' Non-Strength-
+ *  Default — kein eigenständiges "Band"-System in v2, siehe Review 01.11.):
+ *  der Cap-Wert für light_only-Übungen (Spec §3). */
+export const LIGHT_ONLY_RPE_CAP = 6
+
+/** Intensitäts-Kappung für light_only-Übungen (Finding 3, Review 01.11.,
+ *  Spec §3: "bekommt eine Intensitäts-Kappung (Builder: konkrete Mechanik
+ *  analog Band-Intensitäten/Pool-relative Intensität)"). light_only bleibt
+ *  im Pool wählbar (siehe pool.ts/patternSlugWindow + buildSwapPool) und wird
+ *  aus heavy-Emphasis-Slots ausgeschlossen (Task 5 + Finding 2) — aber ohne
+ *  diesen Pass konnte eine light_only-Übung in einem NORMAL-Slot trotzdem
+ *  mit hohem RPE oder AMRAP herauskommen, was der Spec-Intention (spürbar
+ *  reduzierte Belastung) widerspricht.
+ *
+ *  Konservative, deterministische Mechanik (v2 hat kein eigenes "Band"-/
+ *  Pool-relative-Intensitäts-System wie generate-plan.ts v1 — siehe Review):
+ *  - AMRAP wird immer gelöscht (offenes "bis Versagen" ist nie "leicht").
+ *  - rpe/kg/percent_1rm — alles, was eine tunbare Last/Anstrengung ausdrückt —
+ *    wird auf rpe @ LIGHT_ONLY_RPE_CAP vereinheitlicht (niedrigstes im Modul
+ *    bereits existierendes RPE-Band, siehe fixInvalidLoads). rpe-Werte
+ *    UNTERHALB des Caps bleiben unverändert (kein Hochskalieren).
+ *  - bodyweight/pace bleiben unangetastet: keine Lastzahl zum Kappen, und
+ *    "leicht" lässt sich ohne Pool-relative Baseline nicht sinnvoll in Pace
+ *    übersetzen (dokumentierte Lücke, siehe Fix-Report).
+ *  Läuft NACH flagAmrapExercises (braucht das gesetzte is_amrap) und VOR
+ *  stripForbiddenExercises (Reihenfolge beliebig, keine Überlappung).
+ *  Mutiert `blocks` in place (Konvention wie stripForbiddenExercises & Co.)
+ *  und mutiert NICHTS, wenn lightOnlySlugs leer ist (Referenz-No-Op). */
+export function capLightOnlyIntensity(
+  blocks: Array<{ block_type: string; exercises: Array<{
+    exercise_slug: string
+    target_load_type: string
+    target_load_value: number
+    is_amrap?: boolean
+  }> }>,
+  lightOnlySlugs: Set<string>,
+): string[] {
+  const capped: string[] = []
+  if (lightOnlySlugs.size === 0) return capped
+  for (const b of blocks) {
+    for (const e of b.exercises ?? []) {
+      if (!lightOnlySlugs.has(e.exercise_slug)) continue
+      capped.push(e.exercise_slug)
+      if (e.is_amrap) e.is_amrap = false
+      if (e.target_load_type === 'kg' || e.target_load_type === 'percent_1rm') {
+        e.target_load_type = 'rpe'
+        e.target_load_value = LIGHT_ONLY_RPE_CAP
+      } else if (e.target_load_type === 'rpe') {
+        e.target_load_value = Math.min(e.target_load_value, LIGHT_ONLY_RPE_CAP)
+      }
+      // bodyweight/pace: keine Lastzahl zum Kappen — bleibt unangetastet.
+    }
+  }
+  return capped
+}
+
 export async function runSessionV2(
   input: V2SessionContext & {
     userContext: string
@@ -507,6 +568,9 @@ export async function runSessionV2(
   attachPatternAssignment(blocks, patternReqs)
   enforceMeasurementTypes(blocks, input.measurementBySlug)
   flagAmrapExercises(blocks)
+  // Verletzungs-Constraint (Finding 3): light_only-Kappung NACH flagAmrap-
+  // Exercises (braucht das gesetzte is_amrap), vor dem Forbidden-Strip.
+  capLightOnlyIntensity(blocks, new Set(input.lightOnlySlugs ?? []))
   // Verletzungs-Constraints (Task 6): letzte deterministische Instanz, VOR
   // der Finisher-Insertion — ein per Enum-Bruch durchgerutschter verbotener
   // Slug darf die Session nie erreichen (Review Focus 4).

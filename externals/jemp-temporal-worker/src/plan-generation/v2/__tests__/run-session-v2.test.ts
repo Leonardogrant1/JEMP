@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findV2Violations, buildV2SessionSchema, attachBlockEmphasis, withMeasurementMarkers, zeroWarmupCooldownRest, fixInvalidLoads, stripForbiddenExercises } from '../run-session-v2'
+import { findV2Violations, buildV2SessionSchema, attachBlockEmphasis, withMeasurementMarkers, zeroWarmupCooldownRest, fixInvalidLoads, stripForbiddenExercises, capLightOnlyIntensity, LIGHT_ONLY_RPE_CAP } from '../run-session-v2'
 
 const session = (blocks: Array<{ block_type: string; slugs: string[] }>): any => ({
   name: 'W', mode_slug: 'full', estimated_duration_minutes: 60, day_of_week: 1,
@@ -441,5 +441,68 @@ describe('stripForbiddenExercises (Task 6: deterministischer Strip-Pass — Revi
     expect(removed).toEqual(['overhead_press', 'leg_extension'])
     expect(blocks[0].exercises.map((e) => e.exercise_slug)).toEqual(['bench_press'])
     expect(blocks[1].exercises.map((e) => e.exercise_slug)).toEqual(['back_squat'])
+  })
+})
+
+describe('capLightOnlyIntensity (Finding 3, Review 01.11.: light_only bekommt eine deterministische Intensitäts-Kappung — Spec §3 "Builder: konkrete Mechanik analog Band-Intensitäten/Pool-relative Intensität")', () => {
+  const ex = (over: Partial<{
+    exercise_slug: string; target_load_type: string; target_load_value: number; is_amrap: boolean
+  }>) => ({
+    exercise_slug: 'ex', target_load_type: 'kg', target_load_value: 40, ...over,
+  })
+  const block = (block_type: string, exercises: ReturnType<typeof ex>[]) => ({ block_type, exercises })
+
+  it('(a) light_only-Übung im normalen Slot: AMRAP gelöscht, kg → rpe @ Cap, rpe oberhalb Cap gekappt', () => {
+    const blocks = [block('upper_strength', [
+      ex({ exercise_slug: 'pike_push_up', target_load_type: 'kg', target_load_value: 60, is_amrap: true as any }),
+      ex({ exercise_slug: 'landmine_press', target_load_type: 'rpe', target_load_value: 9 }),
+    ])]
+    const capped = capLightOnlyIntensity(blocks as any, new Set(['pike_push_up', 'landmine_press']))
+    expect(capped.sort()).toEqual(['landmine_press', 'pike_push_up'])
+    const [pike, landmine] = blocks[0].exercises as any[]
+    expect(pike.target_load_type).toBe('rpe')
+    expect(pike.target_load_value).toBe(LIGHT_ONLY_RPE_CAP)
+    expect(pike.is_amrap).toBe(false)
+    expect(landmine.target_load_type).toBe('rpe')
+    expect(landmine.target_load_value).toBe(LIGHT_ONLY_RPE_CAP)
+  })
+
+  it('(b) nicht-light_only-Übung bleibt komplett unangetastet', () => {
+    const blocks = [block('upper_strength', [
+      ex({ exercise_slug: 'bench_press', target_load_type: 'kg', target_load_value: 80, is_amrap: true as any }),
+    ])]
+    const before = JSON.parse(JSON.stringify(blocks))
+    const capped = capLightOnlyIntensity(blocks as any, new Set(['pike_push_up']))
+    expect(capped).toEqual([])
+    expect(blocks).toEqual(before)
+  })
+
+  it('(c) leeres lightOnlySlugs-Set: referentiell No-Op (keine Mutation, dieselbe exercises-Referenz)', () => {
+    const blocks = [block('upper_strength', [
+      ex({ exercise_slug: 'pike_push_up', target_load_type: 'kg', target_load_value: 60 }),
+    ])]
+    const exercisesRef = blocks[0].exercises
+    const capped = capLightOnlyIntensity(blocks as any, new Set())
+    expect(capped).toEqual([])
+    expect(blocks[0].exercises).toBe(exercisesRef)
+  })
+
+  it('rpe bereits unterhalb des Caps bleibt unverändert (kein Hochskalieren)', () => {
+    const blocks = [block('warmup', [
+      ex({ exercise_slug: 'band_pull_apart', target_load_type: 'rpe', target_load_value: 4 }),
+    ])]
+    capLightOnlyIntensity(blocks as any, new Set(['band_pull_apart']))
+    expect((blocks[0].exercises[0] as any).target_load_value).toBe(4)
+  })
+
+  it('bodyweight/pace: AMRAP gelöscht, Last-Typ/Wert bleiben unangetastet (kein sinnvoller Band-Cap ohne Last)', () => {
+    const blocks = [block('cooldown', [
+      ex({ exercise_slug: 'static_hamstring_stretch', target_load_type: 'bodyweight', target_load_value: -1, is_amrap: true as any }),
+    ])]
+    capLightOnlyIntensity(blocks as any, new Set(['static_hamstring_stretch']))
+    const e = blocks[0].exercises[0] as any
+    expect(e.target_load_type).toBe('bodyweight')
+    expect(e.target_load_value).toBe(-1)
+    expect(e.is_amrap).toBe(false)
   })
 })
