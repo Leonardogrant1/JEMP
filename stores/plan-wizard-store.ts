@@ -473,13 +473,29 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
 
             // 6. Update schedule
             const { load_score, load_profile } = computeLoadProfile(sportSessions);
+
+            // Fetch current profile to check if schedule_notes changed
+            const currentProfileRes = await supabase
+                .from('user_profiles')
+                .select('schedule_notes')
+                .eq('id', profileId)
+                .single();
+
+            const previousScheduleNotes = currentProfileRes.data?.schedule_notes ?? null;
+            const newScheduleNotes = scheduleNotes.trim() || null;
+
+            // Normalize for comparison: treat null/undefined/empty as same
+            const previousNormalized = (previousScheduleNotes ?? '').trim();
+            const newNormalized = (newScheduleNotes ?? '').trim();
+            const notesChanged = previousNormalized !== newNormalized;
+
             await supabase.from('user_profiles')
                 .update({
                     preferred_workout_days: [...preferredDays].sort((a, b) => a - b),
                     // Dauer wird seit 09.10. pro Tag im Tag-Editor gewählt; die
                     // globale Dauer bleibt als Fallback für Tage ohne Override.
                     preferred_session_duration: preferredDuration ?? '60min',
-                    schedule_notes: scheduleNotes.trim() || null,
+                    schedule_notes: newScheduleNotes,
                     sprints_covered_by_club: sprintClub,
                     sprint_distance: sprintDistance,
                     preferred_day_durations: dayDurations.length > 0 ? (dayDurations as any) : null,
@@ -490,6 +506,7 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
                     })) as any,
                     load_score,
                     load_profile,
+                    ...(notesChanged && { injury_extraction_status: 'pending' }),
                 })
                 .eq('id', profileId);
 
