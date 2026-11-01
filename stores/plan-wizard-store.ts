@@ -12,6 +12,7 @@ import { type ImperativeRouter } from 'expo-router';
 import i18next from 'i18next';
 import { create } from 'zustand';
 import { supabase } from '@/services/supabase/client';
+import { ensureInjuryGate } from '@/stores/injury-gate-store';
 
 export type PlanWizardState = {
     // Navigation
@@ -515,12 +516,25 @@ export const usePlanWizardStore = create<PlanWizardState>((set, get) => ({
                 })
                 .eq('id', profileId);
 
-            // 7. Trigger plan generation
-            await startPlanGeneration();
-
-            set({ isSaving: false });
-            router.back();
-            router.navigate('/(tabs)/plan');
+            // 7. Trigger plan generation — Rest-Gate zusätzlich hier als
+            // Absicherung des Wizard-Pfads (die UI-Callsites gaten bereits
+            // vor dem Wizard-Einstieg, aber schedule_notes können SICH WÄHREND
+            // des Wizards geändert haben). Doppel-Gate ist idempotent: nach
+            // frischem confirm ist needsInjuryGate sofort wieder null.
+            const finishGeneration = async () => {
+                await startPlanGeneration();
+                set({ isSaving: false });
+                router.back();
+                router.navigate('/(tabs)/plan');
+            };
+            const gatePassed = await ensureInjuryGate(router, () => {
+                finishGeneration().catch((err: any) => {
+                    set({ isSaving: false, saveError: err?.message ?? 'Unknown error' });
+                    console.error('generate error:', err?.message);
+                });
+            });
+            if (!gatePassed) return;
+            await finishGeneration();
         } catch (err: any) {
             set({ isSaving: false, saveError: err?.message ?? 'Unknown error' });
             console.error('generate error:', err?.message);

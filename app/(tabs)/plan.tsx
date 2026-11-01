@@ -25,6 +25,7 @@ import { useCurrentUser } from '@/providers/current-user-provider';
 import { type PlanSession, type WorkoutSession, usePlan } from '@/providers/plan-provider';
 import { useSuperwallFunctions } from '@/services/purchases/superwall/useSuperwall';
 import { useDevToolsStore } from '@/stores/dev-tools-store';
+import { ensureInjuryGate } from '@/stores/injury-gate-store';
 import { usePlanGenerationStore } from '@/stores/plan-generation-store';
 import { useToastStore } from '@/stores/toast-store';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -194,9 +195,13 @@ export default function PlanScreen() {
     }
 
     // Statt direkt zu generieren führt der Weg durch den Plan-Wizard
-    // (/generate-plan) — der speichert Einstellungen und triggert das Backend
-    function openPlanWizard() {
-        openWithPlacement('generate_plan', () => router.push('/generate-plan'));
+    // (/generate-plan) — der speichert Einstellungen und triggert das Backend.
+    // Rest-Gate VOR der Paywall: ensureInjuryGate pusht ggf. '/injury-gate'
+    // und ruft den hier übergebenen Trigger erst nach erfolgreichem Abschluss.
+    async function openPlanWizard() {
+        const trigger = () => openWithPlacement('generate_plan', () => router.push('/generate-plan'));
+        if (!(await ensureInjuryGate(router, trigger))) return;
+        trigger();
     }
 
     // Routing je nach Datenlage:
@@ -212,11 +217,13 @@ export default function PlanScreen() {
             const complete = await hasCompletePlanSettings(profile);
             if (!complete) { openPlanWizard(); return; }
             if (plan) { router.push('/new-plan'); return; }
-            openWithPlacement('generate_plan', () => {
+            const trigger = () => openWithPlacement('generate_plan', () => {
                 startPlanGeneration().catch(() => {
                     useToastStore.getState().show(t('ui.plan_generate_start_error'));
                 });
             });
+            if (!(await ensureInjuryGate(router, trigger))) return;
+            trigger();
         } finally {
             decidingRef.current = false;
         }
