@@ -41,6 +41,11 @@ export type V2Exercise = {
   /** Sport-Präferenz (QA 10.10.): via exercise_sport_groups für die Gruppe des
    *  Users markiert — bekommt reservierte Fenster-Slots und steht im Prompt vorn. */
   preferred?: boolean
+  /** Verletzungs-Constraint (Task 5): Modus light_only — die Übung bleibt im
+   *  normalen Fenster wählbar, darf aber nie in einen Heavy-Slot (patternSlugWindow
+   *  Heavy-Zweig, buildBlockPools für emphasis==='heavy'-Blöcke). Undefined/false
+   *  = kein Constraint. */
+  light_only?: boolean
 }
 
 /** Rahmen-Übungen der Sprint-Session (Traben, Steigerungsläufe) — leben als
@@ -187,6 +192,12 @@ export function patternSlugWindow(
   // single_leg_glute_bridge neben 120-kg-RDL waren die Live-Befunde).
   // Unter 3 starken sagittalen Optionen bleibt der volle Pool (Datenloch).
   if (emphasis === 'heavy') {
+    // Verletzungs-Constraint (Task 5, Review Focus 1): light_only-Übungen
+    // raus, BEVOR die strong-Logik inkl. <3-Fallback greift — sonst holt der
+    // Fallback auf den vollen Pool eine light_only-Übung zurück in den
+    // Heavy-Slot (genau der Fall, den der Fallback für Datenlöcher erlaubt,
+    // aber hier ein Sicherheits-Constraint wäre).
+    pool = pool.filter((e) => !e.light_only)
     const strong = pool.filter((e) => e.movement_type === 'sagittal' && (e.intensity_score ?? 5) >= 5)
     if (strong.length >= 3) pool = strong
   }

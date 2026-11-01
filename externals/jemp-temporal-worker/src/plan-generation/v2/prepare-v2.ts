@@ -9,7 +9,7 @@ import type { PrepareResult, SessionBuildInput } from '../generate-plan'
 import type { PlanGenerationInput } from '../types'
 import { buildBlockPools, isCnsMicroDoseExercise, patternSlugWindow, pickPlanePin, preDropEmptyPools, rotatedPoolWindow, rotateSlugs, strengthPatternPools, type V2Exercise } from './pool'
 import { makePlaneCounter, pickPlaneEmphasis, resolvePlaneWeights, toPatternFamily, type PatternFamily, type PlaneWeights } from './plane-emphasis'
-import type { InjuryConstraintInput } from './injury-constraints'
+import { buildInjuryExclusions, filterRowsByInjury, type InjuryConstraintInput } from './injury-constraints'
 
 /** Füller-Fenster-Offset (QA 11.10., nachgeschärft 18.10.): planCount allein
  *  ließ alle Sessions einer Woche dasselbe Fenster sehen. Der erste Fix
@@ -198,6 +198,23 @@ export async function prepareGenerationV2(
     hasLevelData: input.category_levels.length > 0,
   }
 
+  // Verletzungs-Constraints (Task 5 Chokepoint): EINMAL auf exerciseRows
+  // angewandt, bevor irgendeine Ableitung (Basis-Pool, Env-Cache, Speed-Pool,
+  // slugsForEnv) daraus entsteht — eine blockierte Übung kann dadurch in
+  // KEINER der vier Ableitungen mehr auftauchen. light_only bleibt in den
+  // Rows (Heavy-Ausschluss macht patternSlugWindow/buildBlockPools weiter unten).
+  const injuryExclusions = buildInjuryExclusions(input.injury_constraints ?? [], tagsByExercise)
+  const allowedRows = filterRowsByInjury(exerciseRows ?? [], injuryExclusions)
+  // Sichtbarkeit (Spec „Risiken"): ein stark reduzierter Pool (>30% der
+  // Basis-Rows durch Constraints raus) bekommt dieselbe Note-Behandlung wie
+  // die Layout-Notes — der Generator kann trotzdem weiterlaufen (Blocks
+  // entfallen höchstens über die bestehende "Anforderung entfällt"-Logik).
+  if ((exerciseRows ?? []).length > 0 && allowedRows.length < (exerciseRows ?? []).length * 0.7) {
+    const total = (exerciseRows ?? []).length
+    const filteredOut = total - allowedRows.length
+    notes.push(`Verletzungs-Constraints filtern ${filteredOut} von ${total} Übungen — Pool stark reduziert`)
+  }
+
   const toV2 = (row: any): V2Exercise => ({
     id: row.id, slug: row.slug, name: row.name,
     category_slug: row.categories?.slug ?? '',
@@ -213,9 +230,10 @@ export async function prepareGenerationV2(
     regions: regionsByExercise.get(row.id) ?? null,
     is_sport_specific: row.is_sport_specific ?? false,
     preferred: !!input.sport_group_name && (sportGroupsByExercise.get(row.id)?.has(input.sport_group_name) ?? false),
+    light_only: injuryExclusions.lightOnlyIds.has(row.id),
   })
 
-  const exercises: V2Exercise[] = (exerciseRows ?? []).filter(sportGate).filter(makeExerciseFilter(filterMaps, null)).map(toV2)
+  const exercises: V2Exercise[] = allowedRows.filter(sportGate).filter(makeExerciseFilter(filterMaps, null)).map(toV2)
 
   // Tages-Umgebungen (Lückenschluss 08.10.): hat ein Tag eine feste Umgebung,
   // zählen nur dort erlaubte Übungen und dort verfügbares Equipment.
@@ -225,7 +243,7 @@ export async function prepareGenerationV2(
     const envId = dayEnvById.get(dayOfWeek)
     if (!envId) return exercises
     if (!byEnvCache.has(envId)) {
-      byEnvCache.set(envId, (exerciseRows ?? []).filter(sportGate).filter(makeExerciseFilter(filterMaps, envId)).map(toV2))
+      byEnvCache.set(envId, allowedRows.filter(sportGate).filter(makeExerciseFilter(filterMaps, envId)).map(toV2))
     }
     return byEnvCache.get(envId)!
   }
@@ -236,7 +254,7 @@ export async function prepareGenerationV2(
   // bleiben im Gym), Bodyweight-Sprints sind für jeden User sichtbar.
   const outdoorEnvId = (environmentRows ?? []).find((e) => e.slug === 'outdoor')?.id ?? null
   const speedExercises: V2Exercise[] = outdoorEnvId
-    ? (exerciseRows ?? []).filter(sportGate).filter(makeExerciseFilter(filterMaps, outdoorEnvId)).map(toV2)
+    ? allowedRows.filter(sportGate).filter(makeExerciseFilter(filterMaps, outdoorEnvId)).map(toV2)
     : exercises
   // Extensiv-Lauf-Anker (Spec §1.1): easy_jog lebt in der sprints-Kategorie und
   // wird wie im Speed-Builder direkt geholt, nicht über den Conditioning-Pool.
@@ -281,7 +299,7 @@ export async function prepareGenerationV2(
   const slugsForEnv = (envId: string): Set<string> => {
     if (!envSlugSets.has(envId)) {
       envSlugSets.set(envId, new Set(
-        (exerciseRows ?? []).filter(sportGate).filter(makeExerciseFilter(filterMaps, envId)).map((r: any) => r.slug as string),
+        allowedRows.filter(sportGate).filter(makeExerciseFilter(filterMaps, envId)).map((r: any) => r.slug as string),
       ))
     }
     return envSlugSets.get(envId)!
@@ -377,6 +395,15 @@ export async function prepareGenerationV2(
       block.patterns = kept
     }
     const pools = buildBlockPools(dayExercises, workout.blocks)
+    // Verletzungs-Constraint (Task 5): Lead-/Heavy-Blöcke (block.emphasis ===
+    // 'heavy', z.B. die Kraft-Lead-Säule bei heavy_lower) verlieren light_only-
+    // Übungen aus ihrem Pool — analog zum Heavy-Zweig in patternSlugWindow,
+    // nur auf Block- statt Pattern-Ebene.
+    for (const b of workout.blocks) {
+      if (b.emphasis === 'heavy') {
+        pools.set(b.block_type, (pools.get(b.block_type) ?? []).filter((e) => !e.light_only))
+      }
+    }
     const poolRecord: Record<string, string[]> = {}
     for (const [bt, pool] of pools) {
       // Füller-Rotation (QA 10.10.): optional/accessory bekommen nur ein kleines,

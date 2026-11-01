@@ -568,6 +568,33 @@ describe('Heavy-Fenster-Filter (QA 11.10.: Maximalkraft bleibt linear und schwer
   })
 })
 
+describe('Verletzungs-Constraints (Task 5): light_only im Heavy-Fenster', () => {
+  const hv = (slug: string, movement_type = 'sagittal', intensity = 8, light_only = false): V2Exercise =>
+    ex({ slug, strength_pattern: 'hinge', movement_type, intensity_score: intensity, light_only })
+
+  it('patternSlugWindow heavy: light_only-Übung erscheint nie im Heavy-Fenster — auch nicht im <3-strong-Fallback', () => {
+    // Nur 2 starke, nicht-light_only sagittale Optionen → triggert den
+    // <3-strong-Fallback auf den vollen Pool. Der light_only-Ausschluss muss
+    // VOR dem Fallback greifen, sonst holt der Fallback die Übung zurück.
+    const pool = [
+      hv('conventional_deadlift'),
+      hv('romanian_deadlift'),
+      hv('injured_hinge', 'sagittal', 8, true),
+    ]
+    const slugs = patternSlugWindow(pool, 'heavy', 0)
+    expect(slugs).not.toContain('injured_hinge')
+  })
+
+  it('patternSlugWindow normal: light_only bleibt wählbar', () => {
+    const pool = [
+      hv('conventional_deadlift'),
+      hv('injured_hinge', 'sagittal', 8, true),
+    ]
+    const slugs = patternSlugWindow(pool, 'normal', 0)
+    expect(slugs).toContain('injured_hinge')
+  })
+})
+
 describe('isCnsMicroDoseExercise: warmup-getaggte COD-Drills (QA 15.10.)', () => {
   it('cod + Warmup-Tag + Int ≤ 4 zählt als Mikro-Dosis', () => {
     expect(isCnsMicroDoseExercise(ex({ slug: 'carioca', category_slug: 'cod', intensity_score: 4, legacy_block_slugs: ['warmup'] }))).toBe(true)

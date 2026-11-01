@@ -82,3 +82,17 @@ export function applyInjuryExclusions<T extends { id: string }>(
 ): T[] {
   return pool.filter((item) => !exclusions.blockedIds.has(item.id))
 }
+
+// Task 5 Chokepoint: EINMAL auf die rohen exerciseRows angewandt, bevor
+// prepare-v2 daraus die vier Pool-Ableitungen (Basis/Env-Cache/Speed/
+// slugsForEnv) baut — damit eine blockierte Übung in KEINER Ableitung mehr
+// auftaucht, statt an jeder Ableitungsstelle einzeln gefiltert zu werden.
+// Gleiche Semantik wie applyInjuryExclusions (blockedIds raus, lightOnly
+// bleibt — der Heavy-Ausschluss lebt in patternSlugWindow/buildBlockPools),
+// nur generisch auf rohe DB-Row-Typen benannt statt auf fertige V2Exercise.
+export function filterRowsByInjury<T extends { id: string }>(
+  rows: T[],
+  exclusions: InjuryExclusions,
+): T[] {
+  return applyInjuryExclusions(rows, exclusions)
+}
