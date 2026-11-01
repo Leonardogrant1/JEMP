@@ -10,7 +10,7 @@ export type WorkoutSession = Pick<
 
 export type ActivePlan = Pick<
     Tables<'workout_plans'>,
-    'id' | 'name' | 'start_date' | 'end_date'
+    'id' | 'name' | 'start_date' | 'end_date' | 'description' | 'injury_adjusted' | 'injury_conflicts'
 >;
 
 export type PlanSession = Pick<

@@ -177,6 +177,7 @@ function MainStack({ languageReady }: { languageReady: boolean }) {
         <Stack.Screen name="new-plan" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="injury-gate" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="injury-settings" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
+        <Stack.Screen name="injury-plan-info" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
         <Stack.Screen name="subscription" options={{ presentation: 'transparentModal', animation: 'none', headerShown: false }} />
       </Stack.Protected>
 

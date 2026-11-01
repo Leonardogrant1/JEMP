@@ -1,6 +1,7 @@
 import { JempText } from '@/components/jemp-text';
 import { EmptyPlanCard } from '@/components/plan/EmptyPlanCard';
 import { FlexibleWeekList } from '@/components/plan/FlexibleWeekList';
+import { InjuryAdjustedBadge } from '@/components/plan/InjuryAdjustedBadge';
 import { PlanCompletedCard } from '@/components/plan/PlanCompletedCard';
 import { PlanGenerationScreen } from '@/components/plan/PlanGenerationScreen';
 import { PlanSessionCard } from '@/components/plan/PlanSessionCard';
@@ -315,6 +316,10 @@ export default function PlanScreen() {
                                     weekSessionDays={weekSessionDays}
                                 />
                             </View>
+
+                            {/* Prio-1-Verletzungskonflikte + Arzt-Note leben nur im Detail-Sheet
+                                (Task 8) — das Badge ist der einzige sichtbare Hinweis in der Liste. */}
+                            {plan.injury_adjusted && <InjuryAdjustedBadge />}
 
                             {/* Sessions for selected day — remounts per day so the switch fades in */}
                             <Reanimated.View

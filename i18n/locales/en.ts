@@ -822,6 +822,12 @@ const en = {
     'injuries.strip_regenerate_confirm': 'Regenerate plan',
     'injuries.strip_regenerate_later': 'Later',
     'injuries.strip_softened_hint': 'This will apply from your next plan generation.',
+    'injuries.badge_label': 'Adjusted to your constraints',
+    'injuries.detail_title': 'Adjustments in your plan',
+    'injuries.detail_constraints_title': 'Active constraints',
+    'injuries.conflict_sprints': 'Your sprint priority currently conflicts with your injury constraints — for now the session focuses on technique/change-of-direction work instead.',
+    'injuries.conflict_generic': 'Your {{pillar}} priority currently conflicts with your injury constraints — the selection is limited for now.',
+    'injuries.conflict_adjust_button': 'Adjust priorities',
 
     'plan.create': 'Create',
     'plan.error_generate': 'Plan could not be created.',

@@ -824,6 +824,12 @@ const de: Record<TranslationKeys, string> = {
     'injuries.strip_regenerate_confirm': 'Plan neu generieren',
     'injuries.strip_regenerate_later': 'Später',
     'injuries.strip_softened_hint': 'Das wirkt ab der nächsten Plan-Generierung.',
+    'injuries.badge_label': 'An deine Einschränkungen angepasst',
+    'injuries.detail_title': 'Anpassungen in deinem Plan',
+    'injuries.detail_constraints_title': 'Aktive Einschränkungen',
+    'injuries.conflict_sprints': 'Deine Sprint-Priorität kollidiert aktuell mit deiner Verletzungsangabe — die Einheit enthält vorerst Technik/CoD.',
+    'injuries.conflict_generic': 'Deine {{pillar}}-Priorität kollidiert aktuell mit deiner Verletzungsangabe — die Auswahl ist vorerst eingeschränkt.',
+    'injuries.conflict_adjust_button': 'Prioritäten anpassen',
 
     'plan.create': 'Erstellen',
     'plan.error_generate': 'Plan konnte nicht erstellt werden.',

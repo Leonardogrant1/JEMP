@@ -34,6 +34,16 @@ export type InjuryConstraint = {
     confirmed_at: string;
 };
 
+// Shape of workout_plans.injury_conflicts entries (worker Task 7,
+// detectPriorityConflicts in externals/jemp-temporal-worker/.../v2/injury-constraints.ts).
+// Column is `Json | null` on the DB type and NULL when there are no conflicts
+// — every consumption site MUST guard with `(plan.injury_conflicts ?? []) as InjuryConflict[]`,
+// never a bare `.map` on the raw field.
+export type InjuryConflict = {
+    pillar: string;
+    reason: 'pool_emptied' | 'pool_reduced';
+};
+
 // 'ok' = User lehnt den Vorschlag ab → keine Row wird angelegt.
 export type ConfirmedChoice = {
     tag_slug: string;
