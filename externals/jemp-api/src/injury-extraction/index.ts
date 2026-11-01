@@ -17,17 +17,6 @@ function must<T>(r: { data: T | null; error: { message: string } | null }, what:
   return r.data as T
 }
 
-// extractInjuryConstraints hat kein signal-Argument (Brief-Signatur ist fix,
-// 3 Parameter) — der Server-Timeout läuft deshalb hier als Race gegen
-// AbortSignal.timeout statt als Fetch-Abort im OpenAI-Call.
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const signal = AbortSignal.timeout(ms)
-    signal.addEventListener('abort', () => reject(new Error('injury-extraction: timeout')))
-    promise.then(resolve, reject)
-  })
-}
-
 export async function injuryExtractionHandler(req: Request, res: Response): Promise<void> {
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) { res.status(401).json({ error: 'Unauthorized' }); return }
@@ -45,7 +34,13 @@ export async function injuryExtractionHandler(req: Request, res: Response): Prom
     const validSlugs = (tagRows ?? []).map((r) => r.slug as string)
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-    const result = await withTimeout(extractInjuryConstraints(note, validSlugs, openai), EXTRACTION_TIMEOUT_MS)
+    // Review Fix 2 (round 1): EIN Signal für den 12s-Server-Timeout, direkt in
+    // den OpenAI-Call durchgereicht (extract.ts) — bricht den HTTP-Request
+    // beim Timeout tatsächlich ab, statt ihn im Hintergrund weiterlaufen zu
+    // lassen (Cost-Leak). Kein separater Race-Wrapper mehr nötig: der
+    // abgebrochene Call lehnt die Promise selbst ab.
+    const signal = AbortSignal.timeout(EXTRACTION_TIMEOUT_MS)
+    const result = await extractInjuryConstraints(note, validSlugs, openai, signal)
 
     res.json(result)
   } catch (err: unknown) {

@@ -106,19 +106,22 @@ export async function extractInjuryConstraints(
   note: string,
   validSlugs: string[],
   openai: OpenAI,
+  signal?: AbortSignal,
 ): Promise<ExtractionResult> {
   const trimmed = note.trim()
   if (!trimmed) return emptyResult()
 
-  const completion = await openai.chat.completions.create({
-    model: MODEL,
-    messages: [
-      { role: 'system', content: buildSystemPrompt(validSlugs) },
-      { role: 'user', content: trimmed },
-    ],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SDK-Version pinnt response_format enger als unser dynamisches Enum-Schema
-    response_format: buildResponseFormat(validSlugs) as any,
-  })
+  const completion = await openai.chat.completions.create(
+    {
+      model: MODEL,
+      messages: [
+        { role: 'system', content: buildSystemPrompt(validSlugs) },
+        { role: 'user', content: trimmed },
+      ],
+      response_format: buildResponseFormat(validSlugs),
+    },
+    { signal },
+  )
 
   const content = completion.choices[0]?.message?.content
   if (!content) throw new Error('injury-extraction: empty model response')

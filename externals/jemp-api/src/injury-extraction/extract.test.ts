@@ -17,20 +17,24 @@ const VALID_SLUGS = [
 
 // Mock-OpenAI-Client: liefert den injizierten Content als
 // chat.completions.create-Response, zählt Aufrufe (für den "nie aufgerufen"-
-// Check bei leerer Notiz).
-function mockOpenAI(content: string): { client: OpenAI; calls: number[] } {
+// Check bei leerer Notiz) und zeichnet die options (2. Argument) auf — damit
+// lässt sich prüfen, dass ein übergebenes AbortSignal auch tatsächlich an den
+// OpenAI-Call durchgereicht wird (Review Fix 2).
+function mockOpenAI(content: string): { client: OpenAI; calls: number[]; optionsSeen: unknown[] } {
   const calls: number[] = []
+  const optionsSeen: unknown[] = []
   const client = {
     chat: {
       completions: {
-        create: async (_params: unknown) => {
+        create: async (_params: unknown, options?: unknown) => {
           calls.push(1)
+          optionsSeen.push(options)
           return { choices: [{ message: { content } }] }
         },
       },
     },
   } as unknown as OpenAI
-  return { client, calls }
+  return { client, calls, optionsSeen }
 }
 
 test('maps forearm strain note to grip/wrist tags', async () => {
@@ -97,4 +101,15 @@ test('empty note returns empty result without API call', async () => {
 
   assert.deepEqual(result, { constraints: [], unmapped: [], scheduling: [], noise: [] })
   assert.equal(calls.length, 0)
+})
+
+test('passes the given AbortSignal through to the OpenAI call (Review Fix 2)', async () => {
+  const modelResponse = JSON.stringify({ constraints: [], unmapped: [], scheduling: [], noise: [] })
+  const { client, optionsSeen } = mockOpenAI(modelResponse)
+  const controller = new AbortController()
+
+  await extractInjuryConstraints('Knie-Schmerzen', VALID_SLUGS, client, controller.signal)
+
+  assert.equal(optionsSeen.length, 1)
+  assert.equal((optionsSeen[0] as { signal?: AbortSignal }).signal, controller.signal)
 })
