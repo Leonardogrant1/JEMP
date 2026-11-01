@@ -43,8 +43,12 @@ export async function savePlan(input: {
   planDescription: string
   sessions: PlannedSession[]
   environmentIds: string[]
+  /** Sichtbarkeit (Task 7, Spec §5): v2-only — undefined (legacy-Pfad) defaultet
+   *  auf false/null, identisch zum bisherigen Verhalten. */
+  injuryAdjusted?: boolean
+  injuryConflicts?: Array<{ pillar: string; reason: 'pool_emptied' | 'pool_reduced' }>
 }): Promise<string> {
-  const { userId, planName, planDescription, sessions, environmentIds } = input
+  const { userId, planName, planDescription, sessions, environmentIds, injuryAdjusted, injuryConflicts } = input
   const supabase = getSupabaseClient()
 
   // ── 1. Resolve slugs → UUIDs ─────────────────────────────────────────────
@@ -80,6 +84,8 @@ export async function savePlan(input: {
       start_date: today.toISOString().split('T')[0],
       end_date: endDate.toISOString().split('T')[0],
       duration_weeks: 4,
+      injury_adjusted: injuryAdjusted ?? false,
+      injury_conflicts: injuryConflicts && injuryConflicts.length > 0 ? injuryConflicts : null,
     })
     .select('id')
     .single()

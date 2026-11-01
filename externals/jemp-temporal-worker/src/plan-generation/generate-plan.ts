@@ -73,6 +73,11 @@ export type PrepareResult = {
   /** v2 (phase 2b): which path produced this result — legacy fills neither field. */
   pathVersion?: 'legacy' | 'v2'
   prebuiltSessions?: PlannedSession[]
+  /** Sichtbarkeit (Task 7, Spec §5): v2-only — legacy hat keine Verletzungs-
+   *  Constraints und lässt beide Felder undefined (savePlan defaultet dann
+   *  auf false/null, identisch zum bisherigen Verhalten). */
+  injuryAdjusted?: boolean
+  injuryConflicts?: Array<{ pillar: string; reason: 'pool_emptied' | 'pool_reduced' }>
 }
 
 // ─── Mode determination ───────────────────────────────────────

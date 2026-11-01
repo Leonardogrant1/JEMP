@@ -9,7 +9,7 @@ import type { PrepareResult, SessionBuildInput } from '../generate-plan'
 import type { PlanGenerationInput } from '../types'
 import { buildBlockPools, filterHeavyBlockPools, isCnsMicroDoseExercise, patternSlugWindow, pickPlanePin, preDropEmptyPools, rotatedPoolWindow, rotateSlugs, strengthPatternPools, type V2Exercise } from './pool'
 import { makePlaneCounter, pickPlaneEmphasis, resolvePlaneWeights, toPatternFamily, type PatternFamily, type PlaneWeights } from './plane-emphasis'
-import { buildInjuryExclusions, filterRowsByInjury, type InjuryConstraintInput } from './injury-constraints'
+import { buildInjuryExclusions, filterRowsByInjury, computeInjuryAdjusted, detectPriorityConflicts, type InjuryConstraintInput } from './injury-constraints'
 
 /** Füller-Fenster-Offset (QA 11.10., nachgeschärft 18.10.): planCount allein
  *  ließ alle Sessions einer Woche dasselbe Fenster sehen. Der erste Fix
@@ -240,6 +240,12 @@ export async function prepareGenerationV2(
   // Rows (Heavy-Ausschluss macht patternSlugWindow/buildBlockPools weiter unten).
   const injuryExclusions = buildInjuryExclusions(input.injury_constraints ?? [], tagsByExercise)
   const allowedRows = filterRowsByInjury(exerciseRows ?? [], injuryExclusions)
+  // Sichtbarkeit (Task 7, Spec §5): einmal hier berechnet, vor/nach dem
+  // Chokepoint-Filter — reist über PrepareResult → savePlan auf
+  // workout_plans, damit die App ohne erneute Exclusion-Berechnung zeigen
+  // kann, dass/warum der Plan angepasst wurde.
+  const injuryAdjusted = computeInjuryAdjusted(injuryExclusions, exerciseRows ?? [])
+  const injuryConflicts = detectPriorityConflicts(exerciseRows ?? [], allowedRows, input.pillar_levels)
   // T5↔T6-Ruling (Pre-Flight): die Exclusion-Sets tragen IDs, der Worker-
   // Strip-Pass (Task 6, stripForbiddenExercises) braucht SLUGS — einmalig aus
   // den rohen Rows abgeleitet, solange sie noch in Scope sind (vor jeder der
@@ -537,5 +543,7 @@ export async function prepareGenerationV2(
     environmentIds: input.environment_ids,
     pathVersion: 'v2',
     prebuiltSessions: prebuiltSessions as any,
+    injuryAdjusted,
+    injuryConflicts,
   }
 }
