@@ -22,6 +22,7 @@ import {
     ScrollView,
     StyleSheet,
     TouchableOpacity,
+    useWindowDimensions,
     View,
 } from 'react-native';
 import Reanimated, {
@@ -53,6 +54,7 @@ export default function InjurySettingsScreen() {
     const colorScheme = useColorScheme();
     const theme = Colors[(colorScheme ?? 'dark') as 'light' | 'dark'];
     const router = useRouter();
+    const { height: windowHeight } = useWindowDimensions();
     const stripMutation = useStripInjuryViolations();
 
     const [loading, setLoading] = useState(true);
@@ -195,10 +197,10 @@ export default function InjurySettingsScreen() {
                 <Pressable onPress={(e) => e.stopPropagation()}>
                     <Reanimated.View
                         onLayout={handleSheetLayout}
-                        style={[styles.sheet, { backgroundColor: theme.surface }, sheetStyle]}
+                        style={[styles.sheet, { backgroundColor: theme.surface, maxHeight: windowHeight * 0.85 }, sheetStyle]}
                     >
                         <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
-                            <View style={[styles.content, { paddingBottom: insets.bottom + 12 }]}>
+                            <View style={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
                                 <View style={[styles.handle, { backgroundColor: theme.borderDivider }]} />
 
                                 <View style={styles.header}>
@@ -333,7 +335,8 @@ const styles = StyleSheet.create({
     sheet: {
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        maxHeight: '90%',
+        // maxHeight kommt inline als Zahl (windowHeight * 0.85) — Muster wie
+        // swap-exercise/session-reschedule, Prozent-Werte löst Yoga hier nicht auf
     },
     content: {
         paddingTop: 12,
