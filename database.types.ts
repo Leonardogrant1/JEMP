@@ -143,6 +143,20 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"contraindication_tags": {
+                  Row: {
+                    "created_at": string,"id": string,"slug": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"slug": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"slug"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"environment_equipments": {
                   Row: {
                     "created_at": string | null,"environment_id": string,"equipment_id": string,"id": string,"updated_at": string | null
@@ -217,6 +231,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     },{
       foreignKeyName: "exercise_blocks_exercise_id_fkey"
+      columns: ["exercise_id"]
+isOneToOne: false
+      referencedRelation: "exercises"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"exercise_contraindications": {
+                  Row: {
+                    "contraindication_tag_id": string,"exercise_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "contraindication_tag_id": string,"exercise_id": string
+                  }
+                  Update: {
+                    "contraindication_tag_id"?: string,"exercise_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "exercise_contraindications_contraindication_tag_id_fkey"
+      columns: ["contraindication_tag_id"]
+isOneToOne: false
+      referencedRelation: "contraindication_tags"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "exercise_contraindications_exercise_id_fkey"
       columns: ["exercise_id"]
 isOneToOne: false
       referencedRelation: "exercises"
@@ -739,6 +779,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"user_injury_constraints": {
+                  Row: {
+                    "acute": boolean,"confirmed_at": string,"contraindication_tag_id": string,"created_at": string,"id": string,"mode": string,"origin": string,"revoked_at": string | null,"source_note": string | null,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "acute"?: boolean,"confirmed_at": string,"contraindication_tag_id": string,"created_at"?: string,"id"?: string,"mode": string,"origin": string,"revoked_at"?: string | null,"source_note"?: string | null,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "acute"?: boolean,"confirmed_at"?: string,"contraindication_tag_id"?: string,"created_at"?: string,"id"?: string,"mode"?: string,"origin"?: string,"revoked_at"?: string | null,"source_note"?: string | null,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "user_injury_constraints_contraindication_tag_id_fkey"
+      columns: ["contraindication_tag_id"]
+isOneToOne: false
+      referencedRelation: "contraindication_tags"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "user_injury_constraints_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "user_profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"user_pillar_levels": {
                   Row: {
                     "category_id": string,"created_at": string | null,"id": string,"level": number,"set_by_wizard": boolean,"updated_at": string | null,"user_id": string
@@ -767,14 +833,14 @@ isOneToOne: false
                   ]
                 },"user_profiles": {
                   Row: {
-                    "birth_date": string | null,"created_at": string | null,"day_environments": Json | null,"email": string,"first_name": string | null,"gender": Database["public"]['Enums']["gender"] | null,"has_onboarded": boolean | null,"height_in_cm": number | null,"id": string,"last_active_at": string | null,"last_name": string | null,"load_profile": string,"load_score": number,"preferred_day_durations": Json | null,"preferred_language": string | null,"preferred_session_duration": Database["public"]['Enums']["session_duration"] | null,"preferred_workout_days": (number)[] | null,"push_token": string | null,"referral_code": string | null,"role": Database["public"]['Enums']["user_role"],"schedule_notes": string | null,"sport_id": string | null,"sprint_distance": Database["public"]['Enums']["sprint_distance_answer"] | null,"sprints_covered_by_club": boolean,"timezone": string | null,"unit_system": string,"updated_at": string | null,"weekly_schedule": NonNullable<Json>,"weekly_schedule_updated_at": string | null,"weight_in_kg": number | null
+                    "birth_date": string | null,"created_at": string | null,"day_environments": Json | null,"email": string,"first_name": string | null,"gender": Database["public"]['Enums']["gender"] | null,"has_onboarded": boolean | null,"height_in_cm": number | null,"id": string,"injury_confirmed_at": string | null,"injury_extraction_status": string,"last_active_at": string | null,"last_name": string | null,"load_profile": string,"load_score": number,"preferred_day_durations": Json | null,"preferred_language": string | null,"preferred_session_duration": Database["public"]['Enums']["session_duration"] | null,"preferred_workout_days": (number)[] | null,"push_token": string | null,"referral_code": string | null,"role": Database["public"]['Enums']["user_role"],"schedule_notes": string | null,"sport_id": string | null,"sprint_distance": Database["public"]['Enums']["sprint_distance_answer"] | null,"sprints_covered_by_club": boolean,"timezone": string | null,"unit_system": string,"updated_at": string | null,"weekly_schedule": NonNullable<Json>,"weekly_schedule_updated_at": string | null,"weight_in_kg": number | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "birth_date"?: string | null,"created_at"?: string | null,"day_environments"?: Json | null,"email": string,"first_name"?: string | null,"gender"?: Database["public"]['Enums']["gender"] | null,"has_onboarded"?: boolean | null,"height_in_cm"?: number | null,"id"?: string,"last_active_at"?: string | null,"last_name"?: string | null,"load_profile"?: string,"load_score"?: number,"preferred_day_durations"?: Json | null,"preferred_language"?: string | null,"preferred_session_duration"?: Database["public"]['Enums']["session_duration"] | null,"preferred_workout_days"?: (number)[] | null,"push_token"?: string | null,"referral_code"?: string | null,"role"?: Database["public"]['Enums']["user_role"],"schedule_notes"?: string | null,"sport_id"?: string | null,"sprint_distance"?: Database["public"]['Enums']["sprint_distance_answer"] | null,"sprints_covered_by_club"?: boolean,"timezone"?: string | null,"unit_system"?: string,"updated_at"?: string | null,"weekly_schedule"?: NonNullable<Json>,"weekly_schedule_updated_at"?: string | null,"weight_in_kg"?: number | null
+                    "birth_date"?: string | null,"created_at"?: string | null,"day_environments"?: Json | null,"email": string,"first_name"?: string | null,"gender"?: Database["public"]['Enums']["gender"] | null,"has_onboarded"?: boolean | null,"height_in_cm"?: number | null,"id"?: string,"injury_confirmed_at"?: string | null,"injury_extraction_status"?: string,"last_active_at"?: string | null,"last_name"?: string | null,"load_profile"?: string,"load_score"?: number,"preferred_day_durations"?: Json | null,"preferred_language"?: string | null,"preferred_session_duration"?: Database["public"]['Enums']["session_duration"] | null,"preferred_workout_days"?: (number)[] | null,"push_token"?: string | null,"referral_code"?: string | null,"role"?: Database["public"]['Enums']["user_role"],"schedule_notes"?: string | null,"sport_id"?: string | null,"sprint_distance"?: Database["public"]['Enums']["sprint_distance_answer"] | null,"sprints_covered_by_club"?: boolean,"timezone"?: string | null,"unit_system"?: string,"updated_at"?: string | null,"weekly_schedule"?: NonNullable<Json>,"weekly_schedule_updated_at"?: string | null,"weight_in_kg"?: number | null
                   }
                   Update: {
-                    "birth_date"?: string | null,"created_at"?: string | null,"day_environments"?: Json | null,"email"?: string,"first_name"?: string | null,"gender"?: Database["public"]['Enums']["gender"] | null,"has_onboarded"?: boolean | null,"height_in_cm"?: number | null,"id"?: string,"last_active_at"?: string | null,"last_name"?: string | null,"load_profile"?: string,"load_score"?: number,"preferred_day_durations"?: Json | null,"preferred_language"?: string | null,"preferred_session_duration"?: Database["public"]['Enums']["session_duration"] | null,"preferred_workout_days"?: (number)[] | null,"push_token"?: string | null,"referral_code"?: string | null,"role"?: Database["public"]['Enums']["user_role"],"schedule_notes"?: string | null,"sport_id"?: string | null,"sprint_distance"?: Database["public"]['Enums']["sprint_distance_answer"] | null,"sprints_covered_by_club"?: boolean,"timezone"?: string | null,"unit_system"?: string,"updated_at"?: string | null,"weekly_schedule"?: NonNullable<Json>,"weekly_schedule_updated_at"?: string | null,"weight_in_kg"?: number | null
+                    "birth_date"?: string | null,"created_at"?: string | null,"day_environments"?: Json | null,"email"?: string,"first_name"?: string | null,"gender"?: Database["public"]['Enums']["gender"] | null,"has_onboarded"?: boolean | null,"height_in_cm"?: number | null,"id"?: string,"injury_confirmed_at"?: string | null,"injury_extraction_status"?: string,"last_active_at"?: string | null,"last_name"?: string | null,"load_profile"?: string,"load_score"?: number,"preferred_day_durations"?: Json | null,"preferred_language"?: string | null,"preferred_session_duration"?: Database["public"]['Enums']["session_duration"] | null,"preferred_workout_days"?: (number)[] | null,"push_token"?: string | null,"referral_code"?: string | null,"role"?: Database["public"]['Enums']["user_role"],"schedule_notes"?: string | null,"sport_id"?: string | null,"sprint_distance"?: Database["public"]['Enums']["sprint_distance_answer"] | null,"sprints_covered_by_club"?: boolean,"timezone"?: string | null,"unit_system"?: string,"updated_at"?: string | null,"weekly_schedule"?: NonNullable<Json>,"weekly_schedule_updated_at"?: string | null,"weight_in_kg"?: number | null
                   }
                   Relationships: [
                     {
