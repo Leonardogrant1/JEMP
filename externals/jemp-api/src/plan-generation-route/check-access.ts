@@ -41,22 +41,59 @@ export async function checkPlanGenerationAccess(opts: {
         : { allowed: false, reason: 'no_entitlement' };
 }
 
+const RC_BASE = 'https://api.revenuecat.com/v2';
+
+// v2 active_entitlements only carries entitlement ids; lookup keys ("full_access")
+// come from the project's entitlement list. Cached per process, reset on failure.
+let entitlementKeyById: Promise<Map<string, string>> | null = null;
+
+function loadEntitlementKeys(apiKey: string, projectId: string): Promise<Map<string, string>> {
+    if (!entitlementKeyById) {
+        entitlementKeyById = (async () => {
+            const res = await fetch(`${RC_BASE}/projects/${projectId}/entitlements?limit=100`, {
+                headers: { Authorization: `Bearer ${apiKey}` },
+            });
+            if (!res.ok) {
+                throw new Error(`RevenueCat entitlements responded with ${res.status}`);
+            }
+            const body = await res.json() as { items?: { id: string; lookup_key: string }[] };
+            return new Map((body.items ?? []).map((e) => [e.id, e.lookup_key]));
+        })();
+        entitlementKeyById.catch(() => { entitlementKeyById = null; });
+    }
+    return entitlementKeyById;
+}
+
 export async function fetchRevenueCatSubscriber(userId: string): Promise<RevenueCatSubscriber | null> {
     const apiKey = process.env.REVENUECAT_SECRET_API_KEY;
-    if (!apiKey) {
-        console.warn('plan-generation/start: REVENUECAT_SECRET_API_KEY not set, skipping entitlement check');
+    const projectId = process.env.REVENUECAT_PROJECT_ID;
+    if (!apiKey || !projectId) {
+        console.warn('plan-generation/start: REVENUECAT_SECRET_API_KEY/REVENUECAT_PROJECT_ID not set, skipping entitlement check');
         return null;
     }
 
-    const res = await fetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(userId)}`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-    });
+    const res = await fetch(
+        `${RC_BASE}/projects/${projectId}/customers/${encodeURIComponent(userId)}/active_entitlements?limit=100`,
+        { headers: { Authorization: `Bearer ${apiKey}` } },
+    );
+    // Customer unknown to RevenueCat = never synced = no entitlement (matches the
+    // v1 behavior where an unknown subscriber came back with empty entitlements).
+    if (res.status === 404) {
+        return { entitlements: {} };
+    }
     if (!res.ok) {
         throw new Error(`RevenueCat responded with ${res.status}`);
     }
-    const body = await res.json() as { subscriber?: RevenueCatSubscriber };
-    if (!body.subscriber) {
-        throw new Error('RevenueCat response missing subscriber');
+    const body = await res.json() as { items?: { entitlement_id: string; expires_at?: number | null }[] };
+
+    const keyById = await loadEntitlementKeys(apiKey, projectId);
+    const entitlements: RevenueCatSubscriber['entitlements'] = {};
+    for (const item of body.items ?? []) {
+        const key = keyById.get(item.entitlement_id);
+        if (!key) continue;
+        entitlements[key] = {
+            expires_date: item.expires_at ? new Date(item.expires_at).toISOString() : null,
+        };
     }
-    return body.subscriber;
+    return { entitlements };
 }
