@@ -50,6 +50,13 @@ export function loadUnit(type: string | null): string {
     }
 }
 
+// Geloggt und angezeigt wird bei RPE-Vorgaben echtes Gewicht: RPE versteht
+// die Mehrheit der User nicht (43 % der RPE-Satz-Logs waren kg-Werte,
+// Support-Fall 04.11.) — RPE bleibt ein internes Generator-Konzept.
+export function performedLoadUnit(type: string | null): string {
+    return type === 'rpe' ? 'kg' : loadUnit(type);
+}
+
 // ── Rest formatting ─────────────────────────────────────────────────────
 
 export function formatRest(seconds: number | null): string | null {

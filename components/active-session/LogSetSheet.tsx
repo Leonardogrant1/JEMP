@@ -6,7 +6,7 @@ import { SideLoadSet } from '@/components/active-session/SideLoadSet';
 import { useLogSet } from '@/components/active-session/use-log-set';
 import { JempText } from '@/components/jemp-text';
 import { Colors, Cyan, Electric } from '@/constants/theme';
-import { loadUnit } from '@/helpers/format';
+import { performedLoadUnit } from '@/helpers/format';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useActiveSessionTransition } from '@/providers/active-session-transition-provider';
 import { useCurrentUser } from '@/providers/current-user-provider';
@@ -64,7 +64,17 @@ export function LogSetSheet() {
 
     // AMRAP: jeder Satz geht bis kurz vors Muskelversagen
     const isAmrapSet = current.is_amrap && !isDuration;
-    const showsKgLoad = loadUnit(current.target_load_type) === 'kg';
+    const showsKgLoad = performedLoadUnit(current.target_load_type) === 'kg';
+
+    // RPE-Vorgaben des Generators als verständliche Anstrengungs-Orientierung —
+    // das Wort RPE versteht die Mehrheit der User nicht (Support 04.11.).
+    const rpeTarget = current.target_load_type === 'rpe' && !isDuration
+        ? current.target_load_value
+        : null;
+    const effortHintKey = rpeTarget == null ? null
+        : rpeTarget >= 8 ? 'ui.effort_hint_high'
+        : rpeTarget >= 7 ? 'ui.effort_hint_medium'
+        : 'ui.effort_hint_low';
 
     const setInfoParts = [
         t('ui.set_of', { current: currentSet, total: totalSets }),
@@ -108,6 +118,10 @@ export function LogSetSheet() {
                     ) : suggestionHint ? (
                         <JempText type="caption" color={theme.textMuted} style={styles.hint}>
                             {t('ui.progression_hint' as any, { value: suggestionHint })}
+                        </JempText>
+                    ) : effortHintKey ? (
+                        <JempText type="caption" color={theme.textMuted} style={styles.hint}>
+                            {t(effortHintKey as any)}
                         </JempText>
                     ) : showsKgLoad ? (
                         <JempText type="caption" color={theme.textMuted} style={styles.hint}>

@@ -1,4 +1,4 @@
-import { loadUnit } from '@/helpers/format';
+import { performedLoadUnit } from '@/helpers/format';
 import { isProgressBlock } from '@/constants/blocks';
 import { supabase } from '@/services/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -136,7 +136,7 @@ async function fetchPlanExerciseProgress(planId: string): Promise<PlanProgress> 
             exerciseId,
             name,
             metric,
-            unit: metric === 'load' ? loadUnit(loadType) : metric === 'duration' ? 's' : '',
+            unit: metric === 'load' ? performedLoadUnit(loadType) : metric === 'duration' ? 's' : '',
             first,
             last,
             percent: first > 0 ? Math.round(((last - first) / first) * 100) : null,

@@ -2,7 +2,7 @@ import { JempText } from '@/components/jemp-text';
 import { isDurationMode, plannedSetCount } from '@/lib/prescription';
 import { Colors, GradientMid } from '@/constants/theme';
 import { formatTimer } from '@/helpers/active-session-helpers';
-import { formatTargetReps, loadUnit } from '@/helpers/format';
+import { formatTargetReps, performedLoadUnit } from '@/helpers/format';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useActiveSessionTransition } from '@/providers/active-session-transition-provider';
 import { type PendingSet, useActiveSessionStore } from '@/stores/active-session-store';
@@ -40,7 +40,7 @@ export function SetTable() {
     if (!current) return null;
 
     const totalSets = plannedSetCount(current);
-    const unit = loadUnit(current.target_load_type);
+    const unit = performedLoadUnit(current.target_load_type);
     const isDuration = isDurationMode(current.exercise.measurement_type, current);
     const isUnilateral = current.exercise.laterality === 'unilateral';
 

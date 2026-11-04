@@ -9,7 +9,7 @@ import { SessionHeader } from '@/components/active-session/SessionHeader';
 import { TimerAutoStopper } from '@/components/active-session/timer-auto-stopper';
 import { JempText } from '@/components/jemp-text';
 import { Colors } from '@/constants/theme';
-import { loadUnit } from '@/helpers/format';
+import { performedLoadUnit } from '@/helpers/format';
 import { calculateProgression } from '@/helpers/progression-suggestion';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ActiveSessionTransitionProvider, useActiveSessionTransition } from '@/providers/active-session-transition-provider';
@@ -137,7 +137,7 @@ function ActiveSessionContent({ id, session }: { id: string; session: SessionDet
 
     const current = allExercises[exerciseIdx] ?? null;
     const { data: prevSets } = usePreviousExerciseSetsQuery(current?.exercise.id, id);
-    const unit = current ? loadUnit(current.target_load_type) : '';
+    const unit = current ? performedLoadUnit(current.target_load_type) : '';
     const showLoad = unit !== '';
 
     // On exercise change: clear inputs + exercise timers

@@ -27,7 +27,8 @@ export function calculateProgression(
     const prevSet = getSetForNumber(previousSets, currentSetNumber);
     if (!prevSet) return null;
 
-    if (loadType === 'kg') {
+    // 'rpe' loggt seit 04.11. ebenfalls kg (s. performedLoadUnit)
+    if (loadType === 'kg' || loadType === 'rpe') {
         const prevLoad = prevSet.performed_load_value;
         const prevReps = prevSet.performed_reps;
         // Double Progression: Mehrgewicht erst vorschlagen, wenn dieser Satz

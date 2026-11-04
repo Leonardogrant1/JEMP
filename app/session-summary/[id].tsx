@@ -8,7 +8,7 @@ import { HERO_BLOCK_ORDER } from '@/constants/blocks';
 import { getSessionImage } from '@/constants/session-images';
 import { Colors, GradientMid } from '@/constants/theme';
 import { exerciseThumbnailUrl } from '@/helpers/exercise-storage';
-import { loadUnit } from '@/helpers/format';
+import { performedLoadUnit } from '@/helpers/format';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSessionSummaryQuery } from '@/queries/use-session-summary-query';
 import { useSessionThumbnailsQuery } from '@/queries/use-session-thumbnails-query';
@@ -231,7 +231,7 @@ export default function SessionSummaryScreen() {
                                 />
 
                                 {performed.map(ex => {
-                                    const unit = loadUnit(ex.target_load_type);
+                                    const unit = performedLoadUnit(ex.target_load_type);
                                     const thumbUrl = exerciseThumbnailUrl(ex.exercise.thumbnail_storage_path);
 
                                     return (
