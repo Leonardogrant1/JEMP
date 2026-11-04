@@ -107,11 +107,23 @@ export async function swapAlternativesHandler(req: Request, res: Response): Prom
     supabase.from('exercise_sport_groups').select('exercise_id, sport_group'),
     supabase.from('equipments').select('id, name_i18n'),
     // Session-Dedupe (QA 19.10.): bereits in dieser Session verplante Übungen
-    // sind keine Alternativen.
-    supabase
-      .from('workout_session_block_exercises')
-      .select('exercise_id, workout_session_blocks!inner(workout_session_id)')
-      .eq('workout_session_blocks.workout_session_id', session.id),
+    // sind keine Alternativen. Zweistufig statt Embedded-Join: PostgREST packt
+    // den Session-Filter sonst in ein korreliertes LATERAL-Subquery mit LIMIT,
+    // das den Planner zum Seq-Scan über alle wsbe-Zeilen zwingt (Prod Ø 4,4s,
+    // ab 8s Statement-Timeout; zweistufig <1ms, EXPLAIN 03.11.).
+    (async (): Promise<{ data: { exercise_id: string }[] | null; error: { message: string } | null }> => {
+      const blocksRes = await supabase
+        .from('workout_session_blocks')
+        .select('id')
+        .eq('workout_session_id', session.id)
+      if (blocksRes.error) return { data: null, error: blocksRes.error }
+      const blockIds = (blocksRes.data ?? []).map((b) => b.id)
+      if (blockIds.length === 0) return { data: [], error: null }
+      return supabase
+        .from('workout_session_block_exercises')
+        .select('exercise_id')
+        .in('workout_session_block_id', blockIds)
+    })(),
     futureCountQuery,
     // Verletzungs-Constraints (Task 7, analog prepare-v2.ts/prepare-plan-
     // generation.ts): Tags je Übung + aktive User-Constraints — Fehler hier

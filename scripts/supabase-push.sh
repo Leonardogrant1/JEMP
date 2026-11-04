@@ -30,4 +30,6 @@ echo "Linking to $ENV ($PROJECT_REF)..."
 supabase link --project-ref "$PROJECT_REF"
 
 echo "Pushing migrations to $ENV..."
-supabase db push "$@"
+# CLI v3: ohne --remote pusht `db push` an den LOKALEN Stack, nicht ans
+# verlinkte Projekt. --yes nötig, weil v3 in Agent-/Pipe-Läufen sonst abbricht.
+supabase db push --remote "$PROJECT_REF" --yes "$@"
