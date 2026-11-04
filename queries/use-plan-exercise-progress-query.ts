@@ -39,18 +39,30 @@ type SessionBest = {
  * exercise was performed in. Only exercises trained in ≥2 sessions count.
  */
 async function fetchPlanExerciseProgress(planId: string): Promise<PlanProgress> {
+    // Zweistufig statt Plan-Filter auf der Embedded-Tabelle: PostgREST legt
+    // den Filter sonst in ein korreliertes LATERAL-Subquery, das alle
+    // performed_sets scannt (Prod Ø 1,2s). Sessions des Plans sind indexiert.
+    const { data: sessions, error: sessionsError } = await supabase
+        .from('workout_sessions')
+        .select('id, scheduled_at')
+        .eq('workout_plan_id', planId);
+
+    if (sessionsError) throw sessionsError;
+    const scheduledAtBySession = new Map((sessions ?? []).map(s => [s.id, s.scheduled_at]));
+    if (scheduledAtBySession.size === 0) return { exercises: [], totalVolumeKg: 0 };
+
     const { data, error } = await supabase
         .from('workout_session_performed_sets')
         .select(`
             performed_reps, performed_load_value, performed_duration_seconds,
-            workout_sessions!inner ( id, workout_plan_id, scheduled_at ),
+            workout_session_id,
             workout_session_block_exercises!inner (
                 target_load_type,
                 exercise:exercises!workout_session_block_exercises_exercise_id_fkey ( id, name ),
                 workout_session_blocks!inner ( block_type:block_types ( slug ) )
             )
         `)
-        .eq('workout_sessions.workout_plan_id', planId);
+        .in('workout_session_id', [...scheduledAtBySession.keys()]);
 
     if (error) throw error;
 
@@ -66,10 +78,10 @@ async function fetchPlanExerciseProgress(planId: string): Promise<PlanProgress> 
     let totalVolumeKg = 0;
 
     for (const row of data ?? []) {
-        const session = row.workout_sessions;
+        const scheduledAt = scheduledAtBySession.get(row.workout_session_id);
         const exercise = row.workout_session_block_exercises?.exercise;
         const blockType = row.workout_session_block_exercises?.workout_session_blocks?.block_type?.slug;
-        if (!session?.scheduled_at || !exercise) continue;
+        if (!scheduledAt || !exercise) continue;
 
         if (
             row.workout_session_block_exercises.target_load_type === 'kg'
@@ -87,10 +99,10 @@ async function fetchPlanExerciseProgress(planId: string): Promise<PlanProgress> 
             byExercise.set(exercise.id, entry);
         }
 
-        let best = entry.sessions.get(session.id);
+        let best = entry.sessions.get(row.workout_session_id);
         if (!best) {
-            best = { date: session.scheduled_at, load: null, reps: null, duration: null };
-            entry.sessions.set(session.id, best);
+            best = { date: scheduledAt, load: null, reps: null, duration: null };
+            entry.sessions.set(row.workout_session_id, best);
         }
         if (row.performed_load_value !== null) best.load = Math.max(best.load ?? 0, row.performed_load_value);
         if (row.performed_reps !== null) best.reps = Math.max(best.reps ?? 0, row.performed_reps);
